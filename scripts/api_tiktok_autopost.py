@@ -28,6 +28,7 @@ from scripts.channel_scope import ChannelScope, ensure_same_channel, require_act
 from scripts.channel_route_policy import UNLISTED_ROUTE_POLICY
 from scripts.channel_workflows import get_workflow_scope, require_record_owner, require_project_owner
 from scripts.channel_store import ChannelError, normalize_handle
+from scripts.content_guard import content_reason
 from scripts.posting_jobs import INTENTS, PostingJobStore, PROTOCOL_VERSION, account_check
 
 from scripts.config import BASE_DIR, EXPORTS_DIR
@@ -373,6 +374,10 @@ def prepare(req: PrepareRequest, scope: ChannelScope = Depends(get_workflow_scop
     if req.queue_id and queue.get("cover_sha256") and cover_digest != queue["cover_sha256"]:
         raise ChannelError(409, "posting_queue_cover_changed", "Frozen queued cover changed before its posting snapshot")
     intent = _resolve_intent(req)
+    blocked = content_reason(req.caption, req.hashtags)
+    # an empty caption is allowed here (cover/media-only preparation); the worker refuses to type nothing
+    if blocked and blocked != "empty_caption":
+        raise ChannelError(422, "posting_content_blocked", f"เนื้อหาโพสต์ไม่ผ่านตัวกัน ({blocked}): ห้ามมีราคา/ส่วนลด, placeholder ที่ยังไม่แทนค่า, ข้อความว่าง หรือยาวเกิน")
     payload = {
         "video_path": str(video_abs),
         "export_id": export_record.get("id"),

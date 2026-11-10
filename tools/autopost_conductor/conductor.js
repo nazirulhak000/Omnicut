@@ -1,6 +1,6 @@
 'use strict';
 // One source of truth shared with the extension (price rule, Content-page row matching).
-const { PRICE_RE, PLACEHOLDER_RE, rowMatchesClip } = require('../../tiktok_autopost_extension/post_guard.js');
+const { PRICE_RE, PLACEHOLDER_RE, contentReason, rowMatchesClip } = require('../../tiktok_autopost_extension/post_guard.js');
 // Sequential, unattended TikTok posting. One clip at a time, per channel.
 // All TikTok DOM work is delegated to the verified extension worker through
 // `worker.send(action)`; this module owns ordering, safety stops and results.
@@ -44,8 +44,8 @@ function skipReason(clip, { now = Date.now(), allowPriceCaption = false, mode = 
     if (!Number.isFinite(slot) || slot - now < MIN_LEAD_MS) return 'slot_passed_or_too_close';
   }
   if (!clip.tiktok_product_id) return 'no_tiktok_product_id';
-  if (PLACEHOLDER_RE.test(`${clip.caption} ${clip.hashtags}`)) return 'placeholder_in_caption';
-  if (!allowPriceCaption && PRICE_RE.test(`${clip.caption} ${clip.hashtags}`)) return 'price_in_caption';
+  const content = contentReason(clip.caption, clip.hashtags, {allowPrice: allowPriceCaption});
+  if (content) return content;
   return '';
 }
 

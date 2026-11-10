@@ -997,7 +997,7 @@ test('stats sync accepts the real Studio posts page and stamps a visible build t
   // Build identity: chrome://extensions + the Tools tab both prove the fresh
   // code is running, so stale cached sidepanel.js (the ghost "จำกัดโดเมน"
   // banner that never existed in this repo) can be caught by the user's eyes.
-  assert.equal(manifest.version, '0.4.2');
+  assert.equal(manifest.version, '0.4.3');
   assert.match(sideHtml, /id="buildTag"/);
   assert.match(sideJs, /getManifest/);
   // The strict domain banner must never come back: resolution is a loose
@@ -1577,4 +1577,40 @@ test('leaving the upload page first disarms its beforeunload prompt, then naviga
   const started = Date.now();
   assert.equal(await Promise.race([hung.navigateAcceptingLeave(7, 'https://x.test/'), new Promise(r => setTimeout(() => r('HUNG'), 8000))]), false);
   assert.ok(Date.now() - started < 8000);
+});
+
+function identityPage(ctx, hrefs) {
+  ctx.document = {
+    querySelectorAll: () => hrefs.map(h => ({ getAttribute: () => h, textContent: h })),
+    getElementById: () => null,
+  };
+}
+
+test('R2 studioIdentityAtClick: nothing readable and nothing verified stops (the intended handle is never trusted)', () => {
+  const ctx = worker();
+  identityPage(ctx, []);
+  assert.throws(() => ctx.studioIdentityAtClick('@main', null), /source_account_required/);
+  assert.throws(() => ctx.studioIdentityAtClick(null, undefined), /source_account_required/);
+});
+
+test('R2 studioIdentityAtClick: falls back only to the handle verified through the avatar menu, and it must equal the target', () => {
+  const ctx = worker();
+  identityPage(ctx, []);
+  assert.equal(ctx.studioIdentityAtClick('@main', '@main'), '@main');
+  assert.throws(() => ctx.studioIdentityAtClick('@main', '@other'), /account_handle_mismatch/);
+  identityPage(ctx, ['/@main']);
+  assert.equal(ctx.studioIdentityAtClick('@main', '@main'), '@main');
+  assert.throws(() => ctx.studioIdentityAtClick('@main', '@other'), /account_handle_mismatch/);   // page and verified disagree
+  identityPage(ctx, ['/@other']);
+  assert.throws(() => ctx.studioIdentityAtClick('@main', '@main'), /account_handle_mismatch/);
+  identityPage(ctx, ['/@main', '/@other']);
+  assert.throws(() => ctx.studioIdentityAtClick('@main', '@main'), /source_account_required/);        // two accounts visible
+});
+
+test('R2 typeCaption never types price text, placeholders or oversize text', async () => {
+  const ctx = worker();
+  const send = async () => { throw new Error('must not reach the page'); };
+  await assert.rejects(() => ctx.typeCaption(send, 'ราคา 199 บาท', '#a'), /content_blocked.*price_in_caption/);
+  await assert.rejects(() => ctx.typeCaption(send, '{product_name}', ''), /content_blocked.*placeholder_in_caption/);
+  await assert.rejects(() => ctx.typeCaption(send, 'ก'.repeat(4001), ''), /content_blocked.*caption_too_long/);
 });

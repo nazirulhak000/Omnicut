@@ -1260,6 +1260,10 @@ async function typeCaption(send, captionOrText, hashtags = '') {
 
   if (!cleanCaption && !cleanTags) throw new Error('กรุณากรอกคำอธิบายหรือแฮชแท็ก');
 
+  // the last line of defence: whatever path got here, price text / unfilled placeholders / oversize text are never typed
+  const blocked = globalThis.OmniPostGuard?.contentReason(cleanCaption, cleanTags);
+  if (blocked) throw new Error('content_blocked: เนื้อหาโพสต์ไม่ผ่านตัวกัน (' + blocked + ')');
+
   const captionQuery = OmniAutomation.page(`
 
     const editors = Array.from(document.querySelectorAll('[contenteditable="true"]')).filter(el =>
@@ -3942,7 +3946,7 @@ async function waitForPostConfirmation(send, tabId, timeoutMs = 20_000, confirma
 
 // right before this and let the user press Post themselves.
 
-function studioIdentityAtClick(targetHandle) {
+function studioIdentityAtClick(targetHandle, verifiedHandle) {
 
   const normalize = raw => {
 
@@ -4008,11 +4012,13 @@ function studioIdentityAtClick(targetHandle) {
 
   if (clean.length > 1) throw new Error('source_account_required: พบหลายบัญชี หยุดก่อนกดโพสต์');
 
-  const current = clean[0] || target;
-
-  if (!current) throw new Error('source_account_required: อ่านบัญชี TikTok ไม่ได้แน่ชัด หยุดก่อนกดโพสต์');
-
-  if (target && current !== target) throw new Error(`account_handle_mismatch: บัญชีเปลี่ยนเป็น ${current} ก่อนกดโพสต์ จึงหยุด`);
+  // Nothing readable in the page header is not a pass: the only fallback is the handle the extension read through the
+  // avatar menu moments ago in this same tab (verifiedHandle). Neither -> stop; the intended handle is never trusted.
+  const verified = normalize(verifiedHandle);
+  const current = clean[0] || verified;
+  if (!current) throw new Error('source_account_required: อ่านบัญชี TikTok ไม่ได้ตอนกดโพสต์ จึงหยุดก่อนโพสต์');
+  if (verified && clean[0] && clean[0] !== verified) throw new Error(`account_handle_mismatch: บัญชีที่เห็น ${clean[0]} ไม่ตรงกับที่ตรวจไว้ ${verified} จึงหยุด`);
+  if (target && current !== target) throw new Error(`account_handle_mismatch: บัญชีเปลี่ยนเป็น ${current} ก่อนโพสต์ จึงหยุด`);
 
   return current;
 
@@ -4084,13 +4090,13 @@ async function clickPostButton(send, tabId, beforeClick = async () => {}, job = 
 
   }
 
-  await beforeClick();
+  const verifiedHandle = await beforeClick();
 
   const response = await send('Runtime.evaluate', {
 
     expression: `(() => {
 
-      ${job ? `(${studioIdentityAtClick.toString()})(${JSON.stringify(job.target_handle)});
+      ${job ? `(${studioIdentityAtClick.toString()})(${JSON.stringify(job.target_handle)}, ${JSON.stringify(verifiedHandle || null)});
 
       if (${Number(job.lease_expires_at) || 0} * 1000 <= Date.now()) throw new Error('posting_lease_expired: สิทธิ์หมดอายุก่อนกดโพสต์');
 
@@ -4636,6 +4642,8 @@ async function runClickPostOnly() {
 
       attempted = true;
 
+      return sourceAccount;
+
     }, job);
 
   } catch (err) {
@@ -4812,7 +4820,7 @@ async function runSaveDraftOnly() {
     attempted = true;
     const clicked = await send('Runtime.evaluate', {
       expression: `(() => {
-        (${studioIdentityAtClick.toString()})(${JSON.stringify(job.target_handle)});
+        (${studioIdentityAtClick.toString()})(${JSON.stringify(job.target_handle)}, ${JSON.stringify(sourceAccount || null)});
         if (${Number(job.lease_expires_at) || 0} * 1000 <= Date.now()) throw new Error('posting_lease_expired: สิทธิ์หมดอายุก่อนกดบันทึกแบบร่าง');
         const isNav = (el) => Boolean(el.closest('aside, nav, header, [class*="sidebar"], [class*="menu"], [class*="nav"], [class*="aside"]'));
         const btn = document.querySelector('button[data-e2e="save_draft_button"]:not([disabled])');

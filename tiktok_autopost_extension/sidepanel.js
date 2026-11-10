@@ -742,6 +742,9 @@ const BLOCK_REASON_TH = {
   export_qc_rejected: 'QC ไม่ผ่าน',
   price_in_caption: 'caption มีราคา/ส่วนลด',
   placeholder_in_caption: 'caption มี {…} ที่ยังไม่แทนค่า',
+  empty_caption: 'ไม่มี caption/แฮชแท็ก',
+  caption_too_long: 'caption ยาวเกิน 4000 ตัวอักษร',
+  too_many_hashtags: 'แฮชแท็กเกิน 30 อัน',
   slot_passed_or_too_close: 'เวลาโพสต์ผ่านแล้วหรือใกล้เกินไป',
   no_schedule: 'ไม่มีเวลาโพสต์ (ในโหมดตั้งเวลาจะกลายเป็นโพสต์สด)',
 };

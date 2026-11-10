@@ -7,9 +7,52 @@
   else root.OmniPostGuard = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   // Channel rule: never publish price / discount text (breaks TikTok rules).
-  const PRICE_RE = /฿|\bTHB\b|\d[\d,]*\s*บาท|ราคา|ลดราคา|ส่วนลด|ลด\s*\d+\s*%|\d+\s*%\s*off|\$\s*\d/i;
+  // Twin of scripts/content_guard.py (same cases in tests/fixtures/content_guard_cases.json, tested on both sides).
+  // ฟรี / โปร / ถูก on their own are NOT price text; a number with a currency, a percentage, a discount word or ราคา is.
+  const PRICE_RE_STRICT = new RegExp(
+    '฿|[$€£¥]\\s*\\d|\\d\\s*[$€£¥]'
+    + '|\\b(?:thb|usd|baht)\\b'
+    + '|\\d[\\d,.]*\\s*(?:บาท|บ\\.|baht|฿|k\\s*บาท)'
+    + '|\\d+\\.-'
+    + '|ราคา|ลดราคา|ส่วนลด|ร้อยละ'
+    + '|ลด\\s*\\d+\\s*(?:%|บาท|฿|\\.-)|ลดเหลือ|ลด\\s*\\d+\\s*เหลือ'
+    + '|\\d+\\s*%'
+    + '|\\d+\\s*%?\\s*off\\b|\\boff\\s*\\d'
+    + '|(?:เหลือ|เพียง|เริ่มต้น|เริ่มที่|แค่)\\s*\\d+\\s*(?:บาท|฿|\\.-)?(?=\\s|$|[^\\d%a-z])', 'i');
   // A template placeholder that was never filled in, e.g. {product_name}.
-  const PLACEHOLDER_RE = /\{[a-z][a-z0-9_]*\}/i;
+  const PLACEHOLDER_RE_STRICT = new RegExp(
+    '\\{[a-z][a-z0-9_]*\\}|\\{\\{[^}]*\\}\\}|\\$\\{[^}]*\\}|\\[[a-z]+_[a-z_]+\\]|<[a-z]+_[a-z_]+>|%[sd]\\b'
+    + '|\\b(?:undefined|null|nan)\\b|\\btodo\\b|\\blorem ipsum\\b', 'i');
+  const MAX_TEXT_CHARS = 4000;
+  const MAX_HASHTAGS = 30;
+  const INVISIBLE_RE = new RegExp('[\\u00ad\\u200b-\\u200f\\u202a-\\u202e\\u2060-\\u2064\\ufeff]', 'g');
+  const DIGIT_BLOCKS = [0x0E50, 0x0660, 0x06F0];   // Thai, Arabic-Indic, Extended Arabic-Indic zero
+
+  // NFKC, no zero-width/format characters, Thai/Arabic digits -> ASCII, single spaces, lower case.
+  function normalizeText(text) {
+    let value = String(text == null ? '' : text);
+    if (value.normalize) value = value.normalize('NFKC');
+    value = value.replace(INVISIBLE_RE, '').replace(/٪/g, '%').replace(/[٠-٩۰-۹๐-๙]/g, ch => {
+      const code = ch.charCodeAt(0);
+      for (const zero of DIGIT_BLOCKS) if (code >= zero && code < zero + 10) return String(code - zero);
+      return ch;
+    });
+    return value.replace(/\s+/g, ' ').trim().toLowerCase();
+  }
+
+  // '' = fine, else why this caption/hashtag text may not be typed or posted (twin: content_guard.content_reason).
+  function contentReason(caption, hashtags, options = {}) {
+    const raw = `${caption || ''}\n\n${hashtags || ''}`;
+    const text = normalizeText(raw);
+    if (!text) return 'empty_caption';
+    if (PLACEHOLDER_RE_STRICT.test(text)) return 'placeholder_in_caption';
+    if (!options.allowPrice && PRICE_RE_STRICT.test(text)) return 'price_in_caption';
+    if (raw.length > MAX_TEXT_CHARS) return 'caption_too_long';
+    if ((raw.match(/#[^\s#]+/g) || []).length > MAX_HASHTAGS) return 'too_many_hashtags';
+    return '';
+  }
+  const PRICE_RE = PRICE_RE_STRICT;
+  const PLACEHOLDER_RE = PLACEHOLDER_RE_STRICT;
   const MIN_LEAD_MS = 15 * 60 * 1000;
 
   const alnum = text => String(text || '').toLowerCase().replace(/[^a-z0-9ก-๙]/g, '');
@@ -54,8 +97,8 @@
       if (exportRecord.is_qc_rejected) return 'export_qc_rejected';
     }
     const { caption, hashtags } = clipCaptionText(clip);
-    if (PLACEHOLDER_RE.test(`${caption} ${hashtags}`)) return 'placeholder_in_caption';
-    if (!allowPriceCaption && PRICE_RE.test(`${caption} ${hashtags}`)) return 'price_in_caption';
+    const content = contentReason(caption, hashtags, {allowPrice: allowPriceCaption});
+    if (content) return content;
     // a clip without a publish time in a scheduled run would be posted LIVE (the worker skips the schedule step)
     if (requireSchedule && !(clip.schedule_date && clip.schedule_time)) return 'no_schedule';
     if (!ignoreSlot && clip.schedule_date && clip.schedule_time) {
@@ -65,5 +108,5 @@
     return '';
   }
 
-  return { PRICE_RE, PLACEHOLDER_RE, MIN_LEAD_MS, rowMatchesClip, clipCaptionText, clipSkipReason };
+  return { PRICE_RE, PLACEHOLDER_RE, MAX_TEXT_CHARS, MAX_HASHTAGS, normalizeText, contentReason, MIN_LEAD_MS, rowMatchesClip, clipCaptionText, clipSkipReason };
 });

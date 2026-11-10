@@ -150,6 +150,21 @@ def origin_matches_host(origin: str, host: str) -> bool:
     return h_port == o_port
 
 
+# Posting routes control a real TikTok account. A web page open in the owner's browser can reach 127.0.0.1 through DNS
+# rebinding (its own hostname resolves to loopback), so a request that comes from the local machine must also carry a
+# loopback Host. Extra names (a local hostname) come from OMNICUT_ALLOWED_HOSTS (comma separated).
+POSTING_GUARDED_PREFIX = "/api/tiktok-autopost"
+_LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1", "testserver"}
+
+
+def host_allowed(host_header: str) -> bool:
+    name, _ = _host_port(host_header or "")
+    if not name:
+        return False
+    extra = {h.strip().lower() for h in os.getenv("OMNICUT_ALLOWED_HOSTS", "").split(",") if h.strip()}
+    return name.lower() in (_LOOPBACK_HOSTS | extra)
+
+
 # ----------------------------------------------------------------------------
 # Decision
 # ----------------------------------------------------------------------------
@@ -187,6 +202,10 @@ def evaluate_access(
         return Decision(allow=True, method="exempt")
     if not is_ws and is_exempt_path(path):
         return Decision(allow=True, method="exempt")
+    if (not is_ws and path.startswith(POSTING_GUARDED_PREFIX)
+            and auth.classify_request(client_host, headers) == "local"
+            and not host_allowed(headers.get("host", ""))):
+        return _deny(403, "host not allowed")
     if auth.is_auth_disabled():
         return Decision(allow=True, method="local")
 

@@ -1,5 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const guard = require('./post_guard.js');
 const { PRICE_RE, rowMatchesClip, clipSkipReason, clipCaptionText } = require('./post_guard.js');
 
 const NOW = new Date('2026-11-09T12:00:00').getTime();
@@ -83,4 +84,16 @@ test('R1: rowMatchesClip needs the day next to a month name; views/likes equal t
   assert.equal(rowMatchesClip(row('Nov 12, 6:00 PM', '0', '10', '0'), clip).ok, false);
   assert.equal(rowMatchesClip(row('Nov 10, 9:00 AM'), clip).ok, false);   // right day, wrong time
   assert.equal(rowMatchesClip(row('Nov 100, 6:00 PM'), clip).ok, false);  // 100 is not 10
+});
+
+test('contentReason matches the shared cases used by the Python guard (parity)', () => {
+  const cases = JSON.parse(require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'tests', 'fixtures', 'content_guard_cases.json'), 'utf8'));
+  const wrong = cases.filter(c => guard.contentReason(c.caption, c.hashtags) !== c.reason).map(c => `${JSON.stringify(c.caption.slice(0, 20))} want ${c.reason || 'ok'} got ${guard.contentReason(c.caption, c.hashtags) || 'ok'}`);
+  assert.deepEqual(wrong, []);
+});
+
+test('clipSkipReason uses the shared content rules and allowPriceCaption lifts only the price rule', () => {
+  assert.equal(guard.clipSkipReason({caption: 'ร​าคา ๑๙๙ บาท'}, undefined, Date.now(), {exportsKnown: false}), 'price_in_caption');
+  assert.equal(guard.clipSkipReason({caption: 'ราคา ๑๙๙ บาท'}, undefined, Date.now(), {exportsKnown: false, allowPriceCaption: true}), '');
+  assert.equal(guard.clipSkipReason({caption: 'ก'.repeat(4001)}, undefined, Date.now(), {exportsKnown: false}), 'caption_too_long');
 });
