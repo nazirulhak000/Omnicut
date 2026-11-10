@@ -2908,7 +2908,7 @@ def test_multiline_reveal_is_mirrored_on_both_sides():
     # And both drive the per-line slice off the whole track, so a word lighting
     # up on line two leaves line one white instead of re-ghosting it.
     assert "build_multiline_reveal_events(" in PY_SRC
-    assert "ghostRevealSegments(revealTrack, t, revealLines[idx])" in JS_SRC
+    assert "ghostRevealSegments(revealTrack, t, revealLines[idx]" in JS_SRC
 
 
 def test_multiline_reveal_lines_step_by_one_font_size():
@@ -3037,9 +3037,18 @@ def test_both_caption_toggles_are_in_the_inspector():
     picker = (
         ROOT / "frontend" / "src" / "components" / "editor" / "inspector" / "CaptionInspector.jsx"
     ).read_text(encoding="utf-8")
-    assert "ghostReveal: !style.ghostReveal" in picker
+    # The reveal mode is an explicit two-way choice (word by word / whole line),
+    # not a blind flip: each option sets ghostReveal to its own value.
+    assert 'role="radiogroup"' in picker and 'role="radio"' in picker
+    assert "ghostReveal: mode.on" in picker
+    assert "{ id: 'word', label: 'ทีละคำ', on: true }" in picker
+    assert "{ id: 'sentence', label: 'ทั้งประโยค', on: false }" in picker
     assert "bilingualSubtitles: style.bilingualSubtitles === false" in picker
-    # Both go through the shared switch, which carries the role and the label.
+    # The hook-colour sync only means something under a word-by-word reveal.
+    assert "revealColorSync: style.revealColorSync === false" in picker
+    assert "style.ghostReveal && (" in picker
+    # The two on/off switches (hook colour, English line) share one component,
+    # which carries the role and the label.
     assert picker.count("<CaptionToggle") == 2
     assert 'role="switch"' in picker
     assert picker.count("ariaLabel=") == 2

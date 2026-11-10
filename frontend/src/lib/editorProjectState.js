@@ -204,6 +204,9 @@ export function manifestToEditorState(data, options = {}) {
     // word_reveal track the ASS writer uses, verified to land within the
     // outline's width of each other, so preview and export agree.
     ghostReveal: firstPresent(manifest.ghost_reveal, params.ghost_reveal, savedStyle.ghost_reveal, savedStyle.ghostReveal, true),
+    // The word being spoken takes the hook's accent colour (on by default) so the
+    // captions share the hook's tone; off keeps the SOP neon green.
+    revealColorSync: firstPresent(manifest.reveal_color_sync, params.reveal_color_sync, savedStyle.reveal_color_sync, savedStyle.revealColorSync, true),
   };
 
   const hasStoredMix = manifest.track_mix != null || params.track_mix != null;
@@ -399,6 +402,8 @@ export function serializeStyle(style = {}) {
     showWatermark: style.showWatermark !== false,
     ghost_reveal: !!style.ghostReveal,
     ghostReveal: !!style.ghostReveal,
+    reveal_color_sync: style.revealColorSync !== false,
+    revealColorSync: style.revealColorSync !== false,
     // Read back on load since the beginning, but never written -- so turning
     // the English line off held only until the project was reopened.
     bilingual_subtitles: style.bilingualSubtitles !== false,

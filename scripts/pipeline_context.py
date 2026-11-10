@@ -468,6 +468,7 @@ def _stage_payload_from_manifest(
                 "font_name": _manifest_value(manifest, "font_name"),
                 "bilingual_subtitles": _manifest_value(manifest, "bilingual_subtitles"),
                 "ghost_reveal": _manifest_value(manifest, "ghost_reveal", True),
+                "reveal_color_sync": _manifest_value(manifest, "reveal_color_sync", True),
                 "show_watermark": _manifest_value(manifest, "show_watermark", True),
                 "style_preset": _manifest_value(manifest, "style_preset"),
                 "hook_brand": _manifest_value(manifest, "hook_brand"),
@@ -627,6 +628,9 @@ class PipelineContext:
     # Progressive Ghost Reveal captions (SOP Phase 3) -- on by default, and
     # switchable per project from the caption inspector.
     ghost_reveal: bool = True
+    # The word being spoken takes the hook's accent colour (reveal_color.py).
+    # Off keeps the SOP neon green.
+    reveal_color_sync: bool = True
     show_watermark: Optional[bool] = None
     use_ai_vision: bool = True
     sticker_path: Optional[str] = None
@@ -958,7 +962,7 @@ class PipelineContext:
             "voice_engine_type", "voice_preset", "ad_tone", "style_preset",
             "human_voice_audio_path", "hook_brand", "hook_model", "hook_label",
             "hook_duration", "hook_motion", "hook_colors", "hook_style",
-            "font_name", "bilingual_subtitles", "ghost_reveal", "show_watermark", "sticker_path", "bgm_name",
+            "font_name", "bilingual_subtitles", "ghost_reveal", "reveal_color_sync", "show_watermark", "sticker_path", "bgm_name",
             "bgm_volume", "bgm_ducking", "audio_mutes", "lut_name",
             "lut_intensity", "product_id", "angle_id", "caption_position",
             "caption_color", "caption_scale", "sticker_position", "sticker_scale",

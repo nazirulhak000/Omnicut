@@ -1126,6 +1126,18 @@
       "module": "scripts.api_covers"
     },
     {
+      "method": "GET",
+      "path": "/api/covers/recommended-frame",
+      "scope": "channel",
+      "allow_query_scope": false,
+      "access": "read",
+      "risk": "major",
+      "resource_params": [
+        "video_path"
+      ],
+      "module": "scripts.api_covers"
+    },
+    {
       "method": "POST",
       "path": "/api/covers/render-pro",
       "scope": "channel",

@@ -15,7 +15,7 @@ import {
 import {
   openFolder, deleteFile, getProducts, linkExportToAngle,
   revealFile, generateCover, markPosted, prepareTiktokAutopost, getExportMediaInfo,
-  enhanceExportForTiktok,
+  enhanceExportForTiktok, getRecommendedCoverFrame,
 } from '../api';
 import { Modal, Toast, Button, Badge, ConfirmModal, SafeQRCode } from './ui';
 import { useDebounce, useToast } from '../hooks';
@@ -595,6 +595,7 @@ function ExportActiveWorkbench({
   onRefresh
 }) {
   const videoRef = useRef(null);
+  const scrubbedRef = useRef(false);
   const [videoDuration, setVideoDuration] = useState(null);
   const [showFullScript, setShowFullScript] = useState(false);
   const [copiedPath, setCopiedPath] = useState(false);
@@ -651,6 +652,22 @@ function ExportActiveWorkbench({
     setAtSeconds(1.0);
     setCoverResult(null);
     setShowTierInputs(false);
+    // Default the cover moment to the recommended frame (hook nameplate on
+    // screen, product sharp) -- unless the user has already moved the slider
+    // by the time the answer arrives.
+    scrubbedRef.current = false;
+    const path = video?.rel_path || video?.path;
+    if (!path) return undefined;
+    let cancelled = false;
+    getRecommendedCoverFrame(path)
+      .then((res) => {
+        if (!cancelled && !scrubbedRef.current && typeof res?.timestamp === 'number') {
+          setAtSeconds(res.timestamp);
+          if (videoRef.current) videoRef.current.currentTime = res.timestamp;
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
   }, [video?.rel_path || video?.path]);
 
   useEffect(() => {
@@ -685,6 +702,7 @@ function ExportActiveWorkbench({
 
   const handleScrub = (e) => {
     const v = parseFloat(e.target.value);
+    scrubbedRef.current = true;
     setAtSeconds(v);
     if (videoRef.current) videoRef.current.currentTime = v;
   };

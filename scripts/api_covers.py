@@ -247,6 +247,61 @@ def probe_video_duration(video_path: Path) -> float:
     return 10.0
 
 
+_RECOMMENDED_CACHE: Dict[Tuple[str, int, int], Optional[float]] = {}
+
+
+def recommended_cover_timestamp(video_path: Path) -> Optional[float]:
+    """
+    The default cover moment for an exported clip: the sharpest frame inside the
+    window in which its hook nameplate is on screen (scripts/cover_frame_picker.py).
+
+    The window comes from the project that exported the clip, matched on its
+    recorded mp4. Cached per file and modification time, since one cover session
+    asks several times. None when the video cannot be analysed, so callers keep
+    their old fixed default.
+    """
+    try:
+        stat = video_path.stat()
+    except OSError:
+        return None
+    key = (str(video_path), stat.st_mtime_ns, stat.st_size)
+    if key in _RECOMMENDED_CACHE:
+        return _RECOMMENDED_CACHE[key]
+    result: Optional[float] = None
+    try:
+        from scripts.cover_frame_picker import find_project_overlays, pick_cover_timestamp
+
+        overlays, total = find_project_overlays(video_path, PROJECTS_DIR)
+        picked = pick_cover_timestamp(video_path, overlays, total)
+        result = float(picked["timestamp"])
+    except Exception as exc:  # a cover default must never take the studio down
+        print(f"[Covers] recommended frame unavailable for {video_path.name}: {exc}")
+    _RECOMMENDED_CACHE[key] = result
+    return result
+
+
+def resolve_cover_seconds(
+    video_path_str: Optional[str], requested: Optional[float], raw_video_path_str: Optional[str] = None,
+) -> float:
+    """
+    `requested` when the caller chose a moment; otherwise the recommended one.
+
+    A clean raw frame (`raw_video_path_str`) is on the raw footage's own
+    timeline, where the export's nameplate window means nothing, so it keeps the
+    old 1.0 s default.
+    """
+    if requested is not None:
+        return float(requested)
+    if video_path_str and not raw_video_path_str:
+        try:
+            picked = recommended_cover_timestamp(_resolve_media(video_path_str))
+        except Exception:
+            picked = None
+        if picked is not None:
+            return picked
+    return 1.0
+
+
 def extract_highlight_candidates(video_path: Path) -> Dict[str, Any]:
     """
     Extracts 4-5 key candidate frames across the video to suggest highlight shots.
@@ -256,8 +311,13 @@ def extract_highlight_candidates(video_path: Path) -> Dict[str, Any]:
     cache_dir = COVERS_DIR / ".cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
 
-    # 5 strategic highlight points
-    points = [
+    # 5 strategic highlight points, led by the recommended cover: the sharpest
+    # frame in which the hook nameplate (brand / model / label) is on screen.
+    points = []
+    recommended = recommended_cover_timestamp(video_path)
+    if recommended is not None:
+        points.append({"ts": recommended, "label": "ปกแนะนำ (Hook + สินค้า)", "recommended": True})
+    points += [
         {"ts": 0.5, "label": "ต้นคลิป (Hook ช็อตแรก)"},
         {"ts": round(min(1.8, dur * 0.20), 2), "label": "เปิดตัวสินค้า"},
         {"ts": round(min(3.5, dur * 0.40), 2), "label": "จุดเด่นสินค้า"},
@@ -266,20 +326,23 @@ def extract_highlight_candidates(video_path: Path) -> Dict[str, Any]:
     ]
     # Filter points to be strictly within duration and unique
     unique_points = []
-    seen_ts = set()
+    seen_ts: List[float] = []
     for p in points:
         ts = min(dur - 0.1, max(0.1, p["ts"]))
-        ts = round(ts, 1)
-        if ts not in seen_ts:
-            seen_ts.add(ts)
-            unique_points.append({"ts": ts, "label": p["label"]})
+        # The recommended frame keeps its exact time (it was scored there); the
+        # fixed points keep their one-decimal spots. A fixed point within 0.3 s
+        # of one already taken is the same shot and is dropped.
+        ts = round(ts, 3) if p.get("recommended") else round(ts, 1)
+        if all(abs(ts - seen) >= 0.3 for seen in seen_ts):
+            seen_ts.append(ts)
+            unique_points.append({"ts": ts, "label": p["label"], "recommended": bool(p.get("recommended"))})
 
     candidates = []
     # Full HD 1080x1920 preview frames with -q:v 2 so preview is razor sharp even when zoomed 1.5x - 2.5x
     frame_w, frame_h = COVER_W, COVER_H
     for idx, pt in enumerate(unique_points):
         ts = pt["ts"]
-        cand_name = f"{video_path.stem}_hd_{idx}_{int(ts*10):04d}.jpg"
+        cand_name = f"{video_path.stem}_hd_{idx}_{int(round(ts*1000)):06d}.jpg"
         cand_path = cache_dir / cand_name
         if not cand_path.exists():
             cmd = [
@@ -304,6 +367,7 @@ def extract_highlight_candidates(video_path: Path) -> Dict[str, Any]:
                 "timestamp": ts,
                 "label": pt["label"],
                 "thumb_url": media_url,
+                "recommended": pt["recommended"],
             })
 
     return {
@@ -1078,7 +1142,8 @@ router = APIRouter(prefix="/api/covers", tags=["covers"])
 
 class GenerateCoverRequest(BaseModel):
     video_path: str
-    at_seconds: float = 1.0
+    # None = the recommended frame (hook nameplate on screen, product sharp).
+    at_seconds: Optional[float] = None
     brand: str = ""
     model: str = ""
     label: str = ""
@@ -1108,7 +1173,8 @@ class GenerateHooksRequest(BaseModel):
 class RenderProCoverRequest(BaseModel):
     video_path: Optional[str] = None
     export_id: Optional[str] = None
-    at_seconds: float = 1.0
+    # None = the recommended frame of video_path (see recommended_cover_timestamp).
+    at_seconds: Optional[float] = None
     custom_image_path: Optional[str] = None
     custom_image_data: Optional[str] = None
     raw_video_path: Optional[str] = None
@@ -1142,6 +1208,18 @@ def get_highlights_endpoint(req: HighlightsRequest, channel_scope=Depends(get_wo
     require_media_owner(channel_scope, v_path, base_dir=BASE_DIR)
     res = extract_highlight_candidates(v_path)
     return res
+
+
+@router.get("/recommended-frame")
+def get_recommended_frame_endpoint(video_path: str, channel_scope=Depends(get_workflow_scope)):
+    """The default cover moment: hook nameplate on screen, product sharp. `timestamp` is null when unknown.
+
+    A GET on purpose: it only reads, and opening the gallery must never issue a
+    write (tests/motion_capture/test_channel_gallery_browser.py enforces that).
+    """
+    v_path = _resolve_media(video_path)
+    require_media_owner(channel_scope, v_path, base_dir=BASE_DIR)
+    return {"timestamp": recommended_cover_timestamp(v_path)}
 
 
 @router.post("/raw-sources")
@@ -1217,7 +1295,8 @@ def render_pro_cover_endpoint(req: RenderProCoverRequest, channel_scope=Depends(
             require_media_owner(channel_scope, source, base_dir=BASE_DIR)
 
     primary_path, path_3x4 = render_pro_cover(
-        video_path_str=req.video_path, at_seconds=req.at_seconds,
+        video_path_str=req.video_path,
+        at_seconds=resolve_cover_seconds(req.video_path, req.at_seconds, req.raw_video_path),
         custom_image_str=req.custom_image_path, custom_image_data_str=req.custom_image_data,
         raw_video_path_str=req.raw_video_path,
         pan_y_pct=req.pan_y_pct, pan_x_pct=req.pan_x_pct, zoom_scale=req.zoom_scale,
@@ -1256,8 +1335,18 @@ def render_pro_cover_endpoint(req: RenderProCoverRequest, channel_scope=Depends(
 @router.post("/generate")
 def generate_cover_endpoint(req: GenerateCoverRequest, channel_scope=Depends(get_writable_workflow_scope)):
     require_media_owner(channel_scope, req.video_path, base_dir=BASE_DIR)
+    at_seconds = resolve_cover_seconds(req.video_path, req.at_seconds)
+    brand, model, label = req.brand, req.model, req.label
+    # The exported mp4 has its nameplate burned in. A frame taken while it is up
+    # already shows brand / model / label, so stamping them again would print
+    # each twice -- skip the stamp for such a frame.
+    from scripts.cover_frame_picker import find_project_overlays, frame_has_nameplate
+    overlays, _ = find_project_overlays(_resolve_media(req.video_path), PROJECTS_DIR)
+    if frame_has_nameplate(overlays, at_seconds):
+        brand = model = label = ""
     out_path = generate_cover(
-        req.video_path, req.at_seconds, req.brand, req.model, req.label, req.template,
+        req.video_path, at_seconds,
+        brand, model, label, req.template,
         output_dir=COVERS_DIR / channel_scope.channel_id / uuid.uuid4().hex,
     )
     rel = out_path.relative_to(BASE_DIR)

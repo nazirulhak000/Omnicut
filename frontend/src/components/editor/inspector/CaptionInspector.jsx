@@ -312,13 +312,44 @@ export default function CaptionInspector({
           </select>
         </div>
 
-        {/* Progressive Ghost Reveal -- SOP Phase 3 */}
-        <CaptionToggle
-          label="เด้งสีทีละคำ"
-          ariaLabel="เด้งสีคำบรรยายทีละคำตามเสียงพูด"
-          checked={!!style.ghostReveal}
-          onToggle={() => onStyleChange?.({ ghostReveal: !style.ghostReveal })}
-        />
+        {/* Reveal mode: word by word (Progressive Ghost Reveal, SOP Phase 3) or the
+            whole line at once (the keyword-highlight caption). */}
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs text-slate-400 font-medium">จังหวะซับ:</span>
+          <div role="radiogroup" aria-label="จังหวะการขึ้นของซับ" className="flex rounded-xl bg-black/60 border border-white/[0.1] p-0.5">
+            {[
+              { id: 'word', label: 'ทีละคำ', on: true },
+              { id: 'sentence', label: 'ทั้งประโยค', on: false },
+            ].map((mode) => {
+              const active = !!style.ghostReveal === mode.on;
+              return (
+                <button
+                  key={mode.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => { if (!active) onStyleChange?.({ ghostReveal: mode.on }); }}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[#25F4EE] ${
+                    active ? 'bg-[#25F4EE] text-black' : 'text-slate-300 hover:text-white'
+                  }`}
+                >
+                  {mode.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* The word being spoken takes the hook's accent colour; only meaningful
+            when words are revealed one at a time. */}
+        {style.ghostReveal && (
+          <CaptionToggle
+            label="สีซับตาม Hook"
+            ariaLabel="ให้คำที่กำลังพูดใช้สีเดียวกับ Hook ต้นคลิป"
+            checked={style.revealColorSync !== false}
+            onToggle={() => onStyleChange?.({ revealColorSync: style.revealColorSync === false })}
+          />
+        )}
 
         {/* Stacked English subtitle */}
         <CaptionToggle
