@@ -93,6 +93,7 @@ from scripts.subtitle.ghost_reveal_ass import (
     build_ghost_reveal_events,
     build_multiline_reveal_events,
 )
+from scripts.subtitle.reveal_color import recolour_highlights
 from scripts.subtitle.word_reveal import (
     build_word_reveal,
     reveal_is_usable,
@@ -1315,9 +1316,17 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 # whichever tag its last unspoken word set, and without the
                 # reset the whole translation inherited \alpha&HFF& and stayed
                 # invisible until the final word was spoken.
+                if ghost_reveal and reveal_color:
+                    # Word-by-word captions that follow the hook: the keyword
+                    # highlights of both lines take its colour too, so no
+                    # leftover cyan / yellow / red clashes with the reveal.
+                    highlighted_text = recolour_highlights(highlighted_text, reveal_active_colour, keep=primary)
+                    en_highlighted = recolour_highlights(en_highlighted, reveal_active_colour, keep="&H00EAEAEA&")
                 en_sub = f"\\N{{\\alpha&H00&\\fscx{en_pct}\\fscy{en_pct}\\c&H00EAEAEA&}}{en_highlighted}"
             else:
                 highlighted_text = cls.apply_kinetic_highlighting(text, primary_color_ass=primary, custom_keywords=proj_keywords)
+                if ghost_reveal and reveal_color:
+                    highlighted_text = recolour_highlights(highlighted_text, reveal_active_colour, keep=primary)
                 en_sub = ""
 
             style = ("TikTokMinimalPill" if is_pill_mode else "TikTokWhite") + style_suffix

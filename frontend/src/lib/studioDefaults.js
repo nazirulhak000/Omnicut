@@ -38,6 +38,11 @@ export const DEFAULT_STUDIO_FORM = {
   storyFormat: 'classic',
   fontName: 'IBMPlex',
   bilingualSubtitles: true,
+  // Caption reveal: word by word (true) or the whole line at once (false), and
+  // whether the active word takes the hook's colour. Both match the backend
+  // defaults, so a clip made without touching them is unchanged.
+  ghostReveal: true,
+  revealColorSync: true,
   showWatermark: true,
   stickerBadge: null,
   stickerScale: 1,

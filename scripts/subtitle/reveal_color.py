@@ -64,6 +64,29 @@ def legible_reveal_hex(hex_colour: str) -> str:
     return _lift(out) if _luminance(out) < MIN_LUMINANCE else out
 
 
+# The colours apply_kinetic_highlighting* paint a keyword with: neon yellow
+# (pain / price), electric cyan (features / spec numbers), alert red (warnings).
+HIGHLIGHT_ASS_COLOURS = frozenset({"&H0000E6FF&", "&H00FFE600&", "&H00303BFF&"})
+_COLOUR_TAG_RE = re.compile(r"\{\\c(&H[0-9A-Fa-f]{8}&)\}")
+
+
+def recolour_highlights(text: str, colour: str, keep: Optional[str] = None) -> str:
+    """
+    `text` with every keyword highlight repainted `colour` (an ASS `&HAABBGGRR&`).
+
+    Only the three highlight colours are touched; `keep` is the line's own base
+    colour, left alone even if it equals one of them (a yellow caption's reset
+    tag is yellow, and recolouring it would tint the whole line).
+    """
+    def swap(match):
+        found = match.group(1)
+        if found in HIGHLIGHT_ASS_COLOURS and found != keep:
+            return "{\\c" + colour + "}"
+        return match.group(0)
+
+    return _COLOUR_TAG_RE.sub(swap, text)
+
+
 def pick_reveal_hex(overlays: Optional[Sequence[Mapping[str, Any]]]) -> Optional[str]:
     """
     The hook's accent as `#RRGGBB`, or None when the hook has no coloured tier.

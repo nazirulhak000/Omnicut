@@ -474,6 +474,8 @@ export default function NewClipPanel({
       manual_shot_map: (currentAngle?.manual_shot_map || angles[angleIndex]?.manual_shot_map || initialValues?.manualShotMap) || null,
       font_name: form.fontName || 'IBMPlex',
       bilingual_subtitles: form.bilingualSubtitles !== false,
+      ghost_reveal: form.ghostReveal !== false,
+      reveal_color_sync: form.revealColorSync !== false,
       show_watermark: form.showWatermark !== false,
       use_ai_vision: form.useAiVision !== false,
       sticker_badge: form.stickerBadge || null,
@@ -742,6 +744,44 @@ export default function NewClipPanel({
                     />
                     <span>ซับสองภาษา (ไทย + อังกฤษ)</span>
                   </label>
+
+                  <div className="flex items-center justify-between gap-2.5 p-2.5 rounded-xl border border-white/[0.06] bg-black/30 text-xs text-slate-300">
+                    <span>จังหวะซับ</span>
+                    <div role="radiogroup" aria-label="จังหวะการขึ้นของซับ" className="flex rounded-lg bg-black/50 border border-white/[0.08] p-0.5">
+                      {[
+                        { id: 'word', label: 'ทีละคำ', on: true },
+                        { id: 'sentence', label: 'ทั้งประโยค', on: false },
+                      ].map((mode) => {
+                        const active = (form.ghostReveal !== false) === mode.on;
+                        return (
+                          <button
+                            key={mode.id}
+                            type="button"
+                            role="radio"
+                            aria-checked={active}
+                            onClick={() => patch({ ghostReveal: mode.on })}
+                            className={`px-2.5 py-1 rounded-md font-semibold cursor-pointer transition-colors ${
+                              active ? 'bg-[#D97757] text-white' : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            {mode.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {form.ghostReveal !== false && (
+                    <label className="flex items-center gap-2.5 p-2.5 rounded-xl border border-white/[0.06] bg-black/30 text-xs text-slate-300 hover:text-white cursor-pointer transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={form.revealColorSync !== false}
+                        onChange={(e) => patch({ revealColorSync: e.target.checked })}
+                        className="h-4 w-4 rounded accent-[#D97757] cursor-pointer"
+                      />
+                      <span>สีซับตาม Hook ต้นคลิป</span>
+                    </label>
+                  )}
 
                   <label className="flex items-center gap-2.5 p-2.5 rounded-xl border border-white/[0.06] bg-black/30 text-xs text-slate-300 hover:text-white cursor-pointer transition-colors">
                     <input

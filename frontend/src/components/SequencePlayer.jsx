@@ -16,7 +16,7 @@ import { previewPointToSource, sourcePointToPreview } from '../lib/subjectFrameM
 import { subjectPromptReference } from '../lib/subjectPromptReference.js';
 import { revealTrackForCue } from '../lib/captionEdits.js';
 import { ASS_TO_PREVIEW_COLOR, highlightBurstLines, hookHighlightKeywords } from '../lib/kineticHighlight.js';
-import { resolveRevealColor } from '../lib/revealColor.js';
+import { pickRevealHex, resolveRevealColor } from '../lib/revealColor.js';
 import {
   PROXY_POLL_MS, buildingClipIds, isProxyableSource, mergeProxyEntry,
   readProxyResponse, shouldPoll,
@@ -1221,11 +1221,14 @@ function wrapCanvasText(text, ctx, maxW) {
 // lib/kineticHighlight.js (markers -> custom keywords -> spec number ->
 // dictionary, one highlight per burst, Thai/English colour sync). This maps
 // the ASS colour it picks onto the canvas colour the preview paints.
-function toCanvasSegments(segments, line, defaultColor) {
+// `accent` is the hook's colour when the caption follows it (word-by-word reveal
+// with "สีซับตาม Hook" on): every highlighted keyword, Thai or English, takes it
+// instead of its category colour -- the render recolours them the same way.
+function toCanvasSegments(segments, line, defaultColor, accent = null) {
   if (!segments || segments.length === 0) return [{ text: line, color: defaultColor }];
   return segments.map((seg) => ({
     text: seg.text,
-    color: seg.ass ? (ASS_TO_PREVIEW_COLOR[seg.ass] || defaultColor) : defaultColor,
+    color: seg.ass ? (accent || ASS_TO_PREVIEW_COLOR[seg.ass] || defaultColor) : defaultColor,
   }));
 }
 
@@ -1486,8 +1489,9 @@ function drawSingleCue(ctx, cue, t, style = {}, outBounds = null) {
   const burstHighlight = highlightBurstLines(thaiLines, enLines, {
     customKeywords: style.highlightKeywords?.length ? style.highlightKeywords : null,
   });
-  const parsedThaiLines = thaiLines.map((line, idx) => toCanvasSegments(burstHighlight.th[idx], line, primaryColor));
-  const parsedEnLines = enLines.map((line, idx) => toCanvasSegments(burstHighlight.en[idx], line, enDefaultColor));
+  const followHook = style.ghostReveal ? (style.revealAccent || null) : null;
+  const parsedThaiLines = thaiLines.map((line, idx) => toCanvasSegments(burstHighlight.th[idx], line, primaryColor, followHook));
+  const parsedEnLines = enLines.map((line, idx) => toCanvasSegments(burstHighlight.en[idx], line, enDefaultColor, followHook));
 
   // Progressive Ghost Reveal replaces the keyword highlighting for the whole
   // cue: it colours by what has been spoken, not by which word is a keyword, so
@@ -3170,11 +3174,18 @@ function SequencePlayer({
     () => resolveRevealColor(overlays, captionStyle.revealColorSync),
     [overlays, captionStyle.revealColorSync],
   );
+  // The hook's own accent, or null when sync is off / the hook has none -- the
+  // English line and keyword highlights follow it only when it is real, never
+  // the green fallback.
+  const revealAccent = useMemo(
+    () => (captionStyle.revealColorSync !== false ? pickRevealHex(overlays) : null),
+    [overlays, captionStyle.revealColorSync],
+  );
   const captionDrawStyle = useMemo(
-    () => ({ ...captionStyle, highlightKeywords, revealColor }),
+    () => ({ ...captionStyle, highlightKeywords, revealColor, revealAccent }),
     // captionKey below lists every caption field that reaches the canvas.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [captionStyle, highlightKeywordsKey, revealColor],
+    [captionStyle, highlightKeywordsKey, revealColor, revealAccent],
   );
   const previewAccentColor = visualStyle?.accent || '#FFE600';
   const previewSpotlight = useMemo(
@@ -3539,7 +3550,7 @@ function SequencePlayer({
     setPlayhead(t);
   };
 
-  const captionKey = `${captionStyle.hidden}:${captionStyle.captionPosition}:${captionStyle.captionColor}:${captionStyle.captionScale}:${captionStyle.captionX ?? ''}:${captionStyle.captionY ?? ''}:${captionStyle.fontName}:${captionStyle.bilingualSubtitles}:${captionStyle.ghostReveal}:${revealColor}:${visualStyle.id}:${highlightKeywordsKey}`;
+  const captionKey = `${captionStyle.hidden}:${captionStyle.captionPosition}:${captionStyle.captionColor}:${captionStyle.captionScale}:${captionStyle.captionX ?? ''}:${captionStyle.captionY ?? ''}:${captionStyle.fontName}:${captionStyle.bilingualSubtitles}:${captionStyle.ghostReveal}:${revealColor}:${revealAccent}:${visualStyle.id}:${highlightKeywordsKey}`;
   const cuesKey = (cues || []).map(c => `${c._uid || c.id}:${c.start}:${c.end}:${c.text}:${c.translation}:${c.scale || 1}:${c.x ?? ''}:${c.y ?? ''}:${c.position ?? ''}`).join(';;');
   // An overlay carries a whole look per tier now, so anything short of the
   // real thing would miss a colour or an outline the user just changed.

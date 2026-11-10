@@ -139,3 +139,59 @@ class TestEngineEndToEnd:
         text = out.read_text(encoding="utf-8")
         assert ACTIVE_COLOUR not in text, "a detached tone stayed SOP green"
         assert active_colour_for("#FE2C55") in text
+
+
+BS = chr(92)
+
+
+def _tag(colour):
+    """The ASS override that paints a run `colour`."""
+    return BS + "c" + colour
+
+
+class TestHighlightsFollowTheHook:
+    """With the hook colour on, the keyword highlights of BOTH lines take it."""
+
+    CUE = [{"id": 1, "start": 0.0, "end": 2.4, "text": "พัดลมระบายความร้อน",
+            "translation": "Cooling fan keeps it cool"}]
+    CYAN, YELLOW, RED = "&H00FFE600&", "&H0000E6FF&", "&H00303BFF&"
+
+    def _ass(self, tmp_path, **kw):
+        from scripts.subtitle_engine import SubtitleEngine
+
+        # The hook's brand / model words become the project's custom keywords,
+        # which is where the cyan "Cooling" in a real clip comes from.
+        hook = hook_overlay_from_legacy("HOYAUP", "Cooling Fan", "", style={"template": "b1_viral_red"})
+        out = tmp_path / "h.ass"
+        SubtitleEngine.generate_ass(self.CUE, str(out), font_name="IBMPlex", bilingual=True,
+                                    overlays=[hook], hook_brand="HOYAUP", hook_model="Cooling Fan", **kw)
+        return out.read_text(encoding="utf-8")
+
+    def _category_tags(self, text):
+        return [c for c in (self.CYAN, self.YELLOW, self.RED) if "{" + _tag(c) + "}" in text]
+
+    def test_premise_the_english_keyword_is_highlighted_by_default(self, tmp_path):
+        assert self._category_tags(self._ass(tmp_path, ghost_reveal=True))
+
+    def test_english_keywords_no_longer_keep_a_category_colour(self, tmp_path):
+        text = self._ass(tmp_path, ghost_reveal=True, reveal_color="#FF2E93")
+        assert active_colour_for("#FF2E93") in text
+        assert self._category_tags(text) == [], "a category highlight survived the hook sync"
+
+    def test_sentence_mode_keeps_category_colours_even_with_a_hook_colour(self, tmp_path):
+        text = self._ass(tmp_path, ghost_reveal=False, reveal_color="#FF2E93")
+        assert active_colour_for("#FF2E93") not in text
+        assert self._category_tags(text)
+
+    def test_recolour_leaves_the_base_colour_alone(self):
+        from scripts.subtitle.reveal_color import recolour_highlights
+
+        def run(*parts):
+            return "".join("{" + _tag(c) + "}" + t for c, t in parts)
+
+        src = run(("&H0000E6FF&", "ab"), ("&H00FFE600&", "cd"), ("&H00EAEAEA&", "ef"))
+        out = recolour_highlights(src, "&H00AABBCC&")
+        assert out == run(("&H00AABBCC&", "ab"), ("&H00AABBCC&", "cd"), ("&H00EAEAEA&", "ef"))
+        # a yellow caption's own reset tag is yellow and must not be tinted
+        kept = recolour_highlights(src, "&H00AABBCC&", keep="&H0000E6FF&")
+        assert kept.startswith("{" + _tag("&H0000E6FF&") + "}ab")
