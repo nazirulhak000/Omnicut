@@ -183,6 +183,7 @@ async function main() {
       //   --now                     publish immediately instead (the panel asks for the live confirmation)
       const whenArg = (process.argv.find(a => a.startsWith('--when=')) || '').split('=')[1] || '';
       const publishNow = process.argv.includes('--now');
+      let expectedDrafts = 1;
       const killAfterSubmit = Number((process.argv.find(a => a.startsWith('--kill-after-submit-ms=')) || '').split('=')[1]) || 0;
       let killedAfterSubmit = false;
       // The draft is a CARD of the main list (status "draft"): tick it and run, or use the card's own "post now" button.
@@ -214,9 +215,17 @@ async function main() {
           await panel.eval(`(() => { const card = ${DRAFT_CARD}; const [date, time] = card.querySelectorAll('.draft-slot-controls input'); const set = (el, v) => { el.value = v; el.dispatchEvent(new Event('change', {bubbles: true})); }; set(date, ${JSON.stringify(d)}); set(time, ${JSON.stringify(tm)}); return true; })()`, false);
           await sleep(800);   // the list re-renders after the slot changed
         }
-        const ticked = await panel.eval(`(() => { const card = ${DRAFT_CARD}; const box = card.querySelector('.card-check input'); if (box.disabled) return 'blocked: ' + (card.querySelector('.card-blocked-note')?.textContent || ''); box.click(); return 'ticked'; })()`, false);
-        step('draft card tick', ticked);
-        if (ticked !== 'ticked') throw new Error(`draft card cannot be ticked: ${ticked}`);
+        // --drafts=N: tick N draft cards (default 1) and publish them in ONE run
+        const wantDrafts = Number((process.argv.find(a => a.startsWith('--drafts=')) || '').split('=')[1]) || 1;
+        const ticked = await panel.eval(`(() => {
+          const cards = [...document.querySelectorAll('#list .card')].filter((c) => c.querySelector('.card-status.draft')).slice(0, ${wantDrafts});
+          if (cards.length < ${wantDrafts}) return 'only ' + cards.length + ' draft card(s)';
+          for (const card of cards) { const box = card.querySelector('.card-check input'); if (box.disabled) return 'blocked: ' + (card.querySelector('.card-blocked-note')?.textContent || ''); box.click(); }
+          return 'ticked ' + cards.length;
+        })()`, false);
+        step('draft cards tick', ticked);
+        if (!/^ticked/.test(ticked)) throw new Error(`draft cards cannot be ticked: ${ticked}`);
+        expectedDrafts = wantDrafts;
         await panel.eval(`document.getElementById('batchStartBtn').click()`, false);
       }
       await confirmWhenShown(panel);
@@ -224,7 +233,7 @@ async function main() {
       const tp0 = Date.now();
       let plog = '';
       let pprinted = 0;
-      while (Date.now() - tp0 < 6 * 60 * 1000) {
+      while (Date.now() - tp0 < 14 * 60 * 1000) {
         await sleep(3000);
         plog = await panel.eval(`document.getElementById('batchLogBox')?.innerText || ''`, false).catch(() => '');
         const entries = plog.split(/(?=\[\d\d:\d\d:\d\d\])/).map(x => x.trim()).filter(Boolean);
@@ -252,7 +261,7 @@ async function main() {
       const editor = await tt.eval(`(() => { const radios = [...document.querySelectorAll('input[type=radio], [role=radio]')].map(r => ((r.closest('label') || r.parentElement || r).innerText || '').trim().slice(0, 14) + ':' + (r.checked || r.getAttribute('aria-checked'))); const post = document.querySelector('button[data-e2e="post_video_button"]'); return JSON.stringify({ url: location.href.replace(/draft_id=\\d+/, 'draft_id=N'), radios, post: post ? post.innerText.trim() : null }); })()`, false).catch(e => 'ERR ' + e.message);
       console.log('[editor after steps]', editor);
       fs.writeFileSync(path.join(outDir, 'panel_log.txt'), plog);
-      report.ok = killAfterSubmit ? /สรุปผลลัพธ์/.test(plog) : (/✅ \[1\/1\]/.test(plog) && !/ล้มเหลวที่ขั้น|หยุดอัตโนมัติ/.test(plog));
+      report.ok = killAfterSubmit ? /สรุปผลลัพธ์/.test(plog) : ((plog.match(/✅ \[/g) || []).length === expectedDrafts && !/ล้มเหลวที่ขั้น|หยุดอัตโนมัติ/.test(plog));
       report.editor = editor;
       console.log(report.ok ? '[E2E PASS] publish-from-draft' : '[E2E FAIL] publish-from-draft: ดู panel_log.txt');
       process.exitCode = report.ok ? 0 : 1;
