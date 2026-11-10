@@ -483,7 +483,7 @@ async function main() {
       return true;
     })()`, false);
     if (pick) {
-      const titles = clips.slice(0, pick).map(c => c.title);
+      const titles = clips.slice(0, pick).map(c => String(c.title).trim());   // the card text is trimmed
       const ticked = await panel.eval(`(() => {
         const wanted = ${JSON.stringify(titles)};
         let n = 0;
