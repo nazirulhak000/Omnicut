@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round CLAUDE-CAPTION-REVEAL-MODE-AND-AUTO-COVER-20261110 | เลือกโหมดซับ ทีละคำ/ทั้งประโยค (editor + ฟอร์มสร้างคลิป), สีซับ+keyword ไทย/อังกฤษตามสี Hook, ปกแนะนำ = เฟรมคมที่สุดในช่วง nameplate | ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) |
 | Round CLAUDE-FOLLOWUP-AUDIT-20261109 | ทำงานค้างจาก AUDIT_20261109 5 กิ่ง: writer JSON เดิม→store, เทส pytest 14 ข้อ, QA ตอน render, เทส browser, บั๊ก preview hook | ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + fix sub-agents 5 ตัว (Claude Sonnet 5.5) |
 | Round CLAUDE-FIX-AUDIT-20261109 | แก้ตาม AUDIT_20261109 ผ่าน 7 กิ่ง fix/* (P0 ทั้ง 5 แก้แล้ว) | ดำเนินการโดย: Claude Code (Claude Opus 5.5) + fix sub-agents 7 ตัว (Claude Opus 5.5) |
 | Round CLAUDE-AUDIT-EDITOR-PIPELINE-20261109 | ตรวจทั้งสาย 6 ด่าน 106 ข้อ + แผนแก้ | ดำเนินการโดย: Claude Code (Claude Opus 5.5) + read-only sub-agents 6 ตัว (Claude Opus 5.5) |
@@ -182,6 +183,16 @@
 
 ---
 ---
+
+## Round CLAUDE-CAPTION-REVEAL-MODE-AND-AUTO-COVER-20261110 · เลือกโหมดซับ + สีซับตาม Hook + ปกแนะนำ · ผู้ใช้อนุมัติแผน 2026-11-10 · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5)
+
+- **ปัญหาเดิม:** ปกออโต้ได้เฟรม 0.5 วิ (ก่อน nameplate แบรนด์/รุ่นขึ้น) · สีคำที่กำลังพูดของซับ Ghost Reveal ตายตัว `#66FF00` ไม่ตรง Hook · ซับอังกฤษใช้สี keyword เดิม (ฟ้า/เหลือง/แดง) · ฟอร์มสร้างคลิปไม่มีตัวเลือกโหมดซับ
+- **A โหมดซับ:** ใช้ flag `ghost_reveal` เดิม (true = ทีละคำ, false = ทั้งท่อน + ไฮไลต์ keyword) · Caption Inspector เปลี่ยนสวิตช์เป็น "จังหวะซับ: ทีละคำ / ทั้งประโยค" · ฟอร์มสร้างคลิปมีตัวเลือกเดียวกัน (ส่ง `ghost_reveal`)
+- **B สีตาม Hook:** `reveal_color_sync` (default เปิด) → `scripts/subtitle/reveal_color.py::pick_reveal_hex` เลือก tier สีสดแรกของ overlay `kind:"hook"` (ไม่มี = เขียว `#66FF00` เดิม, สีมืดถูกยกไปทางขาว) · ใช้กับคำที่กำลังพูด, tone companion วรรณยุกต์ไทย, และ keyword ไทย/อังกฤษ (`recolour_highlights`) ในโหมดทีละคำ · preview ใช้ `frontend/src/lib/revealColor.js` กฎเดียวกัน ล็อกด้วย `tests/fixtures/reveal_color_parity_cases.json` · AGENTS.md ข้อ 17 / checklist / SOP อัปเดตแล้ว (ผู้ใช้ยืนยัน D2 ให้ default เปิด)
+- **C ปกแนะนำ:** `scripts/cover_frame_picker.py` หน้าต่าง nameplate จาก overlay hook ของโปรเจกต์ (หาโปรเจกต์จาก `artifacts.mp4_video` ตรงตัว) → ถอดรหัสครั้งเดียวผ่าน ffmpeg 8 fps (~0.65 วิ/คลิป) → ให้คะแนนความคมแถบกลางเฟรม ลดคะแนนเฟรมติดรอยต่อ · candidate แรกของ `/covers/highlights`, `GET /covers/recommended-frame` (+ route policy), `at_seconds` ของ `/covers/generate` และ `/covers/render-pro` เป็น None = ปกแนะนำ · mp4 export ฝัง nameplate แล้ว จึงไม่ประทับ brand/model/label ซ้ำเมื่อเฟรมอยู่ในช่วง nameplate
+- **ทดสอบ:** เทสใหม่ `test_reveal_color.py` 32 · `test_cover_frame_picker.py` 31 · `revealColor.test.js` · parity 212/212 · `npm test` 1277/1277 · ไฟล์เทสที่เกี่ยวข้อง 590 ผ่าน · บน main หลัง merge: 443 ผ่าน + JS 13 · เรนเดอร์ ASS จริง 3 โหมดและดูเฟรมปกจากคลิป export จริงด้วยตา (HOYAUP คมชัด) · ผู้ใช้ดู UI บน dev server แล้ว
+- **ข้อจำกัด / ยังไม่ทำ:** โปรเจกต์เก่าที่ไม่มี `word_reveal` ใน cue ไม่เด้งทีละคำใน Preview (ต้องสร้างซับใหม่) · ข้อมูล shot ใน manifest ไม่บอกว่าเห็นสินค้า จึงใช้ความคมภาพล้วน · Cover Studio render-pro ยังใช้ประโยค Hook (`hook_text`) ไม่ใช่แบรนด์/รุ่น · pytest ทั้งชุด ~4,200 ข้อไม่ได้รันจนจบ (ช้าเกิน) รันเฉพาะไฟล์ที่เกี่ยวข้อง · Jev (กฎข้อ 19) ก่อน commit ตอบ `more_tests` conf 0.2 (escalate) → รายงานผู้ใช้ ผู้ใช้สั่ง commit/push เอง
+- **commit:** `a357aac`, `bc60ee7` บนกิ่ง `feat/caption-reveal-mode-auto-cover` → merge เข้า main ใน worktree แยก (โฟลเดอร์หลักมีงานค้างของ agent อื่น) → ลบกิ่ง
 
 ## Round CLAUDE-FOLLOWUP-AUDIT-20261109 · ทำงานค้างจากรายงาน AUDIT_20261109 หัวข้อ 10 (เปิด agent ทีละ 3 ตัวกัน rate limit) · ผู้ใช้สั่ง "จัดการทั้งหมด" 2026-11-09
   - [x] `fix/legacy-writers` — 17 ไฟล์ที่ยังเขียน JSON mirror ตรง → store API, X-04 ผูกเสียง cut ด้วย content hash, ใส่ `filelock`/`python-dotenv` ใน requirements

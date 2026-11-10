@@ -4,6 +4,8 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round CLAUDE-CAPTION-REVEAL-MODE-AND-AUTO-COVER-20261110 · เลือกโหมดซับ ทีละคำ/ทั้งประโยค + สีซับตาม Hook + ปกแนะนำ (เฟรมคมในช่วง nameplate) → ดู HISTORY.md · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5)
+
 - [x] Round CLAUDE-FOLLOWUP-AUDIT-20261109 · ทำงานค้างจากรายงาน AUDIT_20261109 ครบ 5 กิ่ง → [รายงานหัวข้อ 11](_Docs/Reports/AUDIT_20261109_editor_pipeline.md) · ดู HISTORY · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + fix sub-agents 5 ตัว (Claude Sonnet 5.5)
 
 - [ ] Round CLAUDE-PLAN-TIKTOK-AUTOPOST-100-AUTONOMOUS-20261109 · ตรวจ extension autopost ว่าทำไมโพสต์ออโต้ไม่จบ 100% + วางแผนแก้ (แผนเท่านั้น ห้ามแก้โค้ดจนผู้ใช้ตอบ "อนุมัติแผน") → แผน+พรอมพ์: `_Docs/Plans/TIKTOK_AUTOPOST_100_AUTONOMOUS_PLAN.md`
