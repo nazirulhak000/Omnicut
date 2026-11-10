@@ -690,6 +690,42 @@ async function selectPostingChannel(channelId) {
 // unresolved). A post-now row must also carry a badge time close to the click, so an older post with the same caption
 // can never confirm a post that did not happen.
 const RECONCILE_POST_WINDOW_MS = 10 * 60 * 1000;
+// Studio > Content is a VIRTUALIZED list: only about 8 rows exist in the page at any moment, and scheduled posts are
+// listed before immediate ones. Looking at the first rows is therefore not enough (a post-now row, or a slot in the middle
+// of the existing ones, sits deeper). This scrolls the list and collects every row, stopping early when `match` accepts one.
+async function collectContentRows(send, {match = null, maxSteps = 40, settleMs = 700} = {}) {
+  const seen = new Set();
+  const rows = [];
+  for (let step = 0; step < maxSteps; step += 1) {
+    const out = await send('Runtime.evaluate', {expression: 'document.body ? document.body.innerText : ""', returnByValue: true});
+    const parts = String(out?.result?.value || '').split(/\n(?=\d{2}:\d{2}\n)/).filter((part) => /^\d{2}:\d{2}\n/.test(part));   // header text is not a row
+    for (const row of parts) {
+      // the same row is read at several scroll positions with different tails (footer, counters): identify it by its first lines
+      const key = row.split('\n').slice(0, 3).join('|').trim();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      rows.push(row);
+      if (match && match(row)) return {rows, found: row};
+    }
+    const moved = await send('Runtime.evaluate', {
+      expression: `(() => {
+        const candidates = [document.scrollingElement, ...document.querySelectorAll('div')].filter((e) => {
+          if (!e || e.scrollHeight <= e.clientHeight + 80) return false;
+          return e === document.scrollingElement || /auto|scroll/.test(getComputedStyle(e).overflowY);
+        });
+        const box = candidates.sort((a, b) => b.scrollHeight - a.scrollHeight)[0];
+        if (!box) return 0;
+        const before = box.scrollTop;
+        box.scrollTop = before + Math.max(300, Math.floor(box.clientHeight * 0.8));
+        return box.scrollTop - before;
+      })()`,
+      returnByValue: true,
+    });
+    if (!(moved?.result?.value > 0)) break;
+    await sleep(settleMs);
+  }
+  return {rows, found: null};
+}
 async function reconcileFromListPages(send, tab, job) {
   const intent = jobIntent(job);
   const token = job.confirmation_token ? {confirmation_token: job.confirmation_token} : {};
@@ -711,12 +747,11 @@ async function reconcileFromListPages(send, tab, job) {
     await navigateAcceptingLeave(tab.id, 'https://www.tiktok.com/tiktokstudio/content');
     await sleep(6000);
   }
-  const out = await send('Runtime.evaluate', {expression: 'document.body ? document.body.innerText : ""', returnByValue: true});
-  const rows = String(out?.result?.value || '').split(/\n(?=\d{2}:\d{2}\n)/).slice(1, 16);
   const scheduled = intent === 'schedule';
   const clip = {caption: job.caption || '', schedule_date: scheduled ? job.schedule_date : '', schedule_time: scheduled ? job.schedule_time : ''};
-  for (const row of rows) {
-    if (!guard.rowMatchesClip(row, clip).ok) continue;
+  // a row counts only when it matches the caption (and the slot, or for an immediate post: was published right after the click)
+  const accept = (row) => {
+    if (!guard.rowMatchesClip(row, clip).ok) return null;
     if (scheduled) {
       return {confirmed: true, outcome: 'scheduled_on_platform',
         proof: {kind: 'content_page_reconciled', notice: `Studio > Content row matches the caption and the slot ${job.schedule_date} ${job.schedule_time}`, ...token}};
@@ -727,8 +762,10 @@ async function reconcileFromListPages(send, tab, job) {
       return {confirmed: true, outcome: 'published',
         proof: {kind: 'content_page_reconciled', notice: 'Studio > Content row matches the caption and was published right after the click', ...token}};
     }
-  }
-  return {confirmed: false};
+    return null;
+  };
+  const scan = await collectContentRows(send, {match: (row) => Boolean(accept(row))});
+  return scan.found ? accept(scan.found) : {confirmed: false};
 }
 
 async function runReconcilePostingResult(options = {}) {
@@ -5091,27 +5128,23 @@ async function runVerifyPostOnContent({caption = '', scheduleDate = '', schedule
       if (attempt) await sleep(8000);
       await navigateAcceptingLeave(tab.id, 'https://www.tiktok.com/tiktokstudio/content');
       await sleep(6000);
-      let text = '';
+      let scan = {rows: [], found: null};
       await chrome.debugger.attach({tabId: tab.id}, '1.3');
       try {
         await send('Runtime.enable');
+        // wait for the list to render its first rows, then scroll the whole (virtualized) list
         for (let i = 0; i < 8; i += 1) {
           const out = await send('Runtime.evaluate', {expression: 'document.body ? document.body.innerText : ""', returnByValue: true});
-          text = out?.result?.value || '';
-          if (/\d{2}:\d{2}\n/.test(text)) break;
+          if (/\d{2}:\d{2}\n/.test(out?.result?.value || '')) break;
           await sleep(1500);
         }
+        scan = await collectContentRows(send, {match: (row) => OmniPostGuard.rowMatchesClip(row, clip).ok});
       } finally {
         try { await chrome.debugger.detach({tabId: tab.id}); } catch (e) {}
       }
-      // Each post row starts with its video duration (mm:ss) on its own line.
-      const rows = String(text).split(/\n(?=\d{2}:\d{2}\n)/).slice(0, 15);
       verdict = {ok: false, reason: 'row_not_found'};
-      for (const row of rows) {
-        const result = OmniPostGuard.rowMatchesClip(row, clip);
-        if (result.ok) { verdict = result; break; }
-        if (result.reason === 'schedule_badge_mismatch') verdict = result;
-      }
+      if (scan.found) verdict = {ok: true};
+      else if (scan.rows.some((row) => OmniPostGuard.rowMatchesClip(row, clip).reason === 'schedule_badge_mismatch')) verdict = {ok: false, reason: 'schedule_badge_mismatch'};
     }
   } finally {
     try { await navigateAcceptingLeave(tab.id, 'https://www.tiktok.com/tiktokstudio/upload'); await sleep(2500); } catch (e) {}

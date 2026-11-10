@@ -248,32 +248,13 @@ async function main() {
       },
       // Independent check after the post click: open Studio > Content and find this clip's row.
       verifyOnContentPage: async clip => {
-        const id = await tabId();
-        // TikTok's Content list lags the success toast by several seconds, so reload
-        // and look again (up to ~90 s) before concluding the row is missing.
-        let verdict = { ok: false, reason: 'row_not_found' };
-        for (let attempt = 0; attempt < 6 && !verdict.ok; attempt += 1) {
-          if (attempt) await sleep(8000);
-          await shim.chrome.tabs.update(id, { url: 'https://www.tiktok.com/tiktokstudio/content', active: true });
-          let text = '';
-          for (let i = 0; i < 10; i += 1) {
-            await sleep(1500);
-            text = await shim.evaluate(id, 'document.body ? document.body.innerText : ""').catch(() => '');
-            if (/\d{2}:\d{2}\n/.test(text)) break;
-          }
-          // Each post row starts with its video duration (mm:ss) on its own line.
-          const rows = String(text).split(/\n(?=\d{2}:\d{2}\n)/).slice(0, 15);
-          verdict = { ok: false, reason: 'row_not_found' };
-          for (const row of rows) {
-            const r = rowMatchesClip(row, clip);
-            if (r.ok) { verdict = r; break; }
-            if (r.reason === 'schedule_badge_mismatch') verdict = r;
-          }
-        }
-        await shot(`${clip.id}_content`);
-        await shim.chrome.tabs.update(id, { url: UPLOAD_URL, active: true }); // reset needs an upload tab
-        await sleep(2500);
-        return verdict;
+        // The worker scrolls the whole (virtualized) Content list: scheduled posts come first and an immediate post sits
+        // deeper, so looking at the first rows only gave false "not found".
+        const reply = await worker.send('verify-post-content', {
+          caption: clip.caption, scheduleDate: clip.schedule_date || '', scheduleTime: clip.schedule_time || '',
+        });
+        await sleep(1500);
+        return { ok: Boolean(reply?.verified), reason: reply?.reason || '' };
       },
       // Closes the "Edit cover" modal (Cancel) when no custom-cover upload exists.
       dismissCoverModal: async () => {

@@ -997,7 +997,7 @@ test('stats sync accepts the real Studio posts page and stamps a visible build t
   // Build identity: chrome://extensions + the Tools tab both prove the fresh
   // code is running, so stale cached sidepanel.js (the ghost "จำกัดโดเมน"
   // banner that never existed in this repo) can be caught by the user's eyes.
-  assert.equal(manifest.version, '0.7.0');
+  assert.equal(manifest.version, '0.7.1');
   assert.equal(manifest.content_scripts, undefined, 'no legacy content script');
   for (const gone of ['batch_runner.js', 'batch_runner.test.cjs', 'content_script.js', 'popup.html', 'popup.js']) assert.ok(!fs.existsSync(path.join(__dirname, gone)), gone + ' must stay deleted');
   assert.match(sideHtml, /id="buildTag"/);
@@ -1514,9 +1514,11 @@ test('verify-post-content finds the row (after reload retries) and always return
       sendCommand: async (_t, method, params) => {
         if (method !== 'Runtime.evaluate') return {};
         if (/BeforeUnloadEvent/.test(params.expression)) return {result: {value: true}}; // prompt disarm, not a page read
+        if (/scrollTop/.test(params.expression)) return {result: {value: 0}};   // the list does not scroll in this fake
         evaluations += 1;
         // first two page loads still show the old list, the third shows the new row
-        return {result: {value: evaluations < 3 ? ['00:25', 'อย่างอื่น', 'Pinned'].join(nl) + nl : rowText}};
+        const loads = urls.filter(u => u.endsWith('/content')).length;
+        return {result: {value: loads < 3 ? ['00:25', 'อย่างอื่น', 'Pinned'].join(nl) + nl : rowText}};
       },
     },
   });
@@ -1798,4 +1800,29 @@ test('publish-from-draft panel wiring: drafts are cards in the main list, ticked
   const start = side.slice(side.indexOf('async function startDraftPublish('));
   assert.match(start, /batchStarting = true/);
   assert.match(start, /runBatchFromPanel\(\{ clips: \[clip\]/);
+});
+
+test('collectContentRows walks a virtualized list: a row far below the first screen is found (post-now rows sit after all scheduled ones)', async () => {
+  const ctx = worker();
+  const nl2 = String.fromCharCode(10);
+  const all = Array.from({length: 40}, (_, i) => ['00:30', `caption-${i}-ของคลิปที่ ${i}`, i === 33 ? 'Nov 10, 8:15 PM' : `Nov ${20 - (i % 9)}, 10:15 AM (GMT+7) Bangkok`, 'Everyone'].join(nl2) + nl2);
+  let top = 0;                                    // first visible row index; the page keeps only 8 rows
+  const send = async (_method, params) => {
+    const expression = String(params.expression);
+    if (/scrollTop/.test(expression)) {
+      if (top >= all.length - 8) return {result: {value: 0}};
+      top = Math.min(all.length - 8, top + 6);
+      return {result: {value: 500}};
+    }
+    return {result: {value: 'Posts 227' + nl2 + all.slice(top, top + 8).join('')}};
+  };
+  const noMatch = await ctx.collectContentRows(send, {});
+  assert.equal(noMatch.rows.length, 40, 'every row was collected exactly once');
+  top = 0;
+  const hit = await ctx.collectContentRows(send, {match: (row) => row.includes('caption-33-')});
+  assert.ok(hit.found && hit.found.includes('Nov 10, 8:15 PM'));
+  assert.ok(hit.rows.length < 40, 'it stops as soon as the row is found');
+  top = 0;
+  const bounded = await ctx.collectContentRows(send, {maxSteps: 2});
+  assert.ok(bounded.rows.length <= 20, 'the scan is bounded');
 });

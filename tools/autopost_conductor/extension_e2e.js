@@ -183,6 +183,8 @@ async function main() {
       //   --now                     publish immediately instead (the panel asks for the live confirmation)
       const whenArg = (process.argv.find(a => a.startsWith('--when=')) || '').split('=')[1] || '';
       const publishNow = process.argv.includes('--now');
+      const killAfterSubmit = Number((process.argv.find(a => a.startsWith('--kill-after-submit-ms=')) || '').split('=')[1]) || 0;
+      let killedAfterSubmit = false;
       // The draft is a CARD of the main list (status "draft"): tick it and run, or use the card's own "post now" button.
       const DRAFT_CARD = `[...document.querySelectorAll('#list .card')].find((c) => c.querySelector('.card-status.draft'))`;
       let found = false;
@@ -227,13 +229,30 @@ async function main() {
         plog = await panel.eval(`document.getElementById('batchLogBox')?.innerText || ''`, false).catch(() => '');
         const entries = plog.split(/(?=\[\d\d:\d\d:\d\d\])/).map(x => x.trim()).filter(Boolean);
         for (; pprinted < entries.length; pprinted += 1) console.log(`[panel] ${entries[pprinted].slice(0, 220)}`);
+        // --kill-after-submit-ms=N: Chrome stops the MV3 service worker N ms after the post step started (so after the click):
+        // the panel's request dies with "message port closed". The click must NOT be retried and the result must be reconciled.
+        if (killAfterSubmit && !killedAfterSubmit && /7\/10 TRIGGER_SUBMIT/.test(plog)) {
+          killedAfterSubmit = true;
+          setTimeout(async () => {
+            try {
+              const sw = await new Cdp((await (await fetch(`http://127.0.0.1:${PORT}/json/version`)).json()).webSocketDebuggerUrl).open();
+              const { targetInfos } = await sw.call('Target.getTargets');
+              const workers = targetInfos.filter(x => x.type === 'service_worker' && x.url.startsWith(`chrome-extension://${extId}/`));
+              console.log(`[fault] stopping ${workers.length} extension service worker(s) ${killAfterSubmit} ms after the post step started`);
+              await panel.call('ServiceWorker.enable').catch(() => {});
+              await panel.call('ServiceWorker.stopAllWorkers').catch(e => console.log('[fault] stopAllWorkers:', e.message));
+              for (const w of workers) await sw.call('Target.closeTarget', { targetId: w.targetId }).catch(() => {});
+              sw.close();
+            } catch (e) { console.log('[fault] failed:', e.message); }
+          }, killAfterSubmit);
+        }
         if (/สรุปผลลัพธ์|ระบบลูปหยุดทำงาน|ยังไม่พร้อมรัน/.test(plog)) break;
       }
       // what the REAL editor looks like now (nothing was posted when the click is stubbed)
       const editor = await tt.eval(`(() => { const radios = [...document.querySelectorAll('input[type=radio], [role=radio]')].map(r => ((r.closest('label') || r.parentElement || r).innerText || '').trim().slice(0, 14) + ':' + (r.checked || r.getAttribute('aria-checked'))); const post = document.querySelector('button[data-e2e="post_video_button"]'); return JSON.stringify({ url: location.href.replace(/draft_id=\\d+/, 'draft_id=N'), radios, post: post ? post.innerText.trim() : null }); })()`, false).catch(e => 'ERR ' + e.message);
       console.log('[editor after steps]', editor);
       fs.writeFileSync(path.join(outDir, 'panel_log.txt'), plog);
-      report.ok = /✅ \[1\/1\]/.test(plog) && !/ล้มเหลวที่ขั้น|หยุดอัตโนมัติ/.test(plog);
+      report.ok = killAfterSubmit ? /สรุปผลลัพธ์/.test(plog) : (/✅ \[1\/1\]/.test(plog) && !/ล้มเหลวที่ขั้น|หยุดอัตโนมัติ/.test(plog));
       report.editor = editor;
       console.log(report.ok ? '[E2E PASS] publish-from-draft' : '[E2E FAIL] publish-from-draft: ดู panel_log.txt');
       process.exitCode = report.ok ? 0 : 1;
@@ -415,9 +434,17 @@ async function main() {
       // and against one that was never posted (must be false).
       const q = await api.get('/api/schedule-queue');
       const items = q.data.items || [];
+      // --sample=N: check only N scheduled rows spread over the list (first / middle / last ...) instead of all of them
+      // --also=<queue id prefix>: also check an immediate post (it has no slot; it sits after every scheduled row)
+      const sample = Number((process.argv.find(a => a.startsWith('--sample=')) || '').split('=')[1]) || 0;
+      const alsoPrefix = (process.argv.find(a => a.startsWith('--also=')) || '').split('=')[1] || '';
+      let scheduledRows = items.filter(i => i.status === 'scheduled_on_platform');
+      if (sample && scheduledRows.length > sample) scheduledRows = Array.from({ length: sample }, (_, k) => scheduledRows[Math.round(k * (scheduledRows.length - 1) / (sample - 1 || 1))]);
       const cases = [
-        ...items.filter(i => i.status === 'scheduled_on_platform').map(i => ({ i, expect: true })),
+        ...scheduledRows.map(i => ({ i, expect: true })),
+        ...(alsoPrefix ? items.filter(i => String(i.id).startsWith(alsoPrefix)).map(i => ({ i: { ...i, scheduled_at: '' }, expect: true })) : []),
         ...items.filter(i => i.status === 'planned').slice(0, 1).map(i => ({ i, expect: false })),
+        { i: { caption: 'คลิปที่ไม่เคยโพสต์เลยสักครั้ง ไม่มีอยู่จริงในบัญชีนี้', scheduled_at: '' }, expect: false },
       ];
       let allGood = cases.length > 0;
       for (const { i, expect } of cases) {
