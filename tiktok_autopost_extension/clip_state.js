@@ -50,6 +50,9 @@
   }
 
   function getExtensionStatus(item) {
+    // the slot passed (or is < 15 min away): the clip needs a new time before it can run; a draft stays a draft meanwhile
+    if (item?.is_draft && item.needs_reschedule) return { kind: 'draft_overdue', label: 'แบบร่างเลยเวลา — ต้องจัดเวลาใหม่' };
+    if (item?.needs_reschedule) return { kind: 'overdue', label: 'เลยเวลา — ต้องจัดเวลาใหม่' };
     if (item?.is_draft) return { kind: 'draft', label: 'แบบร่างบน TikTok รอเผยแพร่' };
     return item?.is_scheduled
       ? { kind: 'scheduled', label: 'จัดเวลาโพสต์แล้ว' }

@@ -222,6 +222,32 @@ class AutoFillCommitRequest(BaseModel):
     preview_revision: Optional[str] = None
 
 
+class RescheduleOverduePreviewRequest(BaseModel):
+    window_days: int = Field(default=14, ge=1, le=60)
+
+
+class RescheduleAssignment(BaseModel):
+    id: str
+    scheduled_at: str
+
+
+class RescheduleOverdueCommitRequest(BaseModel):
+    assignments: List[RescheduleAssignment] = Field(default_factory=list)
+
+
+# A slot must be at least this far ahead to be postable / schedulable on TikTok.
+RESCHEDULE_LEAD = dt.timedelta(minutes=15)
+RESCHEDULABLE_STATUSES = {"planned", "draft_on_platform"}
+
+
+def needs_reschedule(row: Dict[str, Any], now: dt.datetime) -> bool:
+    """A clip that still has to be posted (planned, or already a draft on TikTok) whose slot has passed or is too close."""
+    if row.get("status") not in RESCHEDULABLE_STATUSES:
+        return False
+    when = _queue_timestamp(row.get("scheduled_at", ""))
+    return bool(when and when <= now + RESCHEDULE_LEAD)
+
+
 def _date_value(raw: str, *, field: str = "วันที่") -> dt.date:
     try:
         return dt.date.fromisoformat(str(raw or ""))
@@ -1265,6 +1291,10 @@ def list_queue(
                 pass
         scheduled = _queue_timestamp(item.get("scheduled_at", ""))
         item["is_overdue"] = bool(item.get("status") == "planned" and scheduled and scheduled < now)
+        # planned OR draft-on-TikTok clips whose slot passed (or is < 15 min away): they must get a new time before they can run
+        item["needs_reschedule"] = needs_reschedule(item, now)
+        if item["needs_reschedule"] and item.get("status") == "draft_on_platform":
+            item["status_label"] = "แบบร่างเลยเวลา — ต้องจัดเวลาใหม่"
         enriched.append(item)
     return {"items": enriched, "timezone": "Asia/Bangkok", "status_labels": STATUS_LABELS}
 
@@ -1330,8 +1360,20 @@ def patch_queue(item_id: str, req: QueuePatchRequest, scope: ChannelScope = Depe
             raise ChannelError(409, "platform_result_reconciliation_required",
                                "TikTok รับงานแล้วหรือผลยังไม่ชัดเจน ต้องตรวจและแก้ผลบนแพลตฟอร์มก่อนเปลี่ยนคิว",
                                action="review_platform_result")
+        if current == "draft_on_platform" and req.status is None and req.scheduled_at is not None:
+            # Moving the slot of a draft does not touch the draft: it stays on TikTok, the job stays, and the new time is
+            # applied to the draft when it is published (no re-upload). The new slot must be one TikTok accepts.
+            new_when_dt = parse_scheduled_at(req.scheduled_at)
+            if new_when_dt <= dt.datetime.now(PROJECT_TZ) + RESCHEDULE_LEAD:
+                raise HTTPException(status_code=422, detail="เวลาใหม่ของแบบร่างต้องอยู่ในอนาคตอย่างน้อย 15 นาที")
+            new_when = scheduled_iso(new_when_dt)
+            if any(row.get("id") != item_id and row.get("scheduled_at") == new_when and row.get("status") != "posted" for row in records):
+                raise HTTPException(status_code=409, detail="มีคลิปอื่นจองเวลานี้แล้ว")
+            item["scheduled_at"] = new_when
+            item["updated_at"] = now_iso()
+            return
         if current == "draft_on_platform":
-            # A saved draft is not a post. The only edit is "I deleted that draft on TikTok": back to planned.
+            # A saved draft is not a post. The only other edit is "I deleted that draft on TikTok": back to planned.
             if req.status != "planned" or req.scheduled_at is not None:
                 raise ChannelError(409, "draft_reset_required",
                                    "คลิปนี้บันทึกเป็นแบบร่างบน TikTok แล้ว ลบแบบร่างบน TikTok แล้วรีเซ็ตกลับเป็นรอโพสต์ก่อนจึงจะแก้คิวได้",
@@ -1367,6 +1409,91 @@ def patch_queue(item_id: str, req: QueuePatchRequest, scope: ChannelScope = Depe
     if result is None:
         raise _item_not_found(item_id)
     return result
+
+
+def _plan_reschedule(records: List[Dict[str, Any]], posts: List[Dict[str, Any]], now: dt.datetime,
+                     window_days: int, channel_id: Optional[str]) -> Dict[str, Any]:
+    """Give every clip that needs a new time (planned or draft on TikTok) the first free template slot where its product /
+    hook colour is not used that day (the same daily rules as auto-fill). Oldest original time first."""
+    overdue = sorted((r for r in records if needs_reschedule(r, now)), key=lambda r: (str(r.get("scheduled_at")), str(r.get("id"))))
+    overdue_ids = {r["id"] for r in overdue}
+    context = [r for r in records if r["id"] not in overdue_ids and r.get("status") != "cancelled"]
+    products_by_day, colors_by_day = _daily_constraint_sets(context, posts)
+    today = now.date()
+    slots = _slot_stream(today, today + dt.timedelta(days=window_days), now + RESCHEDULE_LEAD, 400, channel_id=channel_id)
+    taken: set = set()
+    placed, unplaced = [], []
+    for row in overdue:
+        aliases = _row_product_aliases(row)
+        color = _row_visual_key(row)
+        chosen = None
+        for slot in slots:
+            iso = scheduled_iso(slot)
+            if iso in taken:
+                continue
+            day = slot.date()
+            if aliases.intersection(products_by_day.get(day, set())):
+                continue
+            if color and color in colors_by_day.get(day, set()):
+                continue
+            chosen = slot
+            break
+        title = row.get("hook_title") or row.get("project_name") or row.get("video_path")
+        if chosen is None:
+            unplaced.append({"id": row["id"], "title": title, "status": row.get("status"), "old_scheduled_at": row.get("scheduled_at"),
+                             "reason": f"ไม่พบช่องว่างที่ลงได้ภายใน {window_days} วัน (สินค้า/สี Hook ซ้ำวันเดียวกัน หรือช่องเต็ม)"})
+            continue
+        iso = scheduled_iso(chosen)
+        taken.add(iso)
+        products_by_day.setdefault(chosen.date(), set()).update(aliases)
+        if color:
+            colors_by_day.setdefault(chosen.date(), set()).add(color)
+        placed.append({"id": row["id"], "title": title, "status": row.get("status"),
+                       "old_scheduled_at": row.get("scheduled_at"), "new_scheduled_at": iso})
+    return {"items": placed, "unplaced": unplaced, "overdue_count": len(overdue)}
+
+
+@router.post("/reschedule-overdue/preview")
+def preview_reschedule_overdue(req: RescheduleOverduePreviewRequest, scope: ChannelScope = Depends(get_channel_scope)):
+    """What the bulk re-arrangement of overdue clips would do. Nothing is written."""
+    channel_id = _channel_of(scope)
+    records = ScheduleQueueStore.list_items(**_kw(channel_id))
+    return _plan_reschedule(records, _history_posts(channel_id), dt.datetime.now(PROJECT_TZ), req.window_days, channel_id)
+
+
+@router.post("/reschedule-overdue")
+def commit_reschedule_overdue(req: RescheduleOverdueCommitRequest, scope: ChannelScope = Depends(get_channel_scope)):
+    """Apply new slots to clips that need one. Planned clips and drafts keep their state (a draft stays on TikTok; its new time
+    is applied when it is published). All-or-nothing, and every slot is re-checked while the queue is locked."""
+    channel_id = _channel_of(scope)
+    _guard_writable(scope)
+    if not req.assignments:
+        raise HTTPException(status_code=422, detail="ไม่มีรายการให้จัดเวลาใหม่")
+    if len({a.id for a in req.assignments}) != len(req.assignments):
+        raise HTTPException(status_code=422, detail="มีคลิปซ้ำในรายการ")
+    history_posts = _history_posts(channel_id)
+    now = dt.datetime.now(PROJECT_TZ)
+    with ScheduleQueueStore.transaction(**_kw(channel_id)) as records:
+        by_id = {r["id"]: r for r in records}
+        wanted = {a.id: scheduled_iso(parse_scheduled_at(a.scheduled_at)) for a in req.assignments}
+        for item_id, iso in wanted.items():
+            row = by_id.get(item_id)
+            if row is None:
+                raise _item_not_found(item_id)
+            if not needs_reschedule(row, now):
+                raise HTTPException(status_code=409, detail="คลิปนี้ไม่ต้องจัดเวลาใหม่แล้ว (เวลายังไม่เกิน หรือสถานะเปลี่ยนไป) กรุณาโหลดรายการใหม่")
+            if parse_scheduled_at(iso) <= now + RESCHEDULE_LEAD:
+                raise HTTPException(status_code=422, detail="เวลาใหม่ต้องอยู่ในอนาคตอย่างน้อย 15 นาที")
+        others = [r for r in records if r["id"] not in wanted and r.get("status") != "cancelled"]
+        if len(set(wanted.values())) != len(wanted) or any(str(r.get("scheduled_at")) in set(wanted.values()) for r in others):
+            raise HTTPException(status_code=409, detail="มีช่องเวลาซ้ำกับคลิปอื่น กรุณาดูตัวอย่างใหม่")
+        pending = [{**by_id[i], "scheduled_at": iso} for i, iso in wanted.items()]
+        _validate_autofill_daily_constraints(others, history_posts, pending)
+        stamp = now_iso()
+        for item_id, iso in wanted.items():
+            by_id[item_id]["scheduled_at"] = iso
+            by_id[item_id]["updated_at"] = stamp
+    return {"success": True, "count": len(wanted), "items": [{"id": i, "scheduled_at": iso} for i, iso in wanted.items()]}
 
 
 @router.delete("/{item_id}")

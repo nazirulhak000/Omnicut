@@ -2954,6 +2954,31 @@
     },
     {
       "method": "POST",
+      "path": "/api/schedule-queue/reschedule-overdue",
+      "scope": "channel",
+      "allow_query_scope": false,
+      "access": "write",
+      "risk": "blocker",
+      "resource_params": [
+        "assignments[].id",
+        "assignments[].scheduled_at"
+      ],
+      "module": "scripts.api_schedule_queue"
+    },
+    {
+      "method": "POST",
+      "path": "/api/schedule-queue/reschedule-overdue/preview",
+      "scope": "channel",
+      "allow_query_scope": false,
+      "access": "read",
+      "risk": "major",
+      "resource_params": [
+        "window_days"
+      ],
+      "module": "scripts.api_schedule_queue"
+    },
+    {
+      "method": "POST",
       "path": "/api/schedule-queue/auto-fill/preview",
       "scope": "channel",
       "allow_query_scope": false,

@@ -27,7 +27,13 @@ its planned publish time, and its own date/time fields (a passed slot makes the 
 The extension opens **that** draft from Studio > Content > Drafts (matched by caption; none or more than one match = stop), checks the
 editor shows the same caption, sets the slot (or "Now") and then uses the ordinary one-click Post step (same label/identity checks, single
 attempt, same confirmation). Nothing is uploaded again. A scheduled publication uses one of the 30 schedule slots; when they are full the
-run stops with that reason and only "post now" is possible. If a publication is cancelled before the click the row returns to
+run stops with that reason and only "post now" is possible. **Slot already passed?** The clip keeps its draft on TikTok and goes to "needs a new time" (status "แบบร่างเลยเวลา — ต้องจัดเวลาใหม่", chip
+"ต้องจัดเวลาใหม่"). Either edit the card's date/time (saved to the queue row, 5-minute steps, >= 15 min ahead) or press "จัดเวลาใหม่ให้คลิปที่
+เกินเวลา": a preview lists old -> new for every planned/draft clip whose slot passed (next free template slot, never the same product or
+hook colour on one day, never another clip's slot), and nothing changes until you confirm. Drafts are not touched; the new time is put on the
+draft when it is published (no re-upload). The queue row is the single source of truth for the time: a stale panel is refused (409).
+Delete-and-re-upload is only worth it when the caption, cover or video must change.
+If a publication is cancelled before the click the row returns to
 "draft on TikTok" (never to "planned": the draft still exists).
 
 ## Safety rules that are always on

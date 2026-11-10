@@ -1430,6 +1430,8 @@ function filterAndRenderClips() {
   let list = allClips;
   if (currentStatusFilter === 'ready') {
     list = list.filter(c => getExtensionStatus(c).kind === 'ready' || !c.schedule_date);
+  } else if (currentStatusFilter === 'overdue') {
+    list = list.filter(c => c.needs_reschedule);
   } else if (currentStatusFilter === 'draft') {
     list = list.filter(c => c.is_draft);
   } else if (currentStatusFilter === 'scheduled') {
@@ -1618,7 +1620,25 @@ function renderClipCards(ready) {
       label.textContent = 'เวลาเผยแพร่';
       const dateIn = document.createElement('input'); dateIn.type = 'date'; dateIn.value = item.schedule_date || ''; dateIn.setAttribute('aria-label', 'วันที่เผยแพร่');
       const timeIn = document.createElement('input'); timeIn.type = 'time'; timeIn.step = 60; timeIn.value = item.schedule_time || ''; timeIn.setAttribute('aria-label', 'เวลาเผยแพร่');
-      const applySlot = () => { item.schedule_date = dateIn.value; item.schedule_time = timeIn.value; filterAndRenderClips(); };
+      timeIn.step = 300;   // TikTok schedules in 5-minute steps
+      const applySlot = async () => {
+        if (!dateIn.value || !timeIn.value) return;
+        try {
+          const res = await scopedPanelFetch(`${BACKEND}/api/schedule-queue/${encodeURIComponent(item.id)}`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ scheduled_at: `${dateIn.value}T${timeIn.value}:00+07:00` }),
+          });
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            setStatus(`เปลี่ยนเวลาไม่สำเร็จ: ${body.detail || body.code || res.status}`, 'error');
+          } else {
+            setStatus(`ตั้งเวลาแบบร่างใหม่เป็น ${dateIn.value} ${timeIn.value} แล้ว (แบบร่างบน TikTok ไม่ถูกแตะ จะอัปเดตเวลาตอนเผยแพร่)`, 'success');
+          }
+        } catch (err) {
+          setStatus(`เปลี่ยนเวลาไม่สำเร็จ: ${err.message}`, 'error');
+        }
+        await loadExports();
+      };
       dateIn.addEventListener('change', applySlot);
       timeIn.addEventListener('change', applySlot);
       slot.append(label, dateIn, timeIn);
@@ -3546,17 +3566,22 @@ function updateFilterChipCounts() {
   const totalScheduled = allClips.filter(c => Boolean(c.schedule_date) && !c.is_draft).length;
   const totalUnscheduled = allClips.filter(c => !c.schedule_date).length;
   const totalDraft = allClips.filter(c => c.is_draft).length;
+  const totalOverdue = allClips.filter(c => c.needs_reschedule).length;
 
   const countAll = document.getElementById('filterCountAll');
   const countReady = document.getElementById('filterCountReady');
   const countSched = document.getElementById('filterCountScheduled');
   const countUnsched = document.getElementById('filterCountUnscheduled');
   const countDraft = document.getElementById('filterCountDraft');
+  const countOverdue = document.getElementById('filterCountOverdue');
+  const rescheduleBtn = document.getElementById('rescheduleOverdueBtn');
   if (countAll) countAll.textContent = String(totalAll);
   if (countReady) countReady.textContent = String(totalReady);
   if (countSched) countSched.textContent = String(totalScheduled);
   if (countUnsched) countUnsched.textContent = String(totalUnscheduled);
   if (countDraft) countDraft.textContent = String(totalDraft);
+  if (countOverdue) countOverdue.textContent = String(totalOverdue);
+  if (rescheduleBtn) { rescheduleBtn.hidden = totalOverdue === 0; rescheduleBtn.textContent = `จัดเวลาใหม่ให้คลิปที่เกินเวลา (${totalOverdue})`; }
 }
 
 document.querySelectorAll('.filter-chip').forEach((chip) => {
@@ -3625,3 +3650,39 @@ async function startDraftPublish(item, when) {
     await releaseRunLock();
   }
 }
+
+// ── Re-arrange every clip whose slot has passed (planned or draft on TikTok) ──
+const rescheduleOverdueBtn = document.getElementById('rescheduleOverdueBtn');
+rescheduleOverdueBtn?.addEventListener('click', async () => {
+  if (busy || batchStarting) return;
+  rescheduleOverdueBtn.disabled = true;
+  try {
+    const previewRes = await scopedPanelFetch(`${BACKEND}/api/schedule-queue/reschedule-overdue/preview`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ window_days: 14 }),
+    });
+    const preview = await previewRes.json().catch(() => ({}));
+    if (!previewRes.ok) { setStatus(`ดูตัวอย่างไม่สำเร็จ: ${preview.detail || previewRes.status}`, 'error'); return; }
+    if (!preview.items?.length) {
+      setStatus(preview.unplaced?.length ? `จัดเวลาใหม่ไม่ได้: ${preview.unplaced[0].reason}` : 'ไม่มีคลิปที่ต้องจัดเวลาใหม่', preview.unplaced?.length ? 'error' : 'info');
+      return;
+    }
+    const fmt = (iso) => String(iso || '').replace('T', ' ').slice(5, 16);
+    const lines = preview.items.slice(0, 12).map((i) => `• ${String(i.title || '').slice(0, 34)} (${i.status === 'draft_on_platform' ? 'แบบร่าง' : 'รอโพสต์'}): ${fmt(i.old_scheduled_at)} → ${fmt(i.new_scheduled_at)}`);
+    if (preview.items.length > 12) lines.push(`…และอีก ${preview.items.length - 12} คลิป`);
+    if (preview.unplaced?.length) lines.push(`จัดไม่ได้ ${preview.unplaced.length} คลิป (สินค้า/สี Hook ซ้ำวันเดียวกันหรือช่องเต็ม)`);
+    const ok = await askConfirm(`จัดเวลาใหม่ให้ ${preview.items.length} คลิปที่เกินเวลา ตามช่องว่างถัดไปของตารางโพสต์?\n${lines.join('\n')}\n\nแบบร่างไม่ถูกแตะ — เวลาใหม่จะถูกใส่ตอนเผยแพร่`);
+    if (!ok) return;
+    const commit = await scopedPanelFetch(`${BACKEND}/api/schedule-queue/reschedule-overdue`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assignments: preview.items.map((i) => ({ id: i.id, scheduled_at: i.new_scheduled_at })) }),
+    });
+    const body = await commit.json().catch(() => ({}));
+    if (!commit.ok) { setStatus(`จัดเวลาใหม่ไม่สำเร็จ ไม่มีอะไรเปลี่ยน: ${body.detail || commit.status}`, 'error'); return; }
+    setStatus(`จัดเวลาใหม่แล้ว ${body.count} คลิป — ติ๊กแล้วรันเพื่อเผยแพร่`, 'success');
+    await loadExports();
+  } catch (err) {
+    setStatus(`จัดเวลาใหม่ไม่สำเร็จ: ${err.message}`, 'error');
+  } finally {
+    rescheduleOverdueBtn.disabled = false;
+  }
+});

@@ -116,3 +116,11 @@ test('a queue row saved as a draft on TikTok becomes a draft clip (publish_draft
   assert.ok(!byId['q-plan'].is_draft && !byId['q-plan'].publish_draft);
   assert.equal(byId['q-done'], undefined, 'rows TikTok already scheduled are not listed');
 });
+
+test('a clip whose slot passed says it needs a new time (a draft keeps being a draft)', () => {
+  const overdueDraft = { is_scheduled: true, is_draft: true, publish_draft: true, needs_reschedule: true };
+  const overduePlanned = { is_scheduled: true, needs_reschedule: true };
+  assert.deepEqual(getExtensionStatus(overdueDraft), { kind: 'draft_overdue', label: 'แบบร่างเลยเวลา — ต้องจัดเวลาใหม่' });
+  assert.deepEqual(getExtensionStatus(overduePlanned), { kind: 'overdue', label: 'เลยเวลา — ต้องจัดเวลาใหม่' });
+  assert.equal(getExtensionStatus({ is_scheduled: true, is_draft: true, needs_reschedule: false }).kind, 'draft');
+});

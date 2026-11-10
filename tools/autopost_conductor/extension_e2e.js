@@ -140,8 +140,8 @@ async function main() {
   const step = (name, detail = '') => { console.log(`[step] ${name} ${detail}`); report.steps.push({ name, detail }); };
 
   // 1) pick ONE eligible clip so the panel's search filter leaves exactly one
-  const { clips } = await pickClips(api, { limit: clipCount });
-  if (!verifyProbe && !process.argv.includes('--draft-probe') && !process.argv.includes('--quota-probe') && !process.argv.includes('--smart-overflow') && !process.argv.includes('--publish-draft') && !clips.length) throw new Error('ไม่มีคลิปพร้อมโพสต์ในคิว (ตรวจเวลา/export)');
+  const { clips } = await pickClips(api, { limit: clipCount, mode: process.argv.includes('--draft') ? 'draft' : 'schedule' });   // a draft run needs no future slot
+  if (!verifyProbe && !process.argv.includes('--draft-probe') && !process.argv.includes('--quota-probe') && !process.argv.includes('--smart-overflow') && !process.argv.includes('--publish-draft') && !process.argv.includes('--reschedule-overdue') && !clips.length) throw new Error('ไม่มีคลิปพร้อมโพสต์ในคิว (ตรวจเวลา/export)');
   const clip = clips[0] || { title: '' };
   step('clips eligible', `${clips.length} (asked ${clipCount})`);
 
@@ -176,6 +176,29 @@ async function main() {
   step('panel open');
 
   try {
+    if (process.argv.includes('--reschedule-overdue')) {
+      // The bulk re-arrangement of clips whose slot passed: the panel's REAL button, preview dialog and commit.
+      let shown = false;
+      for (let i = 0; i < 20 && !shown; i += 1) {
+        shown = await panel.eval(`(() => { const b = document.getElementById('rescheduleOverdueBtn'); return Boolean(b && !b.hidden); })()`, false).catch(() => false);
+        if (!shown) await sleep(1500);
+      }
+      if (!shown) throw new Error('the reschedule button is hidden: no clip needs a new time');
+      step('reschedule button', await panel.eval(`document.getElementById('rescheduleOverdueBtn').textContent.trim()`, false));
+      step('overdue chip', await panel.eval(`document.querySelector('.filter-chip[data-filter="overdue"]').textContent.trim()`, false));
+      step('card status words', await panel.eval(`[...document.querySelectorAll('#list .card-status.draft_overdue, #list .card-status.overdue')].map(e => e.textContent.trim()).join(' | ')`, false));
+      await panel.eval(`document.getElementById('rescheduleOverdueBtn').click()`, false);
+      const asked = await (async () => { const until = Date.now() + 45000; while (Date.now() < until) { const t = await panel.eval(`document.getElementById('confirmOverlay')?.classList.contains('show') ? document.getElementById('confirmText').innerText : ''`, false).catch(() => ''); if (t) return t; await sleep(500); } return ''; })();
+      console.log('[confirm dialog]', asked);
+      if (!asked) throw new Error('no preview dialog');
+      await panel.eval(`document.getElementById('confirmOkBtn').click()`, false);
+      await sleep(4000);
+      step('status after commit', await panel.eval(`document.getElementById('status')?.innerText || ''`, false).catch(() => ''));
+      report.ok = true;
+      console.log('[E2E PASS] reschedule-overdue');
+      process.exitCode = 0;
+      return;
+    }
     if (process.argv.includes('--publish-draft')) {
       // Publish a draft that already sits on TikTok (saved earlier with --draft). The panel's REAL draft list and buttons,
       // the REAL draft opening + caption check + schedule setting; the final Post click is stubbed unless --real-post.
@@ -492,12 +515,13 @@ async function main() {
       return true;
     })()`, false);
     if (pick) {
-      const titles = clips.slice(0, pick).map(c => String(c.title).trim());   // the card text is trimmed
+      const squash = (text) => String(text).split(' ').filter(Boolean).join(' ').trim();   // the card text is trimmed and its double spaces collapse
+      const titles = clips.slice(0, pick).map(c => squash(c.title));
       const ticked = await panel.eval(`(() => {
         const wanted = ${JSON.stringify(titles)};
         let n = 0;
         for (const card of document.querySelectorAll('#list .card')) {
-          const hook = (card.querySelector('.card-hook')?.innerText || '').trim();
+          const hook = (card.querySelector('.card-hook')?.innerText || '').split(' ').filter(Boolean).join(' ').trim();
           if (wanted.includes(hook)) { const box = card.querySelector('.card-check input'); if (box && !box.checked) { box.click(); n += 1; } }
         }
         return n;

@@ -311,6 +311,12 @@ def prepare(req: PrepareRequest, scope: ChannelScope = Depends(get_workflow_scop
             draft_source_job_id = queue.get("posting_job_id")
             if queue.get("status") != "draft_on_platform" or not draft_source_job_id:
                 raise ChannelError(409, "posting_draft_not_on_platform", "เผยแพร่จากแบบร่างได้เฉพาะคิวที่อยู่ในสถานะ 'บันทึกเป็นแบบร่างบน TikTok แล้ว'")
+            queued_at = str(queue.get("scheduled_at") or "")
+            if req.schedule_date and req.schedule_time and queued_at:
+                # one source of truth for the time: the queue row (the scheduler edits it). A stale panel must not publish a
+                # slot the scheduler no longer has.
+                if f"{req.schedule_date}T{req.schedule_time}" != queued_at[:16]:
+                    raise ChannelError(409, "posting_slot_mismatch", f"เวลาที่ส่งมา ({req.schedule_date} {req.schedule_time}) ไม่ตรงกับเวลาในคิว ({queued_at[:16].replace('T', ' ')}) กรุณาโหลดรายการใหม่")
             source_job = _jobs().get(channel_id, draft_source_job_id)
             if source_job["status"] != "draft_saved" or source_job.get("export_id") != export_record["id"]:
                 raise ChannelError(409, "posting_draft_not_on_platform", "งานแบบร่างเดิมไม่อยู่ในสถานะที่เผยแพร่ต่อได้")

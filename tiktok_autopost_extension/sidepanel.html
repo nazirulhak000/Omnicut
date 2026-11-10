@@ -4008,6 +4008,8 @@
     .draft-slot-controls input { width: 100%; min-width: 0; height: 40px; box-sizing: border-box; padding: 0 10px; }
     .card .btn-primary.draft-now { width: 100%; min-height: 40px; }
     .card-status.draft { color: #f5a524; }
+    .card-status.draft_overdue, .card-status.overdue { color: #ff6b6b; }
+    .reschedule-overdue { width: 100%; min-height: 40px; margin: 6px 0 10px; }
 </style>
 
 </head>
@@ -4136,7 +4138,7 @@
 
         </div>
 
-        <span class="batch-engine-tag">Engine v0.7.2</span>
+        <span class="batch-engine-tag">Engine v0.8.0</span>
 
       </div>
 
@@ -4359,6 +4361,7 @@
     <div class="filter-chips-bar" id="filterChipsBar">
       <button type="button" class="filter-chip active" data-filter="all">ทั้งหมด (<span id="filterCountAll">0</span>)</button>
       <button type="button" class="filter-chip" data-filter="ready">รอโพสต์ (<span id="filterCountReady">0</span>)</button>
+      <button type="button" class="filter-chip" data-filter="overdue">ต้องจัดเวลาใหม่ (<span id="filterCountOverdue">0</span>)</button>
       <button type="button" class="filter-chip" data-filter="draft">แบบร่าง (<span id="filterCountDraft">0</span>)</button>
       <button type="button" class="filter-chip" data-filter="scheduled">กำหนดเวลาแล้ว (<span id="filterCountScheduled">0</span>)</button>
       <button type="button" class="filter-chip" data-filter="unscheduled">ไม่มีเวลา (<span id="filterCountUnscheduled">0</span>)</button>
@@ -4370,6 +4373,7 @@
       <button type="button" id="clearSelection" class="select-clear" hidden>ล้างที่เลือก</button>
     </div>
 
+    <button id="rescheduleOverdueBtn" type="button" class="btn-log-action reschedule-overdue" hidden>จัดเวลาใหม่ให้คลิปที่เกินเวลา (0)</button>
     <div id="list"></div>
 
   </div>

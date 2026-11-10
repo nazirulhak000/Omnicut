@@ -1011,3 +1011,16 @@ def test_cleared_draft_publication_returns_the_row_to_draft_on_platform_not_plan
     # and it can be published again afterwards
     again = client.post("/api/tiktok-autopost/prepare", json=_publish_payload(api_env, queue_id, schedule_date="2030-01-03", schedule_time="10:00"))
     assert again.status_code == 200, again.text
+
+
+def test_publish_draft_slot_must_equal_the_slot_of_the_queue_row(api_env):
+    """One source of truth for the time: the queue row (the scheduler edits it). A stale panel cannot publish another slot."""
+    from scripts.schedule_store import ScheduleQueueStore
+    client, api, registry, video, export, _ = api_env
+    queue_id, _draft = _drafted_queue_row(api_env)
+    ScheduleQueueStore.update_item(queue_id, lambda row, _rows: row.update(scheduled_at="2030-01-02T09:00+07:00"), channel_id="main")
+    stale = client.post("/api/tiktok-autopost/prepare", json=_publish_payload(api_env, queue_id, schedule_date="2030-01-03", schedule_time="10:00"))
+    assert stale.status_code == 409 and stale.json()["code"] == "posting_slot_mismatch"
+    assert _queue_get(queue_id)["status"] == "draft_on_platform"                       # nothing moved, no job created
+    good = client.post("/api/tiktok-autopost/prepare", json=_publish_payload(api_env, queue_id, schedule_date="2030-01-02", schedule_time="09:00"))
+    assert good.status_code == 200, good.text

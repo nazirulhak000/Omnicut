@@ -997,7 +997,7 @@ test('stats sync accepts the real Studio posts page and stamps a visible build t
   // Build identity: chrome://extensions + the Tools tab both prove the fresh
   // code is running, so stale cached sidepanel.js (the ghost "จำกัดโดเมน"
   // banner that never existed in this repo) can be caught by the user's eyes.
-  assert.equal(manifest.version, '0.7.2');
+  assert.equal(manifest.version, '0.8.0');
   assert.equal(manifest.content_scripts, undefined, 'no legacy content script');
   for (const gone of ['batch_runner.js', 'batch_runner.test.cjs', 'content_script.js', 'popup.html', 'popup.js']) assert.ok(!fs.existsSync(path.join(__dirname, gone)), gone + ' must stay deleted');
   assert.match(sideHtml, /id="buildTag"/);
@@ -1836,4 +1836,21 @@ test('draft card layout: caption, then date | time in two equal columns, time st
   assert.match(html, /\.draft-slot-controls input \{[^}]*height: 40px/, 'touch-friendly field height');
   assert.match(side, /label\.className = 'draft-slot-label'/);
   assert.match(side, /btn\.className = 'btn-primary draft-now'/);
+});
+
+test('overdue clips: filter chip, one bulk button with a preview dialog, and the slot editor persists to the queue', () => {
+  const side = fs.readFileSync(path.join(__dirname, 'sidepanel.js'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, 'sidepanel.html'), 'utf8');
+  assert.match(html, /data-filter="overdue"/);
+  assert.match(html, /id="filterCountOverdue"/);
+  assert.match(html, /id="rescheduleOverdueBtn"/);
+  assert.match(side, /currentStatusFilter === 'overdue'/);
+  // bulk: preview first (nothing written), explicit confirmation, then commit; drafts are not touched
+  const bulk = side.slice(side.indexOf("rescheduleOverdueBtn?.addEventListener('click'"));
+  assert.ok(bulk.indexOf('reschedule-overdue/preview') > 0 && bulk.indexOf('reschedule-overdue/preview') < bulk.indexOf('askConfirm('));
+  assert.ok(bulk.indexOf('askConfirm(') < bulk.indexOf('/api/schedule-queue/reschedule-overdue`'));
+  assert.match(bulk, /แบบร่างไม่ถูกแตะ/);
+  // the draft card's time fields save to the scheduler's row (one source of truth) instead of only changing the card
+  assert.match(side, /method: 'PATCH'[\s\S]{0,200}scheduled_at: `\$\{dateIn\.value\}T\$\{timeIn\.value\}:00\+07:00`/);
+  assert.match(side, /timeIn\.step = 300/);
 });
