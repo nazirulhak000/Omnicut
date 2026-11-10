@@ -1306,7 +1306,8 @@ def list_queue(
             except Exception:
                 pass
         item["episode_no"] = episode_numbers.get(item.get("export_id"))
-        item["posting_job_status"] = job_status.get(item.get("posting_job_id"))
+        if item.get("posting_job_id") in job_status:   # only rows that have a job get the key (the legacy listing stays byte-identical)
+            item["posting_job_status"] = job_status[item["posting_job_id"]]
         scheduled = _queue_timestamp(item.get("scheduled_at", ""))
         item["is_overdue"] = bool(item.get("status") == "planned" and scheduled and scheduled < now)
         # planned OR draft-on-TikTok clips whose slot passed (or is < 15 min away): they must get a new time before they can run
