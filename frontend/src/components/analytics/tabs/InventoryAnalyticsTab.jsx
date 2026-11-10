@@ -129,8 +129,6 @@ export default function InventoryAnalyticsTab({ onNavigateToFlow }) {
           subtitle={`มีคลิปแล้ว ${summary.covered_products} · ยังไม่มีคลิป ${summary.uncovered_products}`}
           icon={Package}
           accentColor="text-rose-400"
-          borderColor="border-rose-500/20"
-          bgColor="bg-rose-500/[0.03]"
         />
         <MetricKpiCard
           title="อัตราสินค้ามีคลิป (Coverage)"
@@ -138,8 +136,6 @@ export default function InventoryAnalyticsTab({ onNavigateToFlow }) {
           subtitle="สัดส่วนสินค้าที่มีวิดีโอตัดต่อแล้ว"
           icon={CheckCircle2}
           accentColor="text-emerald-400"
-          borderColor="border-emerald-500/20"
-          bgColor="bg-emerald-500/[0.03]"
           badge={`${summary.covered_products}/${summary.total_products}`}
           badgeColor="bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
           rightElement={
@@ -157,8 +153,6 @@ export default function InventoryAnalyticsTab({ onNavigateToFlow }) {
           subtitle="คำนวณจากรูปภาพ ฟุตเทจ สคริปต์ และแผนถ่าย"
           icon={Sparkles}
           accentColor="text-cyan-400"
-          borderColor="border-cyan-500/20"
-          bgColor="bg-cyan-500/[0.03]"
         />
         <MetricKpiCard
           title="โอกาสใหม่ (ยังไม่มีคลิป)"
@@ -166,8 +160,6 @@ export default function InventoryAnalyticsTab({ onNavigateToFlow }) {
           subtitle="สินค้าที่พร้อมนำมาเขียนสคริปต์และผลิตคลิป"
           icon={AlertCircle}
           accentColor="text-amber-400"
-          borderColor="border-amber-500/20"
-          bgColor="bg-amber-500/[0.03]"
           badge="รอผลิต"
           badgeColor="bg-amber-500/10 text-amber-400 border-amber-500/20"
         />

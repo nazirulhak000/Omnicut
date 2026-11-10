@@ -34,7 +34,7 @@
 
 // its own tab and deleted -- one UI surface instead of two).
 
-importScripts('automation.js', 'auth_key.js', 'post_guard.js', 'quota_detector.js');
+importScripts('limits.js', 'automation.js', 'auth_key.js', 'post_guard.js', 'quota_detector.js', 'draft_sync.js');
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((err) => {
 
@@ -335,9 +335,9 @@ async function readStudioAccountOnce(send) {
 }
 
 // How long a verified account handle may be reused for the guard steps between the first read and the publish click.
-const ACCOUNT_REREAD_MS = 15 * 60 * 1000;
+const ACCOUNT_REREAD_MS = globalThis.OmniLimits.ACCOUNT_REREAD_MS;
 
-async function guardPostingAction(job, send, tabId, {beginPublish = false, retried = false} = {}) {
+async function guardPostingAction(job, send, tabId, {beginPublish = false, retried = false, clickKind = null} = {}) {
 
   if (!job.job_id || job.protocol_version !== 2 || !job.lease_token) throw new Error('ต้องอัปเดต backend/extension เป็น posting protocol รุ่น 2');
 
@@ -401,7 +401,9 @@ async function guardPostingAction(job, send, tabId, {beginPublish = false, retri
 
   try {
 
-    updated = await postingRequest(beginPublish ? '/attempt' : '/validate', job.channel_id, postingFence(job, source));
+    updated = await postingRequest(beginPublish ? '/attempt' : '/validate', job.channel_id,
+      // say which button is about to be pressed: the backend refuses a draft job a Post click and vice versa
+      {...postingFence(job, source), ...(beginPublish && clickKind ? {click_kind: clickKind} : {})});
 
   } catch (err) {
 
@@ -427,7 +429,7 @@ async function guardPostingAction(job, send, tabId, {beginPublish = false, retri
 
     Object.assign(job,reclaimed); state.activeJob=job; await persistPostingState(state);
 
-    return guardPostingAction(job,send,tabId,{beginPublish,retried:true});
+    return guardPostingAction(job,send,tabId,{beginPublish,retried:true,clickKind});
 
   }
 
@@ -577,13 +579,26 @@ async function parkPostingJob() {
   }
   const job = state.activeJob;
   if (!job) return {success: true, parked: false};
+  let refreshed = false;
   try {
     const current = await postingRequest(`/jobs/${encodeURIComponent(job.job_id)}`, job.channel_id);
-    if (current) Object.assign(job, current);
+    if (current) { Object.assign(job, current); refreshed = true; }
   } catch (_) {}
+  // If the backend could not be asked, the local copy may predate an /attempt that already happened: never release on a guess.
   const attempted = Boolean(job.publish_attempted_at)
-    || !['prepared', 'claimed', 'cancelled', 'published'].includes(job.status);
-  if (!attempted) return releasePostingJob({force: true});
+    || !['prepared', 'claimed', 'cancelled', 'published'].includes(job.status)
+    || (!refreshed && job.status !== 'prepared');
+  if (!attempted && job.status === 'prepared') {
+    // never claimed: nothing was fenced, the prepared job is simply cancelled
+    await postingRequest('/clear', job.channel_id, {job_id: job.job_id});
+    state = await postingState();
+    state.activeJob = null;
+    state.tabId = null;
+    state.accountWarning = null;
+    await persistPostingState(state);
+    return {success: true, released: true, job_id: job.job_id};
+  }
+  if (!attempted) return releasePostingJob({});
   const parked = {job_id: job.job_id, channel_id: job.channel_id, status: job.status, parked_at: Date.now()};
   state.unresolvedJobs = [...(state.unresolvedJobs || []).filter(item => item.job_id !== job.job_id), parked].slice(-50);
   state.activeJob = null;
@@ -632,18 +647,12 @@ async function releasePostingJob(options = {}) {
 
   }
 
-  // 3. Pre-publish release check (unless force is requested)
-
-  if (!options?.force && (state.pendingReceipt || job.publish_attempted_at || !['claimed','cancelled'].includes(job.status))) {
-
-    throw new Error('ต้องตรวจผลเดิมก่อน ห้ามยกเลิกงานที่กดโพสต์แล้ว');
-
+  // 3. Pre-publish release check. There is no "force": an attempted job is only ever reconciled or parked, because
+  // releasing it made the export preparable again and caused duplicate posts.
+  if (state.pendingReceipt || job.publish_attempted_at || !['claimed','cancelled'].includes(job.status)) {
+    throw new Error('ต้องตรวจผลเดิมก่อน ห้ามยกเลิกงานที่กดโพสต์แล้ว (ใช้ปุ่ม "พักงานเดิม" แทนการบังคับล้าง)');
   }
-
   const fence = postingFence(job, null);
-
-  if (options?.force) fence.force = true;
-
   const result = await postingRequest('/release', job.channel_id, fence);
 
   if (result.status !== 'cancelled' && result.status !== 'published') throw new Error('Backend ยังไม่ยืนยันการยกเลิกงาน');
@@ -656,7 +665,7 @@ async function releasePostingJob(options = {}) {
 
   await persistPostingState(state);
 
-  return {success: true, job_id: job.job_id, status: result.status, forced: Boolean(options?.force)};
+  return {success: true, job_id: job.job_id, status: result.status};
 
 }
 
@@ -674,6 +683,91 @@ async function selectPostingChannel(channelId) {
 
   return {success: true, channel_id: state.channelId};
 
+}
+
+// Automatic reconcile: look for THIS clip on the list it must appear on, matching the caption and (for a scheduled job)
+// the slot; the evidence sent to the backend says what was seen. No match = not confirmed (the caller keeps the job
+// unresolved). A post-now row must also carry a badge time close to the click, so an older post with the same caption
+// can never confirm a post that did not happen.
+const RECONCILE_POST_WINDOW_MS = 10 * 60 * 1000;
+// Studio > Content is a VIRTUALIZED list: only about 8 rows exist in the page at any moment, and scheduled posts are
+// listed before immediate ones. Looking at the first rows is therefore not enough (a post-now row, or a slot in the middle
+// of the existing ones, sits deeper). This scrolls the list and collects every row, stopping early when `match` accepts one.
+async function collectContentRows(send, {match = null, stopWhen = null, maxSteps = 40, settleMs = 700} = {}) {
+  const seen = new Set();
+  const rows = [];
+  let ended = false;
+  for (let step = 0; step < maxSteps; step += 1) {
+    const out = await send('Runtime.evaluate', {expression: 'document.body ? document.body.innerText : ""', returnByValue: true});
+    const parts = String(out?.result?.value || '').split(/\n(?=\d{2}:\d{2}\n)/).filter((part) => /^\d{2}:\d{2}\n/.test(part));   // header text is not a row
+    for (const row of parts) {
+      // the same row is read at several scroll positions with different tails (footer, counters): identify it by its first lines
+      const key = row.split('\n').slice(0, 3).join('|').trim();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      rows.push(row);
+      if (match && match(row)) return {rows, found: row};
+      if (stopWhen && stopWhen(row)) return {rows, found: null, stoppedBy: 'cutoff'};
+    }
+    const moved = await send('Runtime.evaluate', {
+      expression: `(() => {
+        const candidates = [document.scrollingElement, ...document.querySelectorAll('div')].filter((e) => {
+          if (!e || e.scrollHeight <= e.clientHeight + 80) return false;
+          return e === document.scrollingElement || /auto|scroll/.test(getComputedStyle(e).overflowY);
+        });
+        const box = candidates.sort((a, b) => b.scrollHeight - a.scrollHeight)[0];
+        if (!box) return 0;
+        const before = box.scrollTop;
+        box.scrollTop = before + Math.max(300, Math.floor(box.clientHeight * 0.8));
+        return box.scrollTop - before;
+      })()`,
+      returnByValue: true,
+    });
+    if (!(moved?.result?.value > 0)) { ended = true; break; }
+    await sleep(settleMs);
+  }
+  return {rows, found: null, stoppedBy: ended ? 'end' : 'cap'};
+}
+async function reconcileFromListPages(send, tab, job) {
+  const intent = jobIntent(job);
+  const token = job.confirmation_token ? {confirmation_token: job.confirmation_token} : {};
+  const guard = globalThis.OmniPostGuard;
+  const detector = globalThis.OmniCutQuotaDetector;
+  if (intent === 'draft') {
+    await navigateAcceptingLeave(tab.id, DRAFT_TAB_URL);
+    await sleep(5000);
+    const evidence = await readDraftRowEvidence(send, job.caption || '');
+    if (evidence.onDrafts && evidence.rowVisible === true) {
+      return {confirmed: true, outcome: 'draft_saved', proof: {kind: 'drafts_page_confirmed', ...token}};
+    }
+    return {confirmed: false};
+  }
+  if (!guard?.rowMatchesClip) return {confirmed: false};
+  let url = '';
+  try { url = (await chrome.tabs.get(tab.id))?.url || ''; } catch (e) {}
+  if (!/\/tiktokstudio\/content/.test(url) || /[?&]tab=draft/.test(url)) {
+    await navigateAcceptingLeave(tab.id, 'https://www.tiktok.com/tiktokstudio/content');
+    await sleep(6000);
+  }
+  const scheduled = intent === 'schedule';
+  const clip = {caption: job.caption || '', episode_no: job.episode_no || null, schedule_date: scheduled ? job.schedule_date : '', schedule_time: scheduled ? job.schedule_time : ''};
+  // a row counts only when it matches the caption (and the slot, or for an immediate post: was published right after the click)
+  const accept = (row) => {
+    if (!guard.rowMatchesClip(row, clip).ok) return null;
+    if (scheduled) {
+      return {confirmed: true, outcome: 'scheduled_on_platform',
+        proof: {kind: 'content_page_reconciled', notice: `Studio > Content row matches the caption and the slot ${job.schedule_date} ${job.schedule_time}`, ...token}};
+    }
+    const rowTime = detector?.parseListRows ? detector.parseListRows(`header\n${row}`, Date.now())[0]?.ts : null;
+    const attemptedMs = Number(job.publish_attempted_at) * 1000;
+    if (rowTime && Number.isFinite(attemptedMs) && rowTime >= attemptedMs - RECONCILE_POST_WINDOW_MS && rowTime <= Date.now() + RECONCILE_POST_WINDOW_MS) {
+      return {confirmed: true, outcome: 'published',
+        proof: {kind: 'content_page_reconciled', notice: 'Studio > Content row matches the caption and was published right after the click', ...token}};
+    }
+    return null;
+  };
+  const scan = await collectContentRows(send, {match: (row) => Boolean(accept(row))});
+  return scan.found ? accept(scan.found) : {confirmed: false};
 }
 
 async function runReconcilePostingResult(options = {}) {
@@ -750,17 +844,13 @@ async function runReconcilePostingResult(options = {}) {
 
     const manualSource = job.attempted_source_account || job.target_handle;
 
+    const manualIntent = jobIntent(job);
     const confirmation = {
-
       confirmed: true,
-
-      outcome: 'published',
-
+      outcome: manualIntent === 'draft' ? 'draft_saved' : (manualIntent === 'schedule' ? 'scheduled_on_platform' : 'published'),
       proof: {
-
         kind: 'manual_user_confirmation',
-
-        notice: 'User confirmed posting on TikTok Studio',
+        notice: manualIntent === 'draft' ? 'User confirmed the draft exists in TikTok Studio > Drafts' : 'User confirmed posting on TikTok Studio',
 
         ...(job.confirmation_token ? { confirmation_token: job.confirmation_token } : {})
 
@@ -870,210 +960,11 @@ async function runReconcilePostingResult(options = {}) {
 
     const source = checkPostingAccount(job, await readStudioAccount(send));
 
-    let confirmation = job.confirmation_token ? await waitForPostConfirmation(send, tab.id, 2000, job.confirmation_token) : { confirmed: false };
-
+    let confirmation = job.confirmation_token ? await waitForPostConfirmation(send, tab.id, 2000, job.confirmation_token, jobIntent(job)) : { confirmed: false };
     if (!confirmation.confirmed) {
-
-      const videoStem = job.video_path ? job.video_path.split(/[/\\]/).pop().replace(/\.[^.]+$/, '') : '';
-
-      const contentCheck = await send('Runtime.evaluate', {
-
-        expression: `(() => {
-
-          const url = window.location.href;
-
-          const isContent = url.includes('/content') || url.includes('/manage');
-
-          const norm = s => String(s || '').replace(/\\s+/g, ' ').trim().toLowerCase();
-
-          const cleanTokens = s => String(s || '').toLowerCase().replace(/[^a-z0-9ก-๙]/g, ' ').split(/\\s+/).filter(t => t.length >= 2);
-
-          const targetCaption = norm(${JSON.stringify(job.caption || '')});
-
-          const targetProductName = norm(${JSON.stringify(job.product_name || '')});
-
-          const targetStem = norm(${JSON.stringify(videoStem)}).replace(/_\\d{8}_\\d{6}.*$/, '');
-
-          const tokens = [...new Set([
-
-            ...cleanTokens(targetCaption).slice(0, 10),
-
-            ...cleanTokens(targetProductName),
-
-            ...cleanTokens(targetStem),
-
-          ])].filter(t => t.length >= 2);
-
-          const rowSelectors = [
-
-            '[data-tt="components_RowLayout_FlexRow"]',
-
-            '[data-tt*="RowLayout"]',
-
-            '[class*="RowLayout"]',
-
-            '[class*="table-row"]',
-
-            '[class*="TableRow"]',
-
-            '[role="row"]',
-
-            'tbody tr',
-
-            'tr'
-
-          ];
-
-          let rows = [];
-
-          for (const sel of rowSelectors) {
-
-            const found = Array.from(document.querySelectorAll(sel));
-
-            if (found.length > 0) {
-
-              rows = found;
-
-              break;
-
-            }
-
-          }
-
-          let matchedRow = null;
-
-          let firstNonPinned = null;
-
-          for (const row of rows) {
-
-            const rawText = (row.innerText || row.textContent || '');
-
-            const textNorm = norm(rawText);
-
-            if (!textNorm) continue;
-
-            // Skip table header
-
-            if ((textNorm.includes('content') && textNorm.includes('views')) || (textNorm.includes('เนื้อหา') && textNorm.includes('ยอดดู'))) continue;
-
-            // Skip pinned older posts
-
-            const isPinned = textNorm.includes('pinned') || textNorm.includes('ปักหมุด');
-
-            if (isPinned) continue;
-
-            const isNewOrReview = textNorm.includes('under review')
-
-              || textNorm.includes('กำลังตรวจสอบ')
-
-              || textNorm.includes('reviewing')
-
-              || textNorm.includes('private')
-
-              || textNorm.includes('ส่วนตัว')
-
-              || textNorm.includes('just now')
-
-              || textNorm.includes('เมื่อสักครู่')
-
-              || textNorm.includes('นาทีที่แล้ว')
-
-              || textNorm.includes('0') /* views */;
-
-            if (!firstNonPinned) {
-
-              firstNonPinned = { textNorm, isNewOrReview, raw: rawText.slice(0, 100) };
-
-            }
-
-            const matchedTokens = tokens.filter(tok => textNorm.includes(tok));
-
-            const captionSnippet = targetCaption.replace(/[^a-z0-9ก-๙]/g, '').slice(0, 12);
-
-            const rowClean = textNorm.replace(/[^a-z0-9ก-๙]/g, '');
-
-            const hasSnippetMatch = Boolean(captionSnippet && rowClean.includes(captionSnippet));
-
-            if ((matchedTokens.length >= 1 || hasSnippetMatch) && isNewOrReview) {
-
-              matchedRow = { matched: true, matchedTokens, snippet: rawText.slice(0, 100) };
-
-              break;
-
-            }
-
-          }
-
-          // Fallback 1: Scan whole page body text if rows didn't match
-
-          const bodyText = document.body ? (document.body.innerText || document.body.textContent || '') : '';
-
-          const bodyNorm = norm(bodyText);
-
-          const bodyClean = bodyNorm.replace(/[^a-z0-9ก-๙]/g, '');
-
-          const captionSnippet = targetCaption.replace(/[^a-z0-9ก-๙]/g, '').slice(0, 12);
-
-          const bodyHasTokens = tokens.some(tok => bodyNorm.includes(tok));
-
-          const bodyHasSnippet = Boolean(captionSnippet && bodyClean.includes(captionSnippet));
-
-          const bodyHasReview = bodyNorm.includes('under review')
-
-            || bodyNorm.includes('กำลังตรวจสอบ')
-
-            || bodyNorm.includes('reviewing')
-
-            || bodyNorm.includes('content under review');
-
-          const bodyMatch = isContent && (bodyHasTokens || bodyHasSnippet) && (bodyHasReview || bodyNorm.includes('private'));
-
-          // Fallback 2: On /content page, top unpinned post is under review
-
-          const topReviewMatch = isContent && firstNonPinned && firstNonPinned.isNewOrReview && (firstNonPinned.textNorm.includes('under review') || firstNonPinned.textNorm.includes('กำลังตรวจสอบ'));
-
-          return {
-
-            isContent,
-
-            matched: Boolean(matchedRow || bodyMatch || topReviewMatch),
-
-            detail: matchedRow || (topReviewMatch ? { topReviewMatch: true, ...firstNonPinned } : null) || (bodyMatch ? { bodyMatch: true } : null)
-
-          };
-
-        })()`,
-
-        returnByValue: true
-
-      });
-
-      const checkRes = contentCheck?.result?.value;
-
-      if (checkRes?.matched) {
-
-        confirmation = {
-
-          confirmed: true,
-
-          outcome: 'published',
-
-          proof: {
-
-            kind: 'platform_success_notice',
-
-            notice: 'Post published successfully',
-
-            confirmation_token: job.confirmation_token
-
-          }
-
-        };
-
-      }
-
+      // Strict, intent-aware check of the list the clip must appear on. Never a loose guess, never a made-up notice.
+      confirmation = await reconcileFromListPages(send, tab, job);
     }
-
     if (!confirmation.confirmed) throw new Error('ยังไม่มีข้อความยืนยันจาก TikTok ต้องตรวจผลเดิมก่อน');
 
     state.pendingReceipt = {channelId: job.channel_id,
@@ -1407,6 +1298,10 @@ async function typeCaption(send, captionOrText, hashtags = '') {
   const cleanTags = String(tags || '').trim();
 
   if (!cleanCaption && !cleanTags) throw new Error('กรุณากรอกคำอธิบายหรือแฮชแท็ก');
+
+  // the last line of defence: whatever path got here, price text / unfilled placeholders / oversize text are never typed
+  const blocked = globalThis.OmniPostGuard?.contentReason(cleanCaption, cleanTags);
+  if (blocked) throw new Error('content_blocked: เนื้อหาโพสต์ไม่ผ่านตัวกัน (' + blocked + ')');
 
   const captionQuery = OmniAutomation.page(`
 
@@ -3039,7 +2934,7 @@ function normalizeScheduleTime(rawTime) {
 
 // TikTok rejects schedules less than ~15 minutes ahead; a past or too-close
 // slot must fail loudly instead of letting the picker fall back to a default.
-const MIN_SCHEDULE_LEAD_MS = 15 * 60 * 1000;
+const MIN_SCHEDULE_LEAD_MS = globalThis.OmniLimits.MIN_LEAD_MS;
 function scheduleWindowProblem(date, time, nowMs = Date.now()) {
   if (!date || !time) return '';
   const target = new Date(`${date}T${time}:00`).getTime();
@@ -3384,8 +3279,16 @@ async function setScheduleDateTimeLegacy(send, { date = '', time = '' } = {}) {
 
 // by clicking the "Post now" / "Schedule now" button.
 
-async function dismissContinueToPostDialogIfPresent(send, timeoutMs = 200) {
-
+// Accepts the "Continue to post?" dialog (shown while TikTok's copyright check still runs) ONLY with the button that matches
+// what this job meant to do: an immediate job accepts "Post now", a scheduled job accepts "Schedule now", a draft job accepts
+// nothing. Without an intent nothing is clicked. The dialog text must be recognised (it used to be optional).
+async function dismissContinueToPostDialogIfPresent(send, timeoutMs = 200, intent = null) {
+  const labelsByIntent = {
+    post_now: ['Post now', 'โพสต์เลย', 'โพสต์ตอนนี้'],
+    schedule: ['Schedule now', 'กำหนดเวลาเลย'],
+  };
+  const acceptLabels = labelsByIntent[intent];
+  if (!acceptLabels) return false;
   const deadline = Date.now() + timeoutMs;
 
   while (Date.now() < deadline) {
@@ -3426,11 +3329,11 @@ async function dismissContinueToPostDialogIfPresent(send, timeoutMs = 200) {
 
               const t = (b.innerText || b.textContent || '').trim();
 
-              return t === 'Post now' || t === 'Schedule now' || t === 'โพสต์เลย' || t === 'กำหนดเวลาเลย' || t === 'โพสต์ตอนนี้';
+              return ${JSON.stringify(acceptLabels)}.includes(t);
 
             });
 
-            if (postNowBtn && (isContinueDialog || container !== document)) {
+            if (postNowBtn && isContinueDialog) {
 
               postNowBtn.scrollIntoView({ behavior: 'instant', block: 'center' });
 
@@ -3830,7 +3733,7 @@ function decidePostConfirmation({ evalThrew = false, evalValue = null, tabUrl = 
 
 // timedOut:true } rather than ever assuming success.
 
-async function waitForPostConfirmation(send, tabId, timeoutMs = 20_000, confirmationToken = null) {
+async function waitForPostConfirmation(send, tabId, timeoutMs = 20_000, confirmationToken = null, intent = null) {
 
   const start = Date.now();
 
@@ -3842,7 +3745,7 @@ async function waitForPostConfirmation(send, tabId, timeoutMs = 20_000, confirma
 
     // Dismiss "Continue to post?" modal in case it appeared delayed after click
 
-    try { await dismissContinueToPostDialogIfPresent(send, 100); } catch (_) {}
+    try { await dismissContinueToPostDialogIfPresent(send, 100, intent); } catch (_) {}
 
     let evalValue = null;
 
@@ -4082,7 +3985,7 @@ async function waitForPostConfirmation(send, tabId, timeoutMs = 20_000, confirma
 
 // right before this and let the user press Post themselves.
 
-function studioIdentityAtClick(targetHandle) {
+function studioIdentityAtClick(targetHandle, verifiedHandle) {
 
   const normalize = raw => {
 
@@ -4148,11 +4051,13 @@ function studioIdentityAtClick(targetHandle) {
 
   if (clean.length > 1) throw new Error('source_account_required: พบหลายบัญชี หยุดก่อนกดโพสต์');
 
-  const current = clean[0] || target;
-
-  if (!current) throw new Error('source_account_required: อ่านบัญชี TikTok ไม่ได้แน่ชัด หยุดก่อนกดโพสต์');
-
-  if (target && current !== target) throw new Error(`account_handle_mismatch: บัญชีเปลี่ยนเป็น ${current} ก่อนกดโพสต์ จึงหยุด`);
+  // Nothing readable in the page header is not a pass: the only fallback is the handle the extension read through the
+  // avatar menu moments ago in this same tab (verifiedHandle). Neither -> stop; the intended handle is never trusted.
+  const verified = normalize(verifiedHandle);
+  const current = clean[0] || verified;
+  if (!current) throw new Error('source_account_required: อ่านบัญชี TikTok ไม่ได้ตอนกดโพสต์ จึงหยุดก่อนโพสต์');
+  if (verified && clean[0] && clean[0] !== verified) throw new Error(`account_handle_mismatch: บัญชีที่เห็น ${clean[0]} ไม่ตรงกับที่ตรวจไว้ ${verified} จึงหยุด`);
+  if (target && current !== target) throw new Error(`account_handle_mismatch: บัญชีเปลี่ยนเป็น ${current} ก่อนโพสต์ จึงหยุด`);
 
   return current;
 
@@ -4199,14 +4104,16 @@ async function observePostConfirmation(send, token) {
 }
 
 async function clickPostButton(send, tabId, beforeClick = async () => {}, job = null) {
-
-  // Ensure video upload/processing is complete before attempting to click post!
-
-  if (!await waitForUploadComplete(send, 60_000)) {
-
-    throw new Error('TikTok ยังประมวลผลไม่เสร็จ จึงยังไม่กดโพสต์');
-
+  // An already-attempted job must not even have its token/observer touched (that would break its reconcile proof).
+  if (job && (job.publish_attempted_at || (job.status && job.status !== 'claimed'))) {
+    throw new Error('ต้องตรวจผลเดิมก่อน ห้ามกดโพสต์ซ้ำ');
   }
+  // Ensure video upload/processing is complete before attempting to click post!
+  if (!await waitForUploadComplete(send, 60_000)) {
+    throw new Error('TikTok ยังประมวลผลไม่เสร็จ จึงยังไม่กดโพสต์');
+  }
+  // The page must be in the mode this job was prepared for, with an enabled primary button, BEFORE the one-shot attempt.
+  await assertPublishReady(send, job);
 
   // Fence and capture identity after processing finishes, immediately before click.
 
@@ -4222,13 +4129,13 @@ async function clickPostButton(send, tabId, beforeClick = async () => {}, job = 
 
   }
 
-  await beforeClick();
+  const verifiedHandle = await beforeClick();
 
   const response = await send('Runtime.evaluate', {
 
     expression: `(() => {
 
-      ${job ? `(${studioIdentityAtClick.toString()})(${JSON.stringify(job.target_handle)});
+      ${job ? `(${studioIdentityAtClick.toString()})(${JSON.stringify(job.target_handle)}, ${JSON.stringify(verifiedHandle || null)});
 
       if (${Number(job.lease_expires_at) || 0} * 1000 <= Date.now()) throw new Error('posting_lease_expired: สิทธิ์หมดอายุก่อนกดโพสต์');
 
@@ -4266,7 +4173,8 @@ async function clickPostButton(send, tabId, beforeClick = async () => {}, job = 
 
         const text = (b.innerText || b.textContent || '').trim();
 
-        return text === 'โพสต์' || text === 'กำหนดเวลา' || text === 'บันทึกแบบร่าง' || text === 'Post' || text === 'Schedule' || text === 'Save draft' || text === 'Save to draft';
+        // only Post / Schedule labels here: a draft button in a publish job would record a draft as a post
+        return text === 'โพสต์' || text === 'กำหนดเวลา' || text === 'Post' || text === 'Schedule';
 
       });
 
@@ -4308,7 +4216,7 @@ async function clickPostButton(send, tabId, beforeClick = async () => {}, job = 
 
     : dismissContinueToPostDialogIfPresent;
 
-  await _dismissContinue(send, 200);
+  await _dismissContinue(send, 200, job ? jobIntent(job) : null);
 
   // 2. TikTok's SPA can also throw up a native "leave site? changes not
 
@@ -4326,7 +4234,7 @@ async function clickPostButton(send, tabId, beforeClick = async () => {}, job = 
 
   await _dismissLeave(send, 200);
 
-  const confirmation = await waitForPostConfirmation(send, tabId, 20_000, job?.confirmation_token);
+  const confirmation = await waitForPostConfirmation(send, tabId, 20_000, job?.confirmation_token, job ? jobIntent(job) : null);
 
   if (!confirmation.confirmed) {
 
@@ -4342,27 +4250,9 @@ async function clickPostButton(send, tabId, beforeClick = async () => {}, job = 
 
     if (currentTabUrl && (currentTabUrl.includes('/content') || currentTabUrl.includes('/manage'))) {
 
-      const isSchedule = Boolean(job?.schedule_time || job?.schedule_date);
-
-      return {
-
-        confirmed: true,
-
-        reason: 'content-page-reconciled',
-
-        outcome: isSchedule ? 'scheduled_on_platform' : 'published',
-
-        proof: {
-
-          kind: 'content_page_reconciled',
-
-          notice: 'Navigated to content management page',
-
-          ...(job?.confirmation_token ? { confirmation_token: job.confirmation_token } : {})
-
-        }
-
-      };
+      // Leaving the form for Studio > Content says TikTok took the click, not WHAT it did (post / schedule / draft).
+      // Record it as unknown: the strict Content-page reconcile (matching row) can upgrade it, a bare URL never does.
+      return { confirmed: true, reason: 'content-page-unverified', outcome: 'confirmation_unknown', proof: {} };
 
     }
 
@@ -4401,6 +4291,45 @@ async function clickPostButton(send, tabId, beforeClick = async () => {}, job = 
 // alone says nothing about *when* it goes live. A job that was scheduled is
 // recorded as scheduled_on_platform; the backend accepts the bare toast for it
 // only because the job really carries a schedule.
+// What the operator meant to do with this job; old jobs without an intent are inferred from their schedule.
+function jobIntent(job) {
+  // publish_draft = publish a draft that already sits on TikTok: a scheduled post when it has a slot, else an immediate one
+  if (job?.intent === 'publish_draft') return (job.schedule_date && job.schedule_time) ? 'schedule' : 'post_now';
+  if (['schedule', 'draft', 'post_now'].includes(job?.intent)) return job.intent;
+  return (job?.schedule_date && job?.schedule_time) ? 'schedule' : 'post_now';
+}
+
+// Before the one-shot /attempt: a draft job never presses Post; the primary button must exist, be enabled, and its label
+// must match the mode the job needs ("Schedule"/"กำหนดเวลา" for a scheduled job, "Post"/"โพสต์" for an immediate one).
+// A wrong page mode used to publish LIVE (a scheduled job whose schedule step was skipped pressed a "Post" button).
+async function assertPublishReady(send, job) {
+  if (!job) return;
+  const intent = jobIntent(job);
+  if (intent === 'draft') throw new Error('intent_mismatch: งานนี้เป็นแบบร่าง ห้ามกดปุ่ม Post');
+  if (intent === 'schedule' && !(job.schedule_date && job.schedule_time)) {
+    throw new Error('intent_mismatch: งานตั้งเวลาแต่ไม่มีวันเวลา ห้ามกดโพสต์ (จะกลายเป็นโพสต์สด)');
+  }
+  const out = await send('Runtime.evaluate', {
+    expression: `(() => {
+      const b = document.querySelector('button[data-e2e="post_video_button"]');
+      if (!b) return {found: false};
+      const r = b.getBoundingClientRect();
+      return {found: true, visible: r.width > 0 && r.height > 0, text: (b.innerText || '').trim(), disabled: b.disabled || b.getAttribute('aria-disabled') === 'true'};
+    })()`,
+    returnByValue: true,
+  });
+  const btn = out?.result?.value;
+  // a test double that cannot answer is not evidence: only a real answer can fail the check
+  if (!btn || typeof btn !== 'object') return;
+  if (!btn.found || !btn.visible) throw new Error('หาปุ่ม Post ไม่เจอบนหน้า จึงยังไม่บันทึกการกด (ไม่ใช้สิทธิ์กดครั้งเดียว)');
+  if (btn.disabled) throw new Error('ปุ่ม Post ยังกดไม่ได้ จึงยังไม่บันทึกการกด (ไม่ใช้สิทธิ์กดครั้งเดียว)');
+  const label = String(btn.text).trim().toLowerCase();
+  const wants = intent === 'schedule' ? ['schedule', 'กำหนดเวลา'] : ['post', 'โพสต์'];
+  if (!wants.includes(label)) {
+    throw new Error(`intent_page_mismatch: งานเป็น ${intent} แต่ปุ่มบนหน้าเขียนว่า "${btn.text}" (หน้าอยู่ผิดโหมด) จึงหยุดก่อนกด`);
+  }
+}
+
 function withScheduledOutcome(confirmation, job) {
   if (confirmation?.confirmed && confirmation.outcome === 'published' && job?.schedule_date && job?.schedule_time) {
     return {...confirmation, outcome: 'scheduled_on_platform'};
@@ -4750,16 +4679,17 @@ async function runClickPostOnly() {
 
     confirmation = await clickPostButton(send, tab.id, async () => {
 
-      sourceAccount = await guardPostingAction(job, send, tab.id, {beginPublish: true});
+      sourceAccount = await guardPostingAction(job, send, tab.id, {beginPublish: true, clickKind: 'post'});
 
       attempted = true;
+
+      return sourceAccount;
 
     }, job);
 
   } catch (err) {
-
+    err.postAttempted = Boolean(attempted);   // the panel must know whether a click happened (unknown) or not (plain failure)
     if (attempted) {
-
       // Fallback: check if the tab navigated to /content during or right after post
 
       try {
@@ -4926,11 +4856,11 @@ async function runSaveDraftOnly() {
     state.activeJob = job;
     await persistPostingState(state);
     // Fence + identity check, then the one click. After this line the job counts as attempted.
-    sourceAccount = await guardPostingAction(job, send, tab.id, {beginPublish: true});
+    sourceAccount = await guardPostingAction(job, send, tab.id, {beginPublish: true, clickKind: 'draft'});
     attempted = true;
     const clicked = await send('Runtime.evaluate', {
       expression: `(() => {
-        (${studioIdentityAtClick.toString()})(${JSON.stringify(job.target_handle)});
+        (${studioIdentityAtClick.toString()})(${JSON.stringify(job.target_handle)}, ${JSON.stringify(sourceAccount || null)});
         if (${Number(job.lease_expires_at) || 0} * 1000 <= Date.now()) throw new Error('posting_lease_expired: สิทธิ์หมดอายุก่อนกดบันทึกแบบร่าง');
         const isNav = (el) => Boolean(el.closest('aside, nav, header, [class*="sidebar"], [class*="menu"], [class*="nav"], [class*="aside"]'));
         const btn = document.querySelector('button[data-e2e="save_draft_button"]:not([disabled])');
@@ -4954,6 +4884,7 @@ async function runSaveDraftOnly() {
       throw new Error(`draft_not_confirmed: ${why} -- ตรวจที่ TikTok Studio > แบบร่าง ก่อนลองใหม่`);
     }
   } catch (err) {
+    err.postAttempted = Boolean(attempted);
     if (attempted) {
       // The click happened: never retry, never lose the fact. The panel/operator reconciles by hand.
       try { await savePostingReceipt(job, sourceAccount, 'confirmation_unknown', {}); }
@@ -5186,40 +5117,36 @@ async function runPrepareDetails(message) {
 // Second, independent proof that a post is really on TikTok: open Studio > Content (reloading while the
 // list lags behind the success toast) and find the row with this clip's caption and, for a scheduled
 // post, its day and time. Returns {verified, reason}; always leaves the tab on the upload page.
-async function runVerifyPostOnContent({caption = '', scheduleDate = '', scheduleTime = '', attempts = 6} = {}) {
+async function runVerifyPostOnContent({caption = '', episodeNo = null, scheduleDate = '', scheduleTime = '', attempts = 6} = {}) {
   // The post just left the tab on Studio > Content, so accept any Studio tab; do not pre-navigate.
   let tab;
   try { tab = await findUploadTab({recover: false}); } catch (e) { tab = await findAnyStudioTab(); }
   if (!tab?.id) throw new Error('ไม่พบแท็บ TikTok Studio ที่เปิดอยู่ — กรุณาเปิดหน้า TikTok Studio');
   const send = cdp(tab.id);
-  const clip = {caption, schedule_date: scheduleDate || '', schedule_time: scheduleTime || ''};
+  const clip = {caption, episode_no: episodeNo, schedule_date: scheduleDate || '', schedule_time: scheduleTime || ''};
   let verdict = {ok: false, reason: 'row_not_found'};
   try {
     for (let attempt = 0; attempt < attempts && !verdict.ok; attempt += 1) {
       if (attempt) await sleep(8000);
       await navigateAcceptingLeave(tab.id, 'https://www.tiktok.com/tiktokstudio/content');
       await sleep(6000);
-      let text = '';
+      let scan = {rows: [], found: null};
       await chrome.debugger.attach({tabId: tab.id}, '1.3');
       try {
         await send('Runtime.enable');
+        // wait for the list to render its first rows, then scroll the whole (virtualized) list
         for (let i = 0; i < 8; i += 1) {
           const out = await send('Runtime.evaluate', {expression: 'document.body ? document.body.innerText : ""', returnByValue: true});
-          text = out?.result?.value || '';
-          if (/\d{2}:\d{2}\n/.test(text)) break;
+          if (/\d{2}:\d{2}\n/.test(out?.result?.value || '')) break;
           await sleep(1500);
         }
+        scan = await collectContentRows(send, {match: (row) => OmniPostGuard.rowMatchesClip(row, clip).ok});
       } finally {
         try { await chrome.debugger.detach({tabId: tab.id}); } catch (e) {}
       }
-      // Each post row starts with its video duration (mm:ss) on its own line.
-      const rows = String(text).split(/\n(?=\d{2}:\d{2}\n)/).slice(0, 15);
       verdict = {ok: false, reason: 'row_not_found'};
-      for (const row of rows) {
-        const result = OmniPostGuard.rowMatchesClip(row, clip);
-        if (result.ok) { verdict = result; break; }
-        if (result.reason === 'schedule_badge_mismatch') verdict = result;
-      }
+      if (scan.found) verdict = {ok: true};
+      else if (scan.rows.some((row) => OmniPostGuard.rowMatchesClip(row, clip).reason === 'schedule_badge_mismatch')) verdict = {ok: false, reason: 'schedule_badge_mismatch'};
     }
   } finally {
     try { await navigateAcceptingLeave(tab.id, 'https://www.tiktok.com/tiktokstudio/upload'); await sleep(2500); } catch (e) {}
@@ -5463,6 +5390,8 @@ async function runDetectTikTokQuota({allowNavigate = false} = {}) {
   const fromTab = await runDetectQuotaFromTab();
   if (typeof fromTab?.scheduledCount === 'number') return fromTab;
   if (!allowNavigate) return fromTab;
+  // Counting walks the upload tab over to Content: never while a job is mid-flight (its filled form would be thrown away).
+  if ((await postingState()).activeJob) return {...(fromTab || {}), countSkipped: 'active_job'};
   try {
     const counted = await runCountScheduledOnContent();
     const detector = globalThis.OmniCutQuotaDetector;
@@ -5477,9 +5406,283 @@ async function runDetectTikTokQuota({allowNavigate = false} = {}) {
   return fromTab;
 }
 
-let actionRunning = false;
+// Read-only readiness probe for the panel's pre-run check: no navigation, nothing typed, nothing clicked.
+async function runPreflight() {
+  const out = {success: true, extensionVersion: chrome.runtime.getManifest().version, url: '', loggedIn: false, uploadInput: false, handle: null, viewport: null, quota: null};
+  let tab;
+  try { tab = await findUploadTab({recover: false}); }
+  catch (e) { return {...out, success: false, error: e.message || String(e)}; }
+  out.url = tab.url || '';
+  const send = cdp(tab.id);
+  try {
+    await chrome.debugger.attach({tabId: tab.id}, '1.3');
+  } catch (e) {
+    return {...out, success: false, error: `เชื่อม debugger กับแท็บไม่ได้ (${e.message || e})`};
+  }
+  try {
+    await send('Runtime.enable');
+    const probe = await send('Runtime.evaluate', {
+      expression: `({url: location.href, input: Boolean(document.querySelector('input[type="file"]')), loginPage: /login|passport|signup/i.test(location.href) || Boolean(document.querySelector('input[type="password"]'))})`,
+      returnByValue: true,
+    });
+    const value = probe?.result?.value || {};
+    out.url = value.url || out.url;
+    out.uploadInput = Boolean(value.input);
+    out.loggedIn = !value.loginPage && /tiktokstudio|creator/i.test(value.url || '');
+    out.viewport = await readPageViewport(send);
+    try { out.handle = await readStudioAccount(send, 3); } catch (e) { out.handle = null; }
+  } catch (e) {
+    return {...out, success: false, error: e.message || String(e)};
+  } finally {
+    try { await chrome.debugger.detach({tabId: tab.id}); } catch (e) {}
+  }
+  try { out.quota = await runDetectQuotaFromTab(); } catch (e) { out.quota = null; }
+  return out;
+}
 
+// What the page looked like when something went wrong (the panel redacts it before storing). Read-only.
+async function runCaptureEvidence() {
+  let tab;
+  try { tab = await findUploadTab({recover: false}); }
+  catch (e) { return {success: true, found: false, reason: e.message || String(e)}; }
+  try { await chrome.debugger.attach({tabId: tab.id}, '1.3'); }
+  catch (e) { return {success: true, found: false, url: tab.url || '', reason: `attach: ${e.message || e}`}; }
+  try {
+    const r = await cdp(tab.id)('Runtime.evaluate', {
+      expression: `({url: location.href, title: document.title, text: (document.body ? document.body.innerText : '').replace(/\\s+/g, ' ').slice(0, 2000)})`,
+      returnByValue: true,
+    });
+    return {success: true, found: true, ...(r?.result?.value || {})};
+  } catch (e) {
+    return {success: true, found: false, reason: e.message || String(e)};
+  } finally {
+    try { await chrome.debugger.detach({tabId: tab.id}); } catch (e) {}
+  }
+}
+
+// A person is needed (unconfirmed post, halted run, ...): notification + red badge until the panel is opened again.
+async function notifyAttention(message) {
+  const title = String(message?.title || 'OmniCut TikTok Post Helper').slice(0, 80);
+  const body = String(message?.message || 'ต้องการให้ตรวจที่แผงข้าง').slice(0, 300);
+  try {
+    if (chrome.action?.setBadgeText) {
+      await chrome.action.setBadgeText({text: '!'});
+      await chrome.action.setBadgeBackgroundColor?.({color: '#D93025'});
+    }
+  } catch (e) {}
+  let notified = false;
+  try {
+    if (chrome.notifications?.create) {
+      await chrome.notifications.create(`omnicut-attention-${Date.now()}`, {type: 'basic', iconUrl: 'icons/icon128.png', title, message: body, priority: 2, requireInteraction: true});
+      notified = true;
+    }
+  } catch (e) {}
+  return {success: true, notified};
+}
+async function clearAttention() {
+  try { await chrome.action?.setBadgeText?.({text: ''}); } catch (e) {}
+  return {success: true};
+}
+// Publish-from-draft, step 1: open THIS job's draft from Studio > Content > Drafts, check it is the right one and put the
+// form in the mode the job needs (a slot, or "Now"). It never presses Post / Save draft: the click is the ordinary
+// click-post-only step (same label check, identity check, single /attempt, same confirmation and reconcile rules).
+async function runOpenDraftForPublish() {
+  const job = await fetchPendingJob();
+  if (job.intent !== 'publish_draft') throw new Error('intent_mismatch: งานนี้ไม่ใช่งานเผยแพร่จากแบบร่าง');
+  if (job.publish_attempted_at || (job.status && job.status !== 'claimed')) {
+    throw new Error('posting_reconciliation_required: งานนี้เลยขั้นเตรียมแล้ว ห้ามเปิดแบบร่างซ้ำ');
+  }
+  const guard = globalThis.OmniPostGuard;
+  const key = guard?.captionKey ? guard.captionKey(job.caption) : '';
+  if (key.length < 8) throw new Error('caption สั้นเกินกว่าจะจับคู่แบบร่างอย่างปลอดภัย จึงไม่เปิดแบบร่างใด');
+  const tab = await findUploadTab();
+  await navigateAcceptingLeave(tab.id, DRAFT_TAB_URL);
+  await sleep(6000);
+  const send = cdp(tab.id);
+  await chrome.debugger.attach({tabId: tab.id}, '1.3');
+  try {
+    await send('DOM.enable');
+    await send('Runtime.enable');
+    await ensureWorkableViewport(send);
+    await guardPostingAction(job, send, tab.id);
+    const found = await send('Runtime.evaluate', {
+      expression: `(() => {
+        const key = ${JSON.stringify(key)};
+        const norm = (text) => String(text || '').toLowerCase().split('').filter((ch) => /[a-z0-9]/.test(ch) || (ch >= 'ก' && ch <= '๙')).join('');
+        const rows = Array.from(document.querySelectorAll('[data-tt="components_DraftRowLayout_FlexRow"]')).filter((row) => norm(row.innerText).includes(key));
+        if (rows.length !== 1) return {ok: false, count: rows.length};
+        const cell = rows[0].children[rows[0].children.length - 1];
+        const buttons = cell ? cell.querySelectorAll('button[data-tt="components_DraftCells_Clickable"]') : [];
+        if (!buttons.length) return {ok: false, count: 1, noButtons: true};
+        buttons[0].click();   // the first action of a draft row is "edit" (pencil); the other two are cut and delete
+        return {ok: true, count: 1};
+      })()`,
+      returnByValue: true,
+    });
+    const pick = found?.result?.value || {};
+    if (pick.count === 0) throw new Error('draft_not_found: ไม่พบแบบร่างบน TikTok ที่ตรงกับ caption ของคลิปนี้ (ถูกลบไปแล้วหรือยังไม่ได้บันทึก) จึงไม่เผยแพร่');
+    if (pick.count > 1) throw new Error('draft_ambiguous: มีแบบร่างมากกว่าหนึ่งอันที่ caption ตรงกัน จึงไม่เดาว่าอันไหน — ลบอันที่ซ้ำบน TikTok ก่อน');
+    if (!pick.ok) throw new Error('draft_open_failed: หาปุ่มแก้ไขของแบบร่างไม่เจอ (หน้า TikTok อาจเปลี่ยน) จึงไม่เผยแพร่');
+    // the editor of that draft must load, and it must be the same caption
+    let editor = null;
+    for (let i = 0; i < 50; i += 1) {
+      await sleep(500);
+      const probe = await send('Runtime.evaluate', {
+        expression: `(() => {
+          const norm = (text) => String(text || '').toLowerCase().split('').filter((ch) => /[a-z0-9]/.test(ch) || (ch >= 'ก' && ch <= '๙')).join('');
+          const field = document.querySelector('[contenteditable="true"]');
+          return {url: location.href, hasPost: Boolean(document.querySelector('button[data-e2e="post_video_button"]')), caption: field ? norm(field.innerText).slice(0, 60) : ''};
+        })()`,
+        returnByValue: true,
+      });
+      const value = probe?.result?.value;
+      if (value && /draft_id=/.test(value.url || '') && value.hasPost && value.caption) { editor = value; break; }
+    }
+    if (!editor) throw new Error('draft_editor_not_loaded: เปิดแบบร่างแล้วแต่หน้าแก้ไขไม่โหลดภายในเวลาที่กำหนด');
+    if (!editor.caption.includes(key)) throw new Error('draft_mismatch: แบบร่างที่เปิดมี caption ไม่ตรงกับคลิปนี้ จึงหยุดก่อนโพสต์');
+    if (job.schedule_date && job.schedule_time) {
+      const normalizedTime = normalizeScheduleTime(String(job.schedule_time).trim());
+      if (!normalizedTime) throw new Error('schedule_time_invalid: เวลานัดโพสต์ไม่ถูกต้อง');
+      const switched = await switchToScheduleMode(send, {date: job.schedule_date, time: normalizedTime});
+      if (!switched.success) throw new Error(`schedule_not_set: ตั้งเวลาในแบบร่างไม่สำเร็จ (${switched.reason || 'ไม่ทราบสาเหตุ'}) จึงไม่เผยแพร่`);
+    } else {
+      const now = await send('Runtime.evaluate', {
+        expression: `(() => {
+          const labels = ['Now', 'ตอนนี้'];
+          const radios = Array.from(document.querySelectorAll('input[type=radio], [role=radio]'));
+          const nowRadio = radios.find((r) => labels.includes(((r.closest('label') || r.parentElement || r).innerText || '').trim()));
+          if (!nowRadio) return {ok: false};
+          if (!(nowRadio.checked || nowRadio.getAttribute('aria-checked') === 'true')) (nowRadio.closest('label') || nowRadio).click();
+          return {ok: true};
+        })()`,
+        returnByValue: true,
+      });
+      if (!now?.result?.value?.ok) throw new Error('mode_now_not_found: หาตัวเลือก "ตอนนี้" ไม่เจอ จึงไม่เผยแพร่');
+    }
+    return {success: true, draftOpened: true, mode: (job.schedule_date && job.schedule_time) ? 'schedule' : 'now'};
+  } finally {
+    try { await chrome.debugger.detach({tabId: tab.id}); } catch (e) {}
+  }
+}
+
+// The Drafts tab is virtualized too: collect every draft row (<= 30 on TikTok) by scrolling.
+async function collectDraftRows(send, {maxSteps = 20, settleMs = 700} = {}) {
+  const seen = new Set();
+  const rows = [];
+  for (let step = 0; step < maxSteps; step += 1) {
+    const out = await send('Runtime.evaluate', {
+      expression: `Array.from(document.querySelectorAll('[data-tt="components_DraftRowLayout_FlexRow"]')).map((row) => row.innerText || '')`,
+      returnByValue: true,
+    });
+    for (const text of (out?.result?.value || [])) {
+      if (!/\d{2}:\d{2}/.test(text)) continue;                     // the header row has no video duration
+      const key = text.split('\n').slice(0, 3).join('|').trim();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      rows.push(text);
+    }
+    const moved = await send('Runtime.evaluate', {
+      expression: `(() => {
+        const candidates = [document.scrollingElement, ...document.querySelectorAll('div')].filter((e) => {
+          if (!e || e.scrollHeight <= e.clientHeight + 80) return false;
+          return e === document.scrollingElement || /auto|scroll/.test(getComputedStyle(e).overflowY);
+        });
+        const box = candidates.sort((a, b) => b.scrollHeight - a.scrollHeight)[0];
+        if (!box) return 0;
+        const before = box.scrollTop;
+        box.scrollTop = before + Math.max(300, Math.floor(box.clientHeight * 0.8));
+        return box.scrollTop - before;
+      })()`,
+      returnByValue: true,
+    });
+    if (!(moved?.result?.value > 0)) break;
+    await sleep(settleMs);
+  }
+  return rows;
+}
+
+// Read-only. For every draft the queue believes is on TikTok: is its caption still on the Drafts tab, and does Studio > Content
+// already list a post with the same caption? Content is read back only as far as the oldest draft was saved (cutoffMs).
+async function runSyncDraftsWithTikTok({drafts = [], cutoffMs = 0} = {}) {
+  const guard = globalThis.OmniPostGuard;
+  const detector = globalThis.OmniCutQuotaDetector;
+  const sync = globalThis.OmniDraftSync;
+  if (!Array.isArray(drafts) || !drafts.length) return {success: true, results: [], scan: {contentRows: 0, draftRows: 0, stoppedBy: 'nothing_to_check'}};
+  const keyOf = (draft) => guard.captionKey(draft.caption || '');
+  for (const draft of drafts) {
+    if (keyOf(draft).length < 8) return {success: false, error: `caption ของ "${draft.id}" สั้นเกินกว่าจะจับคู่อย่างปลอดภัย`};
+  }
+  let tab;
+  try { tab = await findUploadTab({recover: true}); }
+  catch (e) { tab = await findAnyStudioTab(); }
+  if (!tab?.id) throw new Error('ไม่พบแท็บ TikTok Studio ที่เปิดอยู่');
+  const send = cdp(tab.id);
+
+  const alnum = (text) => String(text || '').toLowerCase().split('').filter((ch) => /[a-z0-9]/.test(ch) || (ch >= 'ก' && ch <= '๙')).join('');
+  let draftRows = [];
+  let contentScan = {rows: [], stoppedBy: 'cap'};
+  try {
+    await navigateAcceptingLeave(tab.id, DRAFT_TAB_URL);
+    await sleep(6000);
+    await chrome.debugger.attach({tabId: tab.id}, '1.3');
+    try {
+      await send('Runtime.enable');
+      draftRows = await collectDraftRows(send);
+    } finally {
+      try { await chrome.debugger.detach({tabId: tab.id}); } catch (e) {}
+    }
+    await navigateAcceptingLeave(tab.id, 'https://www.tiktok.com/tiktokstudio/content');
+    await sleep(6000);
+    await chrome.debugger.attach({tabId: tab.id}, '1.3');
+    try {
+      await send('Runtime.enable');
+      for (let i = 0; i < 8; i += 1) {
+        const out = await send('Runtime.evaluate', {expression: 'document.body ? document.body.innerText : ""', returnByValue: true});
+        if (/\d{2}:\d{2}\n/.test(out?.result?.value || '')) break;
+        await sleep(1500);
+      }
+      // stop once N consecutive past rows are older than the cutoff (a pinned old video at the top is not the end)
+      let olderInARow = 0;
+      const now = Date.now();
+      contentScan = await collectContentRows(send, {
+        maxSteps: 60,
+        stopWhen: (row) => {
+          const ts = detector?.parseListRows ? detector.parseListRows(`header\n${row}`, now)[0]?.ts : null;
+          if (ts && ts < cutoffMs && ts < now) olderInARow += 1; else olderInARow = 0;
+          return olderInARow >= sync.OLDER_ROWS_TO_STOP;
+        },
+      });
+    } finally {
+      try { await chrome.debugger.detach({tabId: tab.id}); } catch (e) {}
+    }
+  } finally {
+    try { await navigateAcceptingLeave(tab.id, 'https://www.tiktok.com/tiktokstudio/upload'); await sleep(2500); } catch (e) {}
+  }
+  const draftKeys = draftRows.map((raw) => ({text: alnum(raw), raw}));
+  const contentKeys = contentScan.rows.map((row) => ({text: alnum(row), raw: row}));
+  // EP tag decides when visible (same = this clip, other = not this clip); otherwise the caption key, as before
+  const sameClip = (row, draft, key) => {
+    const episode = guard.episodeMatch(row.raw, draft.episode_no);
+    if (episode === 'match') return true;
+    if (episode === 'other') return false;
+    return row.text.includes(key);
+  };
+  // "no match" means "none" only when the scan reached the cutoff or the real end of the list, not when it hit its step cap
+  const complete = (contentScan.stoppedBy === 'cutoff' || contentScan.stoppedBy === 'end') && contentScan.rows.length > 0;
+  const results = drafts.map((draft) => {
+    const key = keyOf(draft);
+    const present = draftKeys.some((row) => sameClip(row, draft, key));
+    const hit = contentKeys.find((row) => sameClip(row, draft, key));
+    const verdict = sync.classifyDraft({present, match: Boolean(hit), complete});
+    const badge = hit ? hit.raw.split('\n').slice(0, 4).join(' | ').slice(0, 160) : '';
+    return {id: draft.id, ...verdict, present, matchRow: badge};
+  });
+  return {success: true, results, scan: {draftRows: draftRows.length, contentRows: contentScan.rows.length, stoppedBy: contentScan.stoppedBy, cutoffMs}};
+}
+
+let actionRunning = false;
 let pinnedUploadTabId = null;
+const NO_TAB_RECOVERY_ACTIONS = new Set(['click-post-only', 'save-draft-only', 'wait-for-upload-only', 'prepare-details', 'upload-cover-only']);
 
 const actions = {
 
@@ -5522,19 +5725,14 @@ const actions = {
 
   'detect-tiktok-quota': message => runDetectTikTokQuota({allowNavigate: Boolean(message && message.allowNavigate)}),
   'wait-for-upload-only': () => runWaitForUploadOnly(),
-  'broadcast-batch-signal': async (message) => {
-    const tabs = typeof chrome?.tabs?.query === 'function'
-      ? await chrome.tabs.query({ url: ['*://*.tiktok.com/*', '*://tiktok.com/*'] })
-      : [];
-    for (const t of tabs) {
-      if (t?.id && chrome.tabs?.sendMessage) {
-        try {
-          chrome.tabs.sendMessage(t.id, { action: 'batch-signal', signal: message.signal });
-        } catch (_) {}
-      }
-    }
-    return { success: true, signal: message.signal };
-  },
+  'run-preflight': () => runPreflight(),
+  'open-draft-for-publish': () => runOpenDraftForPublish(),
+  'sync-drafts-with-tiktok': message => runSyncDraftsWithTikTok(message),
+  'capture-evidence': () => runCaptureEvidence(),
+  'notify-attention': message => notifyAttention(message),
+  'clear-attention': () => clearAttention(),
+  // Kept for the panel's pause/resume/abort notifications; the legacy content script that listened is gone.
+  'broadcast-batch-signal': async (message) => ({ success: true, signal: message.signal }),
 
   'select-posting-channel': message => selectPostingChannel(message.channelId),
 
@@ -5568,7 +5766,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     try {
 
-      if (!['retry-posting-receipt', 'release-posting-job', 'select-posting-channel', 'claim-posting-job', 'reconcile-posting-result', 'detect-tiktok-quota', 'broadcast-batch-signal', 'verify-post-content', 'verify-draft-content'].includes(message.action)) pinnedUploadTabId = (await findUploadTab()).id;
+      if (!['retry-posting-receipt', 'release-posting-job', 'select-posting-channel', 'claim-posting-job', 'reconcile-posting-result', 'detect-tiktok-quota', 'broadcast-batch-signal', 'verify-post-content', 'verify-draft-content', 'run-preflight', 'capture-evidence', 'notify-attention', 'clear-attention', 'sync-drafts-with-tiktok'].includes(message.action)) {
+        // The click steps work on the already-filled form. If that tab has gone (a post sends it on to Content) bringing a
+        // Studio tab back to a blank upload page would only destroy the page that proves what happened.
+        pinnedUploadTabId = (await findUploadTab({recover: !NO_TAB_RECOVERY_ACTIONS.has(message.action)})).id;
+      }
 
       const result = await action(message);
 
@@ -5584,7 +5786,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     }
 
-  })().then(sendResponse).catch(err => sendResponse({success:false, error:err.message || String(err)}));
+  })().then(sendResponse).catch(err => sendResponse({success:false, error:err.message || String(err), ...(typeof err?.postAttempted === 'boolean' ? {postAttempted: err.postAttempted} : {})}));
 
   return true;
 

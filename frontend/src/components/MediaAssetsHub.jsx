@@ -1017,8 +1017,8 @@ export default function MediaAssetsHub({ status }) {
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         {isPlaying && (
                           <span className="flex h-2 w-2 relative">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#25F4EE] opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#25F4EE]"></span>
+
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.6)]"></span>
                           </span>
                         )}
                         {(activeAssetTab === 'sfx' || activeAssetTab === 'music' || activeAssetTab === 'effects') && (

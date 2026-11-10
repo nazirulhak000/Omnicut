@@ -31,7 +31,7 @@ from scripts.config import get_gemini_api_keys
 
 logger = logging.getLogger("omnicut.agent.bridge")
 
-DEFAULT_AGENTAPI_PATH = Path(r"C:\Users\nazir\.gemini\antigravity\bin\agentapi.bat")
+DEFAULT_AGENTAPI_PATH = Path(os.environ.get("ANTIGRAVITY_AGENTAPI_PATH") or (Path.home() / ".gemini" / "antigravity" / "bin" / "agentapi.bat"))
 CURRENT_CONVERSATION_ID = "88cdae63-c195-4f96-825d-4c9484fff6fa"
 
 AGENT_SYSTEM_PROMPT = """คุณคือ Antigravity AI Co-Producer & Video Editor ประจำสตูดิโอ OmniCut Pro Studio

@@ -10,7 +10,6 @@ const __dirname = path.dirname(__filename);
 const modalPath = path.resolve(__dirname, '../components/ui/Modal.jsx');
 const toastPath = path.resolve(__dirname, '../components/ui/Toast.jsx');
 const settingsPath = path.resolve(__dirname, '../components/SystemSettings.jsx');
-const guidePath = path.resolve(__dirname, '../components/UserGuide.jsx');
 const analyticsPath = path.resolve(__dirname, '../components/analytics/AnalyticsHub.jsx');
 
 test('Modal enforces iOS Bottom Sheet with grab handle, 80px swipe-down, 10ms haptic, and glass-panel', () => {
@@ -73,14 +72,6 @@ test('SystemSettings embeds Pulse Hub Glass Finetuner with 4 sliders, presets an
   assert.match(source, /Live Refraction Preview/);
 });
 
-test('UserGuide provides >=48px FAQ accordion with haptic feedback and glass tokens', () => {
-  const source = fs.readFileSync(guidePath, 'utf8');
-
-  assert.match(source, /min-h-\[48px\]/);
-  assert.match(source, /navigator\.vibrate\?\.?\s*\(\s*10\s*\)/);
-  const glassPanelCount = (source.match(/glass-panel/g) || []).length;
-  assert.ok(glassPanelCount >= 3, `Expected at least 3 glass-panel in guide, found ${glassPanelCount}`);
-});
 
 test('AnalyticsHub provides >=44px tab navigation and ambient refraction', () => {
   const source = fs.readFileSync(analyticsPath, 'utf8');
@@ -89,8 +80,8 @@ test('AnalyticsHub provides >=44px tab navigation and ambient refraction', () =>
   assert.match(source, /bg-transparent\s+relative\s+z-10/);
 });
 
-test('Settings and Guide buttons comply with Rule 3.8/4.8 button hygiene', () => {
-  for (const filePath of [settingsPath, guidePath, modalPath, toastPath]) {
+test('Settings, Modal, and Toast buttons comply with Rule 3.8/4.8 button hygiene', () => {
+  for (const filePath of [settingsPath, modalPath, toastPath]) {
     const source = fs.readFileSync(filePath, 'utf8');
     const buttonMatches = source.match(/<button\b[^>]*>([\s\S]*?)<\/button>/g) || [];
     for (const btn of buttonMatches) {

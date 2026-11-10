@@ -1505,7 +1505,7 @@ def test_bilingual_ghost_reveal_keeps_the_english_line_visible(tmp_path):
     generated = ass_path.read_text(encoding="utf-8")
     assert "&H0000FF66&" in generated, "a bilingual caption must still reveal"
 
-    ass_filter_path = str(ass_path.resolve()).replace("\\", "/").replace(":", "\:")
+    ass_filter_path = str(ass_path.resolve()).replace("\\", "/").replace(":", "\\:")
     _run([
         "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
         "-f", "lavfi", "-i", "color=c=black:s=1080x1920:r=30:d=3",
@@ -1570,10 +1570,10 @@ def test_stacked_mark_follows_its_line_on_a_wrapped_caption(tmp_path):
     ]
     assert companions, "no companion glyph was emitted for the stacked mark"
     assert all(r"\pos(" not in line for line in companions), (
-        "a margin-anchored caption's companions must not be pinned with \pos"
+        r"a margin-anchored caption's companions must not be pinned with \pos"
     )
 
-    ass_filter_path = str(ass_path.resolve()).replace("\\", "/").replace(":", "\:")
+    ass_filter_path = str(ass_path.resolve()).replace("\\", "/").replace(":", "\\:")
     png = tmp_path / "wm.png"
     _run([
         "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",

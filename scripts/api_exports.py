@@ -1230,12 +1230,15 @@ def _mark_posted_impl(req: MarkPostedRequest, scope: ChannelScope, *, posting_jo
     if posting_job is not None and posting_job.get("queue_id"):
         from scripts.schedule_store import ScheduleQueueStore
         queued = ScheduleQueueStore.get_item(posting_job["queue_id"], **_kw(channel_id))
-        if not queued or queued.get("export_id") != posting_job["export_id"]:
-            raise ChannelError(409, "posting_queue_changed", "คิวเปลี่ยนเจ้าของงานแล้ว ต้องตรวจผลก่อนซ่อมบันทึก")
-        if queued.get("posting_job_id") and queued["posting_job_id"] != posting_job["job_id"]:
-            raise ChannelError(409, "posting_queue_changed", "คิวเปลี่ยนเจ้าของงานแล้ว ต้องตรวจผลก่อนซ่อมบันทึก")
-        if queued.get("status") == "cancelled":
-            raise ChannelError(409, "posting_queue_changed", "คิวยกเลิกแล้ว ต้องตรวจผลก่อนซ่อมบันทึก")
+        # A row that is simply gone is not a conflict: the post is live on TikTok, and refusing the receipt would leave the
+        # export unmarked (a second post of the same clip). A row that exists but belongs to someone else IS a conflict.
+        if queued is not None:
+            if queued.get("export_id") != posting_job["export_id"]:
+                raise ChannelError(409, "posting_queue_changed", "คิวเปลี่ยนเจ้าของงานแล้ว ต้องตรวจผลก่อนซ่อมบันทึก")
+            if queued.get("posting_job_id") and queued["posting_job_id"] != posting_job["job_id"]:
+                raise ChannelError(409, "posting_queue_changed", "คิวเปลี่ยนเจ้าของงานแล้ว ต้องตรวจผลก่อนซ่อมบันทึก")
+            if queued.get("status") == "cancelled":
+                raise ChannelError(409, "posting_queue_changed", "คิวยกเลิกแล้ว ต้องตรวจผลก่อนซ่อมบันทึก")
 
     # A receipt has frozen export ownership, but no frozen angle cover/project
     # ownership. Those live pointers can change during repair, so only move

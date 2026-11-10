@@ -34,6 +34,14 @@ samples = [
     "กดในตะกร้าซ้ายล่างได้เลยครับ!"
 ]
 
-for s in samples:
-    en = translate_th_to_en(s)
-    print(f"🇹🇭 {s}\n🇬🇧 {en}\n")
+import pytest
+pytestmark = pytest.mark.skip(reason="Manual translation diagnostic script")
+
+if __name__ == "__main__":
+    for s in samples:
+        en = translate_th_to_en(s)
+        print(f"🇹🇭 {s}\n🇬🇧 {en}\n")
+
+
+def test_bilingual_samples_defined():
+    assert len(samples) > 0

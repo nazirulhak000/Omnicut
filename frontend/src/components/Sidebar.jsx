@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Rocket, Sparkles, FolderDown, Settings, Layers,
   Smartphone, Maximize, Minimize, X, Copy, Check, Wifi, Scissors,
-  Palette, MoreHorizontal, BarChart3, ChevronRight, BookOpen, LogOut
+  Palette, MoreHorizontal, BarChart3, ChevronRight, LogOut
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { ChannelSelector } from '../context/ChannelContext.jsx';
@@ -13,7 +13,7 @@ function isLocalHostname(hostname) {
   return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname === '[::1]';
 }
 
-// ── Desktop Navigation Items (8 items) ──
+// ── Desktop Navigation Items (7 items) ──
 const DESKTOP_NAV_ITEMS = [
   { id: 'flow',      icon: Rocket,     label: '1. สินค้า → คลิป',     shortLabel: 'สินค้า' },
   { id: 'tracker',   icon: Layers,     label: '2. แทร็กเกอร์ 4 เฟส',    shortLabel: 'Tracker' },
@@ -22,7 +22,6 @@ const DESKTOP_NAV_ITEMS = [
   { id: 'assets',    icon: Palette,    label: '5. Media Assets Hub',   shortLabel: 'Assets' },
   { id: 'analytics', icon: BarChart3,  label: '6. สถิติ & วิเคราะห์รวม', shortLabel: 'สถิติ' },
   { id: 'settings',  icon: Settings,   label: '7. ตั้งค่าระบบ',        shortLabel: 'Settings' },
-  { id: 'guide',     icon: BookOpen,   label: '8. คู่มือใช้งาน',       shortLabel: 'คู่มือ' },
 ];
 
 // ── Mobile Primary Tabs (4 items + 1 'More' button) ──
@@ -37,7 +36,6 @@ export default function Sidebar({
   activeTab,
   setActiveTab,
   status,
-  onSwitchToMobile,
   isImmersive = false,
   onToggleImmersive,
 }) {
@@ -113,7 +111,7 @@ export default function Sidebar({
     };
   }, [showMobileModal]);
 
-  const isMoreActive = activeTab === 'assets' || activeTab === 'analytics' || activeTab === 'settings' || activeTab === 'dashboard' || activeTab === 'guide';
+  const isMoreActive = activeTab === 'assets' || activeTab === 'analytics' || activeTab === 'settings' || activeTab === 'dashboard';
 
   return (
     <>
@@ -279,32 +277,9 @@ export default function Sidebar({
               </button>
             </div>
 
-            {/* Workspace: channel + simple/full mode (moved off the phone topbar) */}
+            {/* Workspace: channel */}
             <div className="space-y-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-3">
               <ChannelSelector />
-              {onSwitchToMobile && (
-                <div role="group" aria-labelledby="ui-mode-label" className="space-y-1.5">
-                  <div id="ui-mode-label" className="text-xs font-semibold text-slate-400">โหมดหน้าจอ</div>
-                  <div className="grid grid-cols-2 gap-1 rounded-xl bg-black/40 p-1 border border-white/[0.06]">
-                    <button
-                      type="button"
-                      onClick={() => { setShowMoreDrawer(false); onSwitchToMobile(); }}
-                      aria-pressed="false"
-                      className="min-h-11 rounded-lg text-sm font-semibold text-slate-300 hover:text-white hover:bg-white/[0.06] cursor-pointer"
-                    >
-                      สลับโหมดง่าย
-                    </button>
-                    <button
-                      type="button"
-                      aria-pressed="true"
-                      aria-current="true"
-                      className="min-h-11 rounded-lg text-sm font-bold bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/40 cursor-default"
-                    >
-                      ใช้โหมดเต็ม
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Menu List */}
@@ -383,35 +358,6 @@ export default function Sidebar({
                       ตั้งค่าระบบ
                     </div>
                     <div className="text-xs text-slate-400">ขนาดจอ, ฟอนต์ระบบ, โฟลเดอร์จัดเก็บ, ความปลอดภัย</div>
-                  </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-500" />
-              </button>
-
-              {/* Option 4: User Guide */}
-              <button
-                onClick={() => {
-                  setActiveTab('guide');
-                  setShowMoreDrawer(false);
-                }}
-                className={`w-full flex items-center justify-between min-h-11 p-3.5 rounded-2xl border transition-all cursor-pointer ${
-                  activeTab === 'guide'
-                    ? 'bg-[#25F4EE]/10 border-[#25F4EE]/40 text-[#25F4EE]'
-                    : 'bg-white/[0.03] border-white/[0.06] text-slate-200 hover:bg-white/[0.06]'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-                    <BookOpen className="w-4 h-4" />
-                  </div>
-                  <div className="text-left">
-                    <div className="text-sm font-bold text-white flex items-center gap-1.5">
-                      คู่มือใช้งาน
-                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                        Guide
-                      </span>
-                    </div>
-                    <div className="text-xs text-slate-400">โฟลว์หลัก 7 ขั้น วิธีใช้ทุกเมนู คำถามพบบ่อย</div>
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-slate-500" />

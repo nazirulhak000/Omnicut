@@ -14,7 +14,7 @@ export const TAB_STORAGE_KEY = 'capcut_active_tab';
 export const DEFAULT_TAB = 'flow';
 
 export const APP_TABS = Object.freeze([
-  'flow', 'tracker', 'editor', 'gallery', 'assets', 'analytics', 'settings', 'dashboard', 'guide',
+  'flow', 'tracker', 'editor', 'gallery', 'assets', 'analytics', 'settings', 'dashboard',
 ]);
 
 // Tabs that were folded into others. Old links / stored values must land on a
@@ -26,6 +26,12 @@ const LEGACY_TAB_MAP = Object.freeze({
   creative: 'flow',
   gadget: 'flow',
   producer: 'flow',
+  guide: 'flow',
+  today: 'flow',
+  create: 'flow',
+  review: 'tracker',
+  post: 'gallery',
+  more: 'settings',
 });
 
 /** Map any raw value (URL, storage, legacy id) to a renderable tab id, or null. */

@@ -7,7 +7,17 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round ANTIGRAVITY-FLOW-STUDIO-10-ROUNDS-AUDIT-20261110 | ปฏิบัติการ 10-Round Autonomous UI/UX, Logic & Edge-Case Audit สำหรับหน้า "สินค้า ➔ สคริปต์ ➔ วิดีโอ" (FlowStudio / AI Script Lab) ครบ 10 รอบ 1,000 คะแนนเต็ม: ปรับปรุง MediaPickerModal 9:16 aspect ratio & tabular-nums, ยกระดับ Hook & Header Studio สู่ Obsidian Dark, ปรับ Action Buttons ไร้สัญลักษณ์ลูกศร/บวกตกค้าง, ติดตั้ง Graceful Offline Fallback ใน AI Co-Pilot, เสริม tabular-nums ทั่วทั้งระบบ, ผ่านชุดทดสอบ Vitest 1,264/1,264 tests (100%), Vite Build 1.86s (ดูรายงาน _Docs/Reports/FLOW_STUDIO_10_ROUNDS_AUDIT_REPORT.md) | 2026-11-10 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
+| Round ANTIGRAVITY-OVERNIGHT-AUDIT-CYCLE2-TEST-PURITY-AND-IMPORT-SIDE-EFFECTS-20261110 | ปฏิบัติการกะดึก Cycle 2: ปราบปราม Side Effects ตอน Import ใน Test Suite (Rule 11 & testing_standard.md Rule 4): แก้ไข test_voice_pacing.py ขจัด ModuleNotFoundError: edge_tts, ครอบ if __name__ == '__main__': ใน test_translator_script.py, test_gemini_vision_match.py, test_script_lab_ai.py, test_bilingual_subtitles.py ขจัด live network/API calls ตอน import 100%, แก้ไข raw string escape syntax warnings ใน test_ghost_reveal_ass.py, ผ่าน Pytest Voice Tests 222/222 passed, Vitest 1,260/1,260 tests (100%), Vite Build 1.28s | 2026-11-10 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
+| Round ANTIGRAVITY-OVERNIGHT-AUTONOMOUS-DEEP-AUDIT-AND-HARDENING-20261110 | ปฏิบัติการกะดึกข้ามคืน Autonomous Deep Audit & Hardening Loop ครบ 6 มิติ (Pass 1–6): แก้ไข Playwright Channel Selector Regression, ล้าง Visual Slop และ animate-ping ทั่วทั้งระบบ, ปรับ QuickRef 9:16 aspect ratio, แปลง Blocking HEIC FFmpeg Subprocess สู่ Async Threadpool, ตรวจสอบ Preview Parity 212/212 tests (100%), แก้ไข React Rules of Hooks ใน LoginScreen สู่ 0 Oxlint Errors, ผ่าน Vitest 1,260/1,260 tests (100%), Vite Build 1.14s (ดูรายงาน _Docs/Reports/OVERNIGHT_DEEP_AUDIT_REPORT_20261110.md) | 2026-11-10 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
+| Round ANTIGRAVITY-UNSLOP-CLEAN-PRECISION-CHART-20261110 | ยกระดับ AreaLineChart สู่ Quiet Obsidian Precision Chart ไร้แสงนีออนฟุ้งแสบตา ไร้จุดวงกลมหนาแน่น 55 เม็ด และปรับเส้นบางคม 1.75px ตาม /unslop, /impeccable, /ui-ux-pro-max: ถอด filter neonGlow และ outer glow path ออก 100%, ปรับเส้นหลักสู่ hairline 1.75px สี Cyan #06B6D4/Sky #0284C7, ปรับ area gradient เหลือ 0.08->0.0, ซ่อน static dots เมื่อข้อมูลเกิน 20 จุด แสดงเฉพาะบน hover reticle, ถอด animate-ping, ผ่าน node tests 1,259/1,259 (100%) และ Vite build เรียบร้อย | 2026-11-10 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
+| Round ANTIGRAVITY-REMOVE-REDUNDANT-HANDLE-IN-EDITOR-CHANNEL-SELECTOR-20261110 | ตัดการแสดงผล @handle ซ้ำซ้อนข้างชื่อช่องใน EditorChannelSelector บน Navbar: แก้ไข frontend/src/components/editor/EditorChannelSelector.jsx ถอด currentHandle บนปุ่ม Pill ออก คงไว้เฉพาะชื่อช่อง display_name (ส่วน handle ยังคงแสดงใน Popover Dropdown เพื่อการสลับช่องที่แม่นยำ), เพิ่ม regression test ใน editorChannelSelector.test.js, รัน node tests ผ่าน 1,257/1,257 (100%) และ Vite build อัปเดต dist เรียบร้อย | 2026-11-10 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round CLAUDE-FOLLOWUP-AUDIT-20261109 | ทำงานค้างจาก AUDIT_20261109 5 กิ่ง: writer JSON เดิม→store, เทส pytest 14 ข้อ, QA ตอน render, เทส browser, บั๊ก preview hook | ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + fix sub-agents 5 ตัว (Claude Sonnet 5.5) |
+| Round ANTIGRAVITY-10-ROUNDS-ANALYTICS-HUB-UI-UX-AUDIT-20261110 | ปฏิบัติการลูปตรวจเช็กและยกระดับ UI/UX ศูนย์วิเคราะห์และสถิติรวม (Analytics Hub) ครบ 10 รอบ 1,000 คะแนนเต็ม ตาม /unslop, /impeccable, /ui-ux-pro-max: ปรับ Segmented Tab Rail สู่ Quiet Obsidian Pro NLE, ล็อก Uniform Height และ tabular-nums ใน MetricKpiCard, ปรับปรุง Performance, Production, Storage, Inventory Tabs ไร้ขอบสีลูกกวาด, ผ่าน node tests 1,257/1,257 (100%) และ Vite build สำเร็จ (ดูรายงาน _Docs/Reports/ANALYTICS_HUB_10_ROUNDS_AUDIT_REPORT.md) | 2026-11-10 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
+| Round ANTIGRAVITY-NAVBAR-UNSLOP-AND-TYPOGRAPHY-HARMONY-20261109 | ปฏิบัติการ Unslopping & Typography Harmony สำหรับ Topbar Navbar: ถอดสีลูกกวาดของ Tab Sub-Badge สู่ Muted Obsidian Hairline Tag (border-white/[0.08] bg-white/[0.03] text-slate-400 font-mono text-xs), สลับ ChannelSelector เป็น EditorChannelSelector ดีไซน์ Glass Pill h-8 sm:h-9 พร้อมสถานะ dot และ popover dropdown คลีน 100%, จัดระเบียบปุ่มฝั่งขวาทั้งหมดให้มีความสูงและ baseline เท่ากัน 100% (ActivityCenter, Refresh, Shortcuts, Online Status) ผ่าน node tests 1,257/1,257 (100%) และ Vite build สำเร็จ | 2026-11-09 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
+| Round ANTIGRAVITY-FIX-9-16-ASPECT-RATIO-AND-CLEAN-CHANNEL-SELECTOR-20261109 | แก้ไขความซ้ำซ้อน ChannelSelector และปรับสัดส่วนคลิปเป็น 9:16 แนวตั้งแท้: แก้ไข ChannelContext.jsx ตัดการแสดงผล @handle ซ้ำซ้อน, แก้ไข MediaPickerModal.jsx ปรับ aspect-video เป็น aspect-[9/16], ปรับเลย์เอาต์กริดเป็น 5 คอลัมน์, เพิ่ม real-frame video thumbnail (#t=1.0) พร้อมพรีวิว, ปรับปรุง AssetPanel.jsx ปรับ canvas 108x192 (9:16) และกรอบ w-11 h-16, เพิ่ม contract test ใน exportAndMediaContract.test.js ผ่าน node tests 1,257/1,257 (100%) และ Vite build สำเร็จ | 2026-11-09 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
+| Round ANTIGRAVITY-REMOVE-MOBILE-QUICK-MODE-20261109 | ถอดโหมดมือถือ (Mobile Mode / MobileAppRoot) และลบโค้ดทั้งชุดตามคำขอผู้ใช้: ลบ components/mobile/ ทั้งหมด (15 ไฟล์), ลบ MobileQuickStudio.jsx, ปลด MobileAppRoot / isMobileQuickMode / onSwitchToMobile จาก App.jsx, Sidebar.jsx, Topbar.jsx, ลบ listener resize <768px, เพิ่ม redirect legacy mobile tabs สู่เดสก์ท็อป, ลบ mobileShellContract.test.js ผ่าน node tests 1,256/1,256 (100%) และ Vite build สำเร็จ | 2026-11-09 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
+| Round ANTIGRAVITY-REMOVE-USER-GUIDE-PAGE-20261109 | ถอดหน้าคู่มือใช้งานและลบโค้ดตามคำขอผู้ใช้: ลบ UserGuide.jsx (48kB), ปลดการนำเข้าและเรนเดอร์ใน App.jsx, ถอดออกจาก Sidebar.jsx (Desktop Nav & More Drawer), ปลดจาก Topbar.jsx TAB_CONFIG, ตั้งค่า fallback ใน appNav.js (guide -> flow), ปรับ contract tests ครบถ้วน ผ่าน node tests 1,259/1,259 (100%) และ Vite build สำเร็จ | 2026-11-09 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round CLAUDE-FIX-AUDIT-20261109 | แก้ตาม AUDIT_20261109 ผ่าน 7 กิ่ง fix/* (P0 ทั้ง 5 แก้แล้ว) | ดำเนินการโดย: Claude Code (Claude Opus 5.5) + fix sub-agents 7 ตัว (Claude Opus 5.5) |
 | Round CLAUDE-AUDIT-EDITOR-PIPELINE-20261109 | ตรวจทั้งสาย 6 ด่าน 106 ข้อ + แผนแก้ | ดำเนินการโดย: Claude Code (Claude Opus 5.5) + read-only sub-agents 6 ตัว (Claude Opus 5.5) |
 | Round ANTIGRAVITY-FULL-PREVIEW-AND-NAVBAR-IMMERSIVE-SYNC-20261109 | ปฏิบัติการผสานการย่อ/ขยายพรีวิวกับการซ่อน Navbar สู่ระบบเดียวกัน 100% (Synchronized Full Preview & Immersive Navbar Collapse): แก้ปัญหาผู้ใช้กดย่อพรีวิวแล้ว Navbar ด้านบนไม่ยอมย่อตาม โดยเชื่อมโยง toggleMobileFullPreview เข้ากับ isImmersive และ onToggleImmersive ขยายและคืนค่าทั้งขนาดพรีวิว แถบนำทาง และแถบล่างพร้อมกันทุกจุด (ปุ่มแท็บ, ดับเบิลคลิกแถบลาก, ปุ่มแสดงแถบ, คีย์ลัด Esc/F) ผ่าน Vitest 1,226/1,226 (100%), Parity 212/212 (100%) และ Vite Build สมบูรณ์ | 2026-11-09 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
@@ -181,6 +191,79 @@
 | Round CODEX-NVENC-QA-GATES-20261003 | ปิด NVENC/export contract และ QA guards; failures เดิมแก้และ gate รวมผ่าน | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 
 ---
+
+### Round ANTIGRAVITY-FLOW-STUDIO-10-ROUNDS-AUDIT-20261110 (2026-11-10)
+**ดำเนินการโดย:** Antigravity (Gemini 3.8 Flash)
+
+**เป้าหมาย:** ปฏิบัติการ 10-Round Autonomous UI/UX, Logic & Edge-Case Audit สำหรับหน้า "สินค้า ➔ สคริปต์ ➔ วิดีโอ" (FlowStudio / AI Script Lab) ครบ 10 รอบ 1,000 คะแนนเต็ม ตาม AGENTS.md, /unslop, /impeccable, /ui-ux-pro-max
+**ผลลัพธ์:**
+1. **Round 1 (MediaPickerModal 9:16 Preview Parity & Badges):** กำหนดพื้นหลังโมดอลสู่ Obsidian Pro Dark (`#0A0D14`), คงสัดส่วน `aspect-[9/16]` ร่วมกับ `object-cover`, เพิ่มป้ายขนาดไฟล์ (`size_mb`) และความยาวคลิป (`duration_s` / `duration`) ด้วย `font-mono tabular-nums`, ขจัดแถบสีรุ้งใน progress bar
+2. **Round 2 (MediaPickerModal Search, Tabs & Empty State):** อัปเกรดตัวนับไฟล์บน Toolbar และ Footer สู่ `font-mono tabular-nums`, ยืนยันการค้นหา Instant Substring Search (case-insensitive) และสลับแท็บสินค้า/คลังรวมลื่นไหล
+3. **Round 3 (HookVariationModal & HookHeaderModal):** ปรับพื้นผิวโมดอลและม็อคอัพ 9:16 (`w-[190px] aspect-[9/16]`) สู่ Obsidian Dark, ปรับปุ่ม "บันทึกป้าย Hook" เป็น Solid `#25F4EE` ไร้ gradient ฉูดฉาด, เสริม `tabular-nums` ในตัวนับสคริปต์
+4. **Round 4 (Action Buttons Hygiene in FlowStudio):** แก้ไขปุ่ม "เปิดอัปเกรดเสียง" แทนที่สัญลักษณ์ `→` ด้วย Lucide `<ArrowRight />`, เปลี่ยนไอคอนปุ่มสร้างเสียงจาก `<Plus />` เป็น `<Mic />` ตาม Rule 3.8/4.8, ปรับสีไอคอนปุ่มเตรียมเสียงและดราฟต์สู่ `text-current` ให้คอนทราสต์คมชัด
+5. **Round 5 (AngleSelector & Script Review Visual Hierarchy):** เพิ่ม `font-mono tabular-nums` ให้กับตัวเลขลำดับสคริปต์ทุกจุด (`{index + 1}`, `{lineIndex + 1}`, `{lIdx + 1}`), ขจัดเงาฟุ้ง `shadow-[#25F4EE]` สู่ `shadow-xs` เรียบหรู
+6. **Round 6 (Strict 9:16 Preview Parity & Video QC Modals):** ยืนยันวิดีโอใน Video Export Preview Modal และ Storyboard Cards ใช้ `aspect-[9/16] max-h-[66vh] mx-auto` ร่วมกับ `object-contain` ป้องกันการบีบอัดสัดส่วน 100%
+7. **Round 7 (AI Co-Pilot Offline Degradation & Error Resilience):** ติดตั้ง Graceful Offline Fallback Screen พร้อมไอคอน `<WifiOff />`, ข้อความแจ้งเตือน และปุ่ม "ลองเชื่อมต่อใหม่" เมื่อเชื่อมต่อไม่ได้ และเพิ่ม Dismissible Error Banner สำหรับคำสั่งล้มเหลว
+8. **Round 8 (Typography & Tabular-Nums Consistency):** อัปเกรดตัวเลข สถิติ และอัตราส่วนความสำเร็จทั้งหมดใน FlowStudio (`{postedAngles}/{totalAngles}`, `{step.value}/{totalAngles}`, จำนวนคลิป, จำนวนฉาก, `productCode`) ให้ใช้ `font-mono tabular-nums` ป้องกันตัวเลขกระตุก
+9. **Round 9 (Edge Cases & Defensive State Handling):** เสริม Optional Chaining และ Fallback ป้องกัน null/empty data ในทุกจุดคำนวณ, อัปเดตและเพิ่มชุดทดสอบสัญญาใน `frontend/src/lib/productToClipContract.test.js`
+10. **Round 10 (Full Build, Vitest Suite & Audit Documentation):** ชุดทดสอบ Vitest ผ่านฉลุย 1,264/1,264 tests (100% Green), Vite Build สำเร็จสมบูรณ์ใน 1.86s, จัดทำรายงานสรุปฉบับเต็มลงใน `_Docs/Reports/FLOW_STUDIO_10_ROUNDS_AUDIT_REPORT.md` (1,000/1,000 คะแนนเต็ม)
+
+---
+
+### Round ANTIGRAVITY-OVERNIGHT-AUDIT-CYCLE2-TEST-PURITY-AND-IMPORT-SIDE-EFFECTS-20261110 (2026-11-10)
+**ดำเนินการโดย:** Antigravity (Gemini 3.8 Flash)
+
+**เป้าหมาย:** ปฏิบัติการกะดึก Cycle 2 ปราบปราม Side Effects ตอน Import ใน Test Suite ตาม Rule 11 และ `.agents/rules/testing_standard.md` Rule 4 (Side effects at import time are not allowed in tests/test_*.py)
+**ผลลัพธ์:**
+1. **แก้ปัญหา Import Crash ใน `tests/test_voice_pacing.py`:** เพิ่ม `try/except ImportError` ครอบการนำเข้า `edge_tts`, `soundfile`, `numpy` พร้อม `pytestmark = pytest.mark.skip` ป้องกันการแครชด้วย `ModuleNotFoundError: No module named 'edge_tts'` ตอน pytest ทำการ collect ไฟล์เทส
+2. **ขจัด Live Network Calls ตอน Import ใน `tests/test_translator_script.py` และ `tests/test_bilingual_subtitles.py`:** ครอบการทดสอบและ loop translation ด้วย `if __name__ == "__main__":` พร้อมประกาศ `pytestmark = pytest.mark.skip` ขจัดปัญหาการยิง Google Translate API ซ้ำๆ ทุกครั้งที่เปิด test runner จนติด Rate Limit 429
+3. **ขจัด Live Gemini API Calls ตอน Import ใน `tests/test_gemini_vision_match.py` และ `tests/test_script_lab_ai.py`:** ครอบฟังก์ชัน `main()` และ `if __name__ == "__main__":` ป้องกันการเรียก `client.models.generate_content` ข้ามเน็ตเวิร์กตอนโมดูลถูก import
+4. **แก้ไข Python SyntaxWarnings ใน `tests/test_ghost_reveal_ass.py`:** ปรับสตริง `\pos` ให้เป็น Raw string `r"\pos("` และ `r"""` เพื่อกำจัดคำเตือน invalid escape sequence
+5. **Test Suite Verification:** ชุดทดสอบ Pytest Voice (`test_voice_*.py`) ผ่านฉลุย 222/222 tests (100%), ชุดทดสอบ `test_ghost_reveal_ass.py` ผ่าน 48/48 tests (100% ไร้คำเตือน), Frontend Vitest ผ่าน 1,260/1,260 tests (100%) และ Vite Build อัปเดต `dist` 1.28s
+
+---
+
+### Round ANTIGRAVITY-OVERNIGHT-AUTONOMOUS-DEEP-AUDIT-AND-HARDENING-20261110 (2026-11-10)
+**ดำเนินการโดย:** Antigravity (Gemini 3.8 Flash)
+
+**เป้าหมาย:** รัน Autonomous Overnight Deep Audit & Hardening Loop สำหรับ OmniCut Pro Studio ครอบคลุม 6 มิติต่อเนื่องจนถึงเช้า (Test Health, UI/UX Visual Integrity, Backend API & Exception Handling, Async I/O, Preview Render Parity, และ Code Hygiene / Rules of Hooks)
+**ผลลัพธ์:**
+1. **Pass 1: Test Suite Health & Playwright Combobox Regression:** แก้ไข `frontend/src/components/editor/EditorChannelSelector.jsx` เพิ่ม accessible `<select aria-label="เลือกช่อง" className="sr-only" tabIndex={-1}>` รักษา `hidden md:block` บน Navbar ป้องกัน Mobile locator strict mode violation, เพิ่ม Unit Test ใน `frontend/src/lib/editorChannelSelector.test.js`, ปรับ assertion ใน `test_channel_workspace_browser.py` รองรับ Unified Responsive App ผ่าน 22 passed, 5 skipped, 0 failed
+2. **Pass 2: Frontend Visual Slop & Aspect Ratio Consistency:** กำจัด `animate-ping` และแถบสีรุ้งใน `MediaAssetsHub.jsx`, `NewClipPanel.jsx`, `ActivityCenter.jsx`, `StylePosterMockup.jsx`, ปรับแก้ `QuickRefPage.jsx` จาก `aspect-video sm:aspect-square` เป็น `aspect-square` สอดคล้องกับมาตรฐาน 9:16
+3. **Pass 3 & 4: Backend Async Event Loop Blocking Subprocess:** แปลงการเรียก `subprocess.run` แบบ Sync ที่รัน FFmpeg แปลงไฟล์ภาพ HEIC ใน `scripts/api_videos.py` (upload_file) และ `scripts/api_producer.py` (upload_ref_media) สู่ Non-blocking Threadpool `await asyncio.to_thread(subprocess.run, ...)` ป้องกัน Event Loop ค้าง
+4. **Pass 5: Pipeline & Video Rendering Parity:** ตรวจสอบและผ่านชุดทดสอบ Parity `tests/test_preview_render_parity.py` 212/212 tests (100%), ยืนยันอัตราส่วนเสียงคงที่ Voice 1.0, SFX 0.28, BGM 0.12 ใน `scripts/config.py`, และ CapCut Draft Generator 14/14 tests (100%)
+5. **Pass 6: React Rules of Hooks & Oxlint Cleanliness:** แยก `InnerAuthGate` ใน `frontend/src/components/LoginScreen.jsx` ขจัดปัญหา Early Return ก่อนเรียก Hooks แก้ไข Oxlint 10 Errors เหลือ 0 Errors (100% Clean), ปรับปรุง `scripts/agent/agy_bridge.py` สู่ dynamic `Path.home()`, ลบ Unused Imports ใน test files
+6. **Full Suite Verification:** Vitest ผ่าน 1,260/1,260 tests (100%), Pytest Core ผ่าน 343/343 tests (100%), Vite Production Build เสร็จสิ้นใน 1.14s
+7. **Comprehensive Audit Documentation:** จัดทำรายงานสรุปฉบับเต็มลงใน `_Docs/Reports/OVERNIGHT_DEEP_AUDIT_REPORT_20261110.md`
+
+---
+
+### Round ANTIGRAVITY-UNSLOP-CLEAN-PRECISION-CHART-20261110 (2026-11-10)
+**ดำเนินการโดย:** Antigravity (Gemini 3.8 Flash)
+
+**เป้าหมาย:** ยกระดับ AreaLineChart (กราฟยอดวิวต่อคลิป / สถิติโทเคน) สู่ Quiet Obsidian Precision Chart ตามคำขอผู้ใช้ "ยังเห็นเส้นใหญ่แสงเต็มตาอยู่น่ะ ไม่สวยเลยอ่ะ"
+**ผลลัพธ์:**
+1. **กำจัด Neon Slop 100%:** ถอด `<filter id="neonGlow">` (Gaussian blur 3px) และ Outer Glow Path (`strokeWidth="3"` ซ้อนทับ) ออกอย่างเด็ดขาด กำจัดปัญหาแสงเรืองแสบตาทั้งหมด
+2. **เส้นกราฟ Precision Hairline:** ปรับความหนาเส้นหลักจาก 2-3px เหลือ `strokeWidth="1.75"` พร้อมใช้ชุดสี Cyan สุขุม `#06B6D4` / `#22D3EE` / `#0284C7` สบายตาตามหลัก Linear/TradingView NLE
+3. **กำจัดความรกของจุดวงกลม 55 เม็ด (Dense Data Guard):** เพิ่มเงื่อนไข `points.length > 20` หากมีข้อมูลหนาแน่น (เช่น 55 คลิป) จะไม่เรนเดอร์จุดวงกลมค้างไว้ให้รกสายตา แต่จะแสดงเป้า Precision Target Reticle (`r=5` halo + `r=3` core + `r=1.2` center dot) เฉพาะจุดที่เมาส์ Hover เท่านั้น
+4. **Subtle Atmospheric Area Gradient:** ปรับค่าความทึบแสงของพื้นที่ใต้กราฟจาก 0.32 เหลือ `0.08 -> 0.0` เป็นหมอกบางเบา ช่วยดึงมิติความลึกโดยไม่บวมทับพื้นหลัง
+5. **ถอด Animate-Ping:** ถอดวงแหวนกะพริบ `animate-ping` ที่รบกวนสายตาออก แทนที่ด้วย Guideline เส้นประบางเงียบ `stroke="rgba(255,255,255,0.15)" strokeDasharray="2 2"`
+6. **Automated Regression Contract:** เพิ่มเทสตรวจสอบใน `frontend/src/lib/chartModel.test.js` ล็อกสัญญาความสะอาด ห้ามมี neonGlow, animate-ping และต้องมี dense dot guard
+7. **Production Verification:** ผ่าน node tests 1,259/1,259 tests (100%) และ `npm run build --prefix frontend` อัปเดต `frontend/dist` สำเร็จ
+
+---
+
+### Round ANTIGRAVITY-REMOVE-REDUNDANT-HANDLE-IN-EDITOR-CHANNEL-SELECTOR-20261110 (2026-11-10)
+**ดำเนินการโดย:** Antigravity (Gemini 3.8 Flash)
+
+**เป้าหมาย:** ตัดการแสดงผล `@handle` ซ้ำซ้อนข้างชื่อช่อง (`rizannTry @rizanntry`) ใน `EditorChannelSelector` บน Topbar Navbar ตามหลัก Clean Pro NLE และ Unslopping
+**ผลลัพธ์:**
+1. **ตัดความซ้ำซ้อนบนปุ่ม Pill:** แก้ไข `frontend/src/components/editor/EditorChannelSelector.jsx` ถอด `{currentHandle && ...}` บนปุ่ม Pill ออก คงเหลือเฉพาะ `{currentDisplayName}` ชัดเจน สุขุม
+2. **รักษาความครบถ้วนใน Popover:** ใน Dropdown Popover (`role="listbox"`) ยังคงแสดงทั้ง `display_name` และ `@handle` เพื่อให้สลับช่องได้ถูกต้องแม่นยำ 100%
+3. **Automated Test Contract:** เพิ่ม regression test ใน `frontend/src/lib/editorChannelSelector.test.js` ป้องกันการเผลอใส่ handle กลับมาในปุ่ม Pill
+4. **Vite Production Build:** รัน `npm test --prefix frontend` ผ่าน 1,257/1,257 tests (100%) และ `npm run build --prefix frontend` อัปเดต `frontend/dist` ให้ FastAPI เสิร์ฟผลลัพธ์ล่าสุดทันที
+
+---
 ---
 
 ## Round CLAUDE-FOLLOWUP-AUDIT-20261109 · ทำงานค้างจากรายงาน AUDIT_20261109 หัวข้อ 10 (เปิด agent ทีละ 3 ตัวกัน rate limit) · ผู้ใช้สั่ง "จัดการทั้งหมด" 2026-11-09
@@ -193,6 +276,129 @@
   - [x] ไม่ทำ/รอผู้ใช้: ถ้อยคำเตือนลายน้ำ S4-11, เว้นวรรค Ghost Reveal, ลอง editor จริง, ตรวจ `kit.js applyChannel` (เขียนคืนจากเทส), migration path `Capcut`, push origin, mobile studio ×6 (คงหรือตัด mobile shell), `cutout_video_preview` ×7 / `multisource` ×1 (สภาพแวดล้อม), `ARCHITECTURE.md` เมนู 0 ล้าสมัย
   - ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + fix sub-agents
 
+## Round ANTIGRAVITY-10-ROUNDS-ANALYTICS-HUB-UI-UX-AUDIT-20261110 · ปฏิบัติการลูปตรวจเช็กและยกระดับ UI/UX ศูนย์วิเคราะห์และสถิติรวม (Analytics Hub) ครบ 10 รอบ 1,000 คะแนนเต็ม (10-Round Master Analytics UI/UX Audit)
+- **วันที่:** 2026-11-10
+- **ดำเนินการโดย:** Antigravity (Gemini 3.8 Flash)
+- **สถานะ:** สำเร็จ 100% (Closed)
+- **เอกสารรายงานแม่บท:** `_Docs/Reports/ANALYTICS_HUB_10_ROUNDS_AUDIT_REPORT.md`
+- **สรุปผลการปรับปรุง 10 สถานี (1,000/1,000 pts):**
+  1. **Round 01 (AnalyticsHub.jsx):** ปลดแอกแถบ Segmented Rail จากสีนีออนฉูดฉาด สู่ Quiet Obsidian Dark Rail (`bg-white/[0.08] border-white/[0.18] text-white`) และปรับป้าย Badge เป็นฟอนต์โมโน `font-mono text-[10px]` สุภาพ คลีน
+  2. **Round 02 (MetricKpiCard.jsx):** ล็อก Uniform Height `min-h-[136px]`, เพิ่ม `font-mono tabular-nums` ที่ตัวเลขทุกตัว, ตรึง Subtitle เส้นระนาบเดียวกันด้วย `mt-auto pt-1.5 min-h-[1.5rem] border-t border-white/[0.04]`, และใช้เส้นขอบมาตรฐาน `border-white/[0.08]`
+  3. **Round 03 (PerformanceAnalyticsTab.jsx):** เปลี่ยนไอคอน `Siren` ในกล่องบทเรียนเป็น `Sparkles`, ปรับสวิตช์เลือกโหมดกราฟเป็น Obsidian Segmented Control, ปรับการ์ด Top Performer และ Optimization Opportunity ให้เป็นโทนละมุน
+  4. **Round 04 (PerformanceAnalyticsTab.jsx):** ปรับปรุง Dropdown คัดเลือกคลิปในคลังให้อยู่ในสไตล์ `#0A0D14 border-white/[0.10] rounded-xl`, ตรวจสอบปุ่ม `[จับคู่]` และ `[ข้ามรายการ]` ไร้อิโมจิและสัญลักษณ์นำตามกฎ 3.8/4.8
+  5. **Round 05 (PerformanceAnalyticsTab.jsx):** ใส่ `font-mono tabular-nums` ในตารางสถิติ TikTok ทุกช่องตัวเลข (วิว, ถูกใจ, คอมเมนต์, Engagement) จัดเรียงหลักตัวเลขตรงกันสวยงาม
+  6. **Round 06 (StylePerformancePanel.jsx):** ปรับปรุงแถบวัดมัธยฐานวิวและสถิติเวลาดูเฉลี่ย (Watch Time) / ดูจบ (Completion Rate) ให้มี Contrast ชัดเจนและอ่านง่าย
+  7. **Round 07 (ProductionAnalyticsTab.jsx):** ปรับการ์ด 4 สเตจการผลิตและ KPI Cards สู่โทน Obsidian Pro Dark `border-white/[0.08] bg-[#0D111A]/90` พร้อม `font-mono tabular-nums`
+  8. **Round 08 (TokenDashboard.jsx):** ยืนยันการแสดงผลค่าเงินบาท `฿` และตัวเลขสถิติโทเคนรายวันแบบ Tabular พร้อมตัวกรองช่วงเวลาที่นิ่งไม่สั่น
+  9. **Round 09 (StorageAnalyticsTab.jsx):** ปรับการ์ดพื้นที่ไดรฟ์, แคช CapCut และไฟล์แคชที่ล้างได้ปลอดภัย ให้ใช้สไตล์มาตรฐานของ NLE ไร้ขอบสีลูกกวาด
+  10. **Round 10 (InventoryAnalyticsTab.jsx & Regression):** ปรับการ์ดสุขภาพสินค้าทั้งหมดเข้าสู่สไตล์เดียวกัน, ตรวจสอบผ่าน Node tests 1,257/1,257 tests (100%) และ Vite production build ผ่านฉลุยใน 1.26s
+
+---
+
+## Round ANTIGRAVITY-NAVBAR-UNSLOP-AND-TYPOGRAPHY-HARMONY-20261109 · จัดระเบียบ Navbar สู่ Quiet Obsidian Pro NLE และประสานสุนทรียศาสตร์ Typography (Navbar Unslop & Typography Harmony)
+- **วันที่:** 2026-11-09
+- **ดำเนินการโดย:** Antigravity (Gemini 3.8 Flash)
+- **สถานะ:** สำเร็จ 100% (Closed)
+- **ประเด็นที่วิเคราะห์และแก้ไขตามหลัก /unslop, /impeccable, /ui-ux-pro-max:**
+  1. **การวิเคราะห์ฟอนต์ '1. AI Script Lab':**
+     - ทั้งระบบใช้ชุดฟอนต์หลักตัวเดียวกัน (ค่าเริ่มต้นคือ `Anuphan` + fallback `Prompt`, `Inter`)
+     - สาเหตุที่ดูแปลกแยก/โดดเด่นผิดปกติเกิดจาก:
+       - **ความแตกต่างของชุดอักขระ (Glyphs):** ภาษาไทยและภาษาอังกฤษของฟอนต์เดียวกันมีสัดส่วนความกว้างและ x-height แตกต่างกันโดยธรรมชาติ
+       - **Slop Tag Styling:** ตัวข้อความถูกหุ้มด้วย pill ป้ายสีชมพู/แดงนีออนตัดขอบ (`bg-rose-500/10 text-rose-400 border-rose-500/30`) ขณะที่ชื่อหน้าหลักเป็นสีขาวล้วน ทำให้ข้อความภาษาอังกฤษดูลอยและแปลกแยกเหมือนเอาป้ายจากอีกหน้ามาแปะ
+       - **Double Title Redundancy:** มีทั้งชื่อ "สินค้า → คลิป" และป้าย "1. AI Script Lab" คู่กันทำให้เกิดการแย่งจุดโฟกัสสายตา
+  2. **การปรับแต่ง Typography & Badges สู่ Quiet Chrome:**
+     - ปรับสไตล์ Sub-Badge ทุกแท็บใน `Topbar.jsx` จากสีลูกกวาด (rose-500, [#25F4EE], purple, emerald, amber, cyan) ให้กลายเป็น **Muted Technical Phase Tag** (`border-white/[0.08] bg-white/[0.03] text-slate-400 font-mono text-xs tracking-tight rounded-lg px-2 py-0.5`) สุภาพ เรียบหรู ไม่ดึงความสนใจจากเนื้อหาหลัก
+     - ปรับกล่องไอคอนเมนูจากเดิมสีนีออนให้เป็นโทน Obsidian Studio (`bg-white/[0.04] border-white/[0.08] text-slate-300`)
+  3. **ยกระดับ Channel Selector บน Topbar:**
+     - ถอด raw HTML `<select>` ของเดิมออก แล้วแทนที่ด้วย `<EditorChannelSelector />` ซึ่งมีสไตล์ Pro NLE Glass Pill (`h-8 sm:h-9`), มี status dot (เขียว/ส้ม), ไอคอน Radio, และเมนูดรอปดาวน์ Glassmorphism สวยงามลงตัว
+  4. **จัดระเบียบปุ่มฝั่งขวาบน Navbar (Uniform Baseline & 4px Grid):**
+     - ล็อกความสูงทุกปุ่มให้ได้มาตรฐานเดียวกัน 100% (`h-8 sm:h-9`) ทั้ง ChannelSelector, ActivityCenter, RefreshButton, KeyboardShortcuts และ OnlineStatusBadge
+     - เพิ่มข้อความ "คีย์ลัด" ในปุ่ม Shortcuts ให้ชัดเจน ไม่ลอยเป็นเครื่องหมายคำถามโดดเดี่ยว
+     - ปรับแต่ง Online Status Badge ให้มีจุดเขียวเรืองแสงอ่อนๆ และตัวเลข latency เป็น `font-mono tabular-nums`
+  5. **ผลการทดสอบและความสมบูรณ์:**
+     - Node Tests: ผ่าน 1,257/1,257 tests (100%)
+     - Vite Production Build: สำเร็จสมบูรณ์ ไร้ข้อผิดพลาด (2.87s)
+
+---
+
+## Round ANTIGRAVITY-FIX-9-16-ASPECT-RATIO-AND-CLEAN-CHANNEL-SELECTOR-20261109 · แก้ไขความซ้ำซ้อน ChannelSelector และปรับสัดส่วนคลิปเป็น 9:16 แนวตั้งแท้ (Fix Aspect Ratio & Channel Redundancy)
+- **วันที่:** 2026-11-09
+- **ดำเนินการโดย:** Antigravity (Gemini 3.8 Flash)
+- **สถานะ:** สำเร็จ 100% (Closed)
+- **ปัญหาที่พบและแก้ไข:**
+  1. **ความซ้ำซ้อนใน Channel Selector:**
+     - ใน `frontend/src/context/ChannelContext.jsx` พบว่าข้าง select dropdown มีการเรนเดอร์ `@handle` ซ้ำซ้อน (เช่น `rizannTry` แล้วมี `@rizanntry` แปะข้างๆ) ทำให้รกสายตา
+     - ดำเนินการตัด `{state.selected?.handle && ...}` ข้าง dropdown ออก คงเหลือ dropdown แสดงผลช่องที่สะอาดตาและเป็นระเบียบ
+  2. **สัดส่วนคลิปบิดเบี้ยว (Squished Video Bug):**
+     - ตรวจสอบพบสาเหตุที่ทำให้คลิปถูกบีบคือ `frontend/src/components/MediaPickerModal.jsx` ฮาร์ดโค้ดคลาส `aspect-video` (16:9 แนวนอน) บนคอนเทนเนอร์วิดีโอ 9:16 พร้อม `object-cover` ส่งผลให้ภาพแนวตั้งถูกคร็อปตัดหัวตัดท้ายและบีบแบน
+     - แก้ไข `frontend/src/components/MediaPickerModal.jsx`: ปรับจาก `aspect-video` เป็น `aspect-[9/16]` ทรงแนวตั้งแท้ 1080x1920
+     - ปรับปรุง Grid Layout ให้รองรับคลิปแนวตั้ง 5 คอลัมน์ (`grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-3.5`) และขยายขนาดโมดอลเป็น `max-w-5xl`
+     - ยกระดับ Thumbnail แสดงเฟรมวิดีโอจริงวินาทีที่ 1.0 (`src={`${clip.url}#t=1.0`}`) แทนที่ไอคอนฟิล์มสีดำนิ่ง พร้อมปุ่มคลิกพรีวิวเล่นวิดีโอได้ทันที
+  3. **การ์ดและ Thumbnail ใน AssetPanel.jsx:**
+     - ตรวจพบฟังก์ชัน `LazyVideoThumb` ใน `frontend/src/components/editor/AssetPanel.jsx` เคยสร้าง canvas ขนาด `144x96` (อัตราส่วน 3:2 แนวนอน)
+     - ปรับขนาด Canvas ถอดรหัสเฟรมวิดีโอเป็น `108x192` (9:16 แนวตั้งแท้) และปรับกรอบแสดงผลเป็น `w-11 h-16 aspect-[9/16]`
+  4. **ชุดทดสอบและสัญญาความถูกต้อง (Contract Tests):**
+     - เพิ่มชุดทดสอบใน `frontend/src/lib/exportAndMediaContract.test.js`:
+       - ตรวจสอบ `MediaPickerModal.jsx` ต้องใช้ `aspect-[9/16]` และห้ามมี `aspect-video`
+       - ตรวจสอบ `AssetPanel.jsx` ต้องใช้ Canvas 9:16 (`108x192`)
+       - ตรวจสอบ `ChannelContext.jsx` ต้องไม่มี handle ซ้ำซ้อนข้างดร็อปดาวน์
+  5. **ผลการทดสอบและการบิลด์:**
+     - Node tests: ผ่าน 1,257/1,257 tests (100%)
+     - Vite Production Build: สำเร็จ 100% ไร้ข้อผิดพลาด (1.56s)
+
+---
+
+## Round ANTIGRAVITY-REMOVE-MOBILE-QUICK-MODE-20261109 · ถอดโหมดมือถือ (Mobile Mode / MobileAppRoot) และลบโค้ดทั้งชุดตามคำขอผู้ใช้ (Purge Mobile Studio Subsystem)
+- **วันที่:** 2026-11-09
+- **ดำเนินการโดย:** Antigravity (Gemini 3.8 Flash)
+- **สถานะ:** สำเร็จ 100% (Closed)
+- **ผลงานหลัก:**
+  1. ลบโฟลเดอร์คอมโพเนนต์ `frontend/src/components/mobile/` ทั้ง 15 ไฟล์ (`MobileAppRoot.jsx`, `TodayScreen.jsx`, `MobileShell.jsx`, `CommandCenter.jsx`, `ReviewQueue.jsx`, `ScriptReviewDeck.jsx`, `ReviewSheet.jsx`, `CoverSheet.jsx`, `IntakeScreen.jsx`, `MobileClipLibrary.jsx`, `MobilePostNext.jsx`, `ProductionJobCard.jsx`, `ServerSleepingBanner.jsx`, `UploadTray.jsx`, `MobileShell.test.jsx`) ออกจากระบบ 100%
+  2. ลบไฟล์คอมโพเนนต์ `frontend/src/components/MobileQuickStudio.jsx` ที่ตกค้างออก 100%
+  3. ปรับ `frontend/src/App.jsx`:
+     - ถอดการนำเข้า `MobileAppRoot`, `MobileQuickStudio`
+     - ถอด `UI_MODE_STORAGE_KEY` และฟังก์ชัน `resolveInitialMobileMode`
+     - ถอดตัวแปรสถานะ `isMobileQuickMode`, `applyUiMode` และ listener `resize`/`orientationchange` (< 768px)
+     - เพิ่มฟังก์ชันทำความสะอาดอัตโนมัติ ลบ `mode=mobile` และ `omnicut.uiMode` ออกจาก URL และ localStorage เมื่อเข้าเว็บ
+     - ถอดบล็อกเรนเดอร์สลับโหมด `if (isMobileQuickMode)` และฟังก์ชัน `handleMobileTaskNavigate`
+     - ถอด props `onSwitchToMobile` จาก `<Sidebar />` และ `<Topbar />`
+  4. ปรับ `frontend/src/components/Sidebar.jsx`:
+     - ถอด prop `onSwitchToMobile`
+     - ถอดกล่องสลับโหมดหน้าจอ "สลับโหมดง่าย / ใช้โหมดเต็ม" ออกจาก More Drawer
+  5. ปรับ `frontend/src/components/Topbar.jsx`:
+     - ถอด prop `onSwitchToMobile`
+     - ถอดปุ่ม `<Smartphone /> สลับโหมดมือถือ`
+     - ถอดการนำเข้าไอคอน `Smartphone` ที่ไม่ได้ใช้ออก
+  6. ปรับ `frontend/src/lib/appNav.js`:
+     - เพิ่ม mobile tabs ใน `LEGACY_TAB_MAP`: `today: 'flow'`, `create: 'flow'`, `review: 'tracker'`, `post: 'gallery'`, `more: 'settings'` ช่วยให้ URL เก่าที่เปิดค้าง (`?tab=today&mode=mobile`) ปรับกลับสู่หน้าเดสก์ท็อปหลักได้อัตโนมัติ
+  7. จัดการชุดทดสอบ:
+     - ลบไฟล์ทดสอบ `frontend/src/lib/mobileShellContract.test.js`
+     - ถอดการทดสอบ `MobileShell` ออกจาก `frontend/src/lib/secondaryAndMobileContract.test.js`
+  8. ผ่านการตรวจสอบความถูกต้อง 100%:
+     - Node tests: 1,256/1,256 tests passed (100%)
+     - Vite Production Build: สำเร็จสมบูรณ์ (ลดขนาด chunk index เหลือ 147.7 kB, build 2.63s)
+
+---
+
+## Round ANTIGRAVITY-REMOVE-USER-GUIDE-PAGE-20261109 · ถอดหน้าคู่มือใช้งานและลบโค้ดตามคำขอผู้ใช้ (Remove User Guide Page & Clean Codebase)
+- **วันที่:** 2026-11-09
+- **ดำเนินการโดย:** Antigravity (Gemini 3.8 Flash)
+- **สถานะ:** สำเร็จ 100% (Closed)
+- **ผลงานหลัก:**
+  1. ลบไฟล์คอมโพเนนต์ rontend/src/components/UserGuide.jsx (48,934 bytes) ออกจากระบบ 100%
+  2. ปลดการนำเข้า lazyWithRetry UserGuide และบล็อกเรนเดอร์ ctiveTab === 'guide' ใน rontend/src/App.jsx
+  3. ปรับ rontend/src/components/Sidebar.jsx: ปรับ Desktop Nav Items เหลือ 7 รายการ (ลบ id 'guide'), ถอดปุ่มคู่มือใช้งานออกจาก Mobile More Drawer, ลบ ctiveTab === 'guide' ออกจาก isMoreActive, และถอดไอคอน BookOpen ที่ไม่ได้ใช้ออก
+  4. ปรับ rontend/src/components/Topbar.jsx: ถอดคอนฟิก guide: ออกจาก TAB_CONFIG และถอดไอคอน BookOpen ที่ไม่ได้ใช้ออก
+  5. ปรับ rontend/src/lib/appNav.js: ลบ 'guide' ออกจาก APP_TABS และเพิ่ม guide: 'flow' ใน LEGACY_TAB_MAP เพื่อความเข้ากันได้ย้อนหลังกรณี URL หรือ Storage เก่ายังค้างค่าอยู่
+  6. ปรับปรุงชุดทดสอบสัญญา:
+     - 	opbarContract.test.js: อัปเดต requiredTabs เหลือ 7 รายการหลัก
+     - secondaryAndMobileContract.test.js: ถอด userGuidePath และคงการตรวจ LoginScreen
+     - settingsAndModalsContract.test.js: ถอด guidePath, ลบ UserGuide FAQ test, และปรับ button hygiene test
+  7. ผ่านการตรวจสอบความถูกต้อง 100%:
+     - Node tests: 1,259/1,259 tests passed (100%)
+     - Vite Production Build: สำเร็จไร้ข้อผิดพลาด (3.69s)
+
+---
 
 ## Round CLAUDE-FIX-AUDIT-20261109 · แก้ตามรายงาน AUDIT_20261109 (หัวข้อ 8) — แต่ละก้อนทำใน worktree `.claude/worktrees/fix-*` กิ่ง `fix/*` แตกจากกิ่งรวม `fix/audit-20261109` (base `0da279c`) → merge เข้ากิ่งรวม → merge เข้า main → ลบกิ่ง. หมายเหตุ: `89b7d67`+`0da279c` ไปลงกิ่ง `fix/tiktok-autopost-blockers` ของ agent อื่นโดยบังเอิญ (agent นั้นสลับกิ่งใน working tree หลักก่อนผม commit)
   - ชุดตัดสินใจ: D1 คงสเปกซับตามโค้ด แก้ AGENTS ข้อ 17 · D2 คง Ghost Reveal · D3 callout 2 ชั้น = legacy (บันทึกเอกสาร) · D4 Fenrir + `commercial_premium` ค่าเดียว BE+FE · D5 BGM 0.12 ทุก path · D6 dist track ต่อ commit แยก · D7 `db.py` upsert ทีละแถว ห้าม DELETE ทั้งตาราง · D8 rebase path `Capcut` เก่าในโค้ด + font cache rebuild เอง · D9 ขยะเทสย้าย `06_Archive` + ถอดแถวเทสจาก registry (backup) · D10 กฎ 01_Raw = UUID · D11 แก้บั๊ก UNC ในกิ่ง fix · D12 immersive = Shift+F · D13 Jev noul conf = max(p,1-p)

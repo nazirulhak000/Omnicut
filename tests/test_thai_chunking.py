@@ -41,7 +41,8 @@ samples = [
     "พิกัดราคาพิเศษวันนี้แค่ 149 บาท กดในตะกร้าซ้ายล่างได้เลยครับ!"
 ]
 
-for s in samples:
-    b = smart_thai_split(s)
-    print(f"\nOriginal: {s}")
-    print(f"Bursts ({len(b)}): {b}")
+if __name__ == "__main__":
+    for s in samples:
+        b = smart_thai_split(s)
+        print(f"\nOriginal: {s}")
+        print(f"Bursts ({len(b)}): {b}")

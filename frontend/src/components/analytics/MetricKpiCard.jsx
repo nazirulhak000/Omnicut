@@ -25,7 +25,7 @@ export default function MetricKpiCard({
 
   return (
     <div
-      className={`relative p-4 rounded-2xl border ${borderColor} ${bgColor} backdrop-blur-xl shadow-sm hover:border-white/[0.16] hover:bg-[#0D111A] flex flex-col justify-between transition-all duration-200 group ${className}`}
+      className={`relative p-4 rounded-2xl border ${borderColor} ${bgColor} backdrop-blur-xl shadow-sm hover:border-white/[0.16] hover:bg-[#0D111A] min-h-[136px] flex flex-col justify-between transition-all duration-200 group ${className}`}
       title={tooltip || undefined}
     >
       {/* Header: Title & Icon */}
@@ -41,8 +41,8 @@ export default function MetricKpiCard({
       </div>
 
       {/* Main Metric Value & Right Action/Graphic */}
-      <div className="my-2.5 flex items-center justify-between gap-2">
-        <div className="text-2xl font-black tracking-tight text-white flex items-baseline gap-2 flex-wrap font-mono">
+      <div className="my-2 flex items-center justify-between gap-2">
+        <div className="text-2xl font-black tracking-tight text-white flex items-baseline gap-2 flex-wrap font-mono tabular-nums">
           <span>{displayValue}</span>
           {unit && (
             <span className="text-xs font-medium text-slate-400 font-sans">{unit}</span>
@@ -73,7 +73,7 @@ export default function MetricKpiCard({
 
       {/* Contextual Subtitle */}
       {subtitle && (
-        <div className="text-[11px] text-slate-400 truncate leading-normal pt-1 border-t border-white/[0.04]">
+        <div className="text-[11px] text-slate-400 truncate leading-normal pt-1.5 border-t border-white/[0.04] min-h-[1.5rem] mt-auto">
           {subtitle}
         </div>
       )}

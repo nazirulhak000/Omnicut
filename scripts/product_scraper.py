@@ -765,6 +765,72 @@ def _strip_central_price_terms(text: str) -> str:
     return re.sub(r"\s{2,}", " ", text).strip()
 
 
+_PROMO_WORDS_RE = re.compile(r"โปรโมชั[่ั]น|คูปอง|โปรพิเศษ|โปรเด็ด|ลด(?:โหด|หนัก|สนั่น)|ราคาถูก", re.I)
+SAFE_PRICE_DEAL = "กดตะกร้าดูรายละเอียดได้เลย"
+SAFE_HASHTAGS = "#ของดีบอกต่อ #tiktokป้ายยา"
+
+
+def has_price_text(text: Any, *, caption: bool = True) -> bool:
+    """True when ``text`` carries price / discount / promo wording: the central lint and the promo words, and -- for text that is
+    POSTED (``caption=True``) -- also the posting content guard, which is stricter (any percentage blocks a post)."""
+    if not text:
+        return False
+    value = str(text)
+    if _compliance_lint.find_price_term(value) or _PROMO_WORDS_RE.search(value):
+        return True
+    if not caption:
+        return False
+    from scripts.content_guard import content_reason
+    return content_reason(value, "") == "price_in_caption"
+
+
+def _short_name(name: str, limit: int = 30) -> str:
+    """The product name for a neutral caption: cut at a word boundary, never mid-word ("BlueWow" -> "Blu")."""
+    text = (name or "").strip()
+    if len(text) <= limit:
+        return text or "สินค้าตัวนี้"
+    cut = text[:limit].rsplit(" ", 1)[0].strip()
+    return cut if len(cut) >= 8 else text[:limit].strip()
+
+
+def _scrub_hashtags(hashtags: str) -> str:
+    kept = [tag for tag in str(hashtags).split() if not has_price_text(tag)]
+    return " ".join(kept) if kept else SAFE_HASHTAGS
+
+
+def scrub_angle_price_text(
+    angle: Dict[str, Any],
+    base_name: str,
+    *,
+    fields: Optional[List[str]] = None,
+    script_lines: bool = False,
+) -> Dict[str, Any]:
+    """Enforce the no-price rule in CODE (the AI prompt only asks). Every offending field is replaced -- never half-stripped,
+    which would leave a broken sentence -- by a neutral one. Returns {field: (old, new)} for what changed; ``angle`` is
+    mutated in place. ``script_lines=True`` also drops spoken lines that carry price wording (only while >= 4 lines remain)."""
+    base = _short_name(base_name)
+    safe = {
+        "tiktok_caption": f"{base} ดูรายละเอียดในตะกร้าเลยครับ 👇",
+        "hook_title": f"💡 {base} เหมาะกับใครบ้าง?",
+        "price_deal": SAFE_PRICE_DEAL,
+    }
+    changed: Dict[str, Any] = {}
+    for field in (fields or ["tiktok_caption", "hook_title", "price_deal", "tiktok_hashtags"]):
+        value = angle.get(field)
+        if not isinstance(value, str) or not has_price_text(value, caption=field != "hook_title"):
+            continue
+        new = _scrub_hashtags(value) if field == "tiktok_hashtags" else safe[field]
+        angle[field] = new
+        changed[field] = (value, new)
+    if script_lines and isinstance(angle.get("script_lines"), list):
+        lines = angle["script_lines"]
+        kept = [line for line in lines if not (isinstance(line, str) and has_price_text(line))]
+        if len(kept) != len(lines) and len(kept) >= 4:
+            angle["script_lines"] = kept
+            changed["script_lines"] = (len(lines), len(kept))
+    return changed
+
+
 def clean_product_title(title: str) -> str:
     """Sanitizes and condenses raw e-commerce product titles into clean, concise names.
 
@@ -1933,6 +1999,9 @@ class ProductScraper:
                             ]
                         if "hook_title" in a and isinstance(a["hook_title"], str):
                             a["hook_title"] = re.sub(r'\s+', ' ', re.sub(r'[\.]{2,}|…', ' ', a["hook_title"])).strip()
+                    # The prompt forbids prices; this makes it a guarantee (a model that ignores the rule never reaches a caption)
+                    for a in angles:
+                        scrub_angle_price_text(a, title, script_lines=True)
                     # Add TTS-ready lines via sanitizer
                     from scripts.tts_sanitizer import TTSSanitizer
                     angles = TTSSanitizer.process_angles(angles[:count])
@@ -2157,6 +2226,8 @@ class ProductScraper:
                 angle for angle in fallback_angles
                 if angle.get("angle_id") == angle_id_override
             ]
+        for fallback in fallback_selection:
+            scrub_angle_price_text(fallback, title, script_lines=True)
         angles = TTSSanitizer.process_angles(fallback_selection[:count])
         for angle in angles:
             apply_angle_content_metadata(

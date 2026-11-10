@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Eye, ThumbsUp, TrendingUp, Trophy, ExternalLink,
-  AlertTriangle, RefreshCw, BarChart3, Siren, Link2, X
+  AlertTriangle, RefreshCw, BarChart3, Sparkles, Link2, X
 } from 'lucide-react';
 import {
   getTiktokStatsLatest, getTiktokPending, getTiktokClipCandidates,
@@ -276,7 +276,6 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
           subtitle="(ถูกใจ+คอมเมนต์+แชร์) / วิว"
           icon={TrendingUp}
           accentColor="text-emerald-400"
-          borderColor="border-emerald-500/20"
         />
         <MetricKpiCard
           title="ยอดถูกใจรวม"
@@ -284,7 +283,6 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
           subtitle={`คอมเมนต์ ${fmt(richPosts.reduce((s, p) => s + p.comments, 0))} · แชร์ ${fmt(richPosts.reduce((s, p) => s + p.shares, 0))}`}
           icon={ThumbsUp}
           accentColor="text-rose-400"
-          borderColor="border-rose-500/20"
         />
         <MetricKpiCard
           title="คลิปปังที่สุด"
@@ -292,7 +290,6 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
           subtitle={winner ? `${winner.product} · ${winner.angle}` : 'ยังไม่มีข้อมูลซิงก์'}
           icon={Trophy}
           accentColor="text-amber-400"
-          borderColor="border-amber-500/20"
           badge={winner ? `${winner.engagement}%` : null}
         />
       </div>
@@ -314,14 +311,14 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
               </p>
             </div>
 
-            {/* View Mode Switcher */}
-            <div className="flex items-center gap-1.5 bg-black/40 p-1 rounded-xl border border-white/[0.08] self-start sm:self-auto">
+            {/* View Mode Switcher (Obsidian Segmented Control) */}
+            <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/[0.08] self-start sm:self-auto">
               <button
                 type="button"
                 onClick={() => setTrendMode('clips')}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
                   trendMode === 'clips'
-                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                    ? 'bg-white/[0.10] text-white border border-white/[0.14] shadow-sm'
                     : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
                 }`}
               >
@@ -330,9 +327,9 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
               <button
                 type="button"
                 onClick={() => setTrendMode('daily')}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
                   trendMode === 'daily'
-                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                    ? 'bg-white/[0.10] text-white border border-white/[0.14] shadow-sm'
                     : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
                 }`}
               >
@@ -368,26 +365,26 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
         </div>
       )}
 
-      {/* ── Winner / Loser banner ── */}
+      {/* ── Winner / Loser Insight Banner ── */}
       {winner && (
         <div className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-lg">
           <div className="flex items-center gap-2.5 mb-3">
-            <Siren className="w-4 h-4 text-amber-400" />
-            <h3 className="text-sm font-black text-white">เรียนรู้อะไรจากข้อมูล</h3>
+            <Sparkles className="w-4 h-4 text-amber-400" />
+            <h3 className="text-sm font-black text-white">บทเรียนและแนวทางต่อยอด</h3>
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {winner && (
-              <div className="p-3 rounded-2xl bg-emerald-500/[0.06] border border-emerald-500/25">
-                <div className="text-[11px] font-bold text-emerald-300">ใช้มุมขายนี้บ่อยขึ้น</div>
+              <div className="p-3.5 rounded-xl bg-emerald-500/[0.04] border border-emerald-500/20">
+                <div className="text-[11px] font-bold text-emerald-400">มุมขายยอดนิยม (Top Performer)</div>
                 <div className="mt-1 text-xs font-bold text-white">{winner.product}</div>
-                <div className="text-[11px] text-slate-300 mt-0.5">{winner.angle} — {fmt(winner.views)} วิว · {winner.engagement}%</div>
+                <div className="text-[11px] text-slate-300 mt-0.5 font-mono">{winner.angle} — {fmt(winner.views)} วิว · {winner.engagement}%</div>
               </div>
             )}
             {loser && loser !== winner && (
-              <div className="p-3 rounded-2xl bg-rose-500/[0.06] border border-rose-500/25">
-                <div className="text-[11px] font-bold text-rose-300">มุมขายนี้อาจต้องปรับ Hook</div>
+              <div className="p-3.5 rounded-xl bg-rose-500/[0.04] border border-rose-500/20">
+                <div className="text-[11px] font-bold text-rose-400">มุมขายที่ควรปรับปรุง (Optimization Opportunity)</div>
                 <div className="mt-1 text-xs font-bold text-white">{loser.product}</div>
-                <div className="text-[11px] text-slate-300 mt-0.5">{loser.angle} — {fmt(loser.views)} วิว · {loser.engagement}%</div>
+                <div className="text-[11px] text-slate-300 mt-0.5 font-mono">{loser.angle} — {fmt(loser.views)} วิว · {loser.engagement}%</div>
               </div>
             )}
           </div>
@@ -642,9 +639,9 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
                       <div className="text-slate-200 max-w-[160px] truncate">{p.product}</div>
                       <div className="text-[10px] text-slate-500 mt-0.5 max-w-[160px] truncate">{p.angle}</div>
                     </td>
-                    <td className="py-2.5 px-3 text-right text-slate-200">{fmt(p.views)}</td>
-                    <td className="py-2.5 px-3 text-right text-slate-300">{fmt(p.likes)}</td>
-                    <td className="py-2.5 px-3 text-right text-slate-300">{fmt(p.comments)}</td>
+                    <td className="py-2.5 px-3 text-right text-slate-200 font-mono tabular-nums">{fmt(p.views)}</td>
+                    <td className="py-2.5 px-3 text-right text-slate-300 font-mono tabular-nums">{fmt(p.likes)}</td>
+                    <td className="py-2.5 px-3 text-right text-slate-300 font-mono tabular-nums">{fmt(p.comments)}</td>
                     <td className="py-2.5 px-3 text-right">
                       <span className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${p.engagement >= 5 ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30' : p.engagement >= 2 ? 'bg-amber-500/10 text-amber-300 border-amber-500/30' : 'bg-white/[0.04] text-slate-400 border-white/[0.1]'}`}>
                         {p.engagement}%

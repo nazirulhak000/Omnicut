@@ -231,14 +231,9 @@ function goToNextOrClean() {
  * {login_required} later in the session (the `omnicut:login-required` event)
  * shows the login screen as an overlay so open, unsaved work stays mounted.
  */
-export function AuthGate({ children }) {
-  if (import.meta.env.VITE_AUTH_DISABLED === 'true' || import.meta.env.VITE_AUTH_DISABLED === '1') {
-    return (
-      <AuthContext.Provider value={{ authRequired: false, authenticated: true, logout: () => {} }}>
-        {children}
-      </AuthContext.Provider>
-    );
-  }
+const AUTH_DISABLED = import.meta.env.VITE_AUTH_DISABLED === 'true' || import.meta.env.VITE_AUTH_DISABLED === '1';
+
+function InnerAuthGate({ children }) {
   // checking | ready | login | unreachable
   const [phase, setPhase] = useState('checking');
   const [me, setMe] = useState(null);
@@ -338,4 +333,15 @@ export function AuthGate({ children }) {
       )}
     </AuthContext.Provider>
   );
+}
+
+export function AuthGate({ children }) {
+  if (AUTH_DISABLED) {
+    return (
+      <AuthContext.Provider value={{ authRequired: false, authenticated: true, logout: () => {} }}>
+        {children}
+      </AuthContext.Provider>
+    );
+  }
+  return <InnerAuthGate>{children}</InnerAuthGate>;
 }

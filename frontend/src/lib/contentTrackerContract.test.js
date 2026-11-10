@@ -67,6 +67,6 @@ test('ContentTrackerHub buttons comply with Rule 3.8/4.8 button hygiene', () => 
   for (const btn of buttonMatches) {
     const textOnly = btn.replace(/<[^>]+>/g, '').replace(/\{[^}]*\}/g, '').trim();
     assert.doesNotMatch(textOnly, /^\+\s+[ก-๙a-zA-Z]/, `Found leading '+' in button: ${textOnly}`);
-    assert.doesNotMatch(textOnly, /^[⚡⚠️🎙️✨🔥🚀🎬➕]/, `Found leading emoji in button: ${textOnly}`);
+    assert.doesNotMatch(textOnly, /^[⚡⚠️🎙️✨🔥🚀🎬➕]/u, `Found leading emoji in button: ${textOnly}`);
   }
 });

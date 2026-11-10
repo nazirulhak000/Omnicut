@@ -382,3 +382,31 @@ def test_gdrive_ready_and_gdrive_archive_endpoints(mobile_workspace):
     archived_meta = json.loads((archive_gdrive / f"{stem}.json").read_text(encoding="utf-8"))
     assert archived_meta["status"] == "posted"
     assert archived_meta["evidence_type"] == "manual_user_confirmation"
+
+
+@pytest.mark.parametrize("status", ["ready_for_extension", "scheduled_on_platform", "draft_on_platform", "confirmation_unknown"])
+def test_phone_cannot_handoff_or_confirm_a_row_the_extension_or_tiktok_owns(mobile_workspace, status):
+    """R4/F-08: the phone route used to accept any status and mark the row posted without any platform evidence."""
+    client: TestClient = mobile_workspace["client"]
+    _seed_queue_item(queue_id="q-owned", export_id="exp-owned", status=status)
+    handoff = client.post("/api/mobile-post/handoff", json={"queue_id": "q-owned", "device_id": "phone-a"})
+    assert handoff.status_code == 409, handoff.text
+    confirm = client.post("/api/mobile-post/confirm", json={"queue_id": "q-owned", "device_id": "phone-a", "mode": "posted"})
+    assert confirm.status_code == 409, confirm.text
+    row = queue_store.ScheduleQueueStore.get_item("q-owned", channel_id="main")
+    assert row["status"] == status and row.get("confirmation_receipt") is None
+
+
+def test_phone_confirm_never_overwrites_a_job_the_extension_already_attempted(mobile_workspace):
+    client: TestClient = mobile_workspace["client"]
+    tmp_path: Path = mobile_workspace["tmp_path"]
+    _seed_queue_item(queue_id="q-att", export_id="exp-att", status="planned")
+    store = PostingJobStore(tmp_path)
+    with store.table.scoped_mutate("main") as rows:
+        rows.append({"id": "job-att", "job_id": "job-att", "channel_id": "main", "queue_id": "q-att", "export_id": "exp-att",
+                     "status": "publishing", "publish_attempted_at": 1700000000, "revision": 3})
+    assert client.post("/api/mobile-post/handoff", json={"queue_id": "q-att", "device_id": "phone-a"}).status_code == 200
+    done = client.post("/api/mobile-post/confirm", json={"queue_id": "q-att", "device_id": "phone-a", "mode": "posted"})
+    assert done.status_code == 200, done.text
+    job = next(r for r in store.table.load() if r.get("job_id") == "job-att")
+    assert job["status"] == "publishing" and not job.get("effects_applied")

@@ -108,7 +108,6 @@ const AnalyticsHub = lazyWithRetry(() => import('./components/analytics/Analytic
 
 const SystemSettings = lazyWithRetry(() => import('./components/SystemSettings'), 'SystemSettings');
 
-const UserGuide = lazyWithRetry(() => import('./components/UserGuide'), 'UserGuide');
 
 const MobileQuickPostPage = lazyWithRetry(() => import('./components/MobileQuickPostPage'), 'MobileQuickPostPage');
 
@@ -116,9 +115,7 @@ const MobileFilmingPage = lazyWithRetry(() => import('./components/MobileFilming
 
 const QuickRefPage = lazyWithRetry(() => import('./components/producer/QuickRefPage'), 'QuickRefPage');
 
-const MobileQuickStudio = lazyWithRetry(() => import('./components/MobileQuickStudio'), 'MobileQuickStudio');
 
-const MobileAppRoot = lazyWithRetry(() => import('./components/mobile/MobileAppRoot'), 'MobileAppRoot');
 
 
 
@@ -136,47 +133,7 @@ import { createWorkspaceDataCoordinator } from './lib/workspaceData';
 
 import { TaskProvider } from './context/TaskContext';
 
-import { ActivityDrawer, GlobalTaskNotification, ActivityIndicatorButton, GlobalLiveRenderWidget } from './components/ActivityCenter';
-
-
-
-// Dual-mode UI: an explicit Desktop/Mobile choice (or a URL mode) must survive
-
-// a resize/rotate, while an untouched automatic choice keeps following the
-
-// viewport width. One key drives both the stored preference and that rule.
-
-const UI_MODE_STORAGE_KEY = 'omnicut.uiMode';
-
-
-
-function resolveInitialMobileMode() {
-
-  try {
-
-    const params = new URLSearchParams(window.location.search);
-
-    if (params.get('mode') === 'desktop') return false;
-
-    if (params.get('mode') === 'mobile' || params.get('quick') === '1') return true;
-
-    const saved = localStorage.getItem(UI_MODE_STORAGE_KEY);
-
-    if (saved === 'desktop') return false;
-
-    if (saved === 'mobile') return true;
-
-  } catch {
-
-    /* storage/URL unavailable -- fall through to the viewport width */
-
-  }
-
-  // Default to full Desktop Studio workspace across all devices (including mobile touch)
-
-  return false;
-
-}
+import { ActivityDrawer, GlobalTaskNotification, ActivityIndicatorButton, GlobalLiveRenderWidget } from './components/ActivityCenter';
 
 
 
@@ -245,75 +202,19 @@ export default function App() {
     }
 
   });
-
-
-
-  // Dual-Mode: Mobile Quick Studio vs Desktop Pro
-
-  const [isMobileQuickMode, setIsMobileQuickMode] = useState(resolveInitialMobileMode);
-
-
-
-  // Persist an explicit switch and reflect it in the URL so a reload lands on
-
-  // the same mode the user picked.
-
-  const applyUiMode = useCallback((mobile) => {
-
-    setIsMobileQuickMode(mobile);
-
-    try {
-
-      localStorage.setItem(UI_MODE_STORAGE_KEY, mobile ? 'mobile' : 'desktop');
-
-      const url = new URL(window.location.href);
-
-      url.searchParams.set('mode', mobile ? 'mobile' : 'desktop');
-
-      url.searchParams.delete('quick');
-
-      window.history.replaceState({}, '', url);
-
-    } catch { /* storage/history may be unavailable */ }
-
-  }, []);
-
-
-
-  // Keep following the viewport only while the choice is still automatic --
-
-  // an explicit pick or URL mode must not be overridden by a resize/rotate.
-
+  // Automatically clean up any legacy mobile mode URL params and local storage
   useEffect(() => {
-
-    const onViewportChange = () => {
-
-      try {
-
-        const params = new URLSearchParams(window.location.search);
-
-        if (params.get('mode') === 'desktop' || params.get('mode') === 'mobile' || params.get('quick') === '1') return;
-
-        if (localStorage.getItem(UI_MODE_STORAGE_KEY)) return;
-
-      } catch { return; }
-
-      setIsMobileQuickMode(window.innerWidth < 768);
-
-    };
-
-    window.addEventListener('resize', onViewportChange);
-
-    window.addEventListener('orientationchange', onViewportChange);
-
-    return () => {
-
-      window.removeEventListener('resize', onViewportChange);
-
-      window.removeEventListener('orientationchange', onViewportChange);
-
-    };
-
+    try {
+      localStorage.removeItem('omnicut.uiMode');
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('mode') === 'mobile' || params.get('mode') === 'desktop' || params.has('quick')) {
+        params.delete('mode');
+        params.delete('quick');
+        const nextSearch = params.toString() ? '?' + params.toString() : '';
+        const cleanUrl = window.location.pathname + nextSearch + window.location.hash;
+        window.history.replaceState({}, '', cleanUrl);
+      }
+    } catch {}
   }, []);
 
 
@@ -372,7 +273,7 @@ export default function App() {
 
   const tabHistoryReadyRef = useRef(false);
 
-  const tabHistoryEnabled = !isMobileQuickMode && !isQuickPostMode && !isQuickRefMode && !filmingSessionId;
+  const tabHistoryEnabled = !isQuickPostMode && !isQuickRefMode && !filmingSessionId;
 
   useEffect(() => {
 
@@ -1130,18 +1031,6 @@ export default function App() {
 
 
 
-  const handleMobileTaskNavigate = useCallback((tab, extra = null) => {
-
-    try {
-
-      window.dispatchEvent(new CustomEvent('omnicut:task-navigate', { detail: { tab, extra } }));
-
-    } catch { /* CustomEvent unavailable */ }
-
-  }, []);
-
-
-
   if (isQuickPostMode) {
 
     return <ErrorBoundary><Suspense fallback={<LoadingSpinner message="กำลังเปิดตัวช่วยโพสต์..." />}>
@@ -1198,65 +1087,7 @@ export default function App() {
 
     );
 
-  }
-
-
-
-  if (isMobileQuickMode) {
-
-    // Inside TaskProvider so background work shows progress + notifications
-
-    // here too. Task "open result" actions never switch to the desktop shell;
-
-    // they are re-broadcast as `omnicut:task-navigate` ({tab, extra}) for the
-
-    // mobile studio to handle.
-
-    return (
-
-      <TaskProvider
-
-        onNavigateTab={handleMobileTaskNavigate}
-
-        onSelectProductForFlow={setSelectedProductIdForFlow}
-
-      >
-
-        <div className={`h-dvh w-screen overflow-y-auto bg-slate-950 ${uiFont}`}>
-
-          <ChannelWorkspaceBar />
-
-          <ErrorBoundary>
-
-            <Suspense fallback={<LoadingSpinner message="กำลังเปิด OmniCut Mobile Studio..." />}>
-
-              <MobileAppRoot
-
-                onSwitchToDesktop={() => applyUiMode(false)}
-
-                onOpenFilmingSession={(sId, productId, angleId) => {
-
-                  window.location.href = filmingUrl(sId, productId, angleId);
-
-                }}
-
-              />
-
-            </Suspense>
-
-          </ErrorBoundary>
-
-        </div>
-
-        <ActivityDrawer />
-
-        <GlobalTaskNotification />
-
-      </TaskProvider>
-
-    );
-
-  }
+  }
 
 
 
@@ -1292,8 +1123,6 @@ export default function App() {
           setActiveTab={handlePrimaryTabChange}
 
           status={status}
-
-          onSwitchToMobile={() => applyUiMode(true)}
 
           isImmersive={activeTab === 'editor' && isEditorImmersive}
 
@@ -1338,8 +1167,6 @@ export default function App() {
               onOpenShortcuts={() => setShowShortcutsModal(true)}
 
               onRefresh={handleGlobalRefresh}
-
-              onSwitchToMobile={() => applyUiMode(true)}
 
               activeProductContext={activeProductContext}
 
@@ -1645,20 +1472,6 @@ export default function App() {
                       initialSubTab={activeTab === 'dashboard' ? 'engine' : 'appearance'}
 
                     />
-
-                  </Suspense>
-
-                )}
-
-
-
-                {/* SECTION: User Guide */}
-
-                {activeTab === 'guide' && (
-
-                  <Suspense fallback={<LoadingSpinner message="กำลังโหลดคู่มือใช้งาน..." />}>
-
-                    <UserGuide onNavigate={(tab) => handlePrimaryTabChange(tab)} />
 
                   </Suspense>
 

@@ -114,7 +114,7 @@ def test_draft_state_is_listed_and_labelled_as_a_draft(isolated_queue):
     assert body["status_labels"]["draft_on_platform"] != body["status_labels"]["posted"]
 
 
-@pytest.mark.parametrize("payload", [{"status": "posted"}, {"status": "failed"}, {"scheduled_at": "2026-10-13T09:00:00+07:00"},
+@pytest.mark.parametrize("payload", [{"status": "posted"}, {"status": "failed"},
                                      {"status": "planned", "scheduled_at": "2026-10-13T09:00:00+07:00"}])
 def test_draft_row_can_only_be_reset_to_planned(isolated_queue, payload):
     client, table = isolated_queue

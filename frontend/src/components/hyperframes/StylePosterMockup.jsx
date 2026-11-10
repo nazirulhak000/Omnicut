@@ -211,7 +211,7 @@ function TechExplainerPoster() {
       {/* Top Vox Technical Header */}
       <div className="relative z-10 flex items-center justify-between pb-2 border-b border-cyan-500/20">
         <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+          <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.6)]" />
           <span className="text-[10px] font-mono tracking-widest text-cyan-300 uppercase">
             VOX LAB // 04-SPEC
           </span>

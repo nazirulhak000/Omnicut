@@ -2992,5 +2992,35 @@
     "story_format": "classic",
     "duration_sec": 21.73,
     "hook_text": "เบื่อไหมครับ เดินทางทีไร สายชาร์จพันกันยุ่งเหยิง พกพาลำบากสุดๆ"
+  },
+  {
+    "id": "97be8260726b41409b1a0b23cf2ea36b",
+    "channel_id": "main",
+    "product_name": "ปลั๊กไฟ TOSHINO มี 2/3/4/5/6",
+    "product_url": "",
+    "angle_key": "comparison",
+    "angle_title": "🆚 เทียบของเดิม vs ของใหม่",
+    "hook": "🆚 เทียบให้เห็นชัดๆ! ปลั๊กถูกทั่วไป กับ ปลั๊ก TOSHINO ต่างกันยังไง?",
+    "clip_file": "TOS01-เทียบของเดิม_1_20260919_145118.mp4",
+    "platform": "tiktok",
+    "caption": "🆚 เทียบให้เห็นชัดๆ! ปลั๊กถูกทั่วไป กับ ปลั๊ก TOSHINO ต่างกันยังไง? พิกัดในตะกร้าเลย 👇",
+    "hashtags": [
+      "#เปรียบเทียบ",
+      "#ปลั๊กไฟมอก",
+      "#Toshino",
+      "#ความปลอดภัย",
+      "#จัดโต๊ะคอม",
+      "#พิกัดในตะกร้า"
+    ],
+    "posted_at": "2026-11-10T20:15:28",
+    "metrics": null,
+    "metrics_filled_at": null,
+    "source": "mark_posted",
+    "product_id": "8cee5445661b4474b887c507529f2324",
+    "style_preset": "tech_compare",
+    "export_id": "exp_07bd8a6db02e4a1bb4d5c1ebcd7c5992",
+    "story_format": "classic",
+    "duration_sec": 23.24,
+    "hook_text": "เลิกใช้ปลั๊กไฟพ่วง ราคาถูกที่ไม่มี มอก. เถอะครับ อันตรายถึงชีวิตเลยนะ"
   }
 ]

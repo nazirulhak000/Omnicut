@@ -2532,7 +2532,7 @@
 
   .field-label svg { color: var(--muted); }
 
-  textarea, input[type="text"], input[type="date"], select {
+  textarea, input[type="text"], input[type="date"], input[type="time"], select {
 
     width: 100%;
 
@@ -2554,7 +2554,7 @@
 
   }
 
-  textarea:focus, input[type="text"]:focus, input[type="date"]:focus, select:focus {
+  textarea:focus, input[type="text"]:focus, input[type="date"]:focus, input[type="time"]:focus, select:focus {
 
     outline: none;
 
@@ -4002,6 +4002,17 @@
     background: rgba(255, 255, 255, 0.12);
     color: #f1f5f9;
   }
+    /* publish slot of a draft card: caption line, then date | time in two equal columns, then the action button */
+    .draft-slot-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 8px; margin: 8px 0 10px; }
+    .draft-slot-label { grid-column: 1 / -1; font-size: 11px; font-weight: 600; color: var(--muted); }
+    .draft-slot-controls input { width: 100%; min-width: 0; height: 40px; box-sizing: border-box; padding: 0 10px; }
+    .card .btn-primary.draft-now { width: 100%; min-height: 40px; }
+    .card-status.draft { color: #f5a524; }
+    .card-status.draft_overdue, .card-status.overdue { color: #ff6b6b; }
+    .draft-sync-note { font-size: 11px; margin: 4px 0 6px; color: #ff6b6b; }
+    .card-episode { font-size: 11px; font-weight: 700; letter-spacing: .04em; opacity: .8; margin: 2px 0; }
+    .draft-sync-note.unknown { color: #f5a524; }
+    .reschedule-overdue { width: 100%; min-height: 40px; margin: 6px 0 10px; }
 </style>
 
 </head>
@@ -4130,7 +4141,7 @@
 
         </div>
 
-        <span class="batch-engine-tag">Engine v0.4.1</span>
+        <span class="batch-engine-tag">Engine v0.10.0</span>
 
       </div>
 
@@ -4264,6 +4275,11 @@
         </label>
       </div>
 
+      <div class="batch-log-actions" style="margin-bottom:6px">
+        <button id="batchPreflightBtn" type="button" class="btn-log-action" title="ตรวจ Backend, login, บัญชี, หน้าอัปโหลด และโควตา โดยไม่กดอะไร">ตรวจความพร้อม</button>
+        <button id="batchSyncBtn" type="button" class="btn-log-action" title="เทียบแบบร่างในคิวกับแท็บแบบร่างและรายการ Content ของ TikTok (อ่านอย่างเดียว)">ตรวจกับ TikTok</button>
+        <button id="batchHistoryBtn" type="button" class="btn-log-action" title="คัดลอกประวัติรอบล่าสุด (อยู่ต่อแม้ปิดแผง)">คัดลอกประวัติรอบ</button>
+      </div>
       <button id="batchStartBtn" type="button" class="btn-batch-primary">
 
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
@@ -4349,6 +4365,8 @@
     <div class="filter-chips-bar" id="filterChipsBar">
       <button type="button" class="filter-chip active" data-filter="all">ทั้งหมด (<span id="filterCountAll">0</span>)</button>
       <button type="button" class="filter-chip" data-filter="ready">รอโพสต์ (<span id="filterCountReady">0</span>)</button>
+      <button type="button" class="filter-chip" data-filter="overdue">ต้องจัดเวลาใหม่ (<span id="filterCountOverdue">0</span>)</button>
+      <button type="button" class="filter-chip" data-filter="draft">แบบร่าง (<span id="filterCountDraft">0</span>)</button>
       <button type="button" class="filter-chip" data-filter="scheduled">กำหนดเวลาแล้ว (<span id="filterCountScheduled">0</span>)</button>
       <button type="button" class="filter-chip" data-filter="unscheduled">ไม่มีเวลา (<span id="filterCountUnscheduled">0</span>)</button>
     </div>
@@ -4359,6 +4377,7 @@
       <button type="button" id="clearSelection" class="select-clear" hidden>ล้างที่เลือก</button>
     </div>
 
+    <button id="rescheduleOverdueBtn" type="button" class="btn-log-action reschedule-overdue" hidden>จัดเวลาใหม่ให้คลิปที่เกินเวลา (0)</button>
     <div id="list"></div>
 
   </div>
@@ -4905,10 +4924,14 @@
 
   <script src="stats_parser.js"></script>
 
+  <script src="limits.js"></script>
   <script src="post_guard.js"></script>
   <script src="quota_detector.js"></script>
 
-  <script src="batch_runner.js"></script>
+  <script src="preflight.js"></script>
+  <script src="draft_sync.js"></script>
+  <script src="run_history.js"></script>
+  <script src="run_lock.js"></script>
   <script src="batch_orchestrator.js"></script>
 
   <script src="sidepanel.js"></script>

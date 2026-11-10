@@ -65,6 +65,22 @@ export default function EditorChannelSelector() {
 
   return (
     <div ref={containerRef} className="relative flex-shrink-0" data-testid="editor-channel-selector">
+      {/* ── Accessible Native Select for automation and screen-reader accessibility ── */}
+      <select
+        aria-label="เลือกช่อง"
+        value={channelId}
+        disabled={loading || switching}
+        onChange={(e) => handleSelectChannel(e.target.value)}
+        className="sr-only"
+        tabIndex={-1}
+      >
+        {!selected && <option value={channelId}>{channelId}</option>}
+        {channels.map((item) => (
+          <option key={item.id} value={item.id}>
+            {item.display_name || item.id}
+          </option>
+        ))}
+      </select>
       {/* ── Compact Channel Pill Button ── */}
       <button
         ref={buttonRef}
@@ -100,12 +116,6 @@ export default function EditorChannelSelector() {
         <span className="hidden sm:inline-block max-w-[130px] truncate font-bold text-white tracking-tight">
           {currentDisplayName}
         </span>
-
-        {currentHandle && (
-          <span className="hidden xl:inline text-[11px] font-normal text-slate-400 truncate max-w-[90px]">
-            {currentHandle}
-          </span>
-        )}
 
         <ChevronDown
           className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 flex-shrink-0 ${

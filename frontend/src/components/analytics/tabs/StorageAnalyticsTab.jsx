@@ -135,8 +135,6 @@ export default function StorageAnalyticsTab() {
           subtitle={`รวม 6 โฟลเดอร์หลักในโปรเจกต์`}
           icon={HardDrive}
           accentColor="text-purple-400"
-          borderColor="border-purple-500/20"
-          bgColor="bg-purple-500/[0.03]"
         />
         <MetricKpiCard
           title="ความจุไดรฟ์ที่ใช้งาน"
@@ -144,8 +142,6 @@ export default function StorageAnalyticsTab() {
           subtitle={`ว่างเหลือ ${(drive.free_bytes / (1024 ** 3)).toFixed(1)} GB จาก ${(drive.total_bytes / (1024 ** 3)).toFixed(0)} GB`}
           icon={HardDrive}
           accentColor={drive.used_percentage > 85 ? 'text-rose-400' : 'text-blue-400'}
-          borderColor={drive.used_percentage > 85 ? 'border-rose-500/30' : 'border-blue-500/20'}
-          bgColor="bg-blue-500/[0.03]"
           badge={drive.used_percentage > 85 ? 'ดิสก์ใกล้เต็ม' : 'ปกติ'}
           badgeColor={drive.used_percentage > 85 ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'}
         />
@@ -155,8 +151,6 @@ export default function StorageAnalyticsTab() {
           subtitle="ไฟล์งานและพรีวิวใน CapCut PC"
           icon={Folder}
           accentColor="text-amber-400"
-          borderColor="border-amber-500/20"
-          bgColor="bg-amber-500/[0.03]"
         />
         <MetricKpiCard
           title="ไฟล์แคชที่ล้างได้ปลอดภัย"
@@ -164,8 +158,6 @@ export default function StorageAnalyticsTab() {
           subtitle="Temp render & audio cache ชั่วคราว"
           icon={ShieldCheck}
           accentColor="text-emerald-400"
-          borderColor="border-emerald-500/20"
-          bgColor="bg-emerald-500/[0.03]"
           badge="ปลอดภัย 100%"
           badgeColor="bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
         />

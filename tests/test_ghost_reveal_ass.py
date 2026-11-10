@@ -397,7 +397,7 @@ class TestNoWrapOnRevealEvents:
         generated = out.read_text(encoding="utf-8")
         reveal_events = [
             line for line in generated.splitlines()
-            if line.startswith("Dialogue: 1,") and "\pos(" in line
+            if line.startswith("Dialogue: 1,") and r"\pos(" in line
         ]
         assert reveal_events, "no positioned reveal events were emitted"
         assert all(r"\q2" in ev for ev in reveal_events), (
@@ -406,7 +406,7 @@ class TestNoWrapOnRevealEvents:
 
 
 class TestEnglishPositionedForBothCueKinds:
-    """
+    r"""
     The reveal moves the Thai line off the style's margin onto its own \pos.
     An English line left on that margin therefore lands where the Thai used to
     be -- on top of it. It has to be positioned too, for a cue with stored
@@ -434,19 +434,19 @@ class TestEnglishPositionedForBothCueKinds:
 
     def test_positioned_cue_gets_a_positioned_english_line(self, tmp_path):
         ev = self._en_event(tmp_path, {"x": 0.5, "y": 0.746})
-        assert ev and "\pos(" in ev
+        assert ev and r"\pos(" in ev
 
     def test_unpositioned_cue_also_gets_one(self, tmp_path):
         """The case that shipped broken: no x/y, so the English kept the style
         margin and overlapped the Thai."""
         ev = self._en_event(tmp_path, {})
-        assert ev and "\pos(" in ev
+        assert ev and r"\pos(" in ev
 
     @pytest.mark.render_regression
     def test_the_english_clears_the_thai_in_both(self, tmp_path):
         """Measured on a render: the two lines must not touch either way.
 
-        Comparing the \pos numbers directly would not answer this -- the Thai
+        Comparing the \\pos numbers directly would not answer this -- the Thai
         is anchored by its bottom or middle depending on alignment while the
         English is centred, so the y values are not on the same footing.
         """

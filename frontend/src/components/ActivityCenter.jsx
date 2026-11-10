@@ -153,7 +153,7 @@ export function ActivityIndicatorButton({ className = '' }) {
       {hasViral ? (
         <span className="relative flex items-center justify-center">
           <Trophy className="w-3.5 h-3.5 text-amber-400" />
-          <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+          <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.6)]" />
         </span>
       ) : (
         <Layers className="w-3.5 h-3.5 text-[#25F4EE]" />

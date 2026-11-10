@@ -4,7 +4,44 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round ANTIGRAVITY-FLOW-STUDIO-10-ROUNDS-AUDIT-20261110 · ปฏิบัติการ 10-Round Autonomous UI/UX, Logic & Edge-Case Audit สำหรับหน้า "สินค้า ➔ สคริปต์ ➔ วิดีโอ" (FlowStudio / AI Script Lab) ครบ 10 รอบ 1,000 คะแนนเต็ม: ปรับปรุง MediaPickerModal 9:16 aspect ratio & tabular-nums, ยกระดับ Hook & Header Studio สู่ Obsidian Dark, ปรับ Action Buttons ไร้สัญลักษณ์ลูกศร/บวกตกค้าง, ติดตั้ง Graceful Offline Fallback ใน AI Co-Pilot, เสริม tabular-nums ทั่วทั้งระบบ, ผ่านชุดทดสอบ Vitest 1,264/1,264 tests (100%), Vite Build 1.86s (ดูรายงาน [_Docs/Reports/FLOW_STUDIO_10_ROUNDS_AUDIT_REPORT.md](_Docs/Reports/FLOW_STUDIO_10_ROUNDS_AUDIT_REPORT.md)) → ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-OVERNIGHT-AUDIT-CYCLE2-TEST-PURITY-AND-IMPORT-SIDE-EFFECTS-20261110 · ปฏิบัติการกะดึก Cycle 2: ปราบปราม Side Effects ตอน Import ใน Test Suite (Rule 11 & testing_standard.md Rule 4): แก้ไข test_voice_pacing.py ขจัด ModuleNotFoundError: edge_tts, ครอบ if __name__ == '__main__': ใน test_translator_script.py, test_gemini_vision_match.py, test_script_lab_ai.py, test_bilingual_subtitles.py ขจัด live network/API calls ตอน import 100%, แก้ไข raw string escape syntax warnings ใน test_ghost_reveal_ass.py, ผ่าน Pytest Voice Tests 222/222 passed, Vitest 1,260/1,260 tests (100%), Vite Build 1.28s → ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-OVERNIGHT-AUTONOMOUS-DEEP-AUDIT-AND-HARDENING-20261110 · ปฏิบัติการกะดึกข้ามคืน Autonomous Deep Audit & Hardening Loop ครบ 6 มิติ (Pass 1–6): แก้ไข Playwright Channel Selector Regression, ล้าง Visual Slop และ animate-ping ทั่วทั้งระบบ, ปรับ QuickRef 9:16 aspect ratio, แปลง Blocking HEIC FFmpeg Subprocess สู่ Async Threadpool, ตรวจสอบ Preview Parity 212/212 tests (100%), แก้ไข React Rules of Hooks ใน LoginScreen สู่ 0 Oxlint Errors, ผ่าน Vitest 1,260/1,260 tests (100%), Vite Build 1.14s (ดูรายงาน _Docs/Reports/OVERNIGHT_DEEP_AUDIT_REPORT_20261110.md) → ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-UNSLOP-CLEAN-PRECISION-CHART-20261110 · ยกระดับ AreaLineChart สู่ Quiet Obsidian Precision Chart ไร้แสงนีออนฟุ้งแสบตา ไร้จุดวงกลมหนาแน่น 55 เม็ด และปรับเส้นบางคม 1.75px → ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-REMOVE-REDUNDANT-HANDLE-IN-EDITOR-CHANNEL-SELECTOR-20261110 · ตัดการแสดงผล @handle ซ้ำซ้อนข้างชื่อช่องใน EditorChannelSelector บน Navbar → ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
 - [x] Round CLAUDE-FOLLOWUP-AUDIT-20261109 · ทำงานค้างจากรายงาน AUDIT_20261109 ครบ 5 กิ่ง → [รายงานหัวข้อ 11](_Docs/Reports/AUDIT_20261109_editor_pipeline.md) · ดู HISTORY · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + fix sub-agents 5 ตัว (Claude Sonnet 5.5)
+
+- [x] Round ANTIGRAVITY-10-ROUNDS-ANALYTICS-HUB-UI-UX-AUDIT-20261110 · ปฏิบัติการลูปตรวจเช็กและยกระดับ UI/UX ศูนย์วิเคราะห์และสถิติรวม (Analytics Hub) ครบ 10 รอบ 1,000 คะแนนเต็ม → ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-NAVBAR-UNSLOP-AND-TYPOGRAPHY-HARMONY-20261109 · จัดระเบียบ Navbar สู่ Quiet Obsidian Pro NLE และประสานสุนทรียศาสตร์ Typography → ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-FIX-9-16-ASPECT-RATIO-AND-CLEAN-CHANNEL-SELECTOR-20261109 · แก้ไขความซ้ำซ้อน ChannelSelector และปรับสัดส่วนคลิปเป็น 9:16 แนวตั้งแท้ → ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-REMOVE-MOBILE-QUICK-MODE-20261109 · ถอดโหมดมือถือ (Mobile Mode / MobileAppRoot) และลบโค้ดทั้งชุดตามคำขอผู้ใช้ → ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-REMOVE-USER-GUIDE-PAGE-20261109 · ถอดหน้าคู่มือใช้งานและลบโค้ดตามคำขอผู้ใช้ → ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-AUTOPOST-EXTENSION-FEATURE-PACK-20261109 · ปฏิบัติการติดตั้ง 4 ฟีเจอร์ยกระดับ Extension Autopost (Cover Fallback Toggle, Quick Status Filter Chips, Batch Log Copy/Clear, Esc Modal Dismiss):
+  - [x] เพิ่ม Cover Fallback Toggle (`#coverFallbackToggle`) ป้องกันการล่มเมื่อหน้า Studio ไม่มีปุ่มอัปโหลดภาพปก
+  - [x] เพิ่ม Quick Status Filter Chips ในแท็บ 1: ทั้งหมด, รอโพสต์, กำหนดเวลาแล้ว, ไม่มีเวลา
+  - [x] เพิ่มปุ่ม Copy Log และ Clear Log เหนือ `#batchLogBox`
+  - [x] เพิ่มคีย์ลัด Esc ปิดพรีวิววิดีโอและ Confirm Modal
+  - [x] ปรับเลขเวอร์ชันสู่ 0.3.2 (manifest.json, sidepanel.html, tests) และทดสอบผ่านชุด Node tests 115/115 tests (100%) ไร้ข้อผิดพลาด
+  - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-UNSLOP-TIKTOK-AUTOPOST-EXTENSION-UI-20261109 · ปฏิบัติการ Unslopping & Impeccable UI/UX Refinement สำหรับ TikTok Autopost Extension (`tiktok_autopost_extension/`):
+  - [x] Jev fanout: approach=`targeted_unslop` conf 1.0 (verdict proceed) · safe_to_start noul 0.67 conf null (escalate per rule 19)
+  - [x] ตรวจ Slop & กำหนด Direction: Product, Character, World, Moments, Signature ตามมาตรฐาน unslop + impeccable
+  - [x] ล้าง Slop & ขยะสายตาใน `sidepanel.html` และ `popup.html`: กำจัดแถบสีรุ้ง 2px, radial gradient ฟุ้งกระจาย, drop-shadow หลากสีบนโลโก้, แสงนีออนฟุ้งบนปุ่ม และอิโมจิประดับตกแต่งทั้งหมดในป้ายโควตา/ตัวเลือก/ปุ่มควบคุม (เช่น 🗓️, 📝, ⚡, 🎯, 📦, ⏸️, ▶️, ⏹️)
+  - [x] ยกระดับสู่ Quiet Obsidian Pro NLE Theme: พื้นหลัง `#0B0F19`, เส้นขอบ hairline `rgba(255, 255, 255, 0.08)`, สีเน้น TikTok Crimson `#FE2C55` สะอาดตา, กริดระยะ 4px, ตัวเลข `tabular-nums` ทุกตัว
+  - [x] ขัดเกลา `sidepanel.js`: ล้างอิโมจิตกค้างในข้อความแจ้งเตือน status/log แทนที่ด้วย inline SVG สะอาดคม
+  - [x] ตรวจสอบความสมบูรณ์และสัญญา DOM: ปรับเลขเวอร์ชันสู่ 0.3.1 (manifest.json, sidepanel.html, tests) และทดสอบผ่านชุด Node tests 115/115 tests (100%) ไร้ข้อผิดพลาด
+  - ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
 
 - [ ] Round CLAUDE-PLAN-TIKTOK-AUTOPOST-100-AUTONOMOUS-20261109 · ตรวจ extension autopost ว่าทำไมโพสต์ออโต้ไม่จบ 100% + วางแผนแก้ (แผนเท่านั้น ห้ามแก้โค้ดจนผู้ใช้ตอบ "อนุมัติแผน") → แผน+พรอมพ์: `_Docs/Plans/TIKTOK_AUTOPOST_100_AUTONOMOUS_PLAN.md`
   - [x] ตรวจโค้ด: พบ hard blocker 5 จุด (B1 `runWaitForUploadOnly` ไม่ return → ทุกคลิปพังขั้น 2 · B2 reconcile ไม่เคยรัน · B3 `%` ในแคปชันทำค้าง · B4 receipt ค้างล็อกทั้ง batch · B5 lease_token ถูกตัด) — B1–B3 ยืนยันกับโค้ดเอง
@@ -28,6 +65,8 @@
   - [x] โหมดแบบร่างจริง v0.4.0 (ปุ่ม Save draft + ack `draft_saved` + คิว `draft_on_platform` + ทางรีเซ็ต + verify Drafts + นับ Drafts N เพดาน 30) → แผน: `_Docs/Plans/TIKTOK_DRAFT_MODE_PLAN.md` · ทดสอบจริงบน TikTok: บันทึกแบบร่าง 1 คลิปผ่านแผงข้าง, ตรวจ backend/Drafts/verify, ลบแบบร่าง, รีเซ็ตคิว · pytest 189 ผ่าน · node ผ่านทุกชุด
   - [x] (ผู้ใช้สั่ง 2026-11-10) ต่อจากแบบร่าง: (ก) ปุ่ม 'รีเซ็ตแบบร่าง' ใน ScheduleAgenda (ยืนยันก่อน) + build dist ใหม่ (ซอร์สมีงานของ session อื่นปนอยู่ ถูก build รวม) · (ข) conductor `--mode draft|schedule` + เช็กโควตาจริงก่อนรัน (หยุดเมื่อเต็ม) · เทส conductor 34 ผ่าน · ทดสอบจริง 1 คลิป: drafted/verified, ลบแบบร่าง, คิวคืน
   - [ ] ค้าง: โค้ดงานทั้งวัน commit แล้ว (8bf9ba4) · frontend หลัก (dist) ยังไม่ rebuild สำหรับป้าย draft_on_platform · Smart ตอนโควตา schedule เต็มทดสอบจริงแล้ว (จำลองเฉพาะเลขโควตา 30/30 → แบบร่างจริง 1 คลิป ลบแล้ว คิวคืนแล้ว; รอบผสม 29/30: คลิปแรกตั้งเวลา คลิปสองสลับเป็นแบบร่างถูก แต่คลิปที่เลือกมีงานโพสต์เดิมจึงถูกกันซ้ำ) · (เสร็จ v0.4.1) เช็กบัญชีจากหน้าเว็บ 2 ครั้งต่อคลิป (ขั้นแรก + ก่อนกดโพสต์/Save draft; ขั้นกลางใช้ handle ที่ยืนยันแล้ว ≤15 นาที, backend fence ยังตรวจทุกขั้น) · Smart schedule→แบบร่างติดกันในรอบเดียวทดสอบจริงแล้ว
+  - [ ] (ผู้ใช้สั่ง 2026-11-10) พรอมต์แม่บทตรวจ extension ทุกมุมเพื่อความเสถียร (เฟส A ตรวจอย่างเดียว → รายงาน → รออนุมัติ → เฟส B แก้) → `_Docs/Plans/MASTER_AUTOPOST_EXTENSION_AUDIT_PROMPT.md` · เฟส A ตรวจเสร็จ (S0 8 ข้อ / S1 12 ข้อ) → รายงาน `_Docs/Reports/AUTOPOST_EXTENSION_AUDIT_20261110.md` · **รอผู้ใช้พิมพ์ "อนุมัติ" ก่อนเริ่มเฟส B (R1–R5)** · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5)
+  - [ ] **เฟส B ของ audit (ผู้ใช้อนุมัติ 2026-11-10)** ตามรายงาน `_Docs/Reports/AUTOPOST_EXTENSION_AUDIT_20261110.md`: R1 หยุดโพสต์สด/ซ้ำ/เท็จ (intent ต่อ job, ตัด force, reconcile ไม่สร้างหลักฐาน, ตัด fallback Save draft/Post now) → R2 ตัวกันเนื้อหากลาง+ตัวตน+Host allowlist → R3 orchestrator/แผง → R4 ความสอดคล้อง job/คิว+conductor → R5 preflight/ประวัติ/แจ้งเตือน · ค่าเริ่มต้นที่ตัดสินเอง: คำว่า ฟรี/โปร/ถูก ไม่บล็อกเดี่ยวๆ, เส้นทางมือถือใส่การ์ดสถานะแทนการปิด · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5)
   - ดำเนินการโดย: Claude Code (Claude Opus 5.5)
 
 - [x] Round CLAUDE-AUDIT-EDITOR-PIPELINE-20261109 · ตรวจทั้งสาย 6 ด่าน 106 ข้อ → [รายงาน](_Docs/Reports/AUDIT_20261109_editor_pipeline.md) · ดู HISTORY · ดำเนินการโดย: Claude Code (Claude Opus 5.5)

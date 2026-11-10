@@ -1,0 +1,1 @@
+import{_o as e,go as t,oo as n,vo as r,yo as i}from"./editor-player-Bpb8GKSh.js";function a(a,o=n()){return a?{getItem(t){return e(a,o,t,t,{decodeLegacy:e=>e}),r(a,o,t)},setItem(e,t){i(a,o,e,String(t))},removeItem(e){a.removeItem(t(o,e))},keyFor(e){return t(o,e)}}:null}function o(e=n()){return a(globalThis.localStorage,e)}export{o as t};

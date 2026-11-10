@@ -502,3 +502,67 @@ test('CLI: --mode accepts schedule|draft only', () => {
   assert.equal(parseArgs(['--mode', 'draft']).mode, 'draft');
   assert.throws(() => parseArgs(['--mode', 'now']), /schedule \| draft/);
 });
+
+// ---- R4: conductor safety ----
+const { acquireProcessLock } = require('./process_lock');
+const { createApi } = require('./api');
+const { ClipCancelled } = require('./conductor');
+
+test('R4 a timed-out clip is cancelled: the abandoned run can never send click-post to the next worker', async () => {
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const sent = [];
+  const hang = fakeDeps({ replies: { 'wait-for-upload-only': () => gate }, onSend: action => sent.push(action) });
+  hang.deps.recover = async () => {};
+  const res = await runClipGuarded(hang.deps, clipFromQueueItem(item()), {}, 30);
+  assert.equal(res.status, 'failed');
+  assert.equal(res.step, 'timeout');
+  release({ success: true });                 // the zombie wait finally returns...
+  await new Promise(resolve => setTimeout(resolve, 30));
+  assert.ok(!sent.includes('click-post-only'), 'a cancelled run must not press Post');
+  assert.ok(!sent.includes('prepare-details'), 'a cancelled run must not continue to later steps');
+});
+
+test('R4 a timeout AFTER the post command was sent is unknown (never failed/retried)', async () => {
+  const hang = fakeDeps({ replies: { 'click-post-only': () => new Promise(() => {}) } });
+  hang.deps.recover = async () => {};
+  const res = await runClipGuarded(hang.deps, clipFromQueueItem(item()), {}, 40);
+  assert.equal(res.status, 'unknown');
+  assert.equal(res.step, 'timeout');
+  const batch = fakeDeps({ replies: { 'click-post-only': () => new Promise(() => {}) } });
+  batch.deps.recover = async () => {};
+  const out = await runBatch(batch.deps, { clips: [clipFromQueueItem(item())], clipBudgetMs: 40, random: () => 0, maxClipAttempts: 2 });
+  assert.equal(out.unknown, 1);
+  assert.equal(out.failed, 0);
+  assert.equal(batch.calls.filter(c => c === 'click-post-only').length, 1, 'never clicked twice');
+});
+
+test('R4 startup tells the operator about clips the last run could not confirm', async () => {
+  const logs = [];
+  const deps = { worker: { send: async () => ({ success: true }) }, sleep: async () => {}, log: (l, m) => logs.push([l, m]), shot: async () => {}, dumpDom: async () => {},
+    api: { get: async () => ({ ok: true, status: 200, data: { items: [{ id: 'q9', status: 'confirmation_unknown', hook_title: 'คลิปค้าง' }] } }), post: async () => ({ ok: true, status: 200, data: {} }) } };
+  await runBatch(deps, { clips: [], random: () => 0 });
+  assert.ok(logs.some(([l, m]) => l === 'warn' && /คลิปค้าง/.test(m) && /ยืนยันผลไม่ได้/.test(m)));
+});
+
+test('R4 api calls time out instead of hanging forever', async () => {
+  const api = createApi({ timeoutMs: 20, fetchImpl: (url, init) => new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'TimeoutError' })))) });
+  await assert.rejects(() => api.get('/api/x'), /api_timeout/);
+});
+
+test('R4 process lock: a live owner blocks a second conductor, a dead owner is taken over, release only removes our own', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lock-'));
+  const file = path.join(dir, 'c.lock');
+  const first = acquireProcessLock(file, { pid: 111 });
+  assert.equal(first.ok, true);
+  const blocked = acquireProcessLock(file, { pid: 222, alive: pid => pid === 111 });
+  assert.equal(blocked.ok, false);
+  assert.equal(blocked.owner.pid, 111);
+  const takeover = acquireProcessLock(file, { pid: 333, alive: () => false });   // owner 111 is dead
+  assert.equal(takeover.ok, true);
+  first.release();                                  // 111 no longer owns it: the file must stay
+  assert.ok(fs.existsSync(file));
+  takeover.release();
+  assert.ok(!fs.existsSync(file));
+  fs.rmSync(dir, { recursive: true, force: true });
+});

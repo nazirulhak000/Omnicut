@@ -9,10 +9,8 @@ const __dirname = path.dirname(__filename);
 
 const systemSettingsPath = path.resolve(__dirname, '../components/SystemSettings.jsx');
 const channelSettingsPath = path.resolve(__dirname, '../components/ChannelSettings.jsx');
-const userGuidePath = path.resolve(__dirname, '../components/UserGuide.jsx');
 const loginScreenPath = path.resolve(__dirname, '../components/LoginScreen.jsx');
 const agentDockPath = path.resolve(__dirname, '../components/agent/OmniCutAgentDock.jsx');
-const mobileShellPath = path.resolve(__dirname, '../components/mobile/MobileShell.jsx');
 
 test('SystemSettings and ChannelSettings adhere to Obsidian Pro Dark tokens without visual slop', () => {
   const sysSource = fs.readFileSync(systemSettingsPath, 'utf8');
@@ -31,17 +29,14 @@ test('SystemSettings and ChannelSettings adhere to Obsidian Pro Dark tokens with
   assert.match(chanSource, /#25F4EE/);
 });
 
-test('UserGuide and LoginScreen adhere to Obsidian Dark and clean typography', () => {
-  const guideSource = fs.readFileSync(userGuidePath, 'utf8');
+test('LoginScreen adheres to Obsidian Dark and clean typography', () => {
   const loginSource = fs.readFileSync(loginScreenPath, 'utf8');
 
   // Obsidian Dark tokens
-  assert.match(guideSource, /border-white\/\[0\.08\]/);
   assert.match(loginSource, /border-white\/\[0\.08\]/);
 
   // Clean studio background
   assert.match(loginSource, /#0A0D14/);
-  assert.match(guideSource, /#0A0D14/);
 });
 
 test('OmniCutAgentDock adheres to Obsidian Pro Dark dock chrome', () => {
@@ -52,17 +47,3 @@ test('OmniCutAgentDock adheres to Obsidian Pro Dark dock chrome', () => {
   assert.match(dockSource, /#0A0D14/);
 });
 
-test('MobileShell enforces touch targets >= 44px and safe-area insets', () => {
-  const mobileSource = fs.readFileSync(mobileShellPath, 'utf8');
-
-  // Safe-area support
-  assert.match(mobileSource, /safe-area-inset-bottom/);
-
-  // Touch target minimums (44px or 48px)
-  assert.match(mobileSource, /min-h-\[(?:44|48)px\]/);
-  assert.match(mobileSource, /min-w-\[(?:44|48)px\]/);
-
-  // Obsidian Pro Dark surface
-  assert.match(mobileSource, /border-t border-white\/\[0\.08\]/);
-  assert.match(mobileSource, /#0A0D14/);
-});

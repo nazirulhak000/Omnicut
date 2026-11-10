@@ -19,6 +19,20 @@ test('EditorChannelSelector handles keyboard navigation (Escape to close)', () =
   assert.ok(selectorSource.includes("e.key === 'Escape'"), 'Must handle Escape key to dismiss popover');
 });
 
+test('EditorChannelSelector does not display redundant handle in the button pill', () => {
+  // Ensure the main button pill does not render visible currentHandle next to currentDisplayName
+  assert.equal(
+    selectorSource.includes('>{currentHandle}'),
+    false,
+    'EditorChannelSelector button pill must not render visible {currentHandle}'
+  );
+  assert.equal(
+    selectorSource.includes('{currentHandle &&'),
+    false,
+    'EditorChannelSelector button pill must not conditionally render currentHandle'
+  );
+});
+
 test('EditorChannelSelector buttons follow Rule 3.8/4.8 (no leading +, no emojis)', () => {
   const buttonTags = selectorSource.match(/<button[\s\S]*?<\/button>/g) || [];
   for (const btn of buttonTags) {
@@ -52,5 +66,16 @@ test('App.jsx removes redundant standalone ChannelWorkspaceBar over the editor',
     appSource.includes("{activeTab === 'editor' && <ChannelWorkspaceBar />}"),
     false,
     'App.jsx must not render redundant ChannelWorkspaceBar on activeTab === "editor"'
+  );
+});
+
+test('EditorChannelSelector provides an accessible native select for automation and combobox queries', () => {
+  assert.ok(
+    selectorSource.includes('aria-label="เลือกช่อง"'),
+    'EditorChannelSelector must provide an accessible select with aria-label="เลือกช่อง"'
+  );
+  assert.ok(
+    selectorSource.includes('className="sr-only"'),
+    'Accessible select must be sr-only to keep Obsidian Pro UI clean'
   );
 });

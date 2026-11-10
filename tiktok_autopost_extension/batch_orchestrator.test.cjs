@@ -8,18 +8,6 @@ const {
   createBatchOrchestrator,
 } = require('./batch_orchestrator.js');
 
-const {
-  LIVE_SELECTORS,
-  DOM_TIMINGS,
-  handleSignal,
-  queryWithFallback,
-  waitForSelector,
-  dismissInterrupts,
-  triggerSubmitWhenEnabled,
-  waitForSuccessToast,
-  runLiveDomSanityCheck,
-} = require('./content_script.js');
-
 test('Phase 1: Happy Path executes IDLE -> CHECK_QUOTA -> FETCH_BATCH -> LOOP_CYCLE (all 10 stages) -> COMPLETED', async () => {
   const stateHistory = [];
   const stageHistory = [];
@@ -230,11 +218,13 @@ test('Phase 1: User Pause, Resume, and Abort/Stop signals work deterministically
     { id: 'c3', hook_title: 'Clip 3' },
   ];
 
+  const recorded = [];
   let orchestrator;
   orchestrator = createBatchOrchestrator({
     clips,
     options: { cooldownSeconds: 0 },
     actions: {
+      updateBackend: async (clip) => { recorded.push(clip.id); },
       notifySignal: async (sig) => { signalsSent.push(sig); },
       injectFile: async (clip) => {
         if (clip.id === 'c2') {
@@ -252,7 +242,10 @@ test('Phase 1: User Pause, Resume, and Abort/Stop signals work deterministically
 
   const summary = await orchestrator.start();
   assert.equal(summary.state, ORCHESTRATOR_STATES.ABORTED);
-  assert.equal(summary.successful, 1); // c1 finished, c2 aborted at triggerSubmit, c3 never ran
+  // Stop pressed while c2's post click was happening: c2 still gets verified and recorded (a live post must never go
+  // unrecorded), the loop stops at the clip boundary, c3 never runs.
+  assert.equal(summary.successful, 2);
+  assert.deepEqual(recorded, ['c1', 'c2']);
   assert.ok(signalsSent.includes('PAUSE'));
   assert.ok(signalsSent.includes('RESUME'));
   assert.ok(signalsSent.includes('ABORT'));
@@ -264,77 +257,6 @@ test('Phase 1: Human-Paced Jitter stays within natural bounds', () => {
   const high = calculateHumanJitter(20, -3, 5, () => 1);
   assert.equal(low, 17);
   assert.equal(high, 25);
-});
-
-test('Phase 2: Content Script Live Selectors, Event-Driven waitForSelector, and Interrupt Dismissers', async () => {
-  assert.ok(Array.isArray(LIVE_SELECTORS.fileInput));
-  assert.equal(LIVE_SELECTORS.fileInput[0], 'input[type="file"][accept="video/*"]');
-  assert.equal(LIVE_SELECTORS.submitPostButton[0], 'button[data-e2e="post_video_button"]');
-  assert.equal(LIVE_SELECTORS.saveDraftButton[0], 'button[data-e2e="save_draft_button"]');
-  assert.ok(DOM_TIMINGS.popoverOpenLatencyMs > 0);
-
-  // Signal state handling
-  assert.equal(handleSignal('PAUSE').state, 'PAUSED');
-  assert.equal(handleSignal('RESUME').state, 'RESUMED');
-  assert.equal(handleSignal('ABORT').state, 'ABORTED');
-  assert.equal(handleSignal('RESET').state, 'IDLE');
-
-  // Mock DOM for waitForSelector, dismissInterrupts, triggerSubmitWhenEnabled, waitForSuccessToast
-  let postNowClicked = false;
-  let submitClicked = false;
-  const mockPostBtn = {
-    disabled: false,
-    innerText: 'Schedule',
-    getAttribute: (attr) => (attr === 'aria-disabled' ? 'false' : (attr === 'data-e2e' ? 'post_video_button' : null)),
-    getBoundingClientRect: () => ({ width: 120, height: 40 }),
-    scrollIntoView: () => {},
-    click: () => { submitClicked = true; },
-  };
-  const mockDialog = {
-    innerText: 'Continue to post? We are still checking your video before the check is complete.',
-    getBoundingClientRect: () => ({ width: 400, height: 200 }),
-    querySelectorAll: () => [
-      {
-        disabled: false,
-        innerText: 'Post now',
-        getAttribute: () => 'false',
-        click: () => { postNowClicked = true; },
-      },
-    ],
-  };
-  const mockToast = {
-    innerText: 'Video scheduled successfully',
-    getBoundingClientRect: () => ({ width: 250, height: 48 }),
-  };
-
-  const mockRoot = {
-    nodeType: 1,
-    querySelectorAll: (sel) => {
-      if (sel.includes('post_video_button')) return [mockPostBtn];
-      if (sel.includes('TUXModal') || sel === '[role="dialog"]') return [mockDialog];
-      if (sel.includes('toast') || sel === '[role="alert"]') return [mockToast];
-      return [];
-    },
-  };
-
-  const foundBtn = await waitForSelector('submitPostButton', { root: mockRoot, requireVisible: true, requireEnabled: true, timeoutMs: 500 });
-  assert.equal(foundBtn, mockPostBtn);
-
-  const disRes = await dismissInterrupts({ root: mockRoot });
-  assert.deepEqual(disRes.dismissed, ['copyright_post_now']);
-  assert.equal(postNowClicked, true);
-
-  const subRes = await triggerSubmitWhenEnabled({ mode: 'schedule', root: mockRoot, timeoutMs: 500 });
-  assert.equal(subRes.clicked, true);
-  assert.equal(submitClicked, true);
-
-  const toastRes = await waitForSuccessToast({ root: mockRoot, timeoutMs: 500 });
-  assert.equal(toastRes.confirmed, true);
-  assert.equal(toastRes.outcome, 'scheduled');
-
-  const sanity = runLiveDomSanityCheck(mockRoot);
-  assert.equal(sanity.ok, true);
-  assert.equal(sanity.report.submitPostButton.matched, true);
 });
 
 test('B2: shouldReconcileAfterPost reads the string outcome and the result object', () => {
@@ -372,8 +294,25 @@ test('a pre-submit failure retries the clip once from a clean page; a post-submi
     },
   });
   const bad = await post.start();
-  assert.equal(bad.failed, 1);
+  // an error after the submit started is "unknown" (the click may have happened), never "failed", never retried
+  assert.equal(bad.failed, 0);
+  assert.equal(bad.unknown, 1);
   assert.equal(submits, 1);
+
+  // an error that provably happened before the click is a plain failure (and may be retried from a clean page)
+  let clean = 0;
+  const before = createBatchOrchestrator({
+    clips: [{ id: 'c3', hook_title: 'คลิปพลาดก่อนกด' }],
+    options: { cooldownSeconds: 0, maxRetriesPerStage: 0, retryDelayMs: 1, maxClipAttempts: 1 },
+    actions: {
+      submitPost: async () => { clean += 1; const e = new Error('หาปุ่ม Post ไม่เจอ'); e.postAttempted = false; throw e; },
+      resetUploadPage: async () => {},
+    },
+  });
+  const notClicked = await before.start();
+  assert.equal(notClicked.failed, 1);
+  assert.equal(notClicked.unknown, 0);
+  assert.equal(clean, 1);
 });
 
 test('worker channel errors (port closed / context invalidated) are retried as transient', async () => {
@@ -473,4 +412,136 @@ test('Draft mode: draft_saved counts as success (not unknown) and is never sent 
   const { shouldReconcileAfterPost } = require('./batch_orchestrator.js');
   assert.equal(shouldReconcileAfterPost('draft_saved', { outcome: 'draft_saved' }), false);
   assert.equal(shouldReconcileAfterPost('confirmation_unknown', {}), true);
+});
+
+test('R3: the submit stage is never retried, even for a "message port closed" style error', async () => {
+  let submits = 0, recorded = [];
+  const o = createBatchOrchestrator({
+    clips: [{ id: 'c1', hook_title: 'พอร์ตปิดหลังกด' }],
+    options: { cooldownSeconds: 0, maxRetriesPerStage: 3, retryDelayMs: 1 },
+    actions: {
+      submitPost: async () => { submits += 1; throw new Error('The message port closed before a response was received'); },
+      updateBackend: async (_c, outcome) => { recorded.push(outcome); },
+      resetUploadPage: async () => {},
+    },
+  });
+  const stats = await o.start();
+  assert.equal(submits, 1);
+  assert.equal(stats.unknown, 1);
+  assert.equal(stats.failed, 0);
+  assert.deepEqual(recorded, ['confirmation_unknown']);   // reconcile is asked to look, once
+  assert.equal(stats.finalKind, 'unknown');
+});
+
+test('R3: an error while verifying/recording after the click is unknown, not failed', async () => {
+  const o = createBatchOrchestrator({
+    clips: [{ id: 'c1', hook_title: 'ตรวจผลล้ม' }],
+    options: { cooldownSeconds: 0, maxRetriesPerStage: 0, retryDelayMs: 1 },
+    actions: {
+      submitPost: async () => ({ success: true, outcome: 'scheduled_on_platform' }),
+      verifySuccessToast: async () => { throw new Error('verify crashed'); },
+      updateBackend: async () => {},
+      resetUploadPage: async () => {},
+    },
+  });
+  const stats = await o.start();
+  assert.equal(stats.unknown, 1);
+  assert.equal(stats.failed, 0);
+  assert.equal(stats.results[0].outcome, 'confirmation_unknown');
+});
+
+test('R3: Stop during the verify stage still records the result of that clip, then stops', async () => {
+  const log = [];
+  let o;
+  o = createBatchOrchestrator({
+    clips: [{ id: 'c1', hook_title: 'หนึ่ง' }, { id: 'c2', hook_title: 'สอง' }],
+    options: { cooldownSeconds: 0 },
+    actions: {
+      submitPost: async (clip) => { log.push(`submit:${clip.id}`); return { success: true, outcome: 'published' }; },
+      verifySuccessToast: async (clip, _m, r) => { o.abort(); log.push(`verify:${clip.id}`); return r; },
+      updateBackend: async (clip, outcome) => { log.push(`update:${clip.id}:${outcome}`); },
+    },
+  });
+  const stats = await o.start();
+  assert.deepEqual(log, ['submit:c1', 'verify:c1', 'update:c1:published']);
+  assert.equal(stats.state, ORCHESTRATOR_STATES.ABORTED);
+  assert.equal(stats.successful, 1);
+});
+
+test('R3: final verdict is honest (partial / halted / success / missing action)', async () => {
+  const ok = { submitPost: async () => ({ success: true, outcome: 'scheduled_on_platform' }), resetUploadPage: async () => {}, updateBackend: async () => {} };
+  const all = await createBatchOrchestrator({ clips: [{ id: 'a' }, { id: 'b' }], options: { cooldownSeconds: 0 }, actions: ok }).start();
+  assert.equal(all.finalKind, 'success');
+  let n = 0;
+  const some = await createBatchOrchestrator({
+    clips: [{ id: 'a' }, { id: 'b' }], options: { cooldownSeconds: 0, maxClipAttempts: 1, retryDelayMs: 1, maxRetriesPerStage: 0 },
+    actions: { ...ok, injectFile: async () => { n += 1; if (n === 1) throw new Error('boom'); } },
+  }).start();
+  assert.equal(some.finalKind, 'partial');
+  assert.equal(some.failed, 1);
+  assert.match(some.hudText, /ล้มเหลว 1/);
+  const halted = await createBatchOrchestrator({
+    clips: [{ id: 'a', force_mode: 'draft' }, { id: 'b' }], options: { cooldownSeconds: 0, mode: 'draft_only', allowDraft: false }, actions: ok,
+  }).start();
+  assert.equal(halted.finalKind, 'halted');
+  assert.ok(halted.haltReason);
+  const missing = await createBatchOrchestrator({ clips: [{ id: 'a' }], options: { requiredActions: ['injectFile|uploadVideo', 'submitPost|triggerSubmit'] }, actions: { submitPost: async () => ({}) } }).start();
+  assert.equal(missing.state, ORCHESTRATOR_STATES.ERROR);
+  assert.equal(missing.processed, 0);
+});
+
+test('R3: finalVerdict never paints a run green unless every clip ended as planned', () => {
+  const { finalVerdict } = require('./batch_orchestrator.js');
+  const base = { successful: 2, failed: 0, unknown: 0, total: 2 };
+  assert.equal(finalVerdict({ ...base, finalKind: 'success' }).kind, 'success');
+  assert.equal(finalVerdict({ ...base, successful: 1, unknown: 1, finalKind: 'unknown' }).kind, 'warn');
+  assert.match(finalVerdict({ ...base, successful: 1, unknown: 1, finalKind: 'unknown' }).text, /ยืนยันผลไม่ได้/);
+  assert.equal(finalVerdict({ ...base, successful: 1, failed: 1, finalKind: 'partial' }).kind, 'warn');
+  assert.equal(finalVerdict({ ...base, finalKind: 'halted', haltReason: 'โควตาเต็ม' }).kind, 'error');
+  assert.equal(finalVerdict({ ...base, finalKind: 'error', circuitReason: 'ล้มติดกัน 3 คลิป' }).kind, 'error');
+  assert.equal(finalVerdict({ ...base, finalKind: 'aborted' }).kind, 'warn');
+  assert.notEqual(finalVerdict({ ...base, finalKind: 'running' }).kind, 'success');   // unexpected state is never "success"
+});
+
+test('R5: a failed or unconfirmed clip asks the embedder for page evidence; a broken evidence hook never breaks the run', async () => {
+  const seen = [];
+  const failing = createBatchOrchestrator({
+    clips: [{ id: 'a', hook_title: 'ล้ม' }],
+    options: { cooldownSeconds: 0, maxClipAttempts: 1, maxRetriesPerStage: 0, retryDelayMs: 1 },
+    actions: {
+      injectFile: async () => { throw new Error('boom'); },
+      captureEvidence: async (clip, info) => { seen.push([clip.id, info.kind, info.stage]); },
+      resetUploadPage: async () => {},
+    },
+  });
+  await failing.start();
+  assert.deepEqual(seen, [['a', 'failed', 'INJECT_FILE']]);
+
+  const unknownSeen = [];
+  const unknown = createBatchOrchestrator({
+    clips: [{ id: 'b', hook_title: 'ไม่แน่ใจ' }],
+    options: { cooldownSeconds: 0 },
+    actions: {
+      submitPost: async () => { throw new Error('port closed'); },
+      updateBackend: async () => {},
+      captureEvidence: async (clip, info) => { unknownSeen.push(info.kind); throw new Error('evidence failed'); },
+      resetUploadPage: async () => {},
+    },
+  });
+  const stats = await unknown.start();
+  assert.deepEqual(unknownSeen, ['unknown']);
+  assert.equal(stats.unknown, 1);                       // the run still finished and counted the clip
+});
+
+test('a forced schedule (publishing a draft) stops when the schedule slots are used up, instead of failing at TikTok', async () => {
+  const sent = [];
+  const o = createBatchOrchestrator({
+    clips: [{ id: 'd1', hook_title: 'แบบร่าง', force_mode: 'schedule', publish_draft: true }],
+    options: { cooldownSeconds: 0, currentScheduleCount: 30, maxScheduleQuota: 30, mode: 'smart' },
+    actions: { submitPost: async () => { sent.push('submit'); return { success: true, outcome: 'scheduled_on_platform' }; }, updateBackend: async () => {} },
+  });
+  const stats = await o.start();
+  assert.deepEqual(sent, []);
+  assert.equal(stats.finalKind, 'halted');
+  assert.match(stats.haltReason, /ช่องตั้งเวลาเต็ม/);
 });

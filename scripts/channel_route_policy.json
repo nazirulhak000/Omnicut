@@ -2937,6 +2937,28 @@
       "module": "scripts.api_schedule_queue"
     },
     {
+      "method": "GET",
+      "path": "/api/episodes",
+      "scope": "channel",
+      "allow_query_scope": false,
+      "access": "read",
+      "risk": "major",
+      "resource_params": [],
+      "module": "scripts.api_episodes"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/episodes/next",
+      "scope": "channel",
+      "allow_query_scope": false,
+      "access": "write",
+      "risk": "blocker",
+      "resource_params": [
+        "next"
+      ],
+      "module": "scripts.api_episodes"
+    },
+    {
       "method": "POST",
       "path": "/api/schedule-queue/auto-fill",
       "scope": "channel",
@@ -2949,6 +2971,31 @@
         "items[].product_id",
         "items[].angle_id",
         "items[].scheduled_at"
+      ],
+      "module": "scripts.api_schedule_queue"
+    },
+    {
+      "method": "POST",
+      "path": "/api/schedule-queue/reschedule-overdue",
+      "scope": "channel",
+      "allow_query_scope": false,
+      "access": "write",
+      "risk": "blocker",
+      "resource_params": [
+        "assignments[].id",
+        "assignments[].scheduled_at"
+      ],
+      "module": "scripts.api_schedule_queue"
+    },
+    {
+      "method": "POST",
+      "path": "/api/schedule-queue/reschedule-overdue/preview",
+      "scope": "channel",
+      "allow_query_scope": false,
+      "access": "read",
+      "risk": "major",
+      "resource_params": [
+        "window_days"
       ],
       "module": "scripts.api_schedule_queue"
     },
@@ -3033,6 +3080,42 @@
     {
       "method": "PATCH",
       "path": "/api/schedule-queue/{item_id}",
+      "scope": "channel",
+      "allow_query_scope": false,
+      "access": "write",
+      "risk": "blocker",
+      "resource_params": [
+        "item_id"
+      ],
+      "module": "scripts.api_schedule_queue"
+    },
+    {
+      "method": "POST",
+      "path": "/api/schedule-queue/{item_id}/resolve-unposted",
+      "scope": "channel",
+      "allow_query_scope": false,
+      "access": "write",
+      "risk": "blocker",
+      "resource_params": [
+        "item_id"
+      ],
+      "module": "scripts.api_schedule_queue"
+    },
+    {
+      "method": "POST",
+      "path": "/api/schedule-queue/{item_id}/resolve-deleted",
+      "scope": "channel",
+      "allow_query_scope": false,
+      "access": "write",
+      "risk": "blocker",
+      "resource_params": [
+        "item_id"
+      ],
+      "module": "scripts.api_schedule_queue"
+    },
+    {
+      "method": "POST",
+      "path": "/api/schedule-queue/{item_id}/resolve-draft",
       "scope": "channel",
       "allow_query_scope": false,
       "access": "write",

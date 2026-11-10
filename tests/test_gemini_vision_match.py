@@ -45,16 +45,27 @@ prompt = f"""คุณเป็น AI ผู้กำกับและตัด
 ```
 """
 
-try:
-    print("Calling Gemini 2.5 Flash Vision...")
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=[
-            client.files.get(name="files/tmw3m0q1vifb"),
-            prompt
-        ]
-    )
-    print("\n🎉 GEMINI 2.5 FLASH VISION RESPONSE:")
-    print(response.text)
-except Exception as e:
-    print("Error calling Gemini:", e)
+import pytest
+pytestmark = pytest.mark.skip(reason="Manual diagnostic script requiring live Gemini API")
+
+def main():
+    try:
+        print("Calling Gemini 2.5 Flash Vision...")
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                client.files.get(name="files/tmw3m0q1vifb"),
+                prompt
+            ]
+        )
+        print("\n🎉 GEMINI 2.5 FLASH VISION RESPONSE:")
+        print(response.text)
+    except Exception as e:
+        print("Error calling Gemini:", e)
+
+if __name__ == "__main__":
+    main()
+
+
+def test_gemini_vision_prompt_defined():
+    assert len(prompt) > 0

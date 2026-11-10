@@ -20,6 +20,17 @@ const EXT_DIR = path.join(ROOT, 'tiktok_autopost_extension');
 const UPLOAD_URL = 'https://www.tiktok.com/tiktokstudio/upload';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+// The panel now runs a readiness check (a few seconds) BEFORE it asks for confirmation: wait for the dialog, never click blind.
+async function confirmWhenShown(panel, timeoutMs = 45000) {
+  const until = Date.now() + timeoutMs;
+  while (Date.now() < until) {
+    const shown = await panel.eval(`document.getElementById('confirmOverlay')?.classList.contains('show') === true`, true).catch(() => false);
+    if (shown) { await panel.eval(`document.getElementById('confirmOkBtn').click()`, false); return true; }
+    await sleep(500);
+  }
+  const log = await panel.eval(`document.getElementById('batchLogBox')?.innerText || ''`, false).catch(() => '');
+  throw new Error('confirm dialog never appeared (preflight blocked the run?) ' + String(log).split(/\r?\n/).slice(-12).join(' | '));
+}
 const portUp = async () => { try { return (await fetch(`http://127.0.0.1:${PORT}/json/version`)).ok; } catch (_) { return false; } };
 
 function killConductorChrome() {
@@ -130,8 +141,8 @@ async function main() {
   const step = (name, detail = '') => { console.log(`[step] ${name} ${detail}`); report.steps.push({ name, detail }); };
 
   // 1) pick ONE eligible clip so the panel's search filter leaves exactly one
-  const { clips } = await pickClips(api, { limit: clipCount });
-  if (!verifyProbe && !process.argv.includes('--draft-probe') && !process.argv.includes('--quota-probe') && !process.argv.includes('--smart-overflow') && !clips.length) throw new Error('ไม่มีคลิปพร้อมโพสต์ในคิว (ตรวจเวลา/export)');
+  const { clips } = await pickClips(api, { limit: clipCount, mode: process.argv.includes('--draft') ? 'draft' : 'schedule' });   // a draft run needs no future slot
+  if (!verifyProbe && !process.argv.includes('--draft-probe') && !process.argv.includes('--quota-probe') && !process.argv.includes('--smart-overflow') && !process.argv.includes('--publish-draft') && !process.argv.includes('--reschedule-overdue') && !process.argv.includes('--sync-probe') && !clips.length) throw new Error('ไม่มีคลิปพร้อมโพสต์ในคิว (ตรวจเวลา/export)');
   const clip = clips[0] || { title: '' };
   step('clips eligible', `${clips.length} (asked ${clipCount})`);
 
@@ -166,6 +177,139 @@ async function main() {
   step('panel open');
 
   try {
+    if (process.argv.includes('--sync-probe')) {
+      // READ-ONLY check of the "check against TikTok" worker action on the real pages, with synthetic drafts:
+      // a caption that exists in Content but not in Drafts (-> posted outside), and one that exists nowhere (-> deleted).
+      const q = await api.get('/api/schedule-queue');
+      const known = (q.data.items || []).filter(i => i.status === 'scheduled_on_platform' && i.caption).slice(-1)[0];
+      const drafts = [
+        { id: 'probe-posted', caption: known?.caption || '', savedAtMs: Date.now() - 3 * 86400e3 },
+        { id: 'probe-gone', caption: 'คลิปที่ไม่เคยมีอยู่จริงบนบัญชีนี้เลยสักครั้ง ทดสอบการตรวจ', savedAtMs: Date.now() - 3 * 86400e3 },
+      ];
+      const lookback = Date.now() - 4 * 86400e3;
+      const t0 = Date.now();
+      const reply = await panel.eval(`new Promise(r => chrome.runtime.sendMessage({action: 'sync-drafts-with-tiktok', drafts: ${JSON.stringify(drafts)}, cutoffMs: ${lookback}}, r))`, true, 6 * 60 * 1000);
+      console.log('[sync]', JSON.stringify(reply), `(${Math.round((Date.now() - t0) / 1000)}s)`);
+      const by = Object.fromEntries((reply.results || []).map(r => [r.id, r.state]));
+      report.ok = Boolean(reply.success) && by['probe-posted'] === 'posted_outside' && by['probe-gone'] === 'deleted';
+      console.log(report.ok ? '[E2E PASS] sync probe' : '[E2E FAIL] sync probe');
+      process.exitCode = report.ok ? 0 : 1;
+      return;
+    }
+    if (process.argv.includes('--reschedule-overdue')) {
+      // The bulk re-arrangement of clips whose slot passed: the panel's REAL button, preview dialog and commit.
+      let shown = false;
+      for (let i = 0; i < 20 && !shown; i += 1) {
+        shown = await panel.eval(`(() => { const b = document.getElementById('rescheduleOverdueBtn'); return Boolean(b && !b.hidden); })()`, false).catch(() => false);
+        if (!shown) await sleep(1500);
+      }
+      if (!shown) throw new Error('the reschedule button is hidden: no clip needs a new time');
+      step('reschedule button', await panel.eval(`document.getElementById('rescheduleOverdueBtn').textContent.trim()`, false));
+      step('overdue chip', await panel.eval(`document.querySelector('.filter-chip[data-filter="overdue"]').textContent.trim()`, false));
+      step('card status words', await panel.eval(`[...document.querySelectorAll('#list .card-status.draft_overdue, #list .card-status.overdue')].map(e => e.textContent.trim()).join(' | ')`, false));
+      await panel.eval(`document.getElementById('rescheduleOverdueBtn').click()`, false);
+      const asked = await (async () => { const until = Date.now() + 45000; while (Date.now() < until) { const t = await panel.eval(`document.getElementById('confirmOverlay')?.classList.contains('show') ? document.getElementById('confirmText').innerText : ''`, false).catch(() => ''); if (t) return t; await sleep(500); } return ''; })();
+      console.log('[confirm dialog]', asked);
+      if (!asked) throw new Error('no preview dialog');
+      await panel.eval(`document.getElementById('confirmOkBtn').click()`, false);
+      await sleep(4000);
+      step('status after commit', await panel.eval(`document.getElementById('status')?.innerText || ''`, false).catch(() => ''));
+      report.ok = true;
+      console.log('[E2E PASS] reschedule-overdue');
+      process.exitCode = 0;
+      return;
+    }
+    if (process.argv.includes('--publish-draft')) {
+      // Publish a draft that already sits on TikTok (saved earlier with --draft). The panel's REAL draft list and buttons,
+      // the REAL draft opening + caption check + schedule setting; the final Post click is stubbed unless --real-post.
+      //   --when=2026-11-19T10:15   slot for the scheduled publication (default: the row's own slot)
+      //   --now                     publish immediately instead (the panel asks for the live confirmation)
+      const whenArg = (process.argv.find(a => a.startsWith('--when=')) || '').split('=')[1] || '';
+      const publishNow = process.argv.includes('--now');
+      let expectedDrafts = 1;
+      const killAfterSubmit = Number((process.argv.find(a => a.startsWith('--kill-after-submit-ms=')) || '').split('=')[1]) || 0;
+      let killedAfterSubmit = false;
+      // The draft is a CARD of the main list (status "draft"): tick it and run, or use the card's own "post now" button.
+      const DRAFT_CARD = `[...document.querySelectorAll('#list .card')].find((c) => c.querySelector('.card-status.draft'))`;
+      let found = false;
+      for (let i = 0; i < 20 && !found; i += 1) {
+        found = await panel.eval(`Boolean(${DRAFT_CARD})`, false).catch(() => false);
+        if (!found) await sleep(1500);
+      }
+      if (!found) throw new Error('no draft card in the main list (is there a queue row in draft_on_platform?)');
+      step('draft card in list', await panel.eval(`(${DRAFT_CARD}).querySelector('.card-meta').textContent.trim()`, false));
+      if (!realPost) {
+        await panel.eval(`(() => {
+          const original = chrome.runtime.sendMessage.bind(chrome.runtime);
+          chrome.runtime.sendMessage = (message, cb) => {
+            if (message && message.action === 'click-post-only') { setTimeout(() => cb && cb({ success: true, clicked: false, outcome: ${publishNow ? "'published'" : "'scheduled_on_platform'"}, stubbed: true }), 300); return; }
+            if (message && message.action === 'verify-post-content') { setTimeout(() => cb && cb({ success: true, verified: true, stubbed: true }), 300); return; }
+            return original(message, cb);
+          };
+          return true;
+        })()`, false);
+        step('post click + content verify stubbed');
+      }
+      if (publishNow) {
+        await panel.eval(`(${DRAFT_CARD}).querySelector('button.btn-primary').click()`, false);
+      } else {
+        if (whenArg) {
+          const [d, tm] = whenArg.split('T');
+          await panel.eval(`(() => { const card = ${DRAFT_CARD}; const [date, time] = card.querySelectorAll('.draft-slot-controls input'); const set = (el, v) => { el.value = v; el.dispatchEvent(new Event('change', {bubbles: true})); }; set(date, ${JSON.stringify(d)}); set(time, ${JSON.stringify(tm)}); return true; })()`, false);
+          await sleep(800);   // the list re-renders after the slot changed
+        }
+        // --drafts=N: tick N draft cards (default 1) and publish them in ONE run
+        const wantDrafts = Number((process.argv.find(a => a.startsWith('--drafts=')) || '').split('=')[1]) || 1;
+        const ticked = await panel.eval(`(() => {
+          const cards = [...document.querySelectorAll('#list .card')].filter((c) => c.querySelector('.card-status.draft')).slice(0, ${wantDrafts});
+          if (cards.length < ${wantDrafts}) return 'only ' + cards.length + ' draft card(s)';
+          for (const card of cards) { const box = card.querySelector('.card-check input'); if (box.disabled) return 'blocked: ' + (card.querySelector('.card-blocked-note')?.textContent || ''); box.click(); }
+          return 'ticked ' + cards.length;
+        })()`, false);
+        step('draft cards tick', ticked);
+        if (!/^ticked/.test(ticked)) throw new Error(`draft cards cannot be ticked: ${ticked}`);
+        expectedDrafts = wantDrafts;
+        await panel.eval(`document.getElementById('batchStartBtn').click()`, false);
+      }
+      await confirmWhenShown(panel);
+      step(publishNow ? 'publish NOW clicked (live confirmation accepted)' : 'ticked draft run started');
+      const tp0 = Date.now();
+      let plog = '';
+      let pprinted = 0;
+      while (Date.now() - tp0 < 14 * 60 * 1000) {
+        await sleep(3000);
+        plog = await panel.eval(`document.getElementById('batchLogBox')?.innerText || ''`, false).catch(() => '');
+        const entries = plog.split(/(?=\[\d\d:\d\d:\d\d\])/).map(x => x.trim()).filter(Boolean);
+        for (; pprinted < entries.length; pprinted += 1) console.log(`[panel] ${entries[pprinted].slice(0, 220)}`);
+        // --kill-after-submit-ms=N: Chrome stops the MV3 service worker N ms after the post step started (so after the click):
+        // the panel's request dies with "message port closed". The click must NOT be retried and the result must be reconciled.
+        if (killAfterSubmit && !killedAfterSubmit && /7\/10 TRIGGER_SUBMIT/.test(plog)) {
+          killedAfterSubmit = true;
+          setTimeout(async () => {
+            try {
+              const sw = await new Cdp((await (await fetch(`http://127.0.0.1:${PORT}/json/version`)).json()).webSocketDebuggerUrl).open();
+              const { targetInfos } = await sw.call('Target.getTargets');
+              const workers = targetInfos.filter(x => x.type === 'service_worker' && x.url.startsWith(`chrome-extension://${extId}/`));
+              console.log(`[fault] stopping ${workers.length} extension service worker(s) ${killAfterSubmit} ms after the post step started`);
+              await panel.call('ServiceWorker.enable').catch(() => {});
+              await panel.call('ServiceWorker.stopAllWorkers').catch(e => console.log('[fault] stopAllWorkers:', e.message));
+              for (const w of workers) await sw.call('Target.closeTarget', { targetId: w.targetId }).catch(() => {});
+              sw.close();
+            } catch (e) { console.log('[fault] failed:', e.message); }
+          }, killAfterSubmit);
+        }
+        if (/สรุปผลลัพธ์|ระบบลูปหยุดทำงาน|ยังไม่พร้อมรัน/.test(plog)) break;
+      }
+      // what the REAL editor looks like now (nothing was posted when the click is stubbed)
+      const editor = await tt.eval(`(() => { const radios = [...document.querySelectorAll('input[type=radio], [role=radio]')].map(r => ((r.closest('label') || r.parentElement || r).innerText || '').trim().slice(0, 14) + ':' + (r.checked || r.getAttribute('aria-checked'))); const post = document.querySelector('button[data-e2e="post_video_button"]'); return JSON.stringify({ url: location.href.replace(/draft_id=\\d+/, 'draft_id=N'), radios, post: post ? post.innerText.trim() : null }); })()`, false).catch(e => 'ERR ' + e.message);
+      console.log('[editor after steps]', editor);
+      fs.writeFileSync(path.join(outDir, 'panel_log.txt'), plog);
+      report.ok = killAfterSubmit ? /สรุปผลลัพธ์/.test(plog) : ((plog.match(/✅ \[/g) || []).length === expectedDrafts && !/ล้มเหลวที่ขั้น|หยุดอัตโนมัติ/.test(plog));
+      report.editor = editor;
+      console.log(report.ok ? '[E2E PASS] publish-from-draft' : '[E2E FAIL] publish-from-draft: ดู panel_log.txt');
+      process.exitCode = report.ok ? 0 : 1;
+      return;
+    }
     if (leaveProbe) {
       // Chrome's own "Leave site?" prompt: give the page a real beforeunload handler plus user
       // activation (as the automation's clicks do), then reset through the real worker action.
@@ -255,8 +399,7 @@ async function main() {
       })()`, false);
       step('quota simulated 29/30; post click + post verify stubbed; save-draft-only is REAL');
       await panel.eval(`document.getElementById('batchStartBtn').click()`, false);
-      await sleep(800);
-      await panel.eval(`document.getElementById('confirmOkBtn').click()`, false);
+      await confirmWhenShown(panel);
       let log = '';
       for (let i = 0; i < 120; i += 1) {
         await sleep(4000);
@@ -343,9 +486,17 @@ async function main() {
       // and against one that was never posted (must be false).
       const q = await api.get('/api/schedule-queue');
       const items = q.data.items || [];
+      // --sample=N: check only N scheduled rows spread over the list (first / middle / last ...) instead of all of them
+      // --also=<queue id prefix>: also check an immediate post (it has no slot; it sits after every scheduled row)
+      const sample = Number((process.argv.find(a => a.startsWith('--sample=')) || '').split('=')[1]) || 0;
+      const alsoPrefix = (process.argv.find(a => a.startsWith('--also=')) || '').split('=')[1] || '';
+      let scheduledRows = items.filter(i => i.status === 'scheduled_on_platform');
+      if (sample && scheduledRows.length > sample) scheduledRows = Array.from({ length: sample }, (_, k) => scheduledRows[Math.round(k * (scheduledRows.length - 1) / (sample - 1 || 1))]);
       const cases = [
-        ...items.filter(i => i.status === 'scheduled_on_platform').map(i => ({ i, expect: true })),
+        ...scheduledRows.map(i => ({ i, expect: true })),
+        ...(alsoPrefix ? items.filter(i => String(i.id).startsWith(alsoPrefix)).map(i => ({ i: { ...i, scheduled_at: '' }, expect: true })) : []),
         ...items.filter(i => i.status === 'planned').slice(0, 1).map(i => ({ i, expect: false })),
+        { i: { caption: 'คลิปที่ไม่เคยโพสต์เลยสักครั้ง ไม่มีอยู่จริงในบัญชีนี้', scheduled_at: '' }, expect: false },
       ];
       let allGood = cases.length > 0;
       for (const { i, expect } of cases) {
@@ -384,12 +535,13 @@ async function main() {
       return true;
     })()`, false);
     if (pick) {
-      const titles = clips.slice(0, pick).map(c => c.title);
+      const squash = (text) => String(text).split(' ').filter(Boolean).join(' ').trim();   // the card text is trimmed and its double spaces collapse
+      const titles = clips.slice(0, pick).map(c => squash(c.title));
       const ticked = await panel.eval(`(() => {
         const wanted = ${JSON.stringify(titles)};
         let n = 0;
         for (const card of document.querySelectorAll('#list .card')) {
-          const hook = (card.querySelector('.card-hook')?.innerText || '').trim();
+          const hook = (card.querySelector('.card-hook')?.innerText || '').split(' ').filter(Boolean).join(' ').trim();
           if (wanted.includes(hook)) { const box = card.querySelector('.card-check input'); if (box && !box.checked) { box.click(); n += 1; } }
         }
         return n;
@@ -431,12 +583,37 @@ async function main() {
 
     // 6) press the REAL start button and confirm
     await panel.eval(`document.getElementById('batchStartBtn').click()`, false);
-    await sleep(800);
-    await panel.eval(`document.getElementById('confirmOkBtn').click()`, false);
+    await confirmWhenShown(panel);
     step('batch started');
 
     // optional fault: Chrome stops the MV3 service worker in the middle of the batch
     const killAt = Number((process.argv.find(a => a.startsWith('--kill-worker-at=')) || '').split('=')[1]) || 0;
+    // --kill-at-submit: deterministic G1 fault -- stop the worker the moment the panel logs the post click step (7/10 TRIGGER_SUBMIT)
+    const killAtSubmit = process.argv.includes('--kill-at-submit');
+    let killedAtSubmit = false;
+    // --kill-after-attempt: the REAL G1 window -- stop the worker as soon as the server recorded the one-shot /attempt (the post click
+    // is then imminent or done). The outcome must stay unknown and the clip must never be clicked twice.
+    const killAfterAttempt = process.argv.includes('--kill-after-attempt');
+    let killedAfterAttempt = false;
+    const attemptRecorded = async () => {
+      const queue = await api.get('/api/schedule-queue');
+      const row = (queue.data?.items || []).find(item => item.id === clips[0].id);
+      if (!row?.posting_job_id) return false;
+      const job = await api.get(`/api/tiktok-autopost/jobs/${row.posting_job_id}`);
+      return (job.data?.audit || []).some(entry => entry.event === 'publish_attempt');
+    };
+    const killWorker = async (label) => {
+      try {
+        const sw = await new Cdp((await (await fetch(`http://127.0.0.1:${PORT}/json/version`)).json()).webSocketDebuggerUrl).open();
+        const { targetInfos } = await sw.call('Target.getTargets');
+        const workers = targetInfos.filter(t => t.type === 'service_worker' && t.url.startsWith(`chrome-extension://${extId}/`));
+        console.log(`[fault] stopping ${workers.length} extension service worker(s) ${label}`);
+        await panel.call('ServiceWorker.enable').catch(() => {});
+        await panel.call('ServiceWorker.stopAllWorkers').catch(e => console.log('[fault] stopAllWorkers:', e.message));
+        for (const w of workers) await sw.call('Target.closeTarget', { targetId: w.targetId }).catch(() => {});
+        sw.close();
+      } catch (e) { console.log('[fault] failed:', e.message); }
+    };
     if (killAt) {
       setTimeout(async () => {
         try {
@@ -456,9 +633,30 @@ async function main() {
     const t0 = Date.now();
     let log = '';
     let printed = 0;
+    // --stop-at-submit: press the panel's real Stop the moment the post click starts. The clip must still be verified and
+    // recorded (a live post must never go unrecorded) and only then does the run stop.
+    // --stop-at-step=3: press Stop at an EARLIER step (before any click): nothing may be posted and the job must be released (G5)
+    const stopStep = (process.argv.find(a => a.startsWith('--stop-at-step=')) || '').split('=')[1] || '';
+    const stopAtSubmit = process.argv.includes('--stop-at-submit') || Boolean(stopStep);
+    const stopRe = new RegExp(`${stopStep || '7'}/10 `);
+    let stopPressed = false;
     while (Date.now() - t0 < Math.max(15, clipCount * 6) * 60 * 1000) {
-      await sleep(5000);
+      await sleep((stopAtSubmit && !stopPressed) || (killAtSubmit && !killedAtSubmit) || (killAfterAttempt && !killedAfterAttempt) ? 300 : 5000);
       log = await panel.eval(`document.getElementById('batchLogBox')?.innerText || ''`, false).catch(() => '');
+      if (stopAtSubmit && !stopPressed && stopRe.test(log)) {
+        stopPressed = true;
+        await panel.eval(`document.getElementById('batchStopBtn').click()`, false);
+        await confirmWhenShown(panel);
+        step(`Stop pressed at step ${stopStep || '7'}/10`);
+      }
+      if (killAtSubmit && !killedAtSubmit && /7\/10 TRIGGER_SUBMIT/.test(log)) {
+        killedAtSubmit = true;
+        await killWorker('at TRIGGER_SUBMIT');
+      }
+      if (killAfterAttempt && !killedAfterAttempt && await attemptRecorded().catch(() => false)) {
+        killedAfterAttempt = true;
+        await killWorker('right after /attempt was recorded');
+      }
       // live progress: print each new panel log entry as it appears
       const entries = log.split(/(?=\[\d\d:\d\d:\d\d\])/).map(x => x.trim()).filter(Boolean);
       for (; printed < entries.length; printed += 1) console.log(`[panel] ${entries[printed].slice(0, 200)}`);

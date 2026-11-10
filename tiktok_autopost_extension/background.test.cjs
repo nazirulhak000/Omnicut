@@ -723,6 +723,173 @@ test('account check: another job or an old verification is read again; an unread
   await assert.rejects(() => blank.ctx.guardPostingAction(blankJob, nothing, 7), /source_account_required/); // still reads, never reuses a failure
 });
 
+// ---- R1: no unintended live post, no force release, no invented success ----
+const NLC = String.fromCharCode(10);
+const btnProbe = (over = {}) => async () => ({ result: { value: { found: true, visible: true, text: 'Post', disabled: false, ...over } } });
+
+test('R1 assertPublishReady: a draft job never reaches the Post button', async () => {
+  const ctx = worker();
+  await assert.rejects(() => ctx.assertPublishReady(btnProbe(), { intent: 'draft' }), /intent_mismatch.*แบบร่าง/);
+});
+
+test('R1 assertPublishReady: the page mode must match the intent (Schedule vs Post label)', async () => {
+  const ctx = worker();
+  const sched = { intent: 'schedule', schedule_date: '2026-11-12', schedule_time: '09:00' };
+  await assert.rejects(() => ctx.assertPublishReady(btnProbe({ text: 'Post' }), sched), /intent_page_mismatch/);          // schedule step skipped -> would post LIVE
+  await ctx.assertPublishReady(btnProbe({ text: 'Schedule' }), sched);
+  await ctx.assertPublishReady(btnProbe({ text: 'กำหนดเวลา' }), sched);
+  await assert.rejects(() => ctx.assertPublishReady(btnProbe({ text: 'Schedule' }), { intent: 'post_now' }), /intent_page_mismatch/);
+  await ctx.assertPublishReady(btnProbe({ text: 'Post' }), { intent: 'post_now' });
+  await ctx.assertPublishReady(btnProbe({ text: 'โพสต์' }), { intent: 'post_now' });
+  // an old job without an intent is inferred from its schedule
+  await assert.rejects(() => ctx.assertPublishReady(btnProbe({ text: 'Post' }), { schedule_date: '2026-11-12', schedule_time: '09:00' }), /intent_page_mismatch/);
+  await ctx.assertPublishReady(btnProbe({ text: 'Post' }), {});
+});
+
+test('R1 assertPublishReady: missing/disabled button or a schedule intent without a schedule stops before the attempt', async () => {
+  const ctx = worker();
+  await assert.rejects(() => ctx.assertPublishReady(async () => ({ result: { value: { found: false } } }), { intent: 'post_now' }), /หาปุ่ม Post ไม่เจอ/);
+  await assert.rejects(() => ctx.assertPublishReady(btnProbe({ disabled: true }), { intent: 'post_now' }), /ยังกดไม่ได้/);
+  await assert.rejects(() => ctx.assertPublishReady(btnProbe({ visible: false }), { intent: 'post_now' }), /หาปุ่ม Post ไม่เจอ/);
+  await assert.rejects(() => ctx.assertPublishReady(btnProbe({ text: 'Post' }), { intent: 'schedule' }), /ไม่มีวันเวลา/);
+  await ctx.assertPublishReady(btnProbe(), null); // no job: nothing to check
+});
+
+test('R1 clickPostButton: an already-attempted job is refused before anything is touched; no draft button in the Post fallback', async () => {
+  const ctx = worker();
+  let touched = 0;
+  const send = async () => { touched += 1; return {}; };
+  await assert.rejects(() => ctx.clickPostButton(send, 7, async () => { touched += 1; }, { job_id: 'j', publish_attempted_at: 1700000000, status: 'publishing' }), /ห้ามกดโพสต์ซ้ำ/);
+  await assert.rejects(() => ctx.clickPostButton(send, 7, async () => { touched += 1; }, { job_id: 'j', status: 'confirmation_unknown' }), /ห้ามกดโพสต์ซ้ำ/);
+  assert.equal(touched, 0);
+  const source = ctx.clickPostButton.toString();
+  assert.ok(!/Save draft|Save to draft|บันทึกแบบร่าง/.test(source), 'the Post fallback must never include a draft button');
+});
+
+test('R1 clickPostButton: leaving the form for Content is NOT proof of a post (recorded as unknown)', async () => {
+  const { ctx, calls } = clickPostHarness({
+    tabUrl: 'https://www.tiktok.com/tiktokstudio/content',
+    onConfirmationEval: () => ({ result: { value: null } }),   // no toast was seen
+  });
+  const result = await ctx.runClickPostOnly();
+  assert.equal(result.outcome, 'confirmation_unknown');
+  assert.equal(result.posted, false);
+  assert.equal(result.marked, false);
+  assert.ok(calls.includes('unknown') && !calls.includes('mark'));
+});
+
+test('R1 dismissContinueToPostDialogIfPresent: only the button that matches the job intent, nothing without one', async () => {
+  const ctx = worker();
+  const expressions = [];
+  const send = async (_m, params) => { expressions.push(String(params.expression)); return { result: { value: false } }; };
+  assert.equal(await ctx.dismissContinueToPostDialogIfPresent(send, 50), false);                 // no intent: no click at all
+  assert.equal(await ctx.dismissContinueToPostDialogIfPresent(send, 50, 'draft'), false);        // a draft never accepts a post dialog
+  assert.equal(expressions.length, 0);
+  await ctx.dismissContinueToPostDialogIfPresent(send, 50, 'post_now');
+  assert.ok(expressions[0].includes('Post now') && !expressions[0].includes('Schedule now'));
+  assert.ok(expressions[0].includes('postNowBtn && isContinueDialog'), 'the dialog text must be recognised');
+  await ctx.dismissContinueToPostDialogIfPresent(send, 50, 'schedule');
+  const last = expressions[expressions.length - 1];
+  assert.ok(last.includes('Schedule now') && !last.includes('Post now'));
+});
+
+test('R1 release: there is no force; an attempted job is never released, a never-attempted claim is', async () => {
+  const ctx = durableWorker({});
+  const attempted = protocolJob({ status: 'publishing', publish_attempted_at: 1700000000 });
+  await seedJob(ctx, attempted);
+  const routes = [];
+  ctx.postingRequest = async (route) => { routes.push(route); return { ...attempted }; };
+  await assert.rejects(() => ctx.releasePostingJob({ force: true }), /ต้องตรวจผลเดิมก่อน/);
+  assert.ok(!routes.includes('/release'), 'no /release call may be made for an attempted job');
+  const claimedJob = protocolJob();
+  const ctx2 = durableWorker({});
+  await seedJob(ctx2, claimedJob);
+  const routes2 = [];
+  ctx2.postingRequest = async (route) => { routes2.push(route); return route === '/release' ? { ...claimedJob, status: 'cancelled' } : { ...claimedJob }; };
+  const released = await ctx2.releasePostingJob({});
+  assert.equal(released.status, 'cancelled');
+  assert.ok(routes2.includes('/release'));
+});
+
+test('R1 park: if the backend cannot be asked, a possibly-attempted job is parked, never released on a stale copy', async () => {
+  const ctx = durableWorker({});
+  const job = protocolJob();                       // looks claimed locally, but the /attempt may have happened
+  await seedJob(ctx, job);
+  const routes = [];
+  ctx.postingRequest = async (route) => { routes.push(route); throw new Error('backend down'); };
+  const result = await ctx.parkPostingJob();
+  assert.equal(result.parked, true);
+  assert.ok(!routes.includes('/release') && !routes.includes('/clear'));
+  // a job that was only prepared (never claimed) is simply cancelled via /clear
+  const ctx2 = durableWorker({});
+  const prepared = protocolJob({ status: 'prepared', lease_owner: null, lease_token: null });
+  await seedJob(ctx2, prepared);
+  const routes2 = [];
+  ctx2.postingRequest = async (route) => { routes2.push(route); return { ...prepared }; };
+  const res2 = await ctx2.parkPostingJob();
+  assert.equal(res2.released, true);
+  assert.ok(routes2.includes('/clear'));
+});
+
+test('R1 reconcileFromListPages: confirms only a row that matches the caption (and slot); never a made-up success', async () => {
+  const ctx = worker();
+  ctx.navigateAcceptingLeave = async () => true;
+  ctx.chrome.tabs = { get: async () => ({ id: 7, url: 'https://www.tiktok.com/tiktokstudio/content' }) };
+  const rowsText = (...rows) => ['Posts 219', 'Drafts 0', ...rows].join(NLC);
+  const sendWith = (text) => async () => ({ result: { value: text } });
+  const caption = 'ใช้จริงมาแล้วสามเดือนเต็ม พัดลมตัวนี้ดีมาก';
+  const row = (badge, ...more) => ['00:28', caption, badge, 'Everyone', ...more].join(NLC);
+  const sched = { job_id: 'j', intent: 'schedule', caption, schedule_date: '2026-11-10', schedule_time: '18:00', confirmation_token: 'tok' };
+  const ok = await ctx.reconcileFromListPages(sendWith(rowsText(row('Nov 10, 6:00 PM (GMT+7) Bangkok'))), { id: 7 }, sched);
+  assert.equal(ok.confirmed, true);
+  assert.equal(ok.outcome, 'scheduled_on_platform');
+  assert.equal(ok.proof.kind, 'content_page_reconciled');
+  assert.match(ok.proof.notice, /caption and the slot 2026-11-10 18:00/);
+  assert.equal(ok.proof.confirmation_token, 'tok');
+  // right caption but another slot / no row / a view count equal to the day: not confirmed
+  assert.equal((await ctx.reconcileFromListPages(sendWith(rowsText(row('Nov 12, 6:00 PM', '0', '10', '0'))), { id: 7 }, sched)).confirmed, false);
+  assert.equal((await ctx.reconcileFromListPages(sendWith(rowsText()), { id: 7 }, sched)).confirmed, false);
+  assert.equal((await ctx.reconcileFromListPages(sendWith(rowsText('00:28', 'คลิปอื่นทั้งหมด', 'Nov 10, 6:00 PM')), { id: 7 }, sched)).confirmed, false);
+  // an immediate post: the row must carry a badge time close to the click, an older post with the same caption never confirms
+  const attemptedAt = Date.parse('2026-11-10T11:00:00Z') / 1000;
+  const RealDate = Date;
+  const fixedNow = RealDate.parse('2026-11-10T11:02:00Z');
+  ctx.Date = class extends RealDate { constructor(...args) { super(...(args.length ? args : [fixedNow])); } static now() { return fixedNow; } };
+  const postNow = { job_id: 'j', intent: 'post_now', caption, publish_attempted_at: attemptedAt, confirmation_token: 'tok' };
+  const fresh = await ctx.reconcileFromListPages(sendWith(rowsText(row('Nov 10, 6:01 PM (GMT+7) Bangkok'))), { id: 7 }, postNow);   // 11:01Z = 18:01 +07
+  assert.equal(fresh.outcome, 'published');
+  const stale = await ctx.reconcileFromListPages(sendWith(rowsText(row('Oct 2, 6:01 PM'))), { id: 7 }, postNow);
+  assert.equal(stale.confirmed, false);
+});
+
+test('R1 reconcileFromListPages: a draft job is confirmed only by a matching row on the Drafts page', async () => {
+  const ctx = worker();
+  ctx.navigateAcceptingLeave = async () => true;
+  const caption = 'แกะกล่องสุดคุ้ม ของแท้ ราคาดี';
+  const draftsPage = (text) => async () => ({ result: { value: { url: 'https://www.tiktok.com/tiktokstudio/content?tab=draft', text } } });
+  const job = { job_id: 'j', intent: 'draft', caption, confirmation_token: 'tok' };
+  const yes = await ctx.reconcileFromListPages(draftsPage(['Drafts 1', caption].join(NLC)), { id: 7 }, job);
+  assert.equal(yes.outcome, 'draft_saved');
+  assert.equal(yes.proof.kind, 'drafts_page_confirmed');
+  const no = await ctx.reconcileFromListPages(draftsPage(['Drafts 1', 'ข้อความของคลิปอื่น'].join(NLC)), { id: 7 }, job);
+  assert.equal(no.confirmed, false);
+});
+
+test('R1 manual confirmation follows the job intent (was always "published")', async () => {
+  for (const [intent, extra, expected] of [['draft', {}, 'draft_saved'], ['schedule', { schedule_date: '2026-11-12', schedule_time: '09:00' }, 'scheduled_on_platform'], ['post_now', {}, 'published']]) {
+    const ctx = durableWorker({});
+    const job = protocolJob({ status: 'confirmation_unknown', publish_attempted_at: 1700000000, attempted_source_account: '@mainuser', intent, ...extra });
+    await seedJob(ctx, job);
+    ctx.postingRequest = async () => ({ ...job });
+    let body = null;
+    ctx.retryPostingReceipt = async () => { body = (await ctx.postingState()).pendingReceipt?.body; return { success: true }; };
+    await ctx.runReconcilePostingResult({ manual: true });
+    assert.equal(body.outcome, expected, intent);
+    assert.equal(body.proof.kind, 'manual_user_confirmation');
+    assert.ok(body.proof.notice.length >= 8);
+  }
+});
+
 test('schedule time follows TikTok five-minute increments', () => {
   const ctx = worker();
   assert.equal(ctx.normalizeScheduleTime('16:08'), '16:10');
@@ -830,7 +997,9 @@ test('stats sync accepts the real Studio posts page and stamps a visible build t
   // Build identity: chrome://extensions + the Tools tab both prove the fresh
   // code is running, so stale cached sidepanel.js (the ghost "จำกัดโดเมน"
   // banner that never existed in this repo) can be caught by the user's eyes.
-  assert.equal(manifest.version, '0.4.1');
+  assert.equal(manifest.version, '0.10.0');
+  assert.equal(manifest.content_scripts, undefined, 'no legacy content script');
+  for (const gone of ['batch_runner.js', 'batch_runner.test.cjs', 'content_script.js', 'popup.html', 'popup.js']) assert.ok(!fs.existsSync(path.join(__dirname, gone)), gone + ' must stay deleted');
   assert.match(sideHtml, /id="buildTag"/);
   assert.match(sideJs, /getManifest/);
   // The strict domain banner must never come back: resolution is a loose
@@ -845,12 +1014,9 @@ test('stats sync accepts the real Studio posts page and stamps a visible build t
 test('extension UI exposes single consolidated TikTok upload opener and complies with clean UI standard', () => {
   const sideHtml = fs.readFileSync(path.join(__dirname, 'sidepanel.html'), 'utf8');
   const sideJs = fs.readFileSync(path.join(__dirname, 'sidepanel.js'), 'utf8');
-  const popupHtml = fs.readFileSync(path.join(__dirname, 'popup.html'), 'utf8');
-  const popupJs = fs.readFileSync(path.join(__dirname, 'popup.js'), 'utf8');
 
-  // Verify single global header opener exists in sidepanel and single opener in popup
+  // Verify single global header opener exists in sidepanel and the old popup is gone
   assert.match(sideHtml, /id="headerOpenTikTokBtn"/);
-  assert.match(popupHtml, /id="popupOpenTikTokBtn"/);
 
   // Verify redundant buttons were removed (User requested exactly one single spot)
   assert.doesNotMatch(sideHtml, /id="listOpenTikTokBtn"/);
@@ -861,12 +1027,9 @@ test('extension UI exposes single consolidated TikTok upload opener and complies
   // Verify listeners and URL opener in JS
   assert.match(sideJs, /headerOpenTikTokBtn/);
   assert.match(sideJs, /tiktok\.com\/tiktokstudio\/upload/);
-  assert.match(popupJs, /popupOpenTikTokBtn/);
-  assert.match(popupJs, /tiktok\.com\/tiktokstudio\/upload/);
 
   // Verify clean UI standard: no emojis in button texts
   assert.doesNotMatch(sideHtml, /<button[^>]*>[^<]*[\u{1F300}-\u{1F9FF}][^<]*<\/button>/u);
-  assert.doesNotMatch(popupHtml, /<button[^>]*>[^<]*[\u{1F300}-\u{1F9FF}][^<]*<\/button>/u);
 });
 
 test('extension UI exposes dynamic backend health status and bilingual upload status check', () => {
@@ -1042,8 +1205,10 @@ function clickPostHarness({ tabUrl, onConfirmationEval }) {
   ctx.chrome.debugger = {
     attach: async () => {},
     detach: async () => {},
-    sendCommand: async (_target, method) => {
+    sendCommand: async (_target, method, params = {}) => {
       if (method !== 'Runtime.evaluate') return {};
+      // The pre-attempt readiness probe (page mode + enabled primary button) is answered like a healthy "Post now" page.
+      if (String(params.expression || '').includes('{found: false}')) return { result: { value: { found: true, visible: true, text: 'Post', disabled: false } } };
       // First evaluate = the click; later ones = confirmation polls.
       if (!calls.includes('clicked')) {
         calls.push('clicked');
@@ -1349,9 +1514,11 @@ test('verify-post-content finds the row (after reload retries) and always return
       sendCommand: async (_t, method, params) => {
         if (method !== 'Runtime.evaluate') return {};
         if (/BeforeUnloadEvent/.test(params.expression)) return {result: {value: true}}; // prompt disarm, not a page read
+        if (/scrollTop/.test(params.expression)) return {result: {value: 0}};   // the list does not scroll in this fake
         evaluations += 1;
         // first two page loads still show the old list, the third shows the new row
-        return {result: {value: evaluations < 3 ? ['00:25', 'อย่างอื่น', 'Pinned'].join(nl) + nl : rowText}};
+        const loads = urls.filter(u => u.endsWith('/content')).length;
+        return {result: {value: loads < 3 ? ['00:25', 'อย่างอื่น', 'Pinned'].join(nl) + nl : rowText}};
       },
     },
   });
@@ -1408,4 +1575,407 @@ test('leaving the upload page first disarms its beforeunload prompt, then naviga
   const started = Date.now();
   assert.equal(await Promise.race([hung.navigateAcceptingLeave(7, 'https://x.test/'), new Promise(r => setTimeout(() => r('HUNG'), 8000))]), false);
   assert.ok(Date.now() - started < 8000);
+});
+
+function identityPage(ctx, hrefs) {
+  ctx.document = {
+    querySelectorAll: () => hrefs.map(h => ({ getAttribute: () => h, textContent: h })),
+    getElementById: () => null,
+  };
+}
+
+test('R2 studioIdentityAtClick: nothing readable and nothing verified stops (the intended handle is never trusted)', () => {
+  const ctx = worker();
+  identityPage(ctx, []);
+  assert.throws(() => ctx.studioIdentityAtClick('@main', null), /source_account_required/);
+  assert.throws(() => ctx.studioIdentityAtClick(null, undefined), /source_account_required/);
+});
+
+test('R2 studioIdentityAtClick: falls back only to the handle verified through the avatar menu, and it must equal the target', () => {
+  const ctx = worker();
+  identityPage(ctx, []);
+  assert.equal(ctx.studioIdentityAtClick('@main', '@main'), '@main');
+  assert.throws(() => ctx.studioIdentityAtClick('@main', '@other'), /account_handle_mismatch/);
+  identityPage(ctx, ['/@main']);
+  assert.equal(ctx.studioIdentityAtClick('@main', '@main'), '@main');
+  assert.throws(() => ctx.studioIdentityAtClick('@main', '@other'), /account_handle_mismatch/);   // page and verified disagree
+  identityPage(ctx, ['/@other']);
+  assert.throws(() => ctx.studioIdentityAtClick('@main', '@main'), /account_handle_mismatch/);
+  identityPage(ctx, ['/@main', '/@other']);
+  assert.throws(() => ctx.studioIdentityAtClick('@main', '@main'), /source_account_required/);        // two accounts visible
+});
+
+test('R2 typeCaption never types price text, placeholders or oversize text', async () => {
+  const ctx = worker();
+  const send = async () => { throw new Error('must not reach the page'); };
+  await assert.rejects(() => ctx.typeCaption(send, 'ราคา 199 บาท', '#a'), /content_blocked.*price_in_caption/);
+  await assert.rejects(() => ctx.typeCaption(send, '{product_name}', ''), /content_blocked.*placeholder_in_caption/);
+  await assert.rejects(() => ctx.typeCaption(send, 'ก'.repeat(4001), ''), /content_blocked.*caption_too_long/);
+});
+
+test('R3 panel wiring: one run at a time, no legacy runner, manual prepare guarded, honest end state', () => {
+  const side = fs.readFileSync(path.join(__dirname, 'sidepanel.js'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, 'sidepanel.html'), 'utf8');
+  assert.doesNotMatch(html, /batch_runner\.js/);
+  assert.match(html, /run_lock\.js/);
+  assert.doesNotMatch(side, /OmniBatchRunner/);
+  assert.doesNotMatch(side, /createBatchRunner/);
+  // the starting flag is set before the first await of the click handler
+  const handler = side.slice(side.indexOf("batchStartBtn?.addEventListener('click'"));
+  assert.ok(handler.indexOf('batchStarting = true') > 0 && handler.indexOf('batchStarting = true') < handler.indexOf('await'));
+  assert.match(side, /beforeunload/);
+  assert.match(side, /OmniRunLock\.acquire/);
+  assert.match(side, /requiredActions:/);
+  assert.match(side, /runnerModule\.finalVerdict\(summary\)/);
+  // the manual prepare route runs the same content/status guard as the batch
+  const manual = side.slice(side.indexOf('async function prepareClip(item)'), side.indexOf('async function prepareClip(item)') + 900);
+  assert.match(manual, /clipSkipReason/);
+  // worker answers carry postAttempted so the orchestrator can tell "unknown" from "failed"
+  const bg = fs.readFileSync(path.join(__dirname, 'background.js'), 'utf8');
+  assert.match(bg, /postAttempted/);
+});
+
+test('R4 quota counting never walks the tab away while a job is in flight; click steps never recover a Studio tab', async () => {
+  const ctx = worker();
+  ctx.runDetectQuotaFromTab = async () => ({ success: true });
+  ctx.postingState = async () => ({ activeJob: { job_id: 'j' } });
+  ctx.runCountScheduledOnContent = async () => { throw new Error('must not navigate'); };
+  const result = await ctx.runDetectTikTokQuota({ allowNavigate: true });
+  assert.equal(result.countSkipped, 'active_job');
+  const bg = fs.readFileSync(path.join(__dirname, 'background.js'), 'utf8');
+  assert.match(bg, /NO_TAB_RECOVERY_ACTIONS = new Set\(\[[^\]]*'click-post-only'[^\]]*'save-draft-only'/);
+  assert.match(bg, /findUploadTab\(\{recover: !NO_TAB_RECOVERY_ACTIONS\.has\(message\.action\)\}\)/);
+});
+
+test('R5 notifyAttention raises a notification and a badge; clearAttention removes the badge', async () => {
+  const ctx = worker();
+  const seen = { badge: [], created: [] };
+  ctx.chrome.action = { setBadgeText: async (o) => seen.badge.push(o.text), setBadgeBackgroundColor: async () => {} };
+  ctx.chrome.notifications = { create: async (id, opts) => { seen.created.push({ id, ...opts }); } };
+  const r = await ctx.notifyAttention({ title: 'ต้องตรวจ', message: 'คลิปยืนยันผลไม่ได้' });
+  assert.equal(r.notified, true);
+  assert.deepEqual(seen.badge, ['!']);
+  assert.equal(seen.created[0].requireInteraction, true);
+  assert.equal(seen.created[0].message, 'คลิปยืนยันผลไม่ได้');
+  await ctx.clearAttention();
+  assert.deepEqual(seen.badge, ['!', '']);
+  // a browser without the API must not break the run
+  const bare = worker();
+  bare.chrome.action = undefined; bare.chrome.notifications = undefined;
+  assert.equal((await bare.notifyAttention({})).notified, false);
+});
+
+test('R5 preflight and evidence are read-only probes: no tab means a clear failure, never a recovery or a click', async () => {
+  const ctx = worker();
+  let recovered = false;
+  ctx.chrome.runtime.getManifest = () => ({ version: 'test' });
+  ctx.findUploadTab = async (opts) => { recovered = Boolean(opts?.recover); throw new Error('ไม่พบแท็บ TikTok Studio'); };
+  const pre = await ctx.runPreflight();
+  assert.equal(pre.success, false);
+  assert.match(pre.error, /ไม่พบแท็บ/);
+  assert.equal(recovered, false, 'the probe must not navigate a Studio tab to the upload page');
+  const ev = await ctx.runCaptureEvidence();
+  assert.equal(ev.found, false);
+  const bg = fs.readFileSync(path.join(__dirname, 'background.js'), 'utf8');
+  assert.match(bg, /'run-preflight': \(\) => runPreflight\(\)/);
+  assert.match(bg, /'capture-evidence'/);
+});
+
+test('R5 panel wiring: preflight before the confirm dialog, history of every log line, evidence, attention notice', () => {
+  const side = fs.readFileSync(path.join(__dirname, 'sidepanel.js'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, 'sidepanel.html'), 'utf8');
+  for (const file of ['limits.js', 'preflight.js', 'run_history.js', 'run_lock.js']) assert.match(html, new RegExp(`<script src="${file.replace('.', '\.')}"></script>`));
+  assert.ok(html.indexOf('limits.js') < html.indexOf('post_guard.js') && html.indexOf('limits.js') < html.indexOf('batch_orchestrator.js'), 'limits.js loads first');
+  assert.match(html, /id="batchPreflightBtn"/);
+  assert.match(html, /id="batchHistoryBtn"/);
+  const handler = side.slice(side.indexOf('async function runBatchFromPanel('));
+  assert.ok(handler.indexOf('runPreflightAndReport(') > 0 && handler.indexOf('runPreflightAndReport(') < handler.indexOf('askConfirm('), 'preflight runs before the confirm dialog');
+  assert.match(handler, /if \(!readiness\.ok\)/);
+  assert.match(side, /activeRecorder\?\.log\(kind, msg\)/);
+  assert.match(side, /captureEvidence: async/);
+  assert.match(side, /notifyAttentionIfNeeded\(/);
+  assert.match(side, /activeRecorder\?\.setJob\(prepared\.job_id/);
+  // clean-UI rule: the new buttons start with a verb and carry no icon
+  assert.doesNotMatch(html, /id="batchPreflightBtn"[^>]*>\s*<svg/);
+});
+
+// ---- publish from draft ----
+function publishDraftHarness({ job, pick = { ok: true, count: 1 }, editor, switched = { success: true } }) {
+  const ctx = worker();
+  const seen = { switched: null, nowEval: 0, clicked: 0, navigated: [], detached: 0 };
+  ctx.fetchPendingJob = async () => job;
+  ctx.findUploadTab = async () => ({ id: 7, url: 'https://www.tiktok.com/tiktokstudio/upload' });
+  ctx.navigateAcceptingLeave = async (_id, url) => { seen.navigated.push(url); };
+  ctx.sleep = async () => {};
+  ctx.ensureWorkableViewport = async () => null;
+  ctx.guardPostingAction = async () => '@main';
+  ctx.switchToScheduleMode = async (_send, args) => { seen.switched = args; return switched; };
+  ctx.chrome.debugger = {
+    attach: async () => {}, detach: async () => { seen.detached += 1; },
+    sendCommand: async (_t, method, params) => {
+      if (method !== 'Runtime.evaluate') return {};
+      const expression = String(params.expression);
+      if (expression.includes('components_DraftRowLayout_FlexRow')) return { result: { value: pick } };
+      if (expression.includes('post_video_button')) return { result: { value: editor } };
+      if (expression.includes("labels = ['Now'")) { seen.nowEval += 1; return { result: { value: { ok: true } } }; }
+      return { result: { value: {} } };
+    },
+  };
+  return { ctx, seen };
+}
+const draftJob = (over = {}) => ({ job_id: 'j1', intent: 'publish_draft', status: 'claimed', caption: 'บอกลาสมาร์ตวอทช์หนักๆ อัปเกรดชีวิต', schedule_date: '2030-01-02', schedule_time: '09:00', ...over });
+const goodEditor = (ctx) => ({ url: 'https://www.tiktok.com/tiktokstudio/upload?from=creator_center&draft_id=1&open_editor=0', hasPost: true, caption: ctx.OmniPostGuard.captionKey('บอกลาสมาร์ตวอทช์หนักๆ อัปเกรดชีวิต') });
+
+test('publish_draft behaves like schedule / post_now for the button label, outcome and dismissal rules', () => {
+  const ctx = worker();
+  assert.equal(ctx.jobIntent({ intent: 'publish_draft', schedule_date: '2030-01-02', schedule_time: '09:00' }), 'schedule');
+  assert.equal(ctx.jobIntent({ intent: 'publish_draft' }), 'post_now');
+  assert.equal(ctx.jobIntent({ intent: 'draft' }), 'draft');
+});
+
+test('open-draft-for-publish: a scheduled publication opens the matching draft, checks its caption and sets the slot', async () => {
+  const probe = worker();
+  const { ctx, seen } = publishDraftHarness({ job: draftJob(), editor: goodEditor(probe) });
+  ctx.OmniPostGuard = probe.OmniPostGuard;
+  const result = await ctx.runOpenDraftForPublish();
+  assert.equal(result.success, true);
+  assert.equal(result.mode, 'schedule');
+  assert.deepEqual(seen.navigated, ['https://www.tiktok.com/tiktokstudio/content?tab=draft']);
+  assert.deepEqual({ date: seen.switched.date, time: seen.switched.time }, { date: '2030-01-02', time: '09:00' });
+  assert.equal(seen.detached, 1);
+});
+
+test('open-draft-for-publish: an immediate publication keeps/sets "Now" and never touches the schedule', async () => {
+  const probe = worker();
+  const { ctx, seen } = publishDraftHarness({ job: draftJob({ schedule_date: null, schedule_time: null }), editor: goodEditor(probe) });
+  const result = await ctx.runOpenDraftForPublish();
+  assert.equal(result.mode, 'now');
+  assert.equal(seen.nowEval, 1);
+  assert.equal(seen.switched, null);
+});
+
+test('open-draft-for-publish refuses: wrong job kind, already attempted, no/ambiguous draft, different caption, unset slot', async () => {
+  const probe = worker();
+  const editor = goodEditor(probe);
+  await assert.rejects(() => publishDraftHarness({ job: draftJob({ intent: 'draft' }), editor }).ctx.runOpenDraftForPublish(), /intent_mismatch/);
+  await assert.rejects(() => publishDraftHarness({ job: draftJob({ publish_attempted_at: 1700000000, status: 'publishing' }), editor }).ctx.runOpenDraftForPublish(), /posting_reconciliation_required/);
+  await assert.rejects(() => publishDraftHarness({ job: draftJob({ caption: 'สั้น' }), editor }).ctx.runOpenDraftForPublish(), /สั้นเกินกว่า/);
+  await assert.rejects(() => publishDraftHarness({ job: draftJob(), pick: { ok: false, count: 0 }, editor }).ctx.runOpenDraftForPublish(), /draft_not_found/);
+  await assert.rejects(() => publishDraftHarness({ job: draftJob(), pick: { ok: false, count: 2 }, editor }).ctx.runOpenDraftForPublish(), /draft_ambiguous/);
+  await assert.rejects(() => publishDraftHarness({ job: draftJob(), editor: { ...editor, caption: 'caption-ของคลิปอื่นทั้งหมด' } }).ctx.runOpenDraftForPublish(), /draft_mismatch/);
+  const noSlot = publishDraftHarness({ job: draftJob(), editor, switched: { success: false, reason: 'schedule_toggle_not_confirmed' } });
+  await assert.rejects(() => noSlot.ctx.runOpenDraftForPublish(), /schedule_not_set/);
+  assert.equal(noSlot.seen.detached, 1, 'the debugger is always detached');
+});
+
+test('open-draft-for-publish never presses Post or Save draft (source scan) and is wired as an action', () => {
+  const bg = fs.readFileSync(path.join(__dirname, 'background.js'), 'utf8');
+  const fn = bg.slice(bg.indexOf('async function runOpenDraftForPublish()'), bg.indexOf('let actionRunning = false;'));
+  assert.doesNotMatch(fn, /post_video_button"\]\)\.click|save_draft_button|\.click\(\);\s*\/\/ post/i);
+  assert.doesNotMatch(fn, /clickPostButton|runClickPostOnly|savePostingReceipt/);
+  assert.match(bg, /'open-draft-for-publish': \(\) => runOpenDraftForPublish\(\)/);
+});
+
+test('publish-from-draft panel wiring: drafts are cards in the main list, ticked and run like any clip', () => {
+  const side = fs.readFileSync(path.join(__dirname, 'sidepanel.js'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, 'sidepanel.html'), 'utf8');
+  assert.doesNotMatch(html, /id="draftPublishPanel"/, 'no separate box any more');
+  assert.match(html, /data-filter="draft"/);
+  assert.match(html, /id="filterCountDraft"/);
+  // draft rows of the queue become clips of the list
+  assert.match(side, /'awaiting_post', 'failed', 'draft_on_platform'\]\.includes\(item\.status\)/);
+  // the card says what it is, lets the slot be changed, and posts live only through its own confirmed run
+  assert.match(side, /แบบร่างอยู่บน TikTok · จะเผยแพร่/);
+  assert.match(side, /btn\.addEventListener\('click', \(\) => startDraftPublish\(item, \{ now: true \}\)\)/);
+  assert.match(side, /เผยแพร่สดทันที ไม่ใช่การตั้งเวลา/);
+  // an unticked whole-queue run never publishes a draft by itself
+  assert.match(side, /matchesQuery: \(c\) => !c\.is_draft && /);
+  // a draft is never part of a draft-only run, and still needs a valid slot otherwise
+  assert.match(side, /draft_in_draft_mode/);
+  assert.match(side, /function blockCodeFor\(/);
+  // a draft is never re-uploaded or re-filled; the worker opens it instead
+  assert.match(side, /if \(clip\?\.publish_draft\) return panelWorkerRequest\(\{ action: 'open-draft-for-publish' \}\)/);
+  assert.match(side, /if \(clip\?\.publish_draft\) return \{ success: true, skipped: 'draft' \}/);
+  assert.match(side, /clip\.publish_draft && clip\.publish_now \? \{ confirm_live: true \}/);
+  const start = side.slice(side.indexOf('async function startDraftPublish('));
+  assert.match(start, /batchStarting = true/);
+  assert.match(start, /runBatchFromPanel\(\{ clips: \[clip\]/);
+});
+
+test('collectContentRows walks a virtualized list: a row far below the first screen is found (post-now rows sit after all scheduled ones)', async () => {
+  const ctx = worker();
+  const nl2 = String.fromCharCode(10);
+  const all = Array.from({length: 40}, (_, i) => ['00:30', `caption-${i}-ของคลิปที่ ${i}`, i === 33 ? 'Nov 10, 8:15 PM' : `Nov ${20 - (i % 9)}, 10:15 AM (GMT+7) Bangkok`, 'Everyone'].join(nl2) + nl2);
+  let top = 0;                                    // first visible row index; the page keeps only 8 rows
+  const send = async (_method, params) => {
+    const expression = String(params.expression);
+    if (/scrollTop/.test(expression)) {
+      if (top >= all.length - 8) return {result: {value: 0}};
+      top = Math.min(all.length - 8, top + 6);
+      return {result: {value: 500}};
+    }
+    return {result: {value: 'Posts 227' + nl2 + all.slice(top, top + 8).join('')}};
+  };
+  const noMatch = await ctx.collectContentRows(send, {});
+  assert.equal(noMatch.rows.length, 40, 'every row was collected exactly once');
+  top = 0;
+  const hit = await ctx.collectContentRows(send, {match: (row) => row.includes('caption-33-')});
+  assert.ok(hit.found && hit.found.includes('Nov 10, 8:15 PM'));
+  assert.ok(hit.rows.length < 40, 'it stops as soon as the row is found');
+  top = 0;
+  const bounded = await ctx.collectContentRows(send, {maxSteps: 2});
+  assert.ok(bounded.rows.length <= 20, 'the scan is bounded');
+});
+
+test('draft card layout: caption, then date | time in two equal columns, time styled like date, full-width action', () => {
+  const html = fs.readFileSync(path.join(__dirname, 'sidepanel.html'), 'utf8');
+  const side = fs.readFileSync(path.join(__dirname, 'sidepanel.js'), 'utf8');
+  assert.match(html, /\.draft-slot-controls \{ display: grid; grid-template-columns: 1fr 1fr;/);
+  assert.match(html, /\.draft-slot-label \{ grid-column: 1 \/ -1;/);
+  assert.match(html, /input\[type="date"\], input\[type="time"\], select \{/, 'the time box shares the field style of the date box');
+  assert.match(html, /\.draft-slot-controls input \{[^}]*height: 40px/, 'touch-friendly field height');
+  assert.match(side, /label\.className = 'draft-slot-label'/);
+  assert.match(side, /btn\.className = 'btn-primary draft-now'/);
+});
+
+test('overdue clips: filter chip, one bulk button with a preview dialog, and the slot editor persists to the queue', () => {
+  const side = fs.readFileSync(path.join(__dirname, 'sidepanel.js'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, 'sidepanel.html'), 'utf8');
+  assert.match(html, /data-filter="overdue"/);
+  assert.match(html, /id="filterCountOverdue"/);
+  assert.match(html, /id="rescheduleOverdueBtn"/);
+  assert.match(side, /currentStatusFilter === 'overdue'/);
+  // bulk: preview first (nothing written), explicit confirmation, then commit; drafts are not touched
+  const bulk = side.slice(side.indexOf("rescheduleOverdueBtn?.addEventListener('click'"));
+  assert.ok(bulk.indexOf('reschedule-overdue/preview') > 0 && bulk.indexOf('reschedule-overdue/preview') < bulk.indexOf('askConfirm('));
+  assert.ok(bulk.indexOf('askConfirm(') < bulk.indexOf('/api/schedule-queue/reschedule-overdue`'));
+  assert.match(bulk, /แบบร่างไม่ถูกแตะ/);
+  // the draft card's time fields save to the scheduler's row (one source of truth) instead of only changing the card
+  assert.match(side, /method: 'PATCH'[\s\S]{0,200}scheduled_at: `\$\{dateIn\.value\}T\$\{timeIn\.value\}:00\+07:00`/);
+  assert.match(side, /timeIn\.step = 300/);
+});
+
+// ---- check against TikTok ----
+function syncHarness({ draftTexts, contentRows, pageSize = 8 }) {
+  const ctx = worker();
+  const nl2 = String.fromCharCode(10);
+  let url = '';
+  let top = 0;
+  const state = { navigated: [], detached: 0 };
+  ctx.findUploadTab = async () => ({ id: 7, url: 'https://www.tiktok.com/tiktokstudio/upload' });
+  ctx.navigateAcceptingLeave = async (_id, to) => { url = to; top = 0; state.navigated.push(to); };
+  ctx.sleep = async () => {};
+  ctx.chrome.debugger = {
+    attach: async () => {}, detach: async () => { state.detached += 1; },
+    sendCommand: async (_t, method, params) => {
+      if (method !== 'Runtime.evaluate') return {};
+      const expression = String(params.expression);
+      const onDrafts = /tab=draft/.test(url);
+      const list = onDrafts ? draftTexts : contentRows;
+      if (/scrollTop/.test(expression)) {
+        if (top >= Math.max(0, list.length - pageSize)) return {result: {value: 0}};
+        top = Math.min(list.length - pageSize, top + 6);
+        return {result: {value: 500}};
+      }
+      if (/components_DraftRowLayout_FlexRow/.test(expression)) return {result: {value: ['Drafts' + nl2 + 'Last update' + nl2 + 'Actions', ...list.slice(top, top + pageSize)]}};
+      return {result: {value: 'Posts 227' + nl2 + list.slice(top, top + pageSize).join('')}};
+    },
+  };
+  return { ctx, state };
+}
+const nlc = String.fromCharCode(10);
+const draftRow = (caption) => ['00:30', caption, '10 Nov 2026 3:12 PM'].join(nlc);
+const contentRow = (caption, badge) => ['00:30', caption, badge, 'Everyone'].join(nlc) + nlc;
+
+test('sync-drafts: still on Drafts = ok; gone from Drafts + same caption in Content = posted outside; gone everywhere = deleted', async () => {
+  const keep = 'แบบร่างที่ยังอยู่ครบ ตัวอย่างหนึ่ง';
+  const posted = 'คลิปที่โพสต์เองบน TikTok ไปแล้ว';
+  const gone = 'คลิปที่ถูกลบทิ้งจาก TikTok ไปแล้ว';
+  const { ctx, state } = syncHarness({
+    draftTexts: [draftRow(keep)],
+    contentRows: [...Array.from({ length: 20 }, (_, i) => contentRow(`โพสต์อื่นลำดับที่ ${i}`, `Nov ${20 - (i % 9)}, 10:15 AM`)), contentRow(posted, 'Nov 10, 8:15 PM')],
+  });
+  const reply = await ctx.runSyncDraftsWithTikTok({
+    drafts: [{ id: 'k', caption: keep }, { id: 'p', caption: posted }, { id: 'g', caption: gone }],
+    cutoffMs: Date.UTC(2026, 0, 1),
+  });
+  const by = Object.fromEntries(reply.results.map((r) => [r.id, r]));
+  assert.equal(by.k.state, 'ok');
+  assert.equal(by.p.state, 'posted_outside');
+  assert.match(by.p.matchRow, /Nov 10, 8:15 PM/);          // the evidence shown to the operator
+  assert.equal(by.g.state, 'deleted');                      // the whole list was read: it is really gone
+  assert.equal(reply.scan.draftRows, 1);
+  assert.ok(reply.scan.contentRows >= 21, 'the whole virtualized Content list was read');
+  assert.equal(state.navigated[state.navigated.length - 1], 'https://www.tiktok.com/tiktokstudio/upload');   // always back to the upload page
+});
+
+test('sync-drafts: a present draft with a same-caption Content row is flagged as duplicate risk; a cut-short scan never says deleted', async () => {
+  const cap = 'แบบร่างที่มีโพสต์ซ้ำอยู่แล้วใน Content';
+  const dup = syncHarness({ draftTexts: [draftRow(cap)], contentRows: [contentRow(cap, 'Nov 12, 9:00 AM')] });
+  const r1 = await dup.ctx.runSyncDraftsWithTikTok({ drafts: [{ id: 'd', caption: cap }], cutoffMs: 0 });
+  assert.equal(r1.results[0].state, 'duplicate_risk');
+  // a list longer than the step cap: no match proves nothing
+  const long = syncHarness({ draftTexts: [], contentRows: Array.from({ length: 700 }, (_, i) => contentRow(`โพสต์อื่นหมายเลข ${i} ไม่เกี่ยว`, 'Nov 1, 9:00 AM')) });
+  const r2 = await long.ctx.runSyncDraftsWithTikTok({ drafts: [{ id: 'x', caption: 'คลิปที่ไม่มีอยู่จริงสักที่เลย' }], cutoffMs: 0 });
+  assert.equal(r2.results[0].state, 'unknown');
+  assert.notEqual(r2.scan.stoppedBy, 'end');
+});
+
+test('sync-drafts: the Content read stops at the look-back cutoff (5 old rows in a row), and a too-short caption is refused', async () => {
+  const cap = 'ตัวอย่างที่อยู่บนสุดของรายการ';
+  const nowish = Date.now();
+  const fmt = (ms) => new Date(ms).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const recent = Array.from({ length: 6 }, (_, i) => contentRow(`โพสต์ล่าสุดข้อ ${i} ตัวอย่าง`, fmt(nowish - (i + 1) * 3600e3)));
+  const old = Array.from({ length: 60 }, (_, i) => contentRow(`โพสต์เก่ามากข้อ ${i} ตัวอย่าง`, 'Jan 3, 9:00 AM'));
+  const { ctx } = syncHarness({ draftTexts: [draftRow(cap)], contentRows: [...recent, ...old] });
+  const reply = await ctx.runSyncDraftsWithTikTok({ drafts: [{ id: 'a', caption: cap }], cutoffMs: nowish - 2 * 86400e3 });
+  assert.ok(reply.scan.contentRows < 66, 'it did not read the 60 old rows');
+  assert.equal(reply.scan.stoppedBy, 'cutoff');
+  const refused = await ctx.runSyncDraftsWithTikTok({ drafts: [{ id: 's', caption: 'สั้น' }], cutoffMs: 0 });
+  assert.equal(refused.success, false);
+});
+
+test('check-against-TikTok panel wiring: button, blocking verdicts, per-card fixes, automatic check before a run with drafts', () => {
+  const side = fs.readFileSync(path.join(__dirname, 'sidepanel.js'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, 'sidepanel.html'), 'utf8');
+  assert.match(html, /id="batchSyncBtn"/);
+  assert.match(html, /<script src="draft_sync\.js"><\/script>/);
+  assert.match(side, /draft_out_of_sync/);
+  assert.match(side, /resolve-draft/);
+  assert.match(side, /reply = await panelWorkerRequest\(\{ action: 'sync-drafts-with-tiktok'/);
+  // before the confirm dialog of a run that contains drafts, the drafts are checked and a stuck one stops the run
+  const run = side.slice(side.indexOf('async function runBatchFromPanel('));
+  assert.ok(run.indexOf('syncDraftsWithTikTok(draftsInRun)') > 0 && run.indexOf('syncDraftsWithTikTok(draftsInRun)') < run.indexOf('askConfirm('));
+  assert.match(run, /ไม่เริ่มรัน: แบบร่างที่ติ๊กไม่ตรงกับ TikTok/);
+  const bg = fs.readFileSync(path.join(__dirname, 'background.js'), 'utf8');
+  assert.match(bg, /'sync-drafts-with-tiktok': message => runSyncDraftsWithTikTok\(message\)/);
+  // read-only: the check never presses a button of the page
+  const fn = bg.slice(bg.indexOf('async function runSyncDraftsWithTikTok('), bg.indexOf('let actionRunning = false;'));
+  assert.doesNotMatch(fn, /\.click\(\)|post_video_button|save_draft_button/);
+});
+
+test('sync-drafts: the EP tag decides which row is this draft when it is visible (two drafts with the same caption start)', async () => {
+  const sameStart = 'สรุปจุดเด่นพัดลมแม่เหล็กรุ่นนี้ ดูก่อนตัดสินใจ';
+  const { ctx } = syncHarness({
+    draftTexts: [draftRow(`${sameStart} #EP1731`)],
+    contentRows: [contentRow(`${sameStart} #EP1732`, 'Nov 12, 9:00 AM')],
+  });
+  const reply = await ctx.runSyncDraftsWithTikTok({
+    drafts: [{ id: 'a', caption: sameStart, episode_no: 1731 }, { id: 'b', caption: sameStart, episode_no: 1732 }],
+    cutoffMs: 0,
+  });
+  const by = Object.fromEntries(reply.results.map((r) => [r.id, r.state]));
+  assert.equal(by.a, 'ok');              // EP1731 is still a draft and its tag is not in Content: NOT confused with EP1732
+  assert.equal(by.b, 'posted_outside');  // EP1732 left Drafts and is in Content
+});
+
+test('EP number is shown on the card and in every log title, and travels to the checks', () => {
+  const side = fs.readFileSync(path.join(__dirname, 'sidepanel.js'), 'utf8');
+  const orch = fs.readFileSync(path.join(__dirname, 'batch_orchestrator.js'), 'utf8');
+  assert.match(side, /card-episode">EP:\$\{escapeHtml\(String\(item\.episode_no\)\)\}/);
+  assert.match(side, /episode_no: c\.episode_no \|\| null/);       // sync payload
+  assert.match(side, /episodeNo: clip\.episode_no \|\| null/);     // verify payload
+  assert.match(orch, /EP\$\{clip\.episode_no\} · /);
+  const bg = fs.readFileSync(path.join(__dirname, 'background.js'), 'utf8');
+  assert.match(bg, /episode_no: job\.episode_no \|\| null/);       // reconcile
 });

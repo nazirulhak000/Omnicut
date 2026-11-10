@@ -1,5 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const guard = require('./post_guard.js');
 const { PRICE_RE, rowMatchesClip, clipSkipReason, clipCaptionText } = require('./post_guard.js');
 
 const NOW = new Date('2026-11-09T12:00:00').getTime();
@@ -55,4 +56,77 @@ test('clipSkipReason: a draft-only run ignores the publish slot, nothing else', 
   assert.equal(clipSkipReason({ ...past, tiktok_caption: 'ลดราคาวันนี้' }, rec, NOW2, { ignoreSlot: true }), 'price_in_caption');
   assert.equal(clipSkipReason(past, undefined, NOW2, { ignoreSlot: true }), 'export_missing');
   assert.equal(clipSkipReason({ ...past, tiktok_caption: 'ใช้ {product_name}' }, rec, NOW2, { ignoreSlot: true }), 'placeholder_in_caption');
+});
+
+test('R1: a clip with no publish time is blocked in scheduled runs (it would be posted LIVE) but fine as a draft', () => {
+  const NOW3 = Date.parse('2026-11-10T04:30:00Z');
+  const rec = { id: 'exp-1' };
+  const unscheduled = { export_id: 'exp-1', tiktok_caption: 'ใช้จริงดีมาก', tiktok_hashtags: '#a' };
+  assert.equal(clipSkipReason(unscheduled, rec, NOW3, { requireSchedule: true }), 'no_schedule');
+  assert.equal(clipSkipReason(unscheduled, rec, NOW3, { requireSchedule: true, ignoreSlot: true }), 'no_schedule');
+  assert.equal(clipSkipReason(unscheduled, rec, NOW3, { requireSchedule: false, ignoreSlot: true }), '');
+  const scheduled = { ...unscheduled, schedule_date: '2026-11-12', schedule_time: '09:00' };
+  assert.equal(clipSkipReason(scheduled, rec, NOW3, { requireSchedule: true }), '');
+  // only one half of a schedule is not a schedule
+  assert.equal(clipSkipReason({ ...unscheduled, schedule_time: '09:00' }, rec, NOW3, { requireSchedule: true }), 'no_schedule');
+  assert.equal(clipSkipReason({ ...unscheduled, schedule_date: '2026-11-12' }, rec, NOW3, { requireSchedule: true }), 'no_schedule');
+});
+
+test('R1: rowMatchesClip needs the day next to a month name; views/likes equal to the day are not a date', () => {
+  const { rowMatchesClip } = require('./post_guard.js');
+  const NL = String.fromCharCode(10);
+  const clip = { caption: 'ใช้จริงมาแล้วสามเดือนเต็ม พัดลม', schedule_date: '2026-11-10', schedule_time: '18:00' };
+  const row = (badge, ...stats) => ['00:28', 'ใช้จริงมาแล้วสามเดือนเต็ม พัดลมตัวนี้', badge, 'Everyone', ...stats].join(NL);
+  assert.equal(rowMatchesClip(row('Nov 10, 6:00 PM (GMT+7) Bangkok'), clip).ok, true);
+  assert.equal(rowMatchesClip(row('10 พ.ย. 6:00 PM'), clip).ok, true);
+  assert.equal(rowMatchesClip(row('10 พ.ย. 18:00'), clip).ok, true);
+  assert.equal(rowMatchesClip(row('Nov 11, 6:00 PM', '10', '10', '10'), clip).reason, 'schedule_badge_mismatch'); // 10 views, wrong day
+  assert.equal(rowMatchesClip(row('Nov 12, 6:00 PM', '0', '10', '0'), clip).ok, false);
+  assert.equal(rowMatchesClip(row('Nov 10, 9:00 AM'), clip).ok, false);   // right day, wrong time
+  assert.equal(rowMatchesClip(row('Nov 100, 6:00 PM'), clip).ok, false);  // 100 is not 10
+});
+
+test('contentReason matches the shared cases used by the Python guard (parity)', () => {
+  const cases = JSON.parse(require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'tests', 'fixtures', 'content_guard_cases.json'), 'utf8'));
+  const wrong = cases.filter(c => guard.contentReason(c.caption, c.hashtags) !== c.reason).map(c => `${JSON.stringify(c.caption.slice(0, 20))} want ${c.reason || 'ok'} got ${guard.contentReason(c.caption, c.hashtags) || 'ok'}`);
+  assert.deepEqual(wrong, []);
+});
+
+test('clipSkipReason uses the shared content rules and allowPriceCaption lifts only the price rule', () => {
+  assert.equal(guard.clipSkipReason({caption: 'ร​าคา ๑๙๙ บาท'}, undefined, Date.now(), {exportsKnown: false}), 'price_in_caption');
+  assert.equal(guard.clipSkipReason({caption: 'ราคา ๑๙๙ บาท'}, undefined, Date.now(), {exportsKnown: false, allowPriceCaption: true}), '');
+  assert.equal(guard.clipSkipReason({caption: 'ก'.repeat(4001)}, undefined, Date.now(), {exportsKnown: false}), 'caption_too_long');
+});
+
+test('R5 one set of limits: the guard and the orchestrator use limits.js, not their own copies', () => {
+  const limits = require('./limits.js');
+  assert.equal(guard.MAX_TEXT_CHARS, limits.MAX_TEXT_CHARS);
+  assert.equal(guard.MAX_HASHTAGS, limits.MAX_HASHTAGS);
+  assert.equal(guard.MIN_LEAD_MS, limits.MIN_LEAD_MS);
+  assert.ok(Object.isFrozen(limits));
+  assert.equal(limits.SCHEDULE_CAP, 30);
+  assert.equal(limits.DRAFT_CAP, 30);
+});
+
+test('EP tag: same number matches even when the caption is cut short, another number never matches, no tag falls back to the caption key', () => {
+  const clip = { caption: 'สรุปจุดเด่นพัดลมแม่เหล็ก ดูก่อนตัดสินใจ', episode_no: 1731 };
+  const nl = String.fromCharCode(10);
+  const row = (caption) => ['00:30', caption, 'Nov 22, 10:00 AM (GMT+7) Bangkok', 'Everyone'].join(nl);
+  assert.equal(guard.episodeMatch('x #EP1731 y', 1731), 'match');
+  assert.equal(guard.episodeMatch('x #ep01731', 1731), 'match');
+  assert.equal(guard.episodeMatch('x #EP1700', 1731), 'other');
+  assert.equal(guard.episodeMatch('x #EP17310', 1731), 'other');         // a longer number is another number
+  assert.equal(guard.episodeMatch('no tag here', 1731), 'none');
+  assert.equal(guard.episodeMatch('x #EP1731', null), 'none');
+  // the tag decides: a truncated caption with the right tag matches, a full caption with another clip's tag does not
+  assert.equal(guard.rowMatchesClip(row('ข้อความอื่นที่ถูกตัดสั้น... #EP1731'), clip).ok, true);
+  assert.equal(guard.rowMatchesClip(row(`${clip.caption} #EP1700`), clip).ok, false);
+  // no visible tag (legacy post / long caption cut): the caption key, as before; a clip without an EP number is unchanged
+  assert.equal(guard.rowMatchesClip(row(clip.caption), clip).ok, true);
+  assert.equal(guard.rowMatchesClip(row('คนละคลิปเลย'), clip).ok, false);
+  assert.equal(guard.rowMatchesClip(row(clip.caption), { caption: clip.caption }).ok, true);
+  // the slot check still applies on top of the tag
+  const sched = { ...clip, schedule_date: '2026-11-22', schedule_time: '10:00' };
+  assert.equal(guard.rowMatchesClip(row('cut... #EP1731'), sched).ok, true);
+  assert.equal(guard.rowMatchesClip(row('cut... #EP1731'), { ...sched, schedule_time: '11:00' }).reason, 'schedule_badge_mismatch');
 });

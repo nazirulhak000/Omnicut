@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Sparkles, Send, Bot, User, CheckCircle2, Film, Clapperboard,
   RefreshCw, Play, ExternalLink, ChevronRight, Layers, MessageSquare,
-  Wand2, ArrowRight, Loader2, Volume2, ShieldCheck, ShoppingCart
+  Wand2, ArrowRight, Loader2, Volume2, ShieldCheck, ShoppingCart,
+  AlertCircle, X, WifiOff
 } from 'lucide-react';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
@@ -37,36 +38,43 @@ export default function AICoPilotChat({
   const [isBuildingDraft, setIsBuildingDraft] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState('couple_paper_chat');
   const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'script' | 'draft'
+  const [initError, setInitError] = useState(null);
+  const [actionError, setActionError] = useState(null);
 
   const chatEndRef = useRef(null);
+
+  const initSession = useCallback(async () => {
+    if (!product?.id) return;
+    setIsLoadingSession(true);
+    setInitError(null);
+    setActionError(null);
+
+    try {
+      const data = await createCopilotSession(product.id, 'เริ่มวางแผนคลิปวิดีโอ TikTok');
+      if (data && data.success) {
+        setSession(data.session);
+      } else {
+        setInitError(data?.error || 'ไม่สามารถเปิดเซสชัน AI Co-Pilot ได้');
+      }
+    } catch (err) {
+      console.error('Failed to init copilot session:', err);
+      setInitError(err.friendlyMessage || err.message || 'ไม่สามารถเชื่อมต่อระบบ AI Co-Pilot (ระบบออฟไลน์หรือเซิร์ฟเวอร์ยังไม่พร้อม)');
+    } finally {
+      setIsLoadingSession(false);
+    }
+  }, [product?.id]);
 
   // Initialize or load session when modal opens
   useEffect(() => {
     if (!isOpen || !product?.id) {
       setSession(null);
+      setInitError(null);
+      setActionError(null);
       return;
     }
 
-    let isMounted = true;
-    setIsLoadingSession(true);
-
-    createCopilotSession(product.id, 'เริ่มวางแผนคลิปวิดีโอ TikTok')
-      .then((data) => {
-        if (isMounted && data.success) {
-          setSession(data.session);
-        }
-      })
-      .catch((err) => {
-        console.error('Failed to init copilot session:', err);
-      })
-      .finally(() => {
-        if (isMounted) setIsLoadingSession(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [isOpen, product?.id]);
+    initSession();
+  }, [isOpen, product?.id, initSession]);
 
   // Scroll to bottom when messages update
   useEffect(() => {
@@ -81,14 +89,18 @@ export default function AICoPilotChat({
 
     setInputMessage('');
     setIsSendingMessage(true);
+    setActionError(null);
 
     try {
       const res = await sendCopilotChatMessage(session.session_id, text);
       if (res.success && res.session) {
         setSession(res.session);
+      } else {
+        setActionError(res?.error || 'ส่งข้อความไม่สำเร็จ');
       }
     } catch (err) {
       console.error('Failed to send message:', err);
+      setActionError(err.friendlyMessage || err.message || 'ส่งข้อความไม่สำเร็จ (ระบบขัดข้องชั่วคราว)');
     } finally {
       setIsSendingMessage(false);
     }
@@ -97,15 +109,19 @@ export default function AICoPilotChat({
   const handleGenerateScript = useCallback(async () => {
     if (!session?.session_id || isGeneratingScript) return;
     setIsGeneratingScript(true);
+    setActionError(null);
 
     try {
       const res = await generateCopilotScript(session.session_id, selectedStyle);
       if (res.success && res.session) {
         setSession(res.session);
         setActiveTab('script');
+      } else {
+        setActionError(res?.error || 'สร้างสคริปต์ไม่สำเร็จ');
       }
     } catch (err) {
       console.error('Failed to generate script:', err);
+      setActionError(err.friendlyMessage || err.message || 'สร้างสคริปต์ไม่สำเร็จ');
     } finally {
       setIsGeneratingScript(false);
     }
@@ -114,6 +130,7 @@ export default function AICoPilotChat({
   const handleBuildDraft = useCallback(async () => {
     if (!session?.session_id || isBuildingDraft) return;
     setIsBuildingDraft(true);
+    setActionError(null);
 
     try {
       const res = await buildCopilotDraft(session.session_id, null, false);
@@ -123,9 +140,12 @@ export default function AICoPilotChat({
         if (onDraftCreated) {
           onDraftCreated(res.session.draft_info);
         }
+      } else {
+        setActionError(res?.error || 'สร้างดราฟต์ไม่สำเร็จ');
       }
     } catch (err) {
       console.error('Failed to build draft:', err);
+      setActionError(err.friendlyMessage || err.message || 'สร้างดราฟต์ไม่สำเร็จ');
     } finally {
       setIsBuildingDraft(false);
     }
@@ -237,11 +257,51 @@ export default function AICoPilotChat({
               <Loader2 className="w-7 h-7 animate-spin text-emerald-400" />
               <span className="text-sm">กำลังเชื่อมต่อ AI Production Co-Pilot...</span>
             </div>
+          ) : initError || !session ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-3.5 bg-[#0A0D14]">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shadow-sm">
+                <WifiOff className="w-6 h-6" />
+              </div>
+              <div className="max-w-md space-y-1">
+                <h3 className="text-sm font-bold text-white">ไม่สามารถเปิดเซสชัน AI Production Co-Pilot</h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  {initError || 'ระบบตรวจพบการขาดการเชื่อมต่อ หรือเซิร์ฟเวอร์ยังไม่พร้อมให้บริการในขณะนี้'}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 pt-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={initSession}
+                  icon={RefreshCw}
+                >
+                  ลองเชื่อมต่อใหม่
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onClose}
+                >
+                  ปิดหน้าต่าง
+                </Button>
+              </div>
+            </div>
           ) : (
             <>
               {/* Tab 1: Interactive Chat */}
               {activeTab === 'chat' && (
                 <div className="flex-1 flex flex-col min-w-0">
+                  {actionError && (
+                    <div className="mx-4 mt-3 p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-400" />
+                        <span>{actionError}</span>
+                      </div>
+                      <button onClick={() => setActionError(null)} className="p-1 hover:text-white cursor-pointer">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
                   {/* Messages Scroll Area */}
                   <div className="flex-1 overflow-y-auto p-4 space-y-4">
                     {session?.messages?.map((m, idx) => (

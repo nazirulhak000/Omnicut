@@ -4,6 +4,9 @@ import { readFileSync } from 'node:fs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const ptcSource = read('../components/ProductToClip.jsx');
+const mediaPickerSource = read('../components/MediaPickerModal.jsx');
+const hookModalSource = read('../components/HookVariationModal.jsx');
+const copilotSource = read('../components/AICoPilotChat.jsx');
 
 test('ProductToClip buttons strictly comply with Rule 3.8/4.8 (no + prefix and no emojis in button spans)', () => {
   const buttons = ptcSource.match(/<button[\s\S]*?<\/button>/g) || [];
@@ -85,5 +88,65 @@ test('ProductToClip Phase 05: adheres to Obsidian Pro Dark tokens and product hi
   assert.ok(
     !ptcSource.includes('animate-ping'),
     'PhaseDots must avoid distracting pulsing animation'
+  );
+});
+
+test('FlowStudio & MediaPickerModal strictly adhere to 9:16 aspect ratio, Obsidian dark tokens and tabular-nums', () => {
+  assert.ok(
+    mediaPickerSource.includes('aspect-[9/16]'),
+    'MediaPickerModal video previews must enforce strict 9:16 aspect ratio'
+  );
+  assert.ok(
+    mediaPickerSource.includes('bg-[#0A0D14]'),
+    'MediaPickerModal must use Obsidian Pro Dark surface token (#0A0D14)'
+  );
+  assert.ok(
+    mediaPickerSource.includes('tabular-nums'),
+    'MediaPickerModal must use tabular-nums on file count, upload progress, and size badges'
+  );
+  assert.ok(
+    !mediaPickerSource.includes('animate-ping'),
+    'MediaPickerModal must not contain animate-ping'
+  );
+});
+
+test('HookVariationModal adheres to Obsidian dark tokens, 9:16 preview parity, and button hygiene', () => {
+  assert.ok(
+    hookModalSource.includes('aspect-[9/16]'),
+    'HookVariationModal mock preview must use aspect-[9/16]'
+  );
+  assert.ok(
+    hookModalSource.includes('bg-[#0A0D14]'),
+    'HookVariationModal must use Obsidian Pro Dark token (#0A0D14)'
+  );
+  assert.ok(
+    !hookModalSource.includes('from-[#25F4EE] to-cyan-400'),
+    'HookVariationModal action button must use clean solid color without harsh gradient'
+  );
+  assert.ok(
+    hookModalSource.includes('tabular-nums'),
+    'HookVariationModal must format angle numbers and safe zones with tabular-nums'
+  );
+});
+
+test('AICoPilotChat provides robust offline fallback degradation and non-blocking error handling', () => {
+  assert.ok(
+    copilotSource.includes('initError') && copilotSource.includes('WifiOff'),
+    'AICoPilotChat must render offline fallback screen with WifiOff icon when session init fails'
+  );
+  assert.ok(
+    copilotSource.includes('actionError') && copilotSource.includes('AlertCircle'),
+    'AICoPilotChat must render non-blocking dismissible error banner for action failures'
+  );
+});
+
+test('ProductToClip enforces tabular-nums across progress counters, angle indices, and badges', () => {
+  assert.ok(
+    ptcSource.includes('font-mono tabular-nums'),
+    'ProductToClip must use font-mono tabular-nums for numeric alignment'
+  );
+  assert.ok(
+    !ptcSource.includes('เปิดอัปเกรดเสียง →'),
+    'Buttons must not include raw arrow characters in Thai text'
   );
 });

@@ -259,7 +259,7 @@ function ProductCard({ product, isSelected, onSelect, onDoubleClick, onToggleHid
       <div className="flex-1 flex flex-col justify-start min-w-0 space-y-1 mb-2">
         <div className="h-[18px] flex items-center">
           {productCode ? (
-            <span className={`inline-flex items-center text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border leading-none ${
+            <span className={`inline-flex items-center text-[10px] font-mono font-bold tabular-nums px-1.5 py-0.5 rounded border leading-none ${
               isSelected
                 ? 'bg-[#25F4EE]/15 text-[#25F4EE] border-[#25F4EE]/30'
                 : 'bg-white/[0.04] text-slate-300 border-white/[0.08]'
@@ -267,7 +267,7 @@ function ProductCard({ product, isSelected, onSelect, onDoubleClick, onToggleHid
               {productCode}
             </span>
           ) : (
-            <span className="text-[10px] font-mono text-transparent select-none leading-none px-1.5 py-0.5">
+            <span className="text-[10px] font-mono tabular-nums text-transparent select-none leading-none px-1.5 py-0.5">
               -
             </span>
           )}
@@ -290,7 +290,7 @@ function ProductCard({ product, isSelected, onSelect, onDoubleClick, onToggleHid
             style={{ width: `${pct}%` }}
           />
         </div>
-        <span className={`text-[11px] font-mono font-bold flex-shrink-0 ${isSelected ? 'text-[#25F4EE]' : pct === 100 ? 'text-emerald-400' : 'text-slate-400'}`}>
+        <span className={`text-[11px] font-mono font-bold tabular-nums flex-shrink-0 ${isSelected ? 'text-[#25F4EE]' : pct === 100 ? 'text-emerald-400' : 'text-slate-400'}`}>
           {pDone}/{total}
         </span>
       </div>
@@ -421,12 +421,12 @@ function AngleSidebarItem({
     >
       {/* Active Indicator Bar on left edge */}
       {isSelected && (
-        <div className="absolute left-0 top-2 bottom-2 w-1 bg-[#25F4EE] rounded-r-full shadow-sm shadow-[#25F4EE]" />
+        <div className="absolute left-0 top-2 bottom-2 w-1 bg-[#25F4EE] rounded-r-full shadow-xs" />
       )}
 
       <div className="flex items-start gap-2.5">
         {/* Number Badge */}
-        <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5 ${
+        <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold font-mono tabular-nums flex-shrink-0 mt-0.5 ${
           isSelected
             ? 'bg-[#25F4EE] text-slate-950 font-bold shadow-sm'
             : 'bg-white/[0.05] text-slate-400 border border-white/[0.08]'
@@ -523,7 +523,7 @@ function AngleSidebarItem({
             {/* angle_id chip — ยืนยันว่า ID ไม่ซ้ำ */}
             {angle.angle_id && (
               <span
-                className="inline-flex items-center gap-1 text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-[#25F4EE]/10 text-[#25F4EE]/80 border border-[#25F4EE]/20"
+                className="inline-flex items-center gap-1 text-[9px] font-mono font-bold tabular-nums px-1.5 py-0.5 rounded-md bg-[#25F4EE]/10 text-[#25F4EE]/80 border border-[#25F4EE]/20"
                 title={`angle_id = ${angle.angle_id} (batch ${angle.batch || 1})`}
               >
                 <Tag className="w-2 h-2 flex-shrink-0" />
@@ -548,7 +548,7 @@ function AngleSidebarItem({
               {selectedVideos.length > 0 ? (
                 <span className="inline-flex items-center gap-1 text-[#25F4EE] font-medium">
                   <Film className="w-2.5 h-2.5" />
-                  <span>{selectedVideos.length} คลิป</span>
+                  <span><strong className="font-mono tabular-nums">{selectedVideos.length}</strong> คลิป</span>
                 </span>
               ) : (
                 <span className="text-slate-500 italic">ยังไม่ได้เลือกคลิป</span>
@@ -608,11 +608,11 @@ function AngleMobilePill({ angle, index, isSelected, onSelect, shotListInfo }) {
       }}
       className={`w-full min-h-[50px] px-3.5 py-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/60 ${
         isSelected
-          ? 'bg-[#25F4EE]/15 border-[#25F4EE] shadow-md shadow-[#25F4EE]/20 ring-1 ring-[#25F4EE]/40'
+          ? 'bg-[#25F4EE]/15 border-[#25F4EE] shadow-md shadow-cyan-950/30 ring-1 ring-[#25F4EE]/40'
           : 'bg-[#0A0D14] border-white/[0.08] hover:border-white/[0.16] text-slate-300'
       }`}
     >
-      <span className={`w-5 h-5 rounded-lg flex items-center justify-center text-[11px] font-bold flex-shrink-0 ${
+      <span className={`w-5 h-5 rounded-lg flex items-center justify-center text-[11px] font-bold font-mono tabular-nums flex-shrink-0 ${
         isSelected
           ? 'bg-[#25F4EE] text-slate-950 font-bold shadow-sm'
           : 'bg-white/[0.08] text-slate-400'
@@ -645,7 +645,7 @@ function AngleMobilePill({ angle, index, isSelected, onSelect, shotListInfo }) {
         </div>
         <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5">
           {selectedVideos.length > 0 ? (
-            <span className="text-[#25F4EE] font-medium">{selectedVideos.length} คลิป</span>
+            <span className="text-[#25F4EE] font-medium"><strong className="font-mono tabular-nums">{selectedVideos.length}</strong> คลิป</span>
           ) : (
             <span className="text-slate-500">ไม่มีคลิป</span>
           )}
@@ -763,7 +763,7 @@ function AngleActiveWorkbench({
       {/* 1. Header Bar */}
       <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-2.5 pb-3 border-b border-white/[0.08]">
         <div className="flex items-center gap-2 min-w-0">
-          <span className={`w-6 h-6 sm:w-7 sm:h-7 rounded-xl font-bold text-xs flex items-center justify-center shadow-sm flex-shrink-0 ${
+          <span className={`w-6 h-6 sm:w-7 sm:h-7 rounded-xl font-bold font-mono tabular-nums text-xs flex items-center justify-center shadow-sm flex-shrink-0 ${
             isLocked
               ? 'bg-slate-800 text-slate-400 border border-white/[0.08]'
               : 'bg-[#25F4EE] text-slate-950 font-bold'
@@ -781,7 +781,7 @@ function AngleActiveWorkbench({
           {/* angle_id chip — ยืนยันว่า ID ไม่ซ้ำ */}
           {angle.angle_id && (
             <span
-              className="hidden sm:inline-flex items-center gap-1 text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-[#25F4EE]/10 text-[#25F4EE]/70 border border-[#25F4EE]/20 flex-shrink-0"
+              className="hidden sm:inline-flex items-center gap-1 text-[10px] font-mono font-bold tabular-nums px-2 py-0.5 rounded-md bg-[#25F4EE]/10 text-[#25F4EE]/70 border border-[#25F4EE]/20 flex-shrink-0"
               title={`angle_id ที่ไม่ซ้ำกัน: ${angle.angle_id} (batch ${angle.batch || 1})`}
             >
               <Tag className="w-2.5 h-2.5" />
@@ -795,7 +795,7 @@ function AngleActiveWorkbench({
           <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
             <span className="text-[10px] text-slate-500">โปรเจกต์ในไทม์ไลน์:</span>
             <span
-              className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 border border-indigo-500/25 font-mono"
+              className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 border border-indigo-500/25 font-mono tabular-nums"
               title={`โปรเจกต์ CapCut: ${angle.project_name}`}
             >
               <FolderOpen className="w-3 h-3" />
@@ -1132,9 +1132,10 @@ function AngleActiveWorkbench({
             <button
               type="button"
               onClick={() => onGenerateShotList && onGenerateShotList(index)}
-              className="self-end sm:self-auto px-3 py-1 rounded-lg bg-amber-500/25 hover:bg-amber-500/40 border border-amber-400/50 text-amber-200 hover:text-white text-xs font-bold transition-all cursor-pointer flex-shrink-0 shadow-xs"
+              className="self-end sm:self-auto px-3 py-1 rounded-lg bg-amber-500/25 hover:bg-amber-500/40 border border-amber-400/50 text-amber-200 hover:text-white text-xs font-bold transition-all cursor-pointer flex-shrink-0 shadow-xs inline-flex items-center gap-1.5"
             >
-              เปิดอัปเกรดเสียง →
+              <span>เปิดอัปเกรดเสียง</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         ) : shotListInfo?.has_shot_list ? (
@@ -1172,10 +1173,10 @@ function AngleActiveWorkbench({
                   type="button"
                   onClick={() => onGenerateShotList && onGenerateShotList(index)}
                   disabled={isGeneratingShotList}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-xs font-bold transition-all cursor-pointer flex-shrink-0 disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-xs font-bold transition-all cursor-pointer flex-shrink-0 disabled:opacity-50"
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>สร้างเสียงพากย์และแผนถ่าย</span>
+                  <Mic className="w-3.5 h-3.5" />
+                  <span>สร้างเสียงและแผนถ่าย</span>
                 </button>
               </div>
             )}
@@ -1214,7 +1215,7 @@ function AngleActiveWorkbench({
           <div className="divide-y divide-white/[0.05]">
             {editText.split('\n').map((line, lineIndex, currentLines) => (
               <div key={lineIndex} className="flex items-start gap-3 py-2 px-1 focus-within:bg-white/[0.02]">
-                <span className="w-5 text-xs font-bold text-[#25F4EE] text-center flex-shrink-0 mt-1.5">{lineIndex + 1}</span>
+                <span className="w-5 text-xs font-bold font-mono tabular-nums text-[#25F4EE] text-center flex-shrink-0 mt-1.5">{lineIndex + 1}</span>
                 <textarea
                   value={line}
                   onChange={(event) => {
@@ -1256,7 +1257,7 @@ function AngleActiveWorkbench({
 
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
-            <span>บทพูดพากย์ · {lines.length} ท่อน</span>
+            <span>บทพูดพากย์ · <strong className="text-slate-300 font-mono tabular-nums">{lines.length}</strong> ท่อน</span>
             {!isLocked && <span className="text-[11px] text-slate-500 italic">คลิกที่กล่องเพื่อแก้ไข</span>}
           </div>
           <div
@@ -1270,7 +1271,7 @@ function AngleActiveWorkbench({
           >
             {lines.map((line, lIdx) => (
               <div key={lIdx} className="flex items-start gap-3 py-2.5 px-1 hover:bg-white/[0.02] transition-colors">
-                <span className={`w-5 font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                <span className={`w-5 font-bold font-mono tabular-nums text-xs flex items-center justify-center flex-shrink-0 mt-0.5 ${
                   isLocked ? 'text-slate-500' : 'text-[#25F4EE]'
                 }`}>
                   {lIdx + 1}
@@ -1292,7 +1293,7 @@ function AngleActiveWorkbench({
           <div className="flex items-center gap-2">
             <span className="text-xs">
               {selectedVideos.length > 0
-                ? <span className="text-emerald-400 font-bold">เลือกแล้ว {selectedVideos.length} คลิป</span>
+                ? <span className="text-emerald-400 font-bold font-mono tabular-nums">เลือกแล้ว {selectedVideos.length} คลิป</span>
                 : <span className="text-amber-400 font-bold">ยังไม่ได้เลือกคลิป</span>}
             </span>
             {!isLocked && (
@@ -1323,7 +1324,7 @@ function AngleActiveWorkbench({
               title="คลิปนี้โพสต์ลง TikTok แล้ว ล็อกรายการคลิปเก็บเป็นหลักฐาน"
             >
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span>คลิปที่โพสต์แล้ว ({selectedVideos.length})</span>
+              <span>คลิปที่โพสต์แล้ว (<strong className="font-mono tabular-nums">{selectedVideos.length}</strong>)</span>
             </div>
           ) : isInProduction ? (
             <div
@@ -1331,7 +1332,7 @@ function AngleActiveWorkbench({
               title="สคริปต์นี้กำลังตัดต่อจริงในไทม์ไลน์"
             >
               <Lock className="w-3.5 h-3.5 text-amber-400" />
-              <span>คลิปในไทม์ไลน์ ({selectedVideos.length})</span>
+              <span>คลิปในไทม์ไลน์ (<strong className="font-mono tabular-nums">{selectedVideos.length}</strong>)</span>
             </div>
           ) : (
             <button
@@ -1347,7 +1348,7 @@ function AngleActiveWorkbench({
               }`}
             >
               <FolderOpen className="w-3.5 h-3.5" />
-              <span>{selectedVideos.length > 0 ? `เปลี่ยน/เลือกคลิป (${videos.length})` : `เลือกคลิป (${videos.length})`}</span>
+              <span>{selectedVideos.length > 0 ? `เปลี่ยน/เลือกคลิป` : `เลือกคลิป`} (<strong className="font-mono tabular-nums">{videos.length}</strong>)</span>
             </button>
           )}
           {selectedVideos.map(path => {
@@ -1377,7 +1378,7 @@ function AngleActiveWorkbench({
                     className="ml-0.5 text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-300 font-bold border border-emerald-500/40 whitespace-nowrap cursor-pointer flex items-center gap-1 transition-all active:scale-95 shadow-xs"
                     title={`คลิกเพื่อดูสารบัญฉาก ${cat.scenes_count} ฉาก (ตรวจดูมุมมองและจังหวะตัด)`}
                   >
-                    <span>ดู {cat.scenes_count} ฉาก</span>
+                    <span>ดู <strong className="font-mono tabular-nums">{cat.scenes_count}</strong> ฉาก</span>
                     <Eye className="w-3 h-3 text-emerald-400" />
                   </button>
                 ) : (
@@ -5075,7 +5076,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   <p className="text-[11px] text-slate-500 mt-0.5">เลือกสคริปต์ทางซ้าย แล้วทำขั้นตอนถัดไปทางขวา</p>
                 </div>
                 <span className="text-xs text-slate-400">
-                  โพสต์แล้ว <strong className="text-emerald-300 font-mono">{postedAngles}/{totalAngles}</strong> คลิป
+                  โพสต์แล้ว <strong className="text-emerald-300 font-mono tabular-nums">{postedAngles}/{totalAngles}</strong> คลิป
                 </span>
               </div>
 
@@ -5102,7 +5103,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       </span>
                       <div className="min-w-0">
                         <p className="text-[10px] text-slate-500 truncate">{step.label}</p>
-                        <p className={`text-xs font-bold font-mono ${complete ? 'text-emerald-300' : 'text-slate-200'}`}>
+                        <p className={`text-xs font-bold font-mono tabular-nums ${complete ? 'text-emerald-300' : 'text-slate-200'}`}>
                           {step.value}/{totalAngles}
                         </p>
                       </div>
@@ -5120,7 +5121,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                     onClick={() => setSelectedBatch('all')}
                     className={`px-2.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border ${selectedBatch === 'all' ? 'bg-[#25F4EE]/10 text-[#25F4EE] border-[#25F4EE]/30' : 'text-slate-400 border-transparent hover:text-white'}`}
                   >
-                    ทุกล็อต ({angles.length})
+                    ทุกล็อต (<span className="font-mono tabular-nums">{angles.length}</span>)
                   </button>
                   {batches.map((batch) => {
                     const batchCount = angles.filter((angle) => (angle.batch || 1) === batch).length;
@@ -5132,7 +5133,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         onClick={() => setSelectedBatch(batch)}
                         className={`px-2.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap border ${selectedBatch === batch ? 'bg-[#25F4EE]/10 text-[#25F4EE] border-[#25F4EE]/30' : 'text-slate-400 border-transparent hover:text-white'}`}
                       >
-                        ล็อต {batch} ({batchCount})
+                        ล็อต {batch} (<span className="font-mono tabular-nums">{batchCount}</span>)
                       </button>
                     );
                   })}
@@ -5148,17 +5149,17 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   ) : missingAudioCount > 0 ? (
                     <button type="button" onClick={handleBatchGenerateAudio} disabled={isStartingBatchAudio} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-xs font-bold disabled:opacity-50">
                       {isStartingBatchAudio ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Volume2 className="w-3.5 h-3.5" />}
-                      <span>เตรียมเสียง ({missingAudioCount})</span>
+                      <span>เตรียมเสียง (<strong className="font-mono tabular-nums">{missingAudioCount}</strong>)</span>
                     </button>
                   ) : unindexedVideosCount > 0 ? (
                     <button type="button" onClick={() => handleIndexSceneCatalog()} disabled={isScanningScenes} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-xs font-bold disabled:opacity-50">
                       {isScanningScenes ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
-                      <span>สแกนฉาก ({unindexedVideosCount})</span>
+                      <span>สแกนฉาก (<strong className="font-mono tabular-nums">{unindexedVideosCount}</strong>)</span>
                     </button>
                   ) : readyForDraftAngles.length > 0 ? (
                     <button type="button" onClick={handleBatchCreateDraft} disabled={isStartingBatchDraft} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-xs font-bold disabled:opacity-50">
                       {isStartingBatchDraft ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
-                      <span>สร้างดราฟต์ทุกมุม ({readyForDraftAngles.length})</span>
+                      <span>สร้างดราฟต์ทุกมุม (<strong className="font-mono tabular-nums">{readyForDraftAngles.length}</strong>)</span>
                     </button>
                   ) : (
                     <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-300 border border-emerald-500/25 text-xs font-bold">
@@ -5251,7 +5252,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                 </h2>
                 <span className="text-xs text-slate-600 hidden sm:inline">•</span>
                 <span className="text-xs font-semibold text-slate-400">
-                  โพสต์แล้ว <strong className="text-emerald-400 font-mono">{postedAngles}</strong>/{totalAngles} คลิป
+                  โพสต์แล้ว <strong className="text-emerald-400 font-mono tabular-nums">{postedAngles}</strong>/<span className="font-mono tabular-nums">{totalAngles}</span> คลิป
                 </span>
               </div>
 
@@ -5451,7 +5452,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                           title={`สแกนสารบัญฉาก Vision AI แล้ว ${totalIndexedScenesCount} ฉาก (คลิกเพื่อดูสารบัญฉาก)`}
                         >
                           <Sparkles className="w-3 h-3 text-emerald-400" />
-                          <span>สารบัญฉากพร้อม ({totalIndexedScenesCount} ฉาก)</span>
+                          <span>สารบัญฉากพร้อม (<strong className="font-mono tabular-nums">{totalIndexedScenesCount}</strong> ฉาก)</span>
                           <Eye className="w-3 h-3 text-emerald-400 ml-0.5" />
                         </button>
                       ) : (
@@ -5507,7 +5508,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         </>
                       ) : (
                         <>
-                          <Volume2 className="w-3.5 h-3.5 text-cyan-300" />
+                          <Volume2 className="w-3.5 h-3.5 text-current" />
                           <span>
                             {activeBatchAngles.length === 0
                               ? 'ตัดเสร็จครบแล้ว'
@@ -5554,8 +5555,8 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         </>
                       ) : (
                         <>
-                          <Film className="w-3.5 h-3.5 text-emerald-200" />
-                          <span>สร้างดราฟต์ทุกมุม ({readyForDraftAngles.length} มุม)</span>
+                          <Film className="w-3.5 h-3.5 text-current" />
+                          <span>สร้างดราฟต์ทุกมุม (<strong className="font-mono tabular-nums">{readyForDraftAngles.length}</strong> มุม)</span>
                         </>
                       )}
                     </button>

@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import {
   getLayoutCacheKey,
   getCachedOverlayLayout,
-  requestOverlayLayout,
   clearOverlayLayoutCache,
 } from './overlayLayoutClient.js';
 

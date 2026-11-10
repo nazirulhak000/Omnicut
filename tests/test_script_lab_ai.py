@@ -47,13 +47,24 @@ prompt = """คุณเป็นสุดยอด Copywriter และผู�
 ```
 """
 
-try:
-    print("Calling Gemini 2.5 Flash for Script Lab...")
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
-    print("\n🎉 GEMINI RESPONSE:")
-    print(response.text)
-except Exception as e:
-    print("Error:", e)
+import pytest
+pytestmark = pytest.mark.skip(reason="Manual diagnostic script requiring live Gemini API")
+
+def main():
+    try:
+        print("Calling Gemini 2.5 Flash for Script Lab...")
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+        print("\n🎉 GEMINI RESPONSE:")
+        print(response.text)
+    except Exception as e:
+        print("Error:", e)
+
+if __name__ == "__main__":
+    main()
+
+
+def test_script_lab_prompt_defined():
+    assert len(prompt) > 0

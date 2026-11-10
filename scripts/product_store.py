@@ -1269,6 +1269,10 @@ class ProductStore:
                             elif effective_batch is None and matched_angle is None:
                                 matched_angle = angle
                     if matched_angle is not None:
+                        # no-price rule enforced at the storage door too (a hand-pasted / rerolled script can carry it)
+                        from scripts.product_scraper import scrub_angle_price_text
+                        new_content = dict(new_content)
+                        scrub_angle_price_text(new_content, product.get("name") or "")
                         for key in CONTENT_KEYS:
                             if key in new_content:
                                 matched_angle[key] = new_content[key]
@@ -1286,6 +1290,52 @@ class ProductStore:
         except Exception:
             pass
         return updated_product
+
+    # Statuses whose video already exists: the hook title is baked into it, so only what is posted AROUND the video is rewritten.
+    _VIDEO_BAKED_STATUSES = {"rendered", "in_production"}
+
+    @classmethod
+    def scrub_price_text(cls, *, apply: bool = False) -> Dict[str, Any]:
+        """Maintenance (tools/clean_captions.py): replace price / discount / promo wording in the captions of every angle that
+        has NOT been posted. Posted angles are history and never touched. Rendered / in-production angles keep their hook title
+        (it is inside the video) -- reported, not rewritten. Spoken script lines are only counted. Preview unless ``apply``."""
+        from scripts.product_scraper import has_price_text, scrub_angle_price_text
+        scope = cls._scope(None, all_channels=True)
+        report: Dict[str, Any] = {"changes": [], "kept_hook": [], "script_lines": 0, "posted_untouched": 0, "applied": bool(apply)}
+
+        def visit(products: List[Dict[str, Any]]) -> None:
+            for product in products:
+                for angle in product.get("angles", []) or []:
+                    status = angle.get("status")
+                    lines = sum(1 for line in (angle.get("script_lines") or []) if isinstance(line, str) and has_price_text(line))
+                    dirty = any(isinstance(angle.get(k), str) and has_price_text(angle[k], caption=k != "hook_title")
+                                for k in ("tiktok_caption", "hook_title", "price_deal", "tiktok_hashtags"))
+                    if status == "posted":
+                        report["posted_untouched"] += 1 if (dirty or lines) else 0
+                        continue
+                    report["script_lines"] += lines
+                    fields = ["tiktok_caption", "price_deal", "tiktok_hashtags"]
+                    if status in cls._VIDEO_BAKED_STATUSES:
+                        if isinstance(angle.get("hook_title"), str) and has_price_text(angle["hook_title"], caption=False):
+                            report["kept_hook"].append({"product_id": product.get("id"), "angle_id": angle.get("angle_id"), "status": status,
+                                                        "hook_title": angle["hook_title"]})
+                    else:
+                        fields.append("hook_title")
+                    changed = scrub_angle_price_text(angle, product.get("name") or "", fields=fields)
+                    for field, (old, new) in changed.items():
+                        report["changes"].append({"product_id": product.get("id"), "product": product.get("name"), "angle_id": angle.get("angle_id"),
+                                                  "status": status, "field": field, "old": old, "new": new})
+                    if changed and apply:
+                        angle["updated_at"] = cls._now()
+                        product["updated_at"] = cls._now()
+
+        if apply:
+            with cls._scoped_mutate(scope) as products:
+                visit(products)
+        else:
+            import copy
+            visit(copy.deepcopy(cls._scoped_load(scope)))
+        return report
 
     @classmethod
     def append_angles(

@@ -6,13 +6,14 @@ import datetime as dt
 import random
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
 
 from scripts.api_tiktok_autopost import PrepareRequest, prepare
+from scripts.episode_registry import EpisodeRegistry
 from scripts.channel_ownership import resolve_store_scope
 from scripts.channel_scope import (
     ChannelScope,
@@ -220,6 +221,44 @@ class AutoFillCommitRequest(BaseModel):
     # queue/templates/post history changed since the preview (AC04).
     # Optional in compat mode (old clients), required in strict mode.
     preview_revision: Optional[str] = None
+
+
+class RescheduleOverduePreviewRequest(BaseModel):
+    window_days: int = Field(default=14, ge=1, le=60)
+
+
+class ResolveDraftRequest(BaseModel):
+    # The only resolution that needs a human: "this draft's clip was posted by hand on TikTok". ("The draft was deleted" is the
+    # existing reset to planned.) The evidence is what the check saw / the operator confirms; it is stored on the row.
+    resolution: Literal["posted_outside"]
+    evidence: str = Field(min_length=8, max_length=300)
+
+
+class ResolveDeletedRequest(BaseModel):
+    # what was seen (e.g. the row is gone from Studio > Content); stored on the row
+    evidence: str = Field(min_length=8, max_length=300)
+
+
+class RescheduleAssignment(BaseModel):
+    id: str
+    scheduled_at: str
+
+
+class RescheduleOverdueCommitRequest(BaseModel):
+    assignments: List[RescheduleAssignment] = Field(default_factory=list)
+
+
+# A slot must be at least this far ahead to be postable / schedulable on TikTok.
+RESCHEDULE_LEAD = dt.timedelta(minutes=15)
+RESCHEDULABLE_STATUSES = {"planned", "draft_on_platform"}
+
+
+def needs_reschedule(row: Dict[str, Any], now: dt.datetime) -> bool:
+    """A clip that still has to be posted (planned, or already a draft on TikTok) whose slot has passed or is too close."""
+    if row.get("status") not in RESCHEDULABLE_STATUSES:
+        return False
+    when = _queue_timestamp(row.get("scheduled_at", ""))
+    return bool(when and when <= now + RESCHEDULE_LEAD)
 
 
 def _date_value(raw: str, *, field: str = "วันที่") -> dt.date:
@@ -1224,7 +1263,8 @@ def commit_auto_fill(req: AutoFillCommitRequest, scope: ChannelScope = Depends(g
         # same queue mutation lock, so the commit remains all-or-nothing.
         _validate_autofill_daily_constraints(records, history_posts, created)
         records.extend(created)
-    return {"items": sort_records(created), "count": len(created)}
+    _issue_episodes(channel_id, created)
+    return {"items": _with_episodes(channel_id, sort_records(created)), "count": len(created)}
 
 
 @router.get("")
@@ -1251,6 +1291,8 @@ def list_queue(
     # syscalls on every GET /schedule-queue.  Scoped: only this channel's
     # exports can fill in a missing export_id.
     export_id_by_path = ExportRegistry.path_index(**_kw(channel_id))
+    episode_numbers = _episode_map(channel_id)
+    job_status = _job_status_map(channel_id)
     now = dt.datetime.now(PROJECT_TZ)
     enriched = []
     for row in sort_records(records):
@@ -1263,8 +1305,14 @@ def list_queue(
                     item["export_id"] = export_id
             except Exception:
                 pass
+        item["episode_no"] = episode_numbers.get(item.get("export_id"))
+        item["posting_job_status"] = job_status.get(item.get("posting_job_id"))
         scheduled = _queue_timestamp(item.get("scheduled_at", ""))
         item["is_overdue"] = bool(item.get("status") == "planned" and scheduled and scheduled < now)
+        # planned OR draft-on-TikTok clips whose slot passed (or is < 15 min away): they must get a new time before they can run
+        item["needs_reschedule"] = needs_reschedule(item, now)
+        if item["needs_reschedule"] and item.get("status") == "draft_on_platform":
+            item["status_label"] = "แบบร่างเลยเวลา — ต้องจัดเวลาใหม่"
         enriched.append(item)
     return {"items": enriched, "timezone": "Asia/Bangkok", "status_labels": STATUS_LABELS}
 
@@ -1288,7 +1336,71 @@ def create_queue(req: QueueCreateRequest, scope: ChannelScope = Depends(get_chan
             for item, path, export_id in prepared
         ]
         records.extend(created)
-    return {"items": sort_records(created), "count": len(created)}
+    _issue_episodes(channel_id, created)
+    return {"items": _with_episodes(channel_id, sort_records(created)), "count": len(created)}
+
+
+def _episode_map(channel_id: Optional[str]) -> Dict[str, int]:
+    """export id -> EP number (read-only join for listings)."""
+    try:
+        return EpisodeRegistry(BASE_DIR).by_export(channel_id or "main")
+    except Exception:
+        return {}
+
+
+def _issue_episodes(channel_id: Optional[str], rows: List[Dict[str, Any]]) -> None:
+    """A clip gets its permanent EP number when it first enters the queue. Done AFTER the queue transaction (the stores share one
+    connection) and best effort: prepare issues it too, so a hiccup here can never lose a number or block a clip."""
+    registry = EpisodeRegistry(BASE_DIR)
+    for row in rows:
+        try:
+            export = ExportRegistry.get(row.get("export_id"), **_kw(channel_id)) or {}
+            registry.ensure(channel_id or "main", product_id=export.get("product_id") or row.get("product_id"),
+                            angle_id=export.get("angle_id") or row.get("angle_id"), export_id=row.get("export_id"))
+        except Exception:
+            continue
+
+
+def _job_status_map(channel_id: Optional[str]) -> Dict[str, str]:
+    """posting job id -> status, so the listing can show a row whose post click was attempted but never confirmed."""
+    try:
+        from scripts.api_tiktok_autopost import _jobs
+        return {r["id"]: r.get("status") for r in _jobs().table.scoped_load(channel_id or "main")}
+    except Exception:
+        return {}
+
+
+def _with_episodes(channel_id: Optional[str], rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    numbers = _episode_map(channel_id)
+    return [{**row, "episode_no": numbers.get(row.get("export_id"))} for row in rows]
+
+
+def _settle_job_before_edit(channel_id: str, existing: Optional[Dict[str, Any]], *, cancel: bool) -> None:
+    """A queue row may only be reset/removed while its posting job is NOT in flight.
+    - never attempted and only prepared: cancel it first (when `cancel`), so no live job outlives the row
+    - claimed by the extension, attempted, unknown or otherwise unfinished: refuse -- the post may exist on TikTok
+      and must be reconciled (or the job parked from the panel) first"""
+    job_id = (existing or {}).get("posting_job_id")
+    if not job_id or (existing or {}).get("status") in {"draft_on_platform", "posted", "scheduled_on_platform"}:
+        return
+    from scripts.api_tiktok_autopost import _jobs
+    from scripts.posting_jobs import ATTEMPTED_STATUSES
+    try:
+        job = _jobs().get(channel_id, job_id)
+    except ChannelError:
+        return   # the job record is gone: nothing in flight
+    if job["status"] in {"cancelled", "published", "scheduled_on_platform", "draft_saved"}:
+        return
+    if job.get("publish_attempted_at") or job["status"] in ATTEMPTED_STATUSES:
+        raise ChannelError(409, "posting_job_in_flight",
+                           "คลิปนี้กดโพสต์ไปแล้วและยังรอตรวจผล แก้หรือลบคิวไม่ได้ ตรวจผลเดิมบน TikTok ก่อน",
+                           action="review_platform_result")
+    if job["status"] == "prepared" and cancel:
+        _jobs().cancel(channel_id, job_id)
+        return
+    raise ChannelError(409, "posting_job_in_flight",
+                       "คลิปนี้มีงานโพสต์ที่ยังไม่จบ (Extension ถือสิทธิ์อยู่หรือเตรียมไว้) ให้พักงานจากแผง Extension ก่อน",
+                       action="park_job_in_panel")
 
 
 @router.patch("/{item_id}")
@@ -1302,8 +1414,20 @@ def patch_queue(item_id: str, req: QueuePatchRequest, scope: ChannelScope = Depe
             raise ChannelError(409, "platform_result_reconciliation_required",
                                "TikTok รับงานแล้วหรือผลยังไม่ชัดเจน ต้องตรวจและแก้ผลบนแพลตฟอร์มก่อนเปลี่ยนคิว",
                                action="review_platform_result")
+        if current == "draft_on_platform" and req.status is None and req.scheduled_at is not None:
+            # Moving the slot of a draft does not touch the draft: it stays on TikTok, the job stays, and the new time is
+            # applied to the draft when it is published (no re-upload). The new slot must be one TikTok accepts.
+            new_when_dt = parse_scheduled_at(req.scheduled_at)
+            if new_when_dt <= dt.datetime.now(PROJECT_TZ) + RESCHEDULE_LEAD:
+                raise HTTPException(status_code=422, detail="เวลาใหม่ของแบบร่างต้องอยู่ในอนาคตอย่างน้อย 15 นาที")
+            new_when = scheduled_iso(new_when_dt)
+            if any(row.get("id") != item_id and row.get("scheduled_at") == new_when and row.get("status") != "posted" for row in records):
+                raise HTTPException(status_code=409, detail="มีคลิปอื่นจองเวลานี้แล้ว")
+            item["scheduled_at"] = new_when
+            item["updated_at"] = now_iso()
+            return
         if current == "draft_on_platform":
-            # A saved draft is not a post. The only edit is "I deleted that draft on TikTok": back to planned.
+            # A saved draft is not a post. The only other edit is "I deleted that draft on TikTok": back to planned.
             if req.status != "planned" or req.scheduled_at is not None:
                 raise ChannelError(409, "draft_reset_required",
                                    "คลิปนี้บันทึกเป็นแบบร่างบน TikTok แล้ว ลบแบบร่างบน TikTok แล้วรีเซ็ตกลับเป็นรอโพสต์ก่อนจึงจะแก้คิวได้",
@@ -1331,6 +1455,7 @@ def patch_queue(item_id: str, req: QueuePatchRequest, scope: ChannelScope = Depe
         # Free the export for a new prepare BEFORE the queue row changes (the two stores must not nest
         # transactions); releasing is idempotent, so a retry after a half-done reset is safe.
         existing = ScheduleQueueStore.get_item(item_id, **_kw(channel_id))
+        _settle_job_before_edit(channel_id, existing, cancel=True)
         if existing and existing.get("status") == "draft_on_platform" and existing.get("posting_job_id"):
             from scripts.api_tiktok_autopost import _jobs
             _jobs().release_draft(channel_id, existing["posting_job_id"])
@@ -1340,10 +1465,199 @@ def patch_queue(item_id: str, req: QueuePatchRequest, scope: ChannelScope = Depe
     return result
 
 
+def _plan_reschedule(records: List[Dict[str, Any]], posts: List[Dict[str, Any]], now: dt.datetime,
+                     window_days: int, channel_id: Optional[str]) -> Dict[str, Any]:
+    """Give every clip that needs a new time (planned or draft on TikTok) the first free template slot where its product /
+    hook colour is not used that day (the same daily rules as auto-fill). Oldest original time first."""
+    overdue = sorted((r for r in records if needs_reschedule(r, now)), key=lambda r: (str(r.get("scheduled_at")), str(r.get("id"))))
+    overdue_ids = {r["id"] for r in overdue}
+    context = [r for r in records if r["id"] not in overdue_ids and r.get("status") != "cancelled"]
+    products_by_day, colors_by_day = _daily_constraint_sets(context, posts)
+    today = now.date()
+    slots = _slot_stream(today, today + dt.timedelta(days=window_days), now + RESCHEDULE_LEAD, 400, channel_id=channel_id)
+    taken: set = set()
+    placed, unplaced = [], []
+    for row in overdue:
+        aliases = _row_product_aliases(row)
+        color = _row_visual_key(row)
+        chosen = None
+        for slot in slots:
+            iso = scheduled_iso(slot)
+            if iso in taken:
+                continue
+            day = slot.date()
+            if aliases.intersection(products_by_day.get(day, set())):
+                continue
+            if color and color in colors_by_day.get(day, set()):
+                continue
+            chosen = slot
+            break
+        title = row.get("hook_title") or row.get("project_name") or row.get("video_path")
+        if chosen is None:
+            unplaced.append({"id": row["id"], "title": title, "status": row.get("status"), "old_scheduled_at": row.get("scheduled_at"),
+                             "reason": f"ไม่พบช่องว่างที่ลงได้ภายใน {window_days} วัน (สินค้า/สี Hook ซ้ำวันเดียวกัน หรือช่องเต็ม)"})
+            continue
+        iso = scheduled_iso(chosen)
+        taken.add(iso)
+        products_by_day.setdefault(chosen.date(), set()).update(aliases)
+        if color:
+            colors_by_day.setdefault(chosen.date(), set()).add(color)
+        placed.append({"id": row["id"], "title": title, "status": row.get("status"),
+                       "old_scheduled_at": row.get("scheduled_at"), "new_scheduled_at": iso})
+    return {"items": placed, "unplaced": unplaced, "overdue_count": len(overdue)}
+
+
+@router.post("/reschedule-overdue/preview")
+def preview_reschedule_overdue(req: RescheduleOverduePreviewRequest, scope: ChannelScope = Depends(get_channel_scope)):
+    """What the bulk re-arrangement of overdue clips would do. Nothing is written."""
+    channel_id = _channel_of(scope)
+    records = ScheduleQueueStore.list_items(**_kw(channel_id))
+    return _plan_reschedule(records, _history_posts(channel_id), dt.datetime.now(PROJECT_TZ), req.window_days, channel_id)
+
+
+@router.post("/reschedule-overdue")
+def commit_reschedule_overdue(req: RescheduleOverdueCommitRequest, scope: ChannelScope = Depends(get_channel_scope)):
+    """Apply new slots to clips that need one. Planned clips and drafts keep their state (a draft stays on TikTok; its new time
+    is applied when it is published). All-or-nothing, and every slot is re-checked while the queue is locked."""
+    channel_id = _channel_of(scope)
+    _guard_writable(scope)
+    if not req.assignments:
+        raise HTTPException(status_code=422, detail="ไม่มีรายการให้จัดเวลาใหม่")
+    if len({a.id for a in req.assignments}) != len(req.assignments):
+        raise HTTPException(status_code=422, detail="มีคลิปซ้ำในรายการ")
+    history_posts = _history_posts(channel_id)
+    now = dt.datetime.now(PROJECT_TZ)
+    with ScheduleQueueStore.transaction(**_kw(channel_id)) as records:
+        by_id = {r["id"]: r for r in records}
+        wanted = {a.id: scheduled_iso(parse_scheduled_at(a.scheduled_at)) for a in req.assignments}
+        for item_id, iso in wanted.items():
+            row = by_id.get(item_id)
+            if row is None:
+                raise _item_not_found(item_id)
+            if not needs_reschedule(row, now):
+                raise HTTPException(status_code=409, detail="คลิปนี้ไม่ต้องจัดเวลาใหม่แล้ว (เวลายังไม่เกิน หรือสถานะเปลี่ยนไป) กรุณาโหลดรายการใหม่")
+            if parse_scheduled_at(iso) <= now + RESCHEDULE_LEAD:
+                raise HTTPException(status_code=422, detail="เวลาใหม่ต้องอยู่ในอนาคตอย่างน้อย 15 นาที")
+        others = [r for r in records if r["id"] not in wanted and r.get("status") != "cancelled"]
+        if len(set(wanted.values())) != len(wanted) or any(str(r.get("scheduled_at")) in set(wanted.values()) for r in others):
+            raise HTTPException(status_code=409, detail="มีช่องเวลาซ้ำกับคลิปอื่น กรุณาดูตัวอย่างใหม่")
+        pending = [{**by_id[i], "scheduled_at": iso} for i, iso in wanted.items()]
+        _validate_autofill_daily_constraints(others, history_posts, pending)
+        stamp = now_iso()
+        for item_id, iso in wanted.items():
+            by_id[item_id]["scheduled_at"] = iso
+            by_id[item_id]["updated_at"] = stamp
+    return {"success": True, "count": len(wanted), "items": [{"id": i, "scheduled_at": iso} for i, iso in wanted.items()]}
+
+
+def resolve_unposted_on_platform(channel_id: Optional[str], item_id: str, evidence: str) -> Dict[str, Any]:
+    """The post click was attempted but the result never arrived (worker died ...) and the operator verified that TikTok has NO
+    such post: retire the stuck job, the row goes back to `planned` (slot kept) so the clip can be sent again."""
+    row = ScheduleQueueStore.get_item(item_id, **_kw(channel_id))
+    if row is None:
+        raise _item_not_found(item_id)
+    if not row.get("posting_job_id") or row.get("status") in {"posted", "scheduled_on_platform", "draft_on_platform", "planned"}:
+        raise ChannelError(409, "unposted_resolution_not_applicable", "ปิดงานแบบ 'ยังไม่โพสต์จริง' ได้เฉพาะคลิปที่กดโพสต์แล้วแต่ยังรอตรวจผล")
+    from scripts.api_tiktok_autopost import _jobs
+    _jobs().retire_unposted(channel_id or "main", row["posting_job_id"])
+
+    def reset(item: Dict[str, Any], _records: List[Dict[str, Any]]) -> None:
+        stamp = now_iso()
+        item["status"] = "planned"
+        for key in ("posting_job_id", "draft_job_id", "extension_prepared_at", "draft_saved_at"):
+            item.pop(key, None)
+        item["unposted_resolution"] = {"evidence": evidence, "at": stamp}
+        item["updated_at"] = stamp
+
+    result = ScheduleQueueStore.update_item(item_id, reset, **_kw(channel_id))
+    if result is None:
+        raise _item_not_found(item_id)
+    return result
+
+
+@router.post("/{item_id}/resolve-unposted")
+def resolve_unposted(item_id: str, req: ResolveDeletedRequest, scope: ChannelScope = Depends(get_channel_scope)):
+    channel_id = _channel_of(scope)
+    _guard_writable(scope)
+    return resolve_unposted_on_platform(channel_id, item_id, req.evidence)
+
+
+def resolve_deleted_on_platform(channel_id: Optional[str], item_id: str, evidence: str) -> Dict[str, Any]:
+    """The scheduled post of this clip was deleted on TikTok (by the operator): the row goes back to `planned` (its slot is kept),
+    its accepted job is retired so the clip can be prepared again. A live (published) post is not handled here."""
+    row = ScheduleQueueStore.get_item(item_id, **_kw(channel_id))
+    if row is None:
+        raise _item_not_found(item_id)
+    if row.get("status") != "scheduled_on_platform":
+        raise ChannelError(409, "deleted_resolution_not_applicable", "ปิดงานแบบ 'ลบบน TikTok แล้ว' ได้เฉพาะคิวที่ TikTok รับตั้งเวลาไว้")
+    from scripts.api_tiktok_autopost import _jobs
+    if row.get("posting_job_id"):
+        _jobs().retire_deleted(channel_id or "main", row["posting_job_id"])
+
+    def reset(item: Dict[str, Any], _records: List[Dict[str, Any]]) -> None:
+        stamp = now_iso()
+        item["status"] = "planned"
+        for key in ("posting_job_id", "draft_job_id", "extension_prepared_at", "draft_saved_at"):
+            item.pop(key, None)
+        item["deleted_on_platform"] = {"evidence": evidence, "at": stamp}
+        item["updated_at"] = stamp
+
+    result = ScheduleQueueStore.update_item(item_id, reset, **_kw(channel_id))
+    if result is None:
+        raise _item_not_found(item_id)
+    return result
+
+
+@router.post("/{item_id}/resolve-deleted")
+def resolve_deleted(item_id: str, req: ResolveDeletedRequest, scope: ChannelScope = Depends(get_channel_scope)):
+    channel_id = _channel_of(scope)
+    _guard_writable(scope)
+    return resolve_deleted_on_platform(channel_id, item_id, req.evidence)
+
+
+@router.post("/{item_id}/resolve-draft")
+def resolve_draft(item_id: str, req: ResolveDraftRequest, scope: ChannelScope = Depends(get_channel_scope)):
+    """Close a draft row whose clip was posted by hand on TikTok (not through the app): the export is marked posted exactly like the
+    app's own "mark as posted", the draft job is retired, and the row becomes `posted` with a manual-confirmation receipt."""
+    channel_id = _channel_of(scope)
+    _guard_writable(scope)
+    row = ScheduleQueueStore.get_item(item_id, **_kw(channel_id))
+    if row is None:
+        raise _item_not_found(item_id)
+    if row.get("status") != "draft_on_platform":
+        raise ChannelError(409, "draft_resolution_not_applicable", "ปิดงานด้วยวิธีนี้ได้เฉพาะคิวที่เป็นแบบร่างบน TikTok")
+    from scripts.api_exports import MarkPostedRequest, _mark_posted_impl
+    from scripts.api_tiktok_autopost import _jobs
+    video = resolve_video(row["video_path"])
+    # the export first: if it cannot be marked, nothing else changes
+    _mark_posted_impl(MarkPostedRequest(file_path=str(video), export_id=row.get("export_id"), product_id=row.get("product_id"),
+                                        angle_id=row.get("angle_id")), scope)
+    if row.get("posting_job_id"):
+        try:
+            _jobs().release_draft(channel_id, row["posting_job_id"], reason="posted_outside_the_app")
+        except ChannelError:
+            pass   # already retired / not a draft job any more
+
+    def close(item: Dict[str, Any], _records: List[Dict[str, Any]]) -> None:
+        stamp = now_iso()
+        item["status"] = "posted"
+        item["posted_at"] = stamp
+        item["evidence_type"] = "manual_user_confirmation"
+        item["confirmation_receipt"] = {"kind": "posted_outside_the_app", "evidence": req.evidence, "confirmed_at": stamp}
+        item["updated_at"] = stamp
+
+    result = ScheduleQueueStore.update_item(item_id, close, **_kw(channel_id))
+    if result is None:
+        raise _item_not_found(item_id)
+    return result
+
+
 @router.delete("/{item_id}")
 def remove_queue(item_id: str, scope: ChannelScope = Depends(get_channel_scope)):
     channel_id = _channel_of(scope)
     _guard_writable(scope)
+
+    _settle_job_before_edit(channel_id, ScheduleQueueStore.get_item(item_id, **_kw(channel_id)), cancel=False)
 
     def guard(item: Dict[str, Any]) -> None:
         if item.get("status") in {"scheduled_on_platform", "confirmation_unknown", "draft_on_platform"}:

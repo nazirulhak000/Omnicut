@@ -294,7 +294,7 @@ export default function MediaPickerModal({
       />
 
       {/* Modal Dialog Card - True Center & Mobile Safe Height */}
-      <div className="relative w-full max-w-4xl bg-[#080B11]/95 backdrop-blur-2xl border border-white/[0.14] rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[85dvh] sm:max-h-[90dvh] z-10 overflow-hidden animate-scaleUp my-auto">
+      <div className="relative w-full max-w-5xl bg-[#0A0D14]/95 backdrop-blur-2xl border border-white/[0.14] rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[85dvh] sm:max-h-[90dvh] z-10 overflow-hidden animate-scaleUp my-auto">
         {/* ── Modal Header (Fixed Top) ── */}
         <div className="flex-shrink-0 p-3.5 sm:p-4 md:p-5 border-b border-white/[0.08] flex items-center justify-between bg-[#0B0F19]/95 z-20">
           <div className="flex items-center gap-3">
@@ -397,9 +397,9 @@ export default function MediaPickerModal({
         {activeTab !== 'upload' && (
           <div className="px-4 py-2 bg-black/40 border-b border-white/[0.04] flex items-center justify-between text-xs text-slate-400">
             <div className="flex items-center gap-2">
-              <span>แสดง <strong>{filteredVideos.length}</strong> ไฟล์</span>
+              <span>แสดง <strong className="text-white font-mono tabular-nums">{filteredVideos.length}</strong> ไฟล์</span>
               {selectedList.length > 0 && (
-                <span className="px-2 py-0.5 rounded-md bg-[#25F4EE]/10 text-[#25F4EE] font-bold font-mono">
+                <span className="px-2 py-0.5 rounded-md bg-[#25F4EE]/10 text-[#25F4EE] font-bold font-mono tabular-nums">
                   เลือกแล้ว {selectedList.length} คลิป
                 </span>
               )}
@@ -487,10 +487,10 @@ export default function MediaPickerModal({
                 <div className="space-y-1.5 p-3 rounded-xl bg-black/40 border border-white/[0.08]">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-cyan-300 font-bold">กำลังอัปโหลด...</span>
-                    <span className="text-white font-mono">{uploadProgress}%</span>
+                    <span className="text-white font-mono tabular-nums">{uploadProgress}%</span>
                   </div>
                   <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] rounded-full transition-all duration-200" style={{ width: `${uploadProgress}%` }} />
+                    <div className="h-full bg-[#25F4EE] rounded-full transition-all duration-200" style={{ width: `${uploadProgress}%` }} />
                   </div>
                 </div>
               )}
@@ -550,7 +550,7 @@ export default function MediaPickerModal({
           ) : (
             /* Video Grid Cards */
             <div className="space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-3.5">
               {visiblePickerVideos.map((video) => {
                 const videoPath = video.path || video.rel_path;
                 const isSelected = selectedList.some(p => isSameVideo(p, video));
@@ -568,18 +568,36 @@ export default function MediaPickerModal({
                     }`}
                   >
                     {/* Video Player / Thumbnail Preview Area */}
-                    <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-black border border-white/[0.06] flex items-center justify-center group-hover:shadow-md transition-all">
+                    <div className="relative w-full aspect-[9/16] rounded-xl overflow-hidden bg-black border border-white/[0.08] flex items-center justify-center group-hover:shadow-md transition-all">
                       {isPlaying ? (
                         <video
                           src={videoUrl}
                           autoPlay
                           controls
+                          playsInline
                           className="w-full h-full object-cover"
                           onClick={(e) => e.stopPropagation()}
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-tr from-slate-950 to-slate-900">
-                          <Film className="w-8 h-8 text-slate-700 group-hover:text-[#25F4EE] transition-colors" />
+                        <div className="w-full h-full relative">
+                          {video.thumbnail_url ? (
+                            <img
+                              src={video.thumbnail_url}
+                              alt={video.name}
+                              loading="lazy"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <video
+                              src={`${videoUrl}#t=1.0`}
+                              preload="metadata"
+                              muted
+                              loop
+                              playsInline
+                              className="w-full h-full object-cover pointer-events-none"
+                              onLoadedMetadata={(e) => { try { e.target.currentTime = 1.0; } catch {} }}
+                            />
+                          )}
 
                           {/* Quick Preview Play Button */}
                           <button
@@ -588,7 +606,7 @@ export default function MediaPickerModal({
                               e.stopPropagation();
                               setPreviewVideoPath(isPlaying ? null : videoPath);
                             }}
-                            className="absolute inset-0 m-auto w-10 h-10 rounded-full bg-black/60 hover:bg-[#25F4EE] text-white hover:text-slate-950 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 shadow-lg cursor-pointer"
+                            className="absolute inset-0 m-auto w-10 h-10 rounded-full bg-black/60 hover:bg-[#25F4EE] text-white hover:text-slate-950 flex items-center justify-center transition-all opacity-80 sm:opacity-0 sm:group-hover:opacity-100 shadow-lg cursor-pointer z-10"
                             title="ดูตัวอย่างวิดีโอ"
                           >
                             <Play className="w-4 h-4 ml-0.5" />
@@ -608,11 +626,22 @@ export default function MediaPickerModal({
                       </div>
 
                       {/* Size Badge Bottom-Left */}
-                      {video.size_mb && (
-                        <div className="absolute bottom-2 left-2 px-1.5 py-0.5 rounded bg-black/80 text-[10px] font-mono text-slate-300 border border-white/[0.1]">
+                      {video.size_mb ? (
+                        <div className="absolute bottom-2 left-2 px-1.5 py-0.5 rounded bg-black/80 text-[10px] font-mono tabular-nums text-slate-300 border border-white/[0.1] backdrop-blur-xs">
                           {video.size_mb} MB
                         </div>
-                      )}
+                      ) : null}
+
+                      {/* Duration Badge Bottom-Right */}
+                      {video.duration_s ? (
+                        <div className="absolute bottom-2 right-2 px-1.5 py-0.5 rounded bg-black/80 text-[10px] font-mono tabular-nums text-cyan-300 border border-white/[0.1] backdrop-blur-xs">
+                          {Math.floor(video.duration_s / 60)}:{String(Math.floor(video.duration_s % 60)).padStart(2, '0')}
+                        </div>
+                      ) : video.duration ? (
+                        <div className="absolute bottom-2 right-2 px-1.5 py-0.5 rounded bg-black/80 text-[10px] font-mono tabular-nums text-cyan-300 border border-white/[0.1] backdrop-blur-xs">
+                          {video.duration}
+                        </div>
+                      ) : null}
                     </div>
 
                     {/* Meta Info & Actions Bar */}
@@ -694,7 +723,7 @@ export default function MediaPickerModal({
         <div className="flex-shrink-0 p-3.5 sm:px-5 border-t border-white/[0.08] bg-[#0B0F19]/95 backdrop-blur-xl flex items-center justify-between gap-3 z-20">
           <div className="text-xs text-slate-400 truncate">
             {selectedList.length > 0 ? (
-              <span>เลือกแล้ว <strong className="text-[#25F4EE] ">{selectedList.length}</strong> คลิป</span>
+              <span>เลือกแล้ว <strong className="text-[#25F4EE] font-mono tabular-nums">{selectedList.length}</strong> คลิป</span>
             ) : (
               <span className="text-slate-500">ยังไม่ได้เลือกคลิป</span>
             )}

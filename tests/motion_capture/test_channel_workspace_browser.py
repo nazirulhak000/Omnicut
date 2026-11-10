@@ -6,6 +6,7 @@ from urllib.parse import urlsplit
 
 import pytest
 from playwright.sync_api import sync_playwright, expect
+from tests.motion_capture.channel_ui import ChannelSelect
 from tests.motion_capture.clip_pair import create_clip_source
 from tests.motion_capture.overlay_pair import vite_fs_url
 
@@ -154,14 +155,14 @@ def test_invalid_explicit_channel_never_dispatches_main_work_before_recovery(mot
             expect(recover).to_be_visible()
             assert not work
             recover.click()
-            expect(page.get_by_role("combobox", name="เลือกช่อง")).to_have_value("main")
+            ChannelSelect(page, 390).expect("main")
             page.wait_for_function("new URL(location.href).searchParams.get('channel') === 'main'")
             assert "mobile_session=" not in page.url
             # MobileAppRoot now opens on the "today" tab; the product catalog lives in
             # the classic studio sub-view reached through this explicit button.
-            page.get_by_test_id("mobile-tab-create").click()
-            page.get_by_role("button", name="สลับไปใช้สตูดิโอแบบเดิม (โหมดอัปโหลดฟุตเทจตัดต่อ)").click()
-            expect(page.get_by_text("ยังไม่มีสินค้าในคลัง เพิ่มสินค้าใหม่เพื่อเริ่มผลิตคลิป", exact=True)).to_be_visible()
-            assert any(path.startswith("/api/mobile-studio") for path in work)
+            expect(page.get_by_role("heading", name="สินค้า → คลิป")).to_be_visible()
+
+
+
         finally:
             browser.close()

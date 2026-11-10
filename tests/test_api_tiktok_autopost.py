@@ -275,6 +275,7 @@ def test_prepare_and_get_pending_with_schedule_time(tmp_path, monkeypatch):
             "product_id": "p123",
             "angle_id": "a456",
             "tiktok_product_id": "1737088044189583209",
+            "schedule_date": "2030-01-02",
             "schedule_time": "12:30",
         })
         assert res.status_code == 200
@@ -366,3 +367,61 @@ def test_prepare_ad_hoc_ignores_posted_export_when_checking_stale(tmp_path, monk
         if video.exists():
             video.unlink()
 
+
+
+def test_prepare_refuses_intents_that_could_post_live_by_accident(tmp_path):
+    """A schedule intent needs date AND time; draft/post_now need neither. A time-only job used to skip the schedule step
+    in the worker and press Post = publish live."""
+    tap._pending = None
+    dummy_video = tap.EXPORTS_DIR / "dummy_test_intent.mp4"
+    dummy_video.write_bytes(b"dummy")
+    try:
+        def prepare(**extra):
+            return client.post("/api/tiktok-autopost/prepare", json={"video_path": str(dummy_video), "caption": "ok caption",
+                                                                      "hashtags": "#t", "tiktok_product_id": "1737088044189583209", **extra})
+        for extra, code in [
+            ({"schedule_time": "12:30"}, "posting_schedule_not_allowed"),                       # time only (old live-post trap)
+            ({"schedule_date": "2030-01-02"}, "posting_schedule_not_allowed"),                  # date only
+            ({"intent": "schedule"}, "posting_schedule_required"),                              # schedule without a time
+            ({"intent": "schedule", "schedule_date": "2030-01-02"}, "posting_schedule_required"),
+            ({"intent": "draft", "schedule_date": "2030-01-02", "schedule_time": "12:30"}, "posting_schedule_not_allowed"),
+            ({"intent": "post_now", "schedule_time": "12:30"}, "posting_schedule_not_allowed"),
+            ({"intent": "publish-everything"}, "posting_intent_invalid"),
+        ]:
+            res = prepare(**extra)
+            assert res.status_code == 422, (extra, res.text)
+            assert res.json()["code"] == code, (extra, res.text)
+        ok = prepare(intent="draft")
+        assert ok.status_code == 200, ok.text
+        assert client.get("/api/tiktok-autopost/pending").json()["intent"] == "draft"
+        client.post("/api/tiktok-autopost/clear", json={"job_id": ok.json()["job_id"]})
+        scheduled = prepare(schedule_date="2030-01-02", schedule_time="12:30")
+        assert scheduled.status_code == 200, scheduled.text
+        assert client.get("/api/tiktok-autopost/pending").json()["intent"] == "schedule"   # inferred
+        client.post("/api/tiktok-autopost/clear", json={"job_id": scheduled.json()["job_id"]})
+        legacy = prepare()
+        assert legacy.status_code == 200, legacy.text
+        assert client.get("/api/tiktok-autopost/pending").json()["intent"] == "post_now"    # old clients: unchanged behaviour
+        client.post("/api/tiktok-autopost/clear", json={"job_id": legacy.json()["job_id"]})
+    finally:
+        dummy_video.unlink(missing_ok=True)
+        tap._pending = None
+
+
+def test_prepare_refuses_blocked_caption_text(tmp_path):
+    """Price text, an unfilled {placeholder}, an empty or oversize caption never become a job (it would be typed on TikTok)."""
+    tap._pending = None
+    dummy_video = tap.EXPORTS_DIR / "dummy_test_content_guard.mp4"
+    dummy_video.write_bytes(b"dummy")
+    try:
+        def prepare(caption, hashtags="#t"):
+            return client.post("/api/tiktok-autopost/prepare", json={"video_path": str(dummy_video), "caption": caption, "hashtags": hashtags,
+                                                                      "tiktok_product_id": "1737088044189583209", "intent": "draft"})
+        for caption, hashtags in (("ราคา 199 บาท", "#t"), ("ร​าคา ๑๙๙ บาท", "#t"), ("{product_name} ดีมาก", "#t"), ("ก" * 4001, "#t"), ("ดี", "#50off")):
+            res = prepare(caption, hashtags)
+            assert res.status_code == 422, (caption[:20], res.text)
+            assert res.json()["code"] == "posting_content_blocked", res.text
+        assert prepare("ใช้จริงมาสามเดือน ฟรีสายชาร์จ").status_code == 200
+    finally:
+        dummy_video.unlink(missing_ok=True)
+        tap._pending = None

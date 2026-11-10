@@ -19,7 +19,7 @@ def observed(context, *, slot=False, accepted_id=True):
     client, service, _, _ = context
     repo, source, project, record, artifact = candidate(context, slot=slot, slot_ready=slot)
     approve(context, source, artifact)
-    response = client.post("/api/tiktok-autopost/prepare", json=preparation(record))
+    response = client.post("/api/tiktok-autopost/prepare", json={**preparation(record), "schedule_date": "2035-10-12", "schedule_time": "09:00"})
     assert response.status_code == 200, response.text
     jobs = PostingJobStore(service.root)
     job = jobs.get("main", response.json()["job_id"])

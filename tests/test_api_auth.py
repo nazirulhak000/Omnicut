@@ -686,3 +686,24 @@ def test_auth_disabled_via_require_auth_false(monkeypatch):
     assert auth_module.is_auth_disabled() is True
     assert auth_module.is_auth_enforced() is False
 
+
+
+# ---- posting routes: DNS-rebinding guard (loopback peer must also carry a loopback Host) ----
+
+def test_posting_routes_refuse_a_local_request_with_a_foreign_host():
+    for host in ("evil.example.com", "attacker.test:8000", "192.168.1.9:8000"):
+        res = client.get("/api/tiktok-autopost/capabilities", headers={"Host": host})
+        assert res.status_code == 403, (host, res.text)
+        assert res.json()["detail"] == "host not allowed"
+    for host in ("localhost:8000", "127.0.0.1:8000", "[::1]:8000", "testserver"):
+        assert client.get("/api/tiktok-autopost/capabilities", headers={"Host": host}).status_code == 200, host
+
+
+def test_other_routes_are_not_affected_by_the_posting_host_guard():
+    assert client.get("/api/health", headers={"Host": "evil.example.com"}).status_code == 200
+
+
+def test_allowed_hosts_env_adds_names_for_posting_routes(monkeypatch):
+    monkeypatch.setenv("OMNICUT_ALLOWED_HOSTS", "studio-pc.lan, mybox")
+    assert client.get("/api/tiktok-autopost/capabilities", headers={"Host": "studio-pc.lan:8000"}).status_code == 200
+    assert client.get("/api/tiktok-autopost/capabilities", headers={"Host": "other.lan"}).status_code == 403

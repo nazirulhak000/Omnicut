@@ -5,8 +5,8 @@ import { readFileSync } from 'node:fs';
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const topbarSource = read('../components/Topbar.jsx');
 
-test('Topbar TAB_CONFIG covers all 8 core primary tabs plus fallbacks with badges and titles', () => {
-  const requiredTabs = ['flow', 'tracker', 'editor', 'gallery', 'assets', 'analytics', 'settings', 'guide'];
+test('Topbar TAB_CONFIG covers all 7 core primary tabs plus fallbacks with badges and titles', () => {
+  const requiredTabs = ['flow', 'tracker', 'editor', 'gallery', 'assets', 'analytics', 'settings'];
   for (const tab of requiredTabs) {
     const hasTab = new RegExp(`\\b${tab}:\\s*\\{`, 'm').test(topbarSource);
     assert.ok(hasTab, `TAB_CONFIG is missing configuration for tab: ${tab}`);

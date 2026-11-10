@@ -7,6 +7,7 @@ Provides:
 """
 
 import os
+import asyncio
 import re
 import uuid
 import base64
@@ -238,7 +239,7 @@ async def upload_ref_media(file: UploadFile = File(...), scope: ChannelScope = D
         jpg_path = root / jpg_name
         try:
             import subprocess
-            res = subprocess.run(
+            res = await asyncio.to_thread(subprocess.run,
                 ["ffmpeg", "-y", "-i", str(dest_path), str(jpg_path)],
                 capture_output=True,
                 timeout=10,

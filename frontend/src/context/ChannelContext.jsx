@@ -95,7 +95,6 @@ export function ChannelSelector() {
     </select>
     </label>
     {state.selectionInvalid && <button onClick={() => state.switchChannel(state.channelId)} className="min-h-11 rounded-lg border border-slate-500 px-3 focus-visible:outline-2 focus-visible:outline-cyan-300">เปิดช่องหลัก</button>}
-    {state.selected?.handle && <span className="max-w-[190px] truncate text-xs text-slate-400">{state.selected.handle}</span>}
     {state.error && <div className="flex w-full flex-wrap items-center gap-2 text-xs text-rose-300"><span role="alert">{state.error}</span><button onClick={state.refresh} className="min-h-11 rounded px-2 underline focus-visible:outline-2 focus-visible:outline-cyan-300">โหลดรายการใหม่</button></div>}
   </div>;
 }

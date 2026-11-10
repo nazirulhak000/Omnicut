@@ -4,6 +4,7 @@ API Router for Video library, Raw Footage Vault, Assets management, Uploads, and
 
 import os
 import gc
+import asyncio
 import time
 import uuid
 import shutil
@@ -520,7 +521,7 @@ async def upload_file(
         try:
             with staging_path(dest_dir, suffix=".jpg") as converted:
                 conv_cmd = ["ffmpeg", "-y", "-i", str(save_path), "-q:v", "2", str(converted)]
-                subprocess.run(conv_cmd, check=True, capture_output=True, timeout=120)
+                await asyncio.to_thread(subprocess.run, conv_cmd, check=True, capture_output=True, timeout=120)
                 if not converted.stat().st_size:
                     raise ValueError("FFmpeg produced an empty image")
                 jpg_save_path = publish_upload(converted, save_path.with_suffix(".jpg"))

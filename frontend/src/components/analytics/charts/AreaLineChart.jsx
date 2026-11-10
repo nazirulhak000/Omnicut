@@ -21,9 +21,9 @@ export default function AreaLineChart({
   formatSecondary = (v) => (v != null ? `ประหยัด ฿${v}` : null),
   unit = 'tok',
   valueLabel = 'ปริมาณ',
-  lineColor = '#25F4EE',
-  gradientFrom = '#25F4EE',
-  gradientTo = '#3B82F6',
+  lineColor = '#06B6D4',
+  gradientFrom = '#22D3EE',
+  gradientTo = '#0284C7',
   customTooltip = null,
 }) {
   const [hoverIndex, setHoverIndex] = useState(null);
@@ -98,27 +98,18 @@ export default function AreaLineChart({
         onPointerMove={handlePointerMove}
       >
         <defs>
-          {/* Area gradient */}
+          {/* Subtle atmospheric area gradient without harsh neon glow */}
           <linearGradient id="areaGlowGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={gradientFrom} stopOpacity="0.32" />
-            <stop offset="50%" stopColor={gradientTo} stopOpacity="0.12" />
+            <stop offset="0%" stopColor={gradientFrom} stopOpacity="0.08" />
+            <stop offset="60%" stopColor={gradientTo} stopOpacity="0.02" />
             <stop offset="100%" stopColor={gradientTo} stopOpacity="0.0" />
           </linearGradient>
 
-          {/* Stroke gradient */}
+          {/* Precision hairline gradient */}
           <linearGradient id="lineStrokeGrad" x1="0" y1="0" x2="1" y2="0">
             <stop offset="0%" stopColor={gradientFrom} />
             <stop offset="100%" stopColor={gradientTo} />
           </linearGradient>
-
-          {/* Glow filter */}
-          <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="3" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
         </defs>
 
         {/* ── Background Grid Lines ── */}
@@ -131,15 +122,15 @@ export default function AreaLineChart({
                 y1={y}
                 x2={padding.left + innerWidth}
                 y2={y}
-                stroke="rgba(255,255,255,0.06)"
-                strokeDasharray="4 4"
+                stroke="rgba(255,255,255,0.05)"
+                strokeDasharray="3 3"
                 strokeWidth="1"
               />
               <text
                 x={padding.left - 8}
                 y={y + 3.5}
                 textAnchor="end"
-                className="text-[10px] fill-slate-500"
+                className="text-[10px] fill-slate-500 font-mono tabular-nums"
               >
                 {formatValue(tick)}
               </text>
@@ -147,25 +138,15 @@ export default function AreaLineChart({
           );
         })}
 
-        {/* ── Filled Area with Gradient Glow ── */}
+        {/* ── Subtle Atmospheric Area Fill ── */}
         <path d={areaPath} fill="url(#areaGlowGrad)" className="transition-all duration-300" />
 
-        {/* ── Outer Glow Line ── */}
-        <path
-          d={linePath}
-          fill="none"
-          stroke={lineColor}
-          strokeWidth="3"
-          strokeOpacity="0.3"
-          filter="url(#neonGlow)"
-        />
-
-        {/* ── Sharp Foreground Line ── */}
+        {/* ── Clean Precision Hairline Line (Zero Neon Slop) ── */}
         <path
           d={linePath}
           fill="none"
           stroke="url(#lineStrokeGrad)"
-          strokeWidth="2"
+          strokeWidth="1.75"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
@@ -183,60 +164,71 @@ export default function AreaLineChart({
               x={pt.x}
               y={padding.top + innerHeight + 17}
               textAnchor="middle"
-              className="text-[10px] fill-slate-400 font-medium"
+              className="text-[10px] fill-slate-500 font-mono font-medium"
             >
               {shortDate}
             </text>
           );
         })}
 
-        {/* ── Data Points ── */}
+        {/* ── Data Points (Clean Pro NLE: hide dots if dense, highlight on hover) ── */}
         {points.map((pt, idx) => {
           const isHovered = hoverIndex === idx;
+          // Dense dataset guard: if more than 20 points, don't clutter the screen with 50+ circles
+          if (points.length > 20 && !isHovered) return null;
+
           return (
-            <g key={idx} className="transition-all">
-              {/* Outer halo */}
-              <circle
-                cx={pt.x}
-                cy={pt.y}
-                r={isHovered ? 5 : 3}
-                fill="#0B0F19"
-                stroke={lineColor}
-                strokeWidth={isHovered ? 2 : 1.5}
-                className="transition-all duration-150"
-              />
-              {/* Inner core */}
-              <circle
-                cx={pt.x}
-                cy={pt.y}
-                r={isHovered ? 2.5 : 1.2}
-                fill={isHovered ? '#FFFFFF' : lineColor}
-                className="transition-all duration-150"
-              />
+            <g key={idx} className="transition-all pointer-events-none">
+              {isHovered ? (
+                <>
+                  <circle
+                    cx={pt.x}
+                    cy={pt.y}
+                    r={5}
+                    fill="none"
+                    stroke={lineColor}
+                    strokeWidth="1.5"
+                    strokeOpacity="0.4"
+                  />
+                  <circle
+                    cx={pt.x}
+                    cy={pt.y}
+                    r={3}
+                    fill="#0A0D14"
+                    stroke={lineColor}
+                    strokeWidth="2"
+                  />
+                  <circle
+                    cx={pt.x}
+                    cy={pt.y}
+                    r={1.2}
+                    fill="#FFFFFF"
+                  />
+                </>
+              ) : (
+                <circle
+                  cx={pt.x}
+                  cy={pt.y}
+                  r={1.5}
+                  fill={lineColor}
+                  fillOpacity="0.6"
+                />
+              )}
             </g>
           );
         })}
 
         {/* ── Active Hover Vertical Crosshair ── */}
         {activePoint && (
-          <g>
+          <g className="pointer-events-none">
             <line
               x1={activePoint.x}
               y1={padding.top}
               x2={activePoint.x}
               y2={padding.top + innerHeight}
-              stroke="rgba(37, 244, 238, 0.4)"
+              stroke="rgba(255, 255, 255, 0.15)"
               strokeDasharray="2 2"
-              strokeWidth="1.5"
-            />
-            <circle
-              cx={activePoint.x}
-              cy={activePoint.y}
-              r="7"
-              fill="none"
-              stroke="#25F4EE"
-              strokeWidth="2"
-              className="animate-ping opacity-75"
+              strokeWidth="1"
             />
           </g>
         )}
@@ -254,7 +246,7 @@ export default function AreaLineChart({
           {customTooltip ? (
             customTooltip(activePoint)
           ) : (
-            <div className="px-3.5 py-2.5 rounded-xl bg-[#080B11]/95 border border-[#25F4EE]/40 shadow-xl shadow-black/80 backdrop-blur-md text-left min-w-[140px] max-w-[260px] space-y-1.5 animate-fadeIn">
+            <div className="px-3.5 py-2.5 rounded-xl bg-[#080B11]/95 border border-white/[0.12] shadow-xl shadow-black/80 backdrop-blur-md text-left min-w-[140px] max-w-[260px] space-y-1.5 animate-fadeIn">
               <div className="flex items-center justify-between gap-2 text-[10px] text-slate-400 border-b border-white/[0.08] pb-1">
                 <span className="font-mono">{activePoint.data[dateKey] || activePoint.label}</span>
                 {activePoint.data.time && (

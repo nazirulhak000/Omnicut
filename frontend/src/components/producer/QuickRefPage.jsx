@@ -1917,7 +1917,7 @@ export default function QuickRefPage({ onExit }) {
                             setActiveZoomImage(img);
                           }
                         }}
-                        className="relative rounded-2xl overflow-hidden border border-white/10 bg-black/40 cursor-zoom-in group hover:border-amber-500/50 transition-all aspect-video sm:aspect-square focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80"
+                        className="relative rounded-2xl overflow-hidden border border-white/10 bg-black/40 cursor-zoom-in group hover:border-amber-500/50 transition-all aspect-square focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80"
                       >
                         <img
                           src={img}

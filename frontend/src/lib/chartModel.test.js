@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import {
   computeAreaLineChart,
@@ -168,5 +169,13 @@ test('computeXAxisTicks avoids duplicate identical adjacent tick labels', () => 
   assert.ok(ticks.includes(0));
   assert.ok(ticks.includes(3));
   assert.ok(ticks.length < points.length);
+});
+
+test('AreaLineChart follows Quiet Obsidian Precision contract (no neonGlow, no animate-ping, dense dot guard)', () => {
+  const chartSource = readFileSync(new URL('../components/analytics/charts/AreaLineChart.jsx', import.meta.url), 'utf8');
+  assert.equal(chartSource.includes('neonGlow'), false, 'Must not use loud neonGlow filter');
+  assert.equal(chartSource.includes('animate-ping'), false, 'Must not use glaring animate-ping');
+  assert.ok(chartSource.includes('points.length > 20'), 'Must guard dense datasets against rendering 50+ circles');
+  assert.ok(chartSource.includes('strokeWidth="1.75"'), 'Must use sleek hairline stroke');
 });
 

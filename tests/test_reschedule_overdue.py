@@ -1,0 +1,210 @@
+"""Overdue clips (planned, or already a draft on TikTok) get new slots without touching their drafts."""
+import datetime as dt
+from zoneinfo import ZoneInfo
+
+import pytest
+from fastapi.testclient import TestClient
+
+from scripts.api_server import app
+import scripts.api_schedule_queue as queue_api
+import scripts.schedule_store as queue_store
+
+client = TestClient(app)
+TZ = ZoneInfo("Asia/Bangkok")
+
+
+@pytest.fixture
+def queue(tmp_path, monkeypatch):
+    monkeypatch.setattr(queue_store, "SCHEDULE_QUEUE_PATH", tmp_path / "_Docs" / "schedule_queue.json")
+    monkeypatch.setattr(queue_store, "SCHEDULE_TEMPLATE_PATH", tmp_path / "_Docs" / "schedule_templates.json")
+    monkeypatch.setattr(queue_api, "_history_posts", lambda channel_id: [])
+    return tmp_path
+
+
+def iso(days, hour=9, minute=0):
+    base = dt.datetime.now(TZ).replace(hour=hour, minute=minute, second=0, microsecond=0) + dt.timedelta(days=days)
+    return base.isoformat(timespec="minutes")
+
+
+def seed(*rows):
+    with queue_store.ScheduleQueueStore.transaction(channel_id="main") as records:
+        for row in rows:
+            records.append({"channel_id": "main", "video_path": f"04_Exports/Ready_to_post/{row['id']}.mp4", "hook_title": row["id"], **row})
+
+
+def get(item_id):
+    return queue_store.ScheduleQueueStore.get_item(item_id, channel_id="main")
+
+
+def listing():
+    return {r["id"]: r for r in client.get("/api/schedule-queue").json()["items"]}
+
+
+def standard_rows():
+    seed(
+        {"id": "plan-late", "status": "planned", "scheduled_at": iso(-1, 9), "product_id": "prodA", "product_name": "A"},
+        {"id": "draft-late-b", "status": "draft_on_platform", "scheduled_at": iso(-1, 12, 30), "product_id": "prodB", "product_name": "B", "posting_job_id": "job-b", "export_id": "exp-b"},
+        {"id": "draft-late-a", "status": "draft_on_platform", "scheduled_at": iso(-1, 16), "product_id": "prodA", "product_name": "A", "posting_job_id": "job-a", "export_id": "exp-a"},
+        {"id": "plan-future", "status": "planned", "scheduled_at": iso(1, 9), "product_id": "prodC", "product_name": "C"},
+        {"id": "done", "status": "posted", "scheduled_at": iso(-3, 9), "product_id": "prodD", "product_name": "D"},
+    )
+
+
+def test_list_flags_overdue_planned_and_drafts_and_labels_the_draft(queue):
+    standard_rows()
+    items = listing()
+    assert items["plan-late"]["needs_reschedule"] is True
+    assert items["draft-late-b"]["needs_reschedule"] is True
+    assert items["draft-late-b"]["status"] == "draft_on_platform"                       # the stored state is untouched
+    assert "ต้องจัดเวลาใหม่" in items["draft-late-b"]["status_label"]
+    assert items["plan-future"]["needs_reschedule"] is False
+    assert items["done"]["needs_reschedule"] is False
+
+
+def test_preview_places_everything_in_free_future_slots_with_the_daily_rules_and_writes_nothing(queue):
+    standard_rows()
+    before = [dict(r) for r in queue_store.ScheduleQueueStore.list_items(channel_id="main")]
+    body = client.post("/api/schedule-queue/reschedule-overdue/preview", json={"window_days": 14}).json()
+    assert body["overdue_count"] == 3 and not body["unplaced"]
+    new = {i["id"]: i["new_scheduled_at"] for i in body["items"]}
+    now = dt.datetime.now(TZ)
+    assert all(dt.datetime.fromisoformat(v) > now + dt.timedelta(minutes=15) for v in new.values())
+    assert len(set(new.values())) == 3 and iso(1, 9) not in new.values()                  # unique, never on another clip's slot
+    day = lambda value: value[:10]
+    assert day(new["plan-late"]) != day(new["draft-late-a"])                                # same product A: never the same day
+    assert [dict(r) for r in queue_store.ScheduleQueueStore.list_items(channel_id="main")] == before
+
+
+def test_commit_moves_the_slots_but_keeps_planned_as_planned_and_a_draft_as_a_draft(queue):
+    standard_rows()
+    preview = client.post("/api/schedule-queue/reschedule-overdue/preview", json={}).json()
+    commit = client.post("/api/schedule-queue/reschedule-overdue", json={"assignments": [{"id": i["id"], "scheduled_at": i["new_scheduled_at"]} for i in preview["items"]]})
+    assert commit.status_code == 200, commit.text
+    for item in preview["items"]:
+        row = get(item["id"])
+        assert row["scheduled_at"] == item["new_scheduled_at"]
+        assert row["status"] == item["status"]
+    assert get("draft-late-b")["posting_job_id"] == "job-b"                                  # the draft and its job are untouched
+    assert not any(r["needs_reschedule"] for r in listing().values())
+
+
+def test_commit_refuses_what_preview_would_never_offer_and_changes_nothing(queue):
+    standard_rows()
+    def post(assignments):
+        return client.post("/api/schedule-queue/reschedule-overdue", json={"assignments": assignments})
+    snapshot = lambda: [dict(r) for r in queue_store.ScheduleQueueStore.list_items(channel_id="main")]
+    before = snapshot()
+    ok_slot = iso(3, 12, 30)
+    assert post([{"id": "plan-future", "scheduled_at": ok_slot}]).status_code == 409                       # not overdue
+    assert post([{"id": "plan-late", "scheduled_at": iso(-1, 9)}]).status_code == 422                      # still in the past
+    assert post([{"id": "plan-late", "scheduled_at": iso(1, 9)}]).status_code == 409                       # another clip's slot
+    assert post([{"id": "plan-late", "scheduled_at": iso(3, 9)}, {"id": "draft-late-a", "scheduled_at": iso(3, 12, 30)}]).status_code == 409  # product A twice on one day
+    assert post([{"id": "plan-late", "scheduled_at": iso(3, 9)}, {"id": "plan-late", "scheduled_at": iso(4, 9)}]).status_code == 422          # duplicate id
+    assert post([]).status_code == 422
+    assert snapshot() == before                                                                               # all-or-nothing
+
+
+def test_patch_moves_the_slot_of_a_draft_without_touching_the_draft(queue):
+    standard_rows()
+    target = iso(5, 16)
+    res = client.patch("/api/schedule-queue/draft-late-b", json={"scheduled_at": target})
+    assert res.status_code == 200, res.text
+    row = get("draft-late-b")
+    assert row["scheduled_at"] == target and row["status"] == "draft_on_platform" and row["posting_job_id"] == "job-b"
+    assert client.patch("/api/schedule-queue/draft-late-b", json={"scheduled_at": iso(-1, 9)}).status_code == 422     # past
+    assert client.patch("/api/schedule-queue/draft-late-a", json={"scheduled_at": target}).status_code == 409         # taken
+    assert client.patch("/api/schedule-queue/draft-late-b", json={"status": "failed"}).status_code == 409             # other edits stay refused
+
+
+# ---- a draft whose clip was posted by hand on TikTok ----
+
+def test_resolve_draft_closes_a_row_posted_outside_the_app_and_refuses_everything_else(queue, monkeypatch):
+    standard_rows()
+    calls = {}
+    import scripts.api_exports as exports_api
+    monkeypatch.setattr(exports_api, "_mark_posted_impl", lambda req, scope, **kw: calls.setdefault("marked", req.export_id))
+    monkeypatch.setattr(queue_api, "resolve_video", lambda raw: __import__("pathlib").Path(raw))
+    short = client.post("/api/schedule-queue/draft-late-b/resolve-draft", json={"resolution": "posted_outside", "evidence": "x"})
+    assert short.status_code == 422                                                        # evidence is required text
+    assert client.post("/api/schedule-queue/draft-late-b/resolve-draft", json={"resolution": "deleted", "evidence": "จะลบแบบร่างเอง"}).status_code == 422
+    assert client.post("/api/schedule-queue/plan-late/resolve-draft", json={"resolution": "posted_outside", "evidence": "เห็นโพสต์ใน Content แล้ว"}).status_code == 409   # not a draft
+    done = client.post("/api/schedule-queue/draft-late-b/resolve-draft", json={"resolution": "posted_outside", "evidence": "เห็นแถวเดียวกันใน Content เวลา 10 พ.ย."})
+    assert done.status_code == 200, done.text
+    row = get("draft-late-b")
+    assert row["status"] == "posted" and row["evidence_type"] == "manual_user_confirmation"
+    assert row["confirmation_receipt"]["kind"] == "posted_outside_the_app" and "Content" in row["confirmation_receipt"]["evidence"]
+    assert calls["marked"] == "exp-b"                                                      # the export is marked posted like the app's own button
+    assert client.post("/api/schedule-queue/draft-late-b/resolve-draft", json={"resolution": "posted_outside", "evidence": "เห็นแถวเดียวกันใน Content"}).status_code == 409   # only once
+
+
+# ---- a scheduled post the operator deleted on TikTok ----
+
+def test_deleted_scheduled_post_returns_to_planned_and_its_accepted_job_is_retired(queue, monkeypatch):
+    import scripts.api_tiktok_autopost as autopost
+    from scripts.posting_jobs import PostingJobStore
+    monkeypatch.setattr(autopost, "BASE_DIR", queue)                                    # jobs in the temp dir, never the real file
+    store = PostingJobStore(queue)
+    store.table.save([
+        {"id": "job-s", "job_id": "job-s", "channel_id": "main", "export_id": "exp-s", "status": "scheduled_on_platform", "revision": 3, "audit": []},
+        {"id": "job-p", "job_id": "job-p", "channel_id": "main", "export_id": "exp-p", "status": "published", "revision": 3, "audit": []},
+    ])
+    seed({"id": "sched", "status": "scheduled_on_platform", "scheduled_at": iso(2, 9), "posting_job_id": "job-s", "export_id": "exp-s", "draft_job_id": "old"},
+         {"id": "live", "status": "posted", "scheduled_at": iso(-1, 9), "posting_job_id": "job-p", "export_id": "exp-p"},
+         {"id": "plain", "status": "planned", "scheduled_at": iso(3, 9)})
+    done = queue_api.resolve_deleted_on_platform("main", "sched", "แถวหายจาก Studio > Content แล้ว")
+    row = get("sched")
+    assert done["status"] == "planned" and row["status"] == "planned" and row["scheduled_at"] == iso(2, 9)   # the slot is kept
+    assert not any(k in row for k in ("posting_job_id", "draft_job_id", "extension_prepared_at"))
+    assert "Content" in row["deleted_on_platform"]["evidence"]
+    assert store.get("main", "job-s")["status"] == "cancelled"                                                # the export can be prepared again
+    from scripts.channel_store import ChannelError
+    for item_id in ("live", "plain"):                                                                          # a live post / a plain row: not this tool
+        with pytest.raises(ChannelError) as err:
+            queue_api.resolve_deleted_on_platform("main", item_id, "ไม่ควรทำได้เลย")
+        assert err.value.code == "deleted_resolution_not_applicable"
+    assert store.get("main", "job-p")["status"] == "published"
+    with pytest.raises(ChannelError):
+        store.retire_deleted("main", "job-p")                                                                  # published jobs are never retired
+
+
+# ---- a post click that never confirmed (worker died after /attempt) and TikTok shows nothing ----
+
+def test_unposted_attempt_is_retired_only_after_the_wait_and_never_for_a_live_or_finished_job(queue, monkeypatch):
+    import time
+    import scripts.api_tiktok_autopost as autopost
+    from scripts.channel_store import ChannelError
+    from scripts.posting_jobs import PostingJobStore
+    monkeypatch.setattr(autopost, "BASE_DIR", queue)
+    store = PostingJobStore(queue)
+    now = time.time()
+    store.table.save([
+        {"id": "job-new", "job_id": "job-new", "channel_id": "main", "export_id": "e1", "status": "publishing", "revision": 4, "audit": [], "publish_attempted_at": now - 30},
+        {"id": "job-old", "job_id": "job-old", "channel_id": "main", "export_id": "e2", "status": "publishing", "revision": 4, "audit": [], "publish_attempted_at": now - 1200},
+        {"id": "job-unk", "job_id": "job-unk", "channel_id": "main", "export_id": "e3", "status": "confirmation_unknown", "revision": 4, "audit": [], "publish_attempted_at": now - 1200},
+        {"id": "job-ok", "job_id": "job-ok", "channel_id": "main", "export_id": "e4", "status": "scheduled_on_platform", "revision": 4, "audit": [], "publish_attempted_at": now - 1200},
+    ])
+    seed({"id": "r-new", "status": "ready_for_extension", "scheduled_at": iso(2, 9), "posting_job_id": "job-new", "export_id": "e1"},
+         {"id": "r-old", "status": "ready_for_extension", "scheduled_at": iso(2, 10), "posting_job_id": "job-old", "export_id": "e2"},
+         {"id": "r-unk", "status": "confirmation_unknown", "scheduled_at": iso(2, 11), "posting_job_id": "job-unk", "export_id": "e3"},
+         {"id": "r-ok", "status": "scheduled_on_platform", "scheduled_at": iso(2, 12), "posting_job_id": "job-ok", "export_id": "e4"},
+         {"id": "r-plain", "status": "planned", "scheduled_at": iso(2, 13)})
+    assert listing()["r-old"]["posting_job_status"] == "publishing"                       # the listing shows the stuck job
+    with pytest.raises(ChannelError) as err:                                               # a click younger than 10 minutes may still show up on TikTok
+        queue_api.resolve_unposted_on_platform("main", "r-new", "เปิด Content แล้วไม่เห็นโพสต์")
+    assert err.value.code == "posting_too_recent" and store.get("main", "job-new")["status"] == "publishing"
+    assert get("r-new")["status"] == "ready_for_extension"
+    for item_id in ("r-ok", "r-plain"):                                                    # a finished job / a plain row is not this tool
+        with pytest.raises(ChannelError) as err:
+            queue_api.resolve_unposted_on_platform("main", item_id, "ไม่ควรทำได้เลย")
+        assert err.value.code == "unposted_resolution_not_applicable"
+    assert client.post("/api/schedule-queue/r-old/resolve-unposted", json={"evidence": "x"}).status_code == 422   # evidence is required text
+    for item_id, job in (("r-old", "job-old"), ("r-unk", "job-unk")):
+        done = client.post(f"/api/schedule-queue/{item_id}/resolve-unposted", json={"evidence": "เปิด Content แล้วไม่เห็นโพสต์นี้ หลังรอ 20 นาที"})
+        assert done.status_code == 200, done.text
+        row = get(item_id)
+        assert row["status"] == "planned" and row["scheduled_at"] in (iso(2, 10), iso(2, 11)) and "posting_job_id" not in row
+        assert "ไม่เห็นโพสต์" in row["unposted_resolution"]["evidence"]
+        assert store.get("main", job)["status"] == "cancelled"                             # the clip can be prepared again
+    assert store.get("main", "job-ok")["status"] == "scheduled_on_platform"
+    with pytest.raises(ChannelError):
+        store.retire_unposted("main", "job-ok", min_age_seconds=0)                         # an accepted job is never retired here

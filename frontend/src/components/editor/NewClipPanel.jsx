@@ -515,7 +515,7 @@ export default function NewClipPanel({
               กำลังสร้าง {jobProjectName || projectName}
             </h3>
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] shadow-inner text-xs font-semibold text-[#E89274] max-w-full">
-              <span className="w-2 h-2 rounded-full bg-[#D97757] animate-ping flex-shrink-0" />
+              <span className="w-2 h-2 rounded-full bg-[#D97757] shadow-[0_0_8px_rgba(217,119,87,0.6)] flex-shrink-0" />
               <span className="truncate">{jobStatus?.message || jobStatus?.step_label || 'กำลังเตรียมข้อมูลและจัดโครงสร้างสคริปต์...'}</span>
             </div>
           </div>
@@ -524,7 +524,7 @@ export default function NewClipPanel({
           <div className="space-y-2 pt-1">
             <div className="relative h-3 w-full overflow-hidden rounded-full bg-black/60 border border-white/[0.08] shadow-inner">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-[#D97757] via-[#FF8A65] to-[#25F4EE] transition-all duration-300 relative overflow-hidden"
+                className="h-full rounded-full bg-[#D97757] transition-all duration-300 relative overflow-hidden"
                 style={{ width: `${Math.max(4, effectivePercent)}%` }}
               >
                 {/* Moving Sheen Light Wave */}

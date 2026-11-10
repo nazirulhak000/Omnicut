@@ -11,6 +11,7 @@ const { createChromeShim } = require('./chrome_shim');
 const { loadWorker } = require('./host');
 const { createApi, readApiKey, ROOT } = require('./api');
 const { pickClips, runBatch, rowMatchesClip } = require('./conductor');
+const { acquireProcessLock } = require('./process_lock');
 
 const MIN_WIDTH = 1280;
 const MIN_HEIGHT = 650;
@@ -19,13 +20,12 @@ const CHROME_EXE = process.env.OMNICUT_CHROME || 'C:\\Program Files\\Google\\Chr
 const PROFILE_DIR = path.join(ROOT, 'tools', 'tiktok_browser_profile');
 
 function parseArgs(argv) {
-  const args = { channel: 'main', limit: 10, port: 9333, dryRun: false, health: false, noLaunch: false, queueId: null, allowPriceCaption: false, coverFallback: false, viewport: null, net: null, clipBudgetMin: 25, mode: 'schedule' };
+  const args = { channel: 'main', limit: 10, port: 9333, dryRun: false, health: false, noLaunch: false, queueId: null, coverFallback: false, viewport: null, net: null, clipBudgetMin: require('../../tiktok_autopost_extension/limits.js').CLIP_BUDGET_MIN, mode: 'schedule' };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === '--dry-run') args.dryRun = true;
     else if (a === '--health') args.health = true;
     else if (a === '--no-launch') args.noLaunch = true;
-    else if (a === '--allow-price-caption') args.allowPriceCaption = true;
     else if (a === '--cover-fallback') args.coverFallback = true;
     else if (a === '--mode') args.mode = argv[++i];
     else if (a === '--viewport') args.viewport = argv[++i];
@@ -134,6 +134,15 @@ async function main() {
   const caps = await api.get('/api/tiktok-autopost/capabilities').catch(() => ({ ok: false }));
   if (!caps.ok) { alert('Backend (127.0.0.1:8000) ไม่ตอบหรือ API key ผิด'); process.exit(3); }
 
+  // One conductor at a time (a second run would fight over the same Chrome/tab). Health checks only attach, so skip them.
+  let processLock = null;
+  if (!args.health) {
+    processLock = acquireProcessLock(path.join(ROOT, '.tmp', 'autopost_conductor.lock'));
+    if (!processLock.ok) {
+      alert(`มี conductor อีกตัวกำลังรันอยู่ (pid ${processLock.owner?.pid ?? '?'}, เริ่ม ${processLock.owner?.startedAt ?? '?'}) — รอให้จบก่อน หรือปิดตัวนั้นก่อน`);
+      process.exit(3);
+    }
+  }
   const stopAwake = keepAwake();
   const holds = []; // network / viewport emulation sessions: must be released or the process never exits
   try {
@@ -156,11 +165,11 @@ async function main() {
       JSON.stringify({ ok: healthy, checked_at: new Date().toISOString(), checks }, null, 2));
     if (!checks.login) {
       alert(`TikTok Studio ยังไม่พร้อม (url=${checks.url}) — login มือในหน้าต่าง Chrome นี้หนึ่งครั้ง แล้วรันใหม่`);
-      process.exit(3);
+      throw Object.assign(new Error('login_required'), { exitCode: 3, alerted: true });   // finally still runs
     }
     if (!healthy) {
       alert(`login แล้วแต่ไม่พบช่องเลือกไฟล์บนหน้าอัปโหลด (url=${checks.url}) — TikTok อาจเปลี่ยนหน้า หรือมี dialog ค้าง`);
-      process.exit(3);
+      throw Object.assign(new Error('upload_input_missing'), { exitCode: 3, alerted: true });
     }
     log('info', 'TikTok Studio พร้อม (login แล้ว, พบ input อัปโหลดไฟล์)');
     if (args.health) { log('info', 'health ok'); return; }
@@ -207,7 +216,15 @@ async function main() {
     if (!clips.length) { log('info', 'ไม่มีคลิปพร้อมโพสต์ในคิว'); return; }
 
     let stopRequested = false;
-    process.on('SIGINT', () => { stopRequested = true; log('warn', 'รับสัญญาณหยุด — จบคลิปปัจจุบันแล้วหยุด'); });
+    process.on('SIGINT', () => {
+      if (stopRequested) {
+        log('error', 'รับสัญญาณหยุดครั้งที่สอง — ออกทันที (คลิปที่กำลังทำอาจค้าง ตรวจที่ TikTok Studio)');
+        processLock?.release();
+        process.exit(130);
+      }
+      stopRequested = true;
+      log('warn', 'รับสัญญาณหยุด — จบคลิปปัจจุบันแล้วหยุด (กดอีกครั้งเพื่อออกทันที)');
+    });
     const tabId = async () => (await findStudioTab(shim))?.id ?? tab.id;
     const shot = async label => shim.screenshot(await tabId(), path.join(runDir, `${label}.png`)).catch(e => log('warn', `screenshot: ${e.message}`));
     const deps = {
@@ -231,32 +248,13 @@ async function main() {
       },
       // Independent check after the post click: open Studio > Content and find this clip's row.
       verifyOnContentPage: async clip => {
-        const id = await tabId();
-        // TikTok's Content list lags the success toast by several seconds, so reload
-        // and look again (up to ~90 s) before concluding the row is missing.
-        let verdict = { ok: false, reason: 'row_not_found' };
-        for (let attempt = 0; attempt < 6 && !verdict.ok; attempt += 1) {
-          if (attempt) await sleep(8000);
-          await shim.chrome.tabs.update(id, { url: 'https://www.tiktok.com/tiktokstudio/content', active: true });
-          let text = '';
-          for (let i = 0; i < 10; i += 1) {
-            await sleep(1500);
-            text = await shim.evaluate(id, 'document.body ? document.body.innerText : ""').catch(() => '');
-            if (/\d{2}:\d{2}\n/.test(text)) break;
-          }
-          // Each post row starts with its video duration (mm:ss) on its own line.
-          const rows = String(text).split(/\n(?=\d{2}:\d{2}\n)/).slice(0, 15);
-          verdict = { ok: false, reason: 'row_not_found' };
-          for (const row of rows) {
-            const r = rowMatchesClip(row, clip);
-            if (r.ok) { verdict = r; break; }
-            if (r.reason === 'schedule_badge_mismatch') verdict = r;
-          }
-        }
-        await shot(`${clip.id}_content`);
-        await shim.chrome.tabs.update(id, { url: UPLOAD_URL, active: true }); // reset needs an upload tab
-        await sleep(2500);
-        return verdict;
+        // The worker scrolls the whole (virtualized) Content list: scheduled posts come first and an immediate post sits
+        // deeper, so looking at the first rows only gave false "not found".
+        const reply = await worker.send('verify-post-content', {
+          caption: clip.caption, scheduleDate: clip.schedule_date || '', scheduleTime: clip.schedule_time || '',
+        });
+        await sleep(1500);
+        return { ok: Boolean(reply?.verified), reason: reply?.reason || '' };
       },
       // Closes the "Edit cover" modal (Cancel) when no custom-cover upload exists.
       dismissCoverModal: async () => {
@@ -294,11 +292,12 @@ async function main() {
     if (summary.aborted) { alert(summary.aborted); process.exitCode = 2; }
     else if (summary.failed || summary.unknown) process.exitCode = 1;
   } catch (error) {
-    alert(error.message);
+    if (!error.alerted) alert(error.message);
     process.exitCode = error.exitCode || 2;
   } finally {
     for (const hold of holds) await hold.release().catch(() => {});
     stopAwake();
+    processLock?.release();
   }
 }
 

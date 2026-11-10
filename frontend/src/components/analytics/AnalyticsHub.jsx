@@ -25,7 +25,6 @@ export default function AnalyticsHub({
       shortLabel: 'การผลิตคลิป',
       icon: Clapperboard,
       color: 'text-cyan-400',
-      activeBg: 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300',
       badge: 'Funnel'
     },
     {
@@ -34,7 +33,6 @@ export default function AnalyticsHub({
       shortLabel: 'ผลงาน TikTok',
       icon: Eye,
       color: 'text-rose-400',
-      activeBg: 'bg-rose-500/15 border-rose-500/40 text-rose-300',
       badge: 'Stats'
     },
     {
@@ -43,7 +41,6 @@ export default function AnalyticsHub({
       shortLabel: 'โทเคน AI',
       icon: Zap,
       color: 'text-amber-400',
-      activeBg: 'bg-amber-500/15 border-amber-500/40 text-amber-300',
       badge: 'Tokens'
     },
     {
@@ -52,7 +49,6 @@ export default function AnalyticsHub({
       shortLabel: 'พื้นที่จัดเก็บ',
       icon: HardDrive,
       color: 'text-purple-400',
-      activeBg: 'bg-purple-500/15 border-purple-500/40 text-purple-300',
       badge: 'Storage'
     },
     {
@@ -61,7 +57,6 @@ export default function AnalyticsHub({
       shortLabel: 'คลังเนื้อหา',
       icon: Package,
       color: 'text-emerald-400',
-      activeBg: 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300',
       badge: 'Health'
     }
   ];
@@ -76,7 +71,7 @@ export default function AnalyticsHub({
         eyebrow="Intelligence & Analytics Studio"
         title="ศูนย์วิเคราะห์ข้อมูล & สถิติการผลิต"
         badges={
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/25 font-mono">
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/[0.04] text-slate-300 border border-white/[0.08] font-mono tracking-wider">
             PRO METRICS
           </span>
         }
@@ -99,16 +94,16 @@ export default function AnalyticsHub({
                     onClick={() => setActiveTab(tab.id)}
                     className={`flex items-center gap-2 min-h-[44px] px-3.5 sm:px-4 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer whitespace-nowrap active:scale-[0.98] ${
                       isActive
-                        ? `${tab.activeBg} shadow-sm shadow-black/40 ring-1 ring-white/10`
-                        : 'bg-[#080B11]/80 border-white/[0.06] text-slate-400 hover:text-white hover:border-white/[0.16] hover:bg-white/[0.03]'
+                        ? 'bg-white/[0.08] border-white/[0.18] text-white shadow-sm shadow-black/40 ring-1 ring-white/10'
+                        : 'bg-[#080B11]/80 border-white/[0.06] text-slate-400 hover:text-white hover:border-white/[0.14] hover:bg-white/[0.03]'
                     }`}
                   >
                     <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? tab.color : 'text-slate-400'}`} />
                     <span>{tab.label}</span>
-                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ml-1 ${
+                    <span className={`text-[10px] font-mono font-medium px-1.5 py-0.5 rounded border ml-1 ${
                       isActive
                         ? 'bg-white/10 text-white border-white/20'
-                        : 'bg-white/[0.04] text-slate-400 border-white/[0.06]'
+                        : 'bg-white/[0.03] text-slate-500 border-white/[0.06]'
                     }`}>
                       {tab.badge}
                     </span>

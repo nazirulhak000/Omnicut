@@ -199,7 +199,7 @@ export default function HookVariationModal({
         {activeTab === 'variations' ? (
           <div className="space-y-3.5">
             {/* Top Controls */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-[#0D111A] border border-white/[0.08]">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-[#0A0D14] border border-white/[0.08]">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="text-xs font-bold text-slate-300">สินค้า:</span>
                 <span className="text-xs font-black text-[#25F4EE] truncate max-w-xs">
@@ -260,7 +260,7 @@ export default function HookVariationModal({
                         className={`p-3.5 rounded-2xl border transition-all cursor-pointer text-left ${
                           isSelected
                             ? 'border-[#25F4EE]/50 bg-[#25F4EE]/[0.06]'
-                            : 'border-white/[0.08] bg-[#0D111A] hover:border-white/[0.15] hover:bg-white/[0.02]'
+                            : 'border-white/[0.08] bg-[#0A0D14] hover:border-white/[0.15] hover:bg-white/[0.02]'
                         }`}
                       >
                         <div className="flex items-center justify-between gap-2 mb-2">
@@ -313,22 +313,22 @@ export default function HookVariationModal({
                 </div>
 
                 {/* Right: Live 9:16 Mock Preview (5 cols) */}
-                <div className="lg:col-span-5 flex flex-col items-center justify-center p-4 rounded-2xl border border-white/[0.08] bg-[#0D111A]">
+                <div className="lg:col-span-5 flex flex-col items-center justify-center p-4 rounded-2xl border border-white/[0.08] bg-[#0A0D14]">
                   <div className="w-full flex items-center justify-between mb-2 px-1">
                     <span className="text-xs font-bold text-slate-400 flex items-center gap-1.5">
                       <Eye className="w-3.5 h-3.5 text-[#25F4EE]" />
                       จำลองบนหน้าจอ 9:16
                     </span>
-                    <span className="text-[10px] text-slate-500">Safe Zone บน-ล่าง</span>
+                    <span className="text-[10px] text-slate-500 font-mono tabular-nums">Safe Zone บน-ล่าง</span>
                   </div>
 
-                  <div className="relative w-[190px] h-[338px] rounded-2xl border border-white/[0.15] bg-[#0A0D14] overflow-hidden flex flex-col justify-between p-3 select-none">
-                    <div className="text-[8px] text-slate-600 text-center border-b border-dashed border-white/10 pb-1">
+                  <div className="relative w-[190px] aspect-[9/16] rounded-2xl border border-white/[0.15] bg-black overflow-hidden flex flex-col justify-between p-3 select-none">
+                    <div className="text-[8px] text-slate-600 text-center border-b border-dashed border-white/10 pb-1 font-mono tabular-nums">
                       TikTok Safe Zone
                     </div>
 
                     <div className="space-y-1.5 mt-2">
-                      <div className="p-2.5 rounded-xl bg-[#0D111A]/95 border border-[#25F4EE]/40 backdrop-blur-md text-center">
+                      <div className="p-2.5 rounded-xl bg-[#0A0D14]/95 border border-[#25F4EE]/40 backdrop-blur-md text-center">
                         {selectedVariant?.hook_brand && (
                           <div className="text-[8px] font-black uppercase tracking-wider text-[#25F4EE] truncate">
                             {selectedVariant.hook_brand}
@@ -384,7 +384,7 @@ export default function HookVariationModal({
                 </button>
               </div>
 
-              <div className="relative mx-auto max-w-[280px] p-3 rounded-xl bg-gradient-to-b from-black/80 to-slate-950 border border-white/[0.12] text-center shadow-lg">
+              <div className="relative mx-auto max-w-[280px] p-3 rounded-xl bg-[#0B0F19] border border-white/[0.12] text-center shadow-lg">
                 <div className="text-[10px] text-[#25F4EE] font-bold tracking-wider uppercase">
                   {brand.trim() || 'ชื่อแบรนด์'}
                 </div>
@@ -461,7 +461,7 @@ export default function HookVariationModal({
                     ใช้กับทุกสคริปต์ของสินค้านี้ (แนะนำ)
                   </strong>
                   <span className="text-slate-400 text-[11px] leading-relaxed">
-                    อัปเดตสคริปต์ทั้ง {angles.length || 1} มุม และบันทึกเป็นค่าเริ่มต้นหลักของสินค้าตัวนี้
+                    อัปเดตสคริปต์ทั้ง <strong className="text-white font-mono tabular-nums">{angles.length || 1}</strong> มุม และบันทึกเป็นค่าเริ่มต้นหลักของสินค้าตัวนี้
                   </span>
                 </div>
               </label>
@@ -477,7 +477,7 @@ export default function HookVariationModal({
                 />
                 <div className="text-xs">
                   <strong className="text-white block font-semibold">
-                    ใช้เฉพาะสคริปต์มุมนี้ (มุมที่ {currentAngleIndex + 1}: {currentAngle.angle_name || 'สคริปต์ปัจจุบัน'})
+                    ใช้เฉพาะสคริปต์มุมนี้ (มุมที่ <span className="font-mono tabular-nums">{currentAngleIndex + 1}</span>: {currentAngle.angle_name || 'สคริปต์ปัจจุบัน'})
                   </strong>
                   <span className="text-slate-400 text-[11px] leading-relaxed">
                     ปรับเฉพาะคลิปนี้เท่านั้น ไม่กระทบมุมอื่นของสินค้า
@@ -511,7 +511,7 @@ export default function HookVariationModal({
                 type="button"
                 onClick={handleSaveHeader}
                 disabled={savingHeader}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#25F4EE] to-cyan-400 hover:from-[#20ded8] hover:to-cyan-300 text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-md cursor-pointer transition-all disabled:opacity-50"
+                className="px-4 py-2 rounded-xl bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-md cursor-pointer transition-all disabled:opacity-50"
               >
                 {savingHeader ? (
                   <span>กำลังบันทึก...</span>

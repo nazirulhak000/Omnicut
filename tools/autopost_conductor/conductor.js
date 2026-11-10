@@ -1,12 +1,13 @@
 'use strict';
 // One source of truth shared with the extension (price rule, Content-page row matching).
-const { PRICE_RE, PLACEHOLDER_RE, rowMatchesClip } = require('../../tiktok_autopost_extension/post_guard.js');
+const { PRICE_RE, PLACEHOLDER_RE, contentReason, rowMatchesClip } = require('../../tiktok_autopost_extension/post_guard.js');
 // Sequential, unattended TikTok posting. One clip at a time, per channel.
 // All TikTok DOM work is delegated to the verified extension worker through
 // `worker.send(action)`; this module owns ordering, safety stops and results.
 
 const FATAL_RE = /captcha|verify it'?s you|ยืนยันตัวตน|account_handle_mismatch|source_account_required|posting_receipt_unsent|posting_instance_busy|login_required|\b401\b/i;
-const MIN_LEAD_MS = 15 * 60 * 1000;
+const LIMITS = require('../../tiktok_autopost_extension/limits.js');
+const MIN_LEAD_MS = LIMITS.MIN_LEAD_MS;
 const READY_STATUSES = ['planned', 'ready_for_extension'];
 
 class FatalError extends Error {
@@ -44,8 +45,8 @@ function skipReason(clip, { now = Date.now(), allowPriceCaption = false, mode = 
     if (!Number.isFinite(slot) || slot - now < MIN_LEAD_MS) return 'slot_passed_or_too_close';
   }
   if (!clip.tiktok_product_id) return 'no_tiktok_product_id';
-  if (PLACEHOLDER_RE.test(`${clip.caption} ${clip.hashtags}`)) return 'placeholder_in_caption';
-  if (!allowPriceCaption && PRICE_RE.test(`${clip.caption} ${clip.hashtags}`)) return 'price_in_caption';
+  const content = contentReason(clip.caption, clip.hashtags, {allowPrice: allowPriceCaption});
+  if (content) return content;
   return '';
 }
 
@@ -108,17 +109,34 @@ function shouldReconcile(outcome, result) {
   return outcome === 'confirmation_unknown' || result?.outcome === 'confirmation_unknown' || Boolean(result?.markError);
 }
 
-async function runClip(deps, clip, { dryRun = false, channelId = 'main', coverFallback = false, mode = 'schedule' } = {}) {
+class ClipCancelled extends Error {
+  constructor() { super('clip_cancelled: คลิปนี้หมดเวลาแล้ว จึงไม่ส่งคำสั่งต่อไปยังเบราว์เซอร์'); this.name = 'ClipCancelled'; }
+}
+
+async function runClip(deps, clip, { dryRun = false, channelId = 'main', coverFallback = false, mode = 'schedule', run = null } = {}) {
   const draft = mode === 'draft';
-  const { worker, api, log, shot, dumpDom, sleep } = deps;
-  const send = (action, payload) => worker.send(action, payload);
+  const { worker, log, shot, dumpDom, sleep } = deps;
+  // `run` is this clip's generation token. When the watchdog gives up on the clip it flips run.cancelled, and from then
+  // on every worker/API call of the abandoned run throws instead of reaching the (new) worker -- most importantly it
+  // can never press Post after the batch has moved on to the next clip.
+  const ensureActive = () => { if (run?.cancelled) throw new ClipCancelled(); };
+  const send = async (action, payload) => {
+    ensureActive();
+    if (run && (action === 'click-post-only' || action === 'save-draft-only')) run.postSent = true;
+    return worker.send(action, payload);
+  };
+  const api = {
+    get: async (route) => { ensureActive(); return deps.api.get(route); },
+    post: async (route, body) => { ensureActive(); return deps.api.post(route, body); },
+  };
   let step = 'prepare';
   try {
     const payload = {
       video_path: clip.rel_path, export_id: clip.export_id, cover_path: clip.cover_path,
       caption: clip.caption, hashtags: clip.hashtags, product_id: clip.product_id, angle_id: clip.angle_id,
       tiktok_product_id: clip.tiktok_product_id, product_name: clip.product_name,
-      queue_id: clip.queue_id, schedule_date: draft ? null : clip.schedule_date, schedule_time: draft ? null : clip.schedule_time,
+      queue_id: clip.queue_id, intent: draft ? 'draft' : 'schedule',
+      schedule_date: draft ? null : clip.schedule_date, schedule_time: draft ? null : clip.schedule_time,
     };
     let res = await api.post('/api/tiktok-autopost/prepare', payload);
     if (!res.ok && res.status === 409 && /already_prepared|มีงานโพสต์อยู่แล้ว|มีคลิปรอโพสต์ค้างอยู่/.test(JSON.stringify(res.data))) {
@@ -188,8 +206,10 @@ async function runClip(deps, clip, { dryRun = false, channelId = 'main', coverFa
     expectOk(result, 'กดโพสต์');
     const outcome = result.outcome || (draft ? 'confirmation_unknown' : (result.posted ? 'published' : 'confirmation_unknown'));
     step = 'reconcile';
-    if (shouldReconcile(outcome, result)) await send('reconcile-posting-result', { manual: false }).catch(() => {});
-    await send('retry-posting-receipt').catch(() => {});
+    if (shouldReconcile(outcome, result)) {
+      await send('reconcile-posting-result', { manual: false }).catch(e => log('warn', `ตรวจผลซ้ำกับ TikTok ไม่สำเร็จ: ${e.message}`));
+    }
+    await send('retry-posting-receipt').catch(e => log('warn', `ส่งผลกลับ backend ไม่สำเร็จ (จะลองใหม่รอบหน้า): ${e.message}`));
     let status = outcome === 'published' ? 'posted' : outcome === 'scheduled_on_platform' ? 'scheduled' : outcome === 'draft_saved' ? 'drafted' : 'unknown';
     if (draft && status === 'posted') throw new Error('draft run got a published outcome: stop (the Post button must never be pressed in draft mode)');
     // Second, independent proof: the clip must really be listed on TikTok Studio > Content.
@@ -214,6 +234,7 @@ async function runClip(deps, clip, { dryRun = false, channelId = 'main', coverFa
     return { status, outcome, job_id: prepared.job_id, cover_fallback: coverFallbackUsed, verified: verified ? verified.ok : null,
       ...(verified && !verified.ok ? { error: `${draft ? 'drafts' : 'content'}_page_not_verified: ${verified.reason}` } : {}) };
   } catch (error) {
+    if (error instanceof ClipCancelled) return { status: 'failed', step: 'cancelled', error: error.message };
     const message = error?.message || String(error);
     // Evidence first: what did the page look like when this step failed?
     await Promise.resolve(shot?.(`${clip.id}_FAIL_${step}`)).catch(() => {});
@@ -253,18 +274,31 @@ class ClipTimeout extends Error {
 // killed (deps.recover) so the next clip starts from a clean worker.
 async function runClipGuarded(deps, clip, options, budgetMs) {
   let timer;
+  const run = { cancelled: false, postSent: false };
   const timeout = new Promise((_, reject) => { timer = setTimeout(() => reject(new ClipTimeout(budgetMs)), budgetMs); });
   try {
-    return await Promise.race([runClip(deps, clip, options), timeout]);
+    return await Promise.race([runClip(deps, clip, { ...options, run }), timeout]);
   } catch (error) {
     if (error instanceof ClipTimeout) {
+      run.cancelled = true;           // BEFORE recover(): the zombie run must not send anything to the replacement worker
       await deps.recover?.();
+      // Once Post / Save draft was sent the click may have happened: that is "unknown" (never retried), not "failed".
+      if (run.postSent) return { status: 'unknown', step: 'timeout', error: `${error.message} (หลังส่งคำสั่งกดโพสต์แล้ว ผลไม่แน่ชัด)` };
       return { status: 'failed', step: 'timeout', error: error.message };
     }
     throw error;
   } finally {
     clearTimeout(timer);
   }
+}
+
+// Queue rows an earlier run could not confirm. They are never picked again (not READY), but the operator must see them.
+async function findUnresolved(api) {
+  try {
+    const res = await api.get('/api/schedule-queue');
+    if (!res?.ok) return [];
+    return (res.data?.items || []).filter(item => item.status === 'confirmation_unknown');
+  } catch (_) { return []; }
 }
 
 async function runBatch(deps, { clips, dryRun = false, channelId = 'main', coverFallback = false, mode = 'schedule', clipBudgetMs = 25 * 60 * 1000, maxClipAttempts = 2, cooldownSec = [20, 40],
@@ -276,15 +310,21 @@ async function runBatch(deps, { clips, dryRun = false, channelId = 'main', cover
   let aborted = null;
   // TikTok caps scheduled posts and drafts (30 each). Read the live counts once and never plan more clips
   // than what is left; when the counts cannot be read, say so and fall back to the operator's --limit.
+  if (!dryRun) {
+    const unresolved = await findUnresolved(deps.api);
+    if (unresolved.length) {
+      log('warn', `มี ${unresolved.length} คลิปที่รอบก่อนยืนยันผลไม่ได้ (${unresolved.slice(0, 3).map(i => i.hook_title || i.id).join(', ')}) — จะไม่รันซ้ำ ตรวจที่ TikTok Studio > Content แล้วแก้สถานะในแอป`);
+    }
+  }
   let quota = null;
   if (!dryRun && deps.quota) {
     quota = await deps.quota().catch(error => ({ success: false, error: error.message }));
     const used = mode === 'draft' ? quota?.draftCount : quota?.scheduledCount;
     const left = mode === 'draft' ? quota?.remainingDraft : quota?.remainingSchedule;
     if (typeof used === 'number' && typeof left === 'number') {
-      log('info', `โควตา TikTok (${mode === 'draft' ? 'แบบร่าง' : 'ตั้งเวลา'}): ใช้ไป ${used}/30 · เหลือ ${left}`);
+      log('info', `โควตา TikTok (${mode === 'draft' ? 'แบบร่าง' : 'ตั้งเวลา'}): ใช้ไป ${used}/${LIMITS.SCHEDULE_CAP} · เหลือ ${left}`);
       if (left <= 0) {
-        log('error', `โควตา${mode === 'draft' ? 'แบบร่าง' : 'ตั้งเวลา'}เต็ม 30/30 หยุดก่อนเริ่ม`);
+        log('error', `โควตา${mode === 'draft' ? 'แบบร่าง' : 'ตั้งเวลา'}เต็ม ${LIMITS.SCHEDULE_CAP}/${LIMITS.SCHEDULE_CAP} หยุดก่อนเริ่ม`);
         return { total: 0, aborted: `quota_full_${mode}`, quota, posted: 0, scheduled: 0, drafted: 0, unknown: 0, skipped: 0, failed: 0, dry_run_ok: 0, results: [] };
       }
       if (clips.length > left) {
@@ -336,4 +376,4 @@ async function runBatch(deps, { clips, dryRun = false, channelId = 'main', cover
   };
 }
 
-module.exports = { runClipGuarded, ClipTimeout, rowMatchesClip, FATAL_RE, PRICE_RE, FatalError, clipFromQueueItem, skipReason, pickClips, runClip, runBatch, shouldReconcile };
+module.exports = { runClipGuarded, ClipTimeout, ClipCancelled, findUnresolved, rowMatchesClip, FATAL_RE, PRICE_RE, FatalError, clipFromQueueItem, skipReason, pickClips, runClip, runBatch, shouldReconcile };

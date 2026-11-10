@@ -5,10 +5,26 @@ Generates high-energy Thai voiceover with distinct pauses between script beats.
 
 import sys
 import asyncio
-import edge_tts
-import soundfile as sf
-import numpy as np
+try:
+    import edge_tts
+except ImportError:
+    edge_tts = None
+
+try:
+    import soundfile as sf
+except ImportError:
+    sf = None
+
+try:
+    import numpy as np
+except ImportError:
+    np = None
+
 from pathlib import Path
+import pytest
+
+if edge_tts is None or sf is None or np is None:
+    pytestmark = pytest.mark.skip(reason="edge_tts, soundfile, or numpy not installed")
 
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
     try:

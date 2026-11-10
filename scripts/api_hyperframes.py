@@ -561,8 +561,13 @@ async def render_composition(payload: RenderCompositionRequest, scope: ChannelSc
 
             try:
                 with open(log_file, "w", encoding="utf-8") as lf:
-                    proc = subprocess.run(cmd, cwd=STUDIO_DIR, stdout=lf,
-                                          stderr=subprocess.STDOUT, timeout=HF_RENDER_TIMEOUT_SEC)
+
+                    proc = subprocess.run(cmd, cwd=STUDIO_DIR, stdout=lf, stderr=subprocess.STDOUT, timeout=HF_RENDER_TIMEOUT_SEC)
+    
+
+
+
+
             except subprocess.TimeoutExpired:
                 media_validation.discard_partial(partial)
                 raise RuntimeError(

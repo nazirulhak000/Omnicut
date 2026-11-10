@@ -65,3 +65,20 @@ test('ExportGallery and MediaAssetsHub buttons comply with Rule 3.8/4.8 button h
     }
   }
 });
+
+test('MediaPickerModal and AssetPanel enforce 9:16 vertical video thumbnails (Rule 4.1)', () => {
+  const pickerPath = path.resolve(__dirname, '../components/MediaPickerModal.jsx');
+  const assetPanelPath = path.resolve(__dirname, '../components/editor/AssetPanel.jsx');
+  const channelContextPath = path.resolve(__dirname, '../context/ChannelContext.jsx');
+
+  const pickerSource = fs.readFileSync(pickerPath, 'utf8');
+  assert.match(pickerSource, /aspect-\[9\/16\]/, 'MediaPickerModal must use aspect-[9/16]');
+  assert.doesNotMatch(pickerSource, /aspect-video/, 'MediaPickerModal must not squish vertical video with aspect-video');
+
+  const assetSource = fs.readFileSync(assetPanelPath, 'utf8');
+  assert.match(assetSource, /const\s+w\s*=\s*108;\s*const\s+h\s*=\s*192;/, 'AssetPanel LazyVideoThumb must use 9:16 canvas (108x192)');
+
+  const channelSource = fs.readFileSync(channelContextPath, 'utf8');
+  assert.doesNotMatch(channelSource, /\{state\.selected\?\.handle\s*&&\s*\(\s*<span[^>]*@\{state\.selected\.handle\}/, 'Channel selector must not show duplicate handle next to select dropdown');
+});
+

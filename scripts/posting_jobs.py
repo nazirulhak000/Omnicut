@@ -28,6 +28,37 @@ _DRAFT_NOTICE = r"(?:(?:video |post )?(?:draft saved|saved to drafts?|saved as d
 FINAL_OUTCOMES = {"published", "scheduled_on_platform", "confirmation_unknown", "draft_saved"}
 DRAFT_PROOF_KINDS = {"drafts_page_confirmed", "platform_success_notice", "manual_user_confirmation", "user_confirmed"}
 
+# What the operator meant to do with the clip. Stored in the job at prepare time; the worker states which button it
+# is about to press (click_kind) and the backend refuses a mismatch, so a "draft" job can never press Post and a
+# scheduled/immediate job can never save a draft. Jobs prepared by old clients have no intent (inferred from the schedule).
+# publish_draft = open a draft that already sits on TikTok and publish it (scheduled when the job has date+time, live
+# otherwise). It behaves like `schedule` / `post_now` for every outcome rule (see effective_intent) but never uploads.
+INTENTS = {"schedule", "draft", "post_now", "publish_draft"}
+CLICK_KINDS = {"post", "draft"}
+# A job in one of these states pressed (or may have pressed) a publish/draft button: it can never be released or
+# re-prepared by "force", only reconciled with evidence.
+UNPOSTED_MIN_AGE_SECONDS = 600   # a click younger than this may still be showing up on TikTok
+ATTEMPTED_STATUSES = {"publishing", "confirmation_unknown", "scheduled_on_platform", "draft_saved", "published"}
+# Evidence kinds that need a human-readable notice: nothing may be confirmed with a bare {"kind": ...}.
+NOTICE_REQUIRED_KINDS = {"content_page_reconciled", "manual_user_confirmation", "user_confirmed"}
+
+
+def job_intent(row) -> str:
+    """The job's intent, inferred for jobs prepared before intents existed."""
+    stored = row.get("intent")
+    if stored in INTENTS:
+        return stored
+    return "schedule" if (row.get("schedule_date") and row.get("schedule_time")) else "post_now"
+
+
+def effective_intent(row) -> str:
+    """The intent the OUTCOME rules apply to: a draft publication is a scheduled post when it carries a slot, else an
+    immediate one. (`draft` and the other intents are unchanged.)"""
+    intent = job_intent(row)
+    if intent == "publish_draft":
+        return "schedule" if (row.get("schedule_date") and row.get("schedule_time")) else "post_now"
+    return intent
+
 
 def fingerprint(value) -> str:
     return sha256(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
@@ -86,8 +117,12 @@ class PostingJobStore:
                     raise ChannelError(409, "posting_idempotency_conflict", "รหัสงานเดิมมีข้อมูลคลิปต่างกัน")
                 return deepcopy(existing)
             # A second key must not turn an uncertain/finished publish into a new job.
+            # The draft a publish_draft job is made from is not a competitor: it stays draft_saved until the publication
+            # succeeds (so a cleared/failed publication can be retried from the same draft).
+            draft_source = frozen.get("draft_source_job_id") if frozen.get("intent") == "publish_draft" else None
             existing_export = next((r for r in rows if r["export_id"] == frozen["export_id"]
-                                    and r["status"] != "cancelled"), None)
+                                    and r["status"] != "cancelled"
+                                    and not (draft_source and r["id"] == draft_source and r["status"] == "draft_saved")), None)
             if existing_export:
                 now = self.clock()
                 if (not existing_export.get("publish_attempted_at")
@@ -150,12 +185,20 @@ class PostingJobStore:
             self._audit(row, "claim", lease_owner=owner)
             return deepcopy(row)
 
-    def validate_action(self, channel_id, job_id, owner, token, revision, source_account, *, begin_publish=False, confirmation_token=None):
+    def validate_action(self, channel_id, job_id, owner, token, revision, source_account, *, begin_publish=False, confirmation_token=None, click_kind=None):
         with self.table.scoped_mutate(channel_id) as rows:
             row = self._find(rows, job_id)
             self._fence(row, owner, token, revision)
             if row["status"] != "claimed" or row.get("publish_attempted_at"):
                 raise ChannelError(409, "posting_reconciliation_required", "งานนี้ไม่อนุญาตให้กดโพสต์ซ้ำ")
+            if begin_publish:
+                intent = job_intent(row)
+                if click_kind is not None and click_kind not in CLICK_KINDS:
+                    raise ChannelError(422, "posting_click_kind_invalid", "ชนิดปุ่มที่จะกดไม่ถูกต้อง")
+                # a draft job may only save a draft; any other job may only press Post. A worker that does not say
+                # what it presses is treated as "post" (old workers) and is therefore refused for draft jobs.
+                if (click_kind or "post") != ("draft" if intent == "draft" else "post"):
+                    raise ChannelError(409, "posting_intent_mismatch", f"งานนี้ตั้งใจเป็น {intent} แต่ Extension กำลังจะกดปุ่ม {click_kind or 'post'} จึงหยุด")
             check = account_check(channel_id, row["target_handle"], source_account, strict=row["strict_mode"])
             row["updated_at"] = self.clock()
             row["lease_expires_at"] = self.clock() + self.lease_seconds
@@ -185,6 +228,9 @@ class PostingJobStore:
                 allowed_kinds = DRAFT_PROOF_KINDS
             if kind not in allowed_kinds:
                 raise ChannelError(422, "posting_confirmation_required", "ต้องมีข้อความยืนยันผลที่ตรงจาก TikTok ก่อนบันทึกผลสำเร็จ")
+            if kind in NOTICE_REQUIRED_KINDS and not (isinstance(notice, str) and len(notice.strip()) >= 8):
+                # "I looked at the Content page / I confirm" is only evidence when it says what was seen.
+                raise ChannelError(422, "posting_confirmation_required", "หลักฐานแบบ reconcile/ยืนยันเองต้องระบุข้อความว่าเห็นอะไร (notice)")
             if kind == "platform_success_notice":
                 # TikTok Studio shows a bare "Video published" toast (no "successfully"),
                 # and shows it for scheduled posts too -- so the bare form is accepted for
@@ -207,6 +253,19 @@ class PostingJobStore:
                     and not re.fullmatch(_SCHEDULED_NOTICE, str(proof.get("notice") or "").strip(), flags=re.I)
                     and not (row.get("schedule_date") and row.get("schedule_time"))):
                 raise ChannelError(422, "posting_confirmation_required", "ข้อความ 'published' ใช้ยืนยันงานตั้งเวลาได้เฉพาะงานที่มีเวลานัดโพสต์")
+            intent = effective_intent(row)
+            if outcome != "confirmation_unknown":
+                # The result must be the one the job was prepared for: a draft job cannot become a post, a post job
+                # cannot become a draft, an immediate post cannot become "scheduled".
+                if intent == "draft" and outcome != "draft_saved":
+                    raise ChannelError(422, "posting_intent_mismatch", "งานนี้เป็นแบบร่าง จึงบันทึกผลเป็นโพสต์/ตั้งเวลาไม่ได้")
+                if intent != "draft" and outcome == "draft_saved" and row.get("intent"):
+                    raise ChannelError(422, "posting_intent_mismatch", "งานนี้ไม่ใช่แบบร่าง จึงบันทึกผลเป็นแบบร่างไม่ได้")
+                if intent == "post_now" and outcome == "scheduled_on_platform" and row.get("intent"):
+                    raise ChannelError(422, "posting_intent_mismatch", "งานนี้เป็นโพสต์ทันที จึงบันทึกผลเป็นตั้งเวลาไม่ได้")
+                if intent == "schedule" and outcome == "published" and kind == "platform_success_notice":
+                    # TikTok shows the same bare "Video published" toast for a scheduled post: it says nothing about WHEN.
+                    raise ChannelError(422, "posting_confirmation_required", "งานตั้งเวลาต้องบันทึกเป็น scheduled_on_platform ข้อความ toast เปล่าไม่พอยืนยันว่าเผยแพร่แล้ว")
             if outcome == "draft_saved" and (row.get("schedule_date") or row.get("schedule_time")):
                 raise ChannelError(422, "posting_confirmation_required", "งานที่มีเวลานัดโพสต์ไม่ใช่งานแบบร่าง จึงบันทึกผลเป็นแบบร่างไม่ได้")
             if outcome != "confirmation_unknown" and row.get("confirmation_token") and proof.get("confirmation_token") != row["confirmation_token"]:
@@ -261,13 +320,16 @@ class PostingJobStore:
             return deepcopy(row)
 
     def release(self, channel_id, job_id, owner, token, revision, *, force: bool = False):
-        """Cancel a fenced pre-publish claim; attempted jobs are releasable if force=True or already published."""
+        """Cancel a fenced PRE-publish claim. An attempted/final job is never released, with or without force."""
         with self.table.scoped_mutate(channel_id) as rows:
             row = self._find(rows, job_id)
             self._fence(row, owner, token, row["revision"] if row["status"] in {"cancelled", "published"} else revision, allow_expired=True)
             if row["status"] in {"cancelled", "published"}:
                 return deepcopy(row)
-            if (row["status"] != "claimed" or row.get("publish_attempted_at")) and not force:
+            if row.get("publish_attempted_at") or row["status"] in ATTEMPTED_STATUSES:
+                # `force` used to override this and made an already-posted export preparable again (duplicate post).
+                raise ChannelError(409, "posting_reconciliation_required", "งานที่กดโพสต์แล้วต้องตรวจผล ห้ามยกเลิกสิทธิ์ (force ใช้ไม่ได้)")
+            if row["status"] != "claimed" and not force:
                 raise ChannelError(409, "posting_reconciliation_required", "งานที่กดโพสต์แล้วต้องตรวจผล ห้ามยกเลิกสิทธิ์")
             row.update(status="cancelled", revision=row["revision"] + 1, updated_at=self.clock())
             self._audit(row, "release", lease_owner=owner, forced=force)
@@ -284,6 +346,36 @@ class PostingJobStore:
                 raise ChannelError(409, "posting_reconciliation_required", "ยกเลิกได้เฉพาะงานที่บันทึกเป็นแบบร่าง")
             row.update(status="cancelled", revision=row["revision"] + 1, updated_at=self.clock())
             self._audit(row, "release_draft", reason=reason)
+            return deepcopy(row)
+
+    def retire_unposted(self, channel_id, job_id, *, reason="verified_not_posted_by_operator", min_age_seconds=UNPOSTED_MIN_AGE_SECONDS):
+        """The click was attempted (worker died / result unknown) but the operator verified on TikTok that NOTHING was posted:
+        retire the job so the clip can be prepared again. Only a job still `publishing` / `confirmation_unknown`, and only after
+        `min_age_seconds` since the click (TikTok can take minutes to list a post) -- a wrong call here would double-post."""
+        with self.table.scoped_mutate(channel_id) as rows:
+            row = self._find(rows, job_id)
+            if row["status"] == "cancelled":
+                return deepcopy(row)
+            if row["status"] not in {"publishing", "confirmation_unknown"}:
+                raise ChannelError(409, "posting_reconciliation_required", "ปิดงานด้วยวิธีนี้ได้เฉพาะงานที่กดโพสต์แล้วแต่ยังไม่รู้ผล")
+            age = self.clock() - float(row.get("publish_attempted_at") or 0)
+            if age < min_age_seconds:
+                raise ChannelError(409, "posting_too_recent", f"เพิ่งกดโพสต์ได้ {int(age)} วินาที TikTok อาจยังไม่แสดงโพสต์ รออย่างน้อย {int(min_age_seconds // 60)} นาทีแล้วตรวจอีกครั้ง")
+            row.update(status="cancelled", revision=row["revision"] + 1, updated_at=self.clock())
+            self._audit(row, "retire_unposted", reason=reason)
+            return deepcopy(row)
+
+    def retire_deleted(self, channel_id, job_id, *, reason="deleted_on_platform_by_operator"):
+        """The operator deleted the scheduled post / draft on TikTok: retire its job so the export can be prepared again.
+        Only a job TikTok had ACCEPTED as scheduled (or a saved draft). A published job is a live post: never retired here."""
+        with self.table.scoped_mutate(channel_id) as rows:
+            row = self._find(rows, job_id)
+            if row["status"] == "cancelled":
+                return deepcopy(row)
+            if row["status"] not in {"scheduled_on_platform", "draft_saved"}:
+                raise ChannelError(409, "posting_reconciliation_required", "ปิดงานด้วยวิธีนี้ได้เฉพาะงานที่ TikTok รับตั้งเวลา/เป็นแบบร่าง (โพสต์สดแล้วทำไม่ได้)")
+            row.update(status="cancelled", revision=row["revision"] + 1, updated_at=self.clock())
+            self._audit(row, "retire_deleted", reason=reason)
             return deepcopy(row)
 
     def update_cover(self, channel_id, job_id, cover_path, *, cover_sha256=None):

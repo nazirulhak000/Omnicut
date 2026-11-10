@@ -18,11 +18,11 @@ function PipelineSnapshot({ stages, lifecycle, totalAngles }) {
     <div className="w-full space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         {stages.map((stage, index) => (
-          <div key={stage.key} className="rounded-xl border border-white/[0.1] bg-zinc-900/50 p-4 space-y-3">
+          <div key={stage.key} className="rounded-2xl border border-white/[0.08] bg-[#0D111A]/90 p-4 space-y-3 shadow-sm">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold text-zinc-300">{index + 1}. {stage.label}</span>
+              <span className="text-xs font-semibold text-slate-300">{index + 1}. {stage.label}</span>
               <span
-                className={`text-xs font-bold font-mono ${
+                className={`text-xs font-bold font-mono tabular-nums ${
                   stage.key === 'scripted'
                     ? 'text-cyan-400'
                     : stage.key === 'in_production'
@@ -36,10 +36,10 @@ function PipelineSnapshot({ stages, lifecycle, totalAngles }) {
               </span>
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-black text-white">{stage.count}</span>
-              <span className="text-xs text-zinc-400">คลิปในสถานะนี้</span>
+              <span className="text-2xl font-black text-white font-mono tabular-nums">{stage.count}</span>
+              <span className="text-xs text-slate-400">คลิปในสถานะนี้</span>
             </div>
-            <div className="w-full bg-zinc-800/80 h-1.5 rounded-full overflow-hidden">
+            <div className="w-full bg-white/[0.06] h-1.5 rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full ${
                   stage.key === 'scripted'
@@ -57,7 +57,7 @@ function PipelineSnapshot({ stages, lifecycle, totalAngles }) {
         ))}
       </div>
 
-      <div className="rounded-xl bg-zinc-900/40 border border-amber-500/20 p-3 text-xs text-slate-300 space-y-1">
+      <div className="rounded-2xl bg-amber-500/[0.04] border border-amber-500/20 p-3.5 text-xs text-slate-300 space-y-1">
         <div className="font-bold text-amber-300">Snapshot ของสถานะปัจจุบัน ไม่ใช่ Cohort Conversion Funnel</div>
         <p className="text-slate-400">
           แต่ละมุมถูกนับตามสถานะล่าสุดเพียงครั้งเดียว จึงไม่ควรนำเปอร์เซ็นต์ระหว่างขั้นไปตีความเป็นอัตราการส่งต่อ
@@ -153,8 +153,6 @@ export default function ProductionAnalyticsTab({ onNavigateToEditor, onNavigateT
           subtitle={`จากสินค้าทั้งหมด ${summary.total_products} รายการ`}
           icon={Layers}
           accentColor="text-cyan-400"
-          borderColor="border-cyan-500/20"
-          bgColor="bg-cyan-500/[0.03]"
         />
         <MetricKpiCard
           title="กำลังดำเนินการ (WIP)"
@@ -162,8 +160,6 @@ export default function ProductionAnalyticsTab({ onNavigateToEditor, onNavigateT
           subtitle={`สคริปต์พร้อม ${summary.scripted} · กำลังตัดต่อ ${summary.in_production}`}
           icon={Clapperboard}
           accentColor="text-amber-400"
-          borderColor="border-amber-500/20"
-          bgColor="bg-amber-500/[0.03]"
           badge="รอคิว"
           badgeColor="bg-amber-500/10 text-amber-400 border-amber-500/20"
         />
@@ -173,8 +169,6 @@ export default function ProductionAnalyticsTab({ onNavigateToEditor, onNavigateT
           subtitle="ไฟล์พร้อมตรวจสอบ QC และลงโพสต์"
           icon={Video}
           accentColor="text-blue-400"
-          borderColor="border-blue-500/20"
-          bgColor="bg-blue-500/[0.03]"
         />
         <MetricKpiCard
           title="ลงโพสต์แล้ว (Published)"
@@ -182,8 +176,6 @@ export default function ProductionAnalyticsTab({ onNavigateToEditor, onNavigateT
           subtitle={`คิดเป็น ${summary.published_percentage}% ของคลิปทั้งหมด`}
           icon={CheckCircle2}
           accentColor="text-emerald-400"
-          borderColor="border-emerald-500/20"
-          bgColor="bg-emerald-500/[0.03]"
           badge={`${summary.published_percentage}%`}
           badgeColor="bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
           rightElement={

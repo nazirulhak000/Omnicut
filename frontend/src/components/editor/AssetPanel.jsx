@@ -955,8 +955,8 @@ const LazyVideoThumb = React.memo(function LazyVideoThumb({ mediaPath, name, dur
 
     try {
       const canvas = document.createElement('canvas');
-      const w = 144;
-      const h = 96;
+      const w = 108;
+      const h = 192;
       canvas.width = w;
       canvas.height = h;
       const ctx = canvas.getContext('2d');
@@ -978,7 +978,7 @@ const LazyVideoThumb = React.memo(function LazyVideoThumb({ mediaPath, name, dur
   return (
     <div
       ref={containerRef}
-      className="relative w-18 h-12 flex-shrink-0 rounded-lg overflow-hidden bg-[#121620] border border-white/[0.08] cursor-pointer group/thumb select-none"
+      className="relative w-11 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-[#121620] border border-white/[0.08] cursor-pointer group/thumb select-none"
       onClick={onPreview}
       title="กดเพื่อเปิดดูพรีวิวคลิป"
     >
