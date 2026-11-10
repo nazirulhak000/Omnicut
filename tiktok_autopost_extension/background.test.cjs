@@ -997,7 +997,7 @@ test('stats sync accepts the real Studio posts page and stamps a visible build t
   // Build identity: chrome://extensions + the Tools tab both prove the fresh
   // code is running, so stale cached sidepanel.js (the ghost "จำกัดโดเมน"
   // banner that never existed in this repo) can be caught by the user's eyes.
-  assert.equal(manifest.version, '0.4.4');
+  assert.equal(manifest.version, '0.4.5');
   assert.equal(manifest.content_scripts, undefined, 'no legacy content script');
   for (const gone of ['batch_runner.js', 'batch_runner.test.cjs', 'content_script.js', 'popup.html', 'popup.js']) assert.ok(!fs.existsSync(path.join(__dirname, gone)), gone + ' must stay deleted');
   assert.match(sideHtml, /id="buildTag"/);
@@ -1631,4 +1631,16 @@ test('R3 panel wiring: one run at a time, no legacy runner, manual prepare guard
   // worker answers carry postAttempted so the orchestrator can tell "unknown" from "failed"
   const bg = fs.readFileSync(path.join(__dirname, 'background.js'), 'utf8');
   assert.match(bg, /postAttempted/);
+});
+
+test('R4 quota counting never walks the tab away while a job is in flight; click steps never recover a Studio tab', async () => {
+  const ctx = worker();
+  ctx.runDetectQuotaFromTab = async () => ({ success: true });
+  ctx.postingState = async () => ({ activeJob: { job_id: 'j' } });
+  ctx.runCountScheduledOnContent = async () => { throw new Error('must not navigate'); };
+  const result = await ctx.runDetectTikTokQuota({ allowNavigate: true });
+  assert.equal(result.countSkipped, 'active_job');
+  const bg = fs.readFileSync(path.join(__dirname, 'background.js'), 'utf8');
+  assert.match(bg, /NO_TAB_RECOVERY_ACTIONS = new Set\(\[[^\]]*'click-post-only'[^\]]*'save-draft-only'/);
+  assert.match(bg, /findUploadTab\(\{recover: !NO_TAB_RECOVERY_ACTIONS\.has\(message\.action\)\}\)/);
 });

@@ -11,6 +11,7 @@ const { createChromeShim } = require('./chrome_shim');
 const { loadWorker } = require('./host');
 const { createApi, readApiKey, ROOT } = require('./api');
 const { pickClips, runBatch, rowMatchesClip } = require('./conductor');
+const { acquireProcessLock } = require('./process_lock');
 
 const MIN_WIDTH = 1280;
 const MIN_HEIGHT = 650;
@@ -134,6 +135,15 @@ async function main() {
   const caps = await api.get('/api/tiktok-autopost/capabilities').catch(() => ({ ok: false }));
   if (!caps.ok) { alert('Backend (127.0.0.1:8000) ไม่ตอบหรือ API key ผิด'); process.exit(3); }
 
+  // One conductor at a time (a second run would fight over the same Chrome/tab). Health checks only attach, so skip them.
+  let processLock = null;
+  if (!args.health) {
+    processLock = acquireProcessLock(path.join(ROOT, '.tmp', 'autopost_conductor.lock'));
+    if (!processLock.ok) {
+      alert(`มี conductor อีกตัวกำลังรันอยู่ (pid ${processLock.owner?.pid ?? '?'}, เริ่ม ${processLock.owner?.startedAt ?? '?'}) — รอให้จบก่อน หรือปิดตัวนั้นก่อน`);
+      process.exit(3);
+    }
+  }
   const stopAwake = keepAwake();
   const holds = []; // network / viewport emulation sessions: must be released or the process never exits
   try {
@@ -156,11 +166,11 @@ async function main() {
       JSON.stringify({ ok: healthy, checked_at: new Date().toISOString(), checks }, null, 2));
     if (!checks.login) {
       alert(`TikTok Studio ยังไม่พร้อม (url=${checks.url}) — login มือในหน้าต่าง Chrome นี้หนึ่งครั้ง แล้วรันใหม่`);
-      process.exit(3);
+      throw Object.assign(new Error('login_required'), { exitCode: 3, alerted: true });   // finally still runs
     }
     if (!healthy) {
       alert(`login แล้วแต่ไม่พบช่องเลือกไฟล์บนหน้าอัปโหลด (url=${checks.url}) — TikTok อาจเปลี่ยนหน้า หรือมี dialog ค้าง`);
-      process.exit(3);
+      throw Object.assign(new Error('upload_input_missing'), { exitCode: 3, alerted: true });
     }
     log('info', 'TikTok Studio พร้อม (login แล้ว, พบ input อัปโหลดไฟล์)');
     if (args.health) { log('info', 'health ok'); return; }
@@ -207,7 +217,15 @@ async function main() {
     if (!clips.length) { log('info', 'ไม่มีคลิปพร้อมโพสต์ในคิว'); return; }
 
     let stopRequested = false;
-    process.on('SIGINT', () => { stopRequested = true; log('warn', 'รับสัญญาณหยุด — จบคลิปปัจจุบันแล้วหยุด'); });
+    process.on('SIGINT', () => {
+      if (stopRequested) {
+        log('error', 'รับสัญญาณหยุดครั้งที่สอง — ออกทันที (คลิปที่กำลังทำอาจค้าง ตรวจที่ TikTok Studio)');
+        processLock?.release();
+        process.exit(130);
+      }
+      stopRequested = true;
+      log('warn', 'รับสัญญาณหยุด — จบคลิปปัจจุบันแล้วหยุด (กดอีกครั้งเพื่อออกทันที)');
+    });
     const tabId = async () => (await findStudioTab(shim))?.id ?? tab.id;
     const shot = async label => shim.screenshot(await tabId(), path.join(runDir, `${label}.png`)).catch(e => log('warn', `screenshot: ${e.message}`));
     const deps = {
@@ -294,11 +312,12 @@ async function main() {
     if (summary.aborted) { alert(summary.aborted); process.exitCode = 2; }
     else if (summary.failed || summary.unknown) process.exitCode = 1;
   } catch (error) {
-    alert(error.message);
+    if (!error.alerted) alert(error.message);
     process.exitCode = error.exitCode || 2;
   } finally {
     for (const hold of holds) await hold.release().catch(() => {});
     stopAwake();
+    processLock?.release();
   }
 }
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import logging
 import os
 import re
 import shutil
@@ -394,6 +395,22 @@ def archive_gdrive_export(
 # PostingJobStore synchronization (desktop extension fence)
 # ---------------------------------------------------------------------------
 
+logger = logging.getLogger("omnicut.mobile_posting")
+
+# Statuses the phone must never act on: the desktop extension owns them (ready_for_extension), or TikTok already has the
+# post / draft / an unknown result that only the platform-receipt flow may settle.
+MOBILE_BLOCKED_STATUSES = {"ready_for_extension", "scheduled_on_platform", "draft_on_platform", "confirmation_unknown"}
+
+
+def _refuse_extension_owned(row: Dict[str, Any]) -> None:
+    status = row.get("status", "planned")
+    if status in MOBILE_BLOCKED_STATUSES:
+        raise HTTPException(
+            status_code=409,
+            detail="รายการนี้อยู่ในมือ Extension หรือ TikTok รับงานแล้ว/ผลยังไม่ชัดเจน มือถือจึงรับหรือยืนยันแทนไม่ได้ ตรวจผลที่แผง Extension ก่อน",
+        )
+
+
 def _sync_posting_job_on_handoff(
     channel_id: Optional[str],
     queue_id: str,
@@ -468,6 +485,11 @@ def _sync_posting_job_on_confirm(
                 matches_queue = bool(queue_id and row.get("queue_id") == queue_id)
                 matches_export = bool(export_id and row.get("export_id") == export_id)
                 if (matches_queue or matches_export) and row.get("status") not in {"cancelled", "published"}:
+                    if row.get("publish_attempted_at"):
+                        # the extension already pressed Post for this job: its own receipt flow settles it, a phone
+                        # confirmation must not overwrite that evidence
+                        logger.warning("mobile confirm skipped job %s: already attempted by the extension", row.get("job_id"))
+                        continue
                     row["status"] = outcome
                     row["effects_applied"] = True
                     row["posted_at"] = posted_at
@@ -479,7 +501,7 @@ def _sync_posting_job_on_confirm(
                     }
                     row["updated_at"] = store.clock()
     except Exception:
-        pass
+        logger.exception("mobile confirm: could not finalize the posting job of queue item %s", queue_id)
 
 
 # ---------------------------------------------------------------------------
@@ -604,6 +626,7 @@ def handoff_to_mobile(
         status = row.get("status", "planned")
         if status == "posted":
             raise HTTPException(status_code=409, detail="รายการนี้ถูกโพสต์ไปแล้ว")
+        _refuse_extension_owned(row)
         current_claim = row.get("claimed_by")
         if (
             status == "awaiting_post"
@@ -663,6 +686,7 @@ def confirm_mobile_post(
     def apply(row: Dict[str, Any], _records: List[Dict[str, Any]]) -> None:
         if row.get("status") == "posted" and row.get("confirmation_receipt"):
             return
+        _refuse_extension_owned(row)
         current_claim = row.get("claimed_by")
         if (
             row.get("status") == "awaiting_post"
@@ -701,11 +725,13 @@ def confirm_mobile_post(
         raise HTTPException(status_code=404, detail="ไม่พบรายการในคิว")
 
     export_id = updated.get("export_id")
+    warnings: List[str] = []
     if export_id:
         try:
             ExportRegistry.mark_posted(export_id, **_kw(channel_id))
-        except Exception:
-            pass
+        except Exception as err:
+            logger.exception("mobile confirm: export %s was not marked posted", export_id)
+            warnings.append(f"บันทึกสถานะ export ไม่สำเร็จ ({err}) — ตรวจและมาร์กโพสต์ในแอปหลัก")
 
     outcome = "published" if req.mode == "posted" else "scheduled_on_platform"
     _sync_posting_job_on_confirm(
@@ -732,6 +758,7 @@ def confirm_mobile_post(
         "receipt": updated.get("confirmation_receipt"),
         "gdrive_archive": archive_result,
         "idempotent": False,
+        **({"warnings": warnings} if warnings else {}),
     }
 
 

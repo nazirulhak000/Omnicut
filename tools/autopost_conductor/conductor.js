@@ -108,10 +108,26 @@ function shouldReconcile(outcome, result) {
   return outcome === 'confirmation_unknown' || result?.outcome === 'confirmation_unknown' || Boolean(result?.markError);
 }
 
-async function runClip(deps, clip, { dryRun = false, channelId = 'main', coverFallback = false, mode = 'schedule' } = {}) {
+class ClipCancelled extends Error {
+  constructor() { super('clip_cancelled: คลิปนี้หมดเวลาแล้ว จึงไม่ส่งคำสั่งต่อไปยังเบราว์เซอร์'); this.name = 'ClipCancelled'; }
+}
+
+async function runClip(deps, clip, { dryRun = false, channelId = 'main', coverFallback = false, mode = 'schedule', run = null } = {}) {
   const draft = mode === 'draft';
-  const { worker, api, log, shot, dumpDom, sleep } = deps;
-  const send = (action, payload) => worker.send(action, payload);
+  const { worker, log, shot, dumpDom, sleep } = deps;
+  // `run` is this clip's generation token. When the watchdog gives up on the clip it flips run.cancelled, and from then
+  // on every worker/API call of the abandoned run throws instead of reaching the (new) worker -- most importantly it
+  // can never press Post after the batch has moved on to the next clip.
+  const ensureActive = () => { if (run?.cancelled) throw new ClipCancelled(); };
+  const send = async (action, payload) => {
+    ensureActive();
+    if (run && (action === 'click-post-only' || action === 'save-draft-only')) run.postSent = true;
+    return worker.send(action, payload);
+  };
+  const api = {
+    get: async (route) => { ensureActive(); return deps.api.get(route); },
+    post: async (route, body) => { ensureActive(); return deps.api.post(route, body); },
+  };
   let step = 'prepare';
   try {
     const payload = {
@@ -189,8 +205,10 @@ async function runClip(deps, clip, { dryRun = false, channelId = 'main', coverFa
     expectOk(result, 'กดโพสต์');
     const outcome = result.outcome || (draft ? 'confirmation_unknown' : (result.posted ? 'published' : 'confirmation_unknown'));
     step = 'reconcile';
-    if (shouldReconcile(outcome, result)) await send('reconcile-posting-result', { manual: false }).catch(() => {});
-    await send('retry-posting-receipt').catch(() => {});
+    if (shouldReconcile(outcome, result)) {
+      await send('reconcile-posting-result', { manual: false }).catch(e => log('warn', `ตรวจผลซ้ำกับ TikTok ไม่สำเร็จ: ${e.message}`));
+    }
+    await send('retry-posting-receipt').catch(e => log('warn', `ส่งผลกลับ backend ไม่สำเร็จ (จะลองใหม่รอบหน้า): ${e.message}`));
     let status = outcome === 'published' ? 'posted' : outcome === 'scheduled_on_platform' ? 'scheduled' : outcome === 'draft_saved' ? 'drafted' : 'unknown';
     if (draft && status === 'posted') throw new Error('draft run got a published outcome: stop (the Post button must never be pressed in draft mode)');
     // Second, independent proof: the clip must really be listed on TikTok Studio > Content.
@@ -215,6 +233,7 @@ async function runClip(deps, clip, { dryRun = false, channelId = 'main', coverFa
     return { status, outcome, job_id: prepared.job_id, cover_fallback: coverFallbackUsed, verified: verified ? verified.ok : null,
       ...(verified && !verified.ok ? { error: `${draft ? 'drafts' : 'content'}_page_not_verified: ${verified.reason}` } : {}) };
   } catch (error) {
+    if (error instanceof ClipCancelled) return { status: 'failed', step: 'cancelled', error: error.message };
     const message = error?.message || String(error);
     // Evidence first: what did the page look like when this step failed?
     await Promise.resolve(shot?.(`${clip.id}_FAIL_${step}`)).catch(() => {});
@@ -254,18 +273,31 @@ class ClipTimeout extends Error {
 // killed (deps.recover) so the next clip starts from a clean worker.
 async function runClipGuarded(deps, clip, options, budgetMs) {
   let timer;
+  const run = { cancelled: false, postSent: false };
   const timeout = new Promise((_, reject) => { timer = setTimeout(() => reject(new ClipTimeout(budgetMs)), budgetMs); });
   try {
-    return await Promise.race([runClip(deps, clip, options), timeout]);
+    return await Promise.race([runClip(deps, clip, { ...options, run }), timeout]);
   } catch (error) {
     if (error instanceof ClipTimeout) {
+      run.cancelled = true;           // BEFORE recover(): the zombie run must not send anything to the replacement worker
       await deps.recover?.();
+      // Once Post / Save draft was sent the click may have happened: that is "unknown" (never retried), not "failed".
+      if (run.postSent) return { status: 'unknown', step: 'timeout', error: `${error.message} (หลังส่งคำสั่งกดโพสต์แล้ว ผลไม่แน่ชัด)` };
       return { status: 'failed', step: 'timeout', error: error.message };
     }
     throw error;
   } finally {
     clearTimeout(timer);
   }
+}
+
+// Queue rows an earlier run could not confirm. They are never picked again (not READY), but the operator must see them.
+async function findUnresolved(api) {
+  try {
+    const res = await api.get('/api/schedule-queue');
+    if (!res?.ok) return [];
+    return (res.data?.items || []).filter(item => item.status === 'confirmation_unknown');
+  } catch (_) { return []; }
 }
 
 async function runBatch(deps, { clips, dryRun = false, channelId = 'main', coverFallback = false, mode = 'schedule', clipBudgetMs = 25 * 60 * 1000, maxClipAttempts = 2, cooldownSec = [20, 40],
@@ -277,6 +309,12 @@ async function runBatch(deps, { clips, dryRun = false, channelId = 'main', cover
   let aborted = null;
   // TikTok caps scheduled posts and drafts (30 each). Read the live counts once and never plan more clips
   // than what is left; when the counts cannot be read, say so and fall back to the operator's --limit.
+  if (!dryRun) {
+    const unresolved = await findUnresolved(deps.api);
+    if (unresolved.length) {
+      log('warn', `มี ${unresolved.length} คลิปที่รอบก่อนยืนยันผลไม่ได้ (${unresolved.slice(0, 3).map(i => i.hook_title || i.id).join(', ')}) — จะไม่รันซ้ำ ตรวจที่ TikTok Studio > Content แล้วแก้สถานะในแอป`);
+    }
+  }
   let quota = null;
   if (!dryRun && deps.quota) {
     quota = await deps.quota().catch(error => ({ success: false, error: error.message }));
@@ -337,4 +375,4 @@ async function runBatch(deps, { clips, dryRun = false, channelId = 'main', cover
   };
 }
 
-module.exports = { runClipGuarded, ClipTimeout, rowMatchesClip, FATAL_RE, PRICE_RE, FatalError, clipFromQueueItem, skipReason, pickClips, runClip, runBatch, shouldReconcile };
+module.exports = { runClipGuarded, ClipTimeout, ClipCancelled, findUnresolved, rowMatchesClip, FATAL_RE, PRICE_RE, FatalError, clipFromQueueItem, skipReason, pickClips, runClip, runBatch, shouldReconcile };

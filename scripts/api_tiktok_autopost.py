@@ -479,10 +479,29 @@ def clear_pending(req: "CancelRequest", scope: ChannelScope = Depends(get_workfl
     failure) so a stale job never gets replayed by mistake."""
     global _pending
     scope = _actual_scope(scope)
+    job = _jobs().get(scope.channel_id, req.job_id)
     _jobs().cancel(scope.channel_id, req.job_id)
+    # a cancelled job must not leave its queue row pointing at it (the next prepare would be refused with 409)
+    _reset_queue_row(scope, job)
     if _pending and _pending.get("job_id") == req.job_id:
         _pending = None
     return {"success": True}
+
+
+def _reset_queue_row(scope, job):
+    """Put the queue row of a job that never reached TikTok back to `planned`. Only a row that still points at this
+    very job and is waiting for the extension is touched."""
+    if not job.get("queue_id"):
+        return
+    from scripts.schedule_store import ScheduleQueueStore
+
+    def reset(row, _rows):
+        if row.get("posting_job_id") == job["job_id"] and row.get("status") in {"ready_for_extension", "awaiting_post"}:
+            row["status"] = "planned"
+            row.pop("posting_job_id", None)
+            row.pop("extension_prepared_at", None)
+            row["updated_at"] = datetime.now().isoformat()
+    ScheduleQueueStore.update_item(job["queue_id"], reset, channel_id=scope.channel_id)
 
 
 def _actual_scope(scope):
@@ -583,19 +602,17 @@ def release_job(req: ActionRequest, scope: ChannelScope = Depends(get_workflow_s
     job = _jobs().get(scope.channel_id, req.job_id)
     _validate_request_payload(req, job)
     released = _jobs().release(scope.channel_id, req.job_id, req.lease_owner, req.lease_token, req.expected_revision, force=req.force)
-    if job.get("queue_id"):
-        from scripts.schedule_store import ScheduleQueueStore
-        def reset(row, _rows):
-            if row.get("posting_job_id") == job["job_id"] and row.get("status") == "ready_for_extension":
-                row["status"] = "planned"
-                row.pop("posting_job_id", None)
-                row["updated_at"] = datetime.now().isoformat()
-        ScheduleQueueStore.update_item(job["queue_id"], reset, channel_id=scope.channel_id)
+    _reset_queue_row(scope, job)
     return released
 
 
 def _apply_outcome_effects(scope, job):
-    if job.get("effects_applied") or job["status"] == "confirmation_unknown":
+    if job.get("effects_applied"):
+        return job
+    if job["status"] == "confirmation_unknown":
+        # The post may or may not be live: show that on the queue row (so the next run does not pick the clip again and
+        # the operator sees it) but touch nothing else and do not mark effects applied -- the final proof will.
+        _mirror_unknown_to_queue(scope, job)
         return job
     # Re-read the canonical record on every retry; request data never selects
     # a path, caption, parent, or export here. Local effects are idempotent.
@@ -629,9 +646,26 @@ def _apply_outcome_effects(scope, job):
                 raise ChannelError(409, "posting_queue_changed", "คิวผูกกับงานอื่นแล้ว ต้องตรวจผลก่อน")
             row["status"] = {"published": "posted", "draft_saved": "draft_on_platform"}.get(job["status"], "scheduled_on_platform")
             row["posting_job_id"] = job["job_id"]
-        if ScheduleQueueStore.update_item(job["queue_id"], apply, channel_id=scope.channel_id) is None:
-            raise ChannelError(404, "posting_queue_missing", "ไม่พบคิวเดิม จึงยังบันทึกผลคิวไม่สำเร็จ")
+        # A queue row that no longer exists is not a reason to keep the receipt pending forever: the post itself is
+        # recorded on the job and the export; there is simply no row left to update.
+        ScheduleQueueStore.update_item(job["queue_id"], apply, channel_id=scope.channel_id)
     return _jobs().mark_effects_applied(scope.channel_id, job["job_id"])
+
+
+def _mirror_unknown_to_queue(scope, job):
+    if not job.get("queue_id"):
+        return
+    from scripts.schedule_store import ScheduleQueueStore
+
+    def mark(row, _rows):
+        if row.get("export_id") != job["export_id"] or row.get("status") in {"cancelled", "posted"}:
+            return
+        if row.get("posting_job_id") and row["posting_job_id"] != job["job_id"]:
+            return
+        row["status"] = "confirmation_unknown"
+        row["posting_job_id"] = job["job_id"]
+        row["updated_at"] = datetime.now().isoformat()
+    ScheduleQueueStore.update_item(job["queue_id"], mark, channel_id=scope.channel_id)
 
 
 def _ack(req, scope, *, reconcile=False):

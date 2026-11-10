@@ -1291,6 +1291,34 @@ def create_queue(req: QueueCreateRequest, scope: ChannelScope = Depends(get_chan
     return {"items": sort_records(created), "count": len(created)}
 
 
+def _settle_job_before_edit(channel_id: str, existing: Optional[Dict[str, Any]], *, cancel: bool) -> None:
+    """A queue row may only be reset/removed while its posting job is NOT in flight.
+    - never attempted and only prepared: cancel it first (when `cancel`), so no live job outlives the row
+    - claimed by the extension, attempted, unknown or otherwise unfinished: refuse -- the post may exist on TikTok
+      and must be reconciled (or the job parked from the panel) first"""
+    job_id = (existing or {}).get("posting_job_id")
+    if not job_id or (existing or {}).get("status") in {"draft_on_platform", "posted", "scheduled_on_platform"}:
+        return
+    from scripts.api_tiktok_autopost import _jobs
+    from scripts.posting_jobs import ATTEMPTED_STATUSES
+    try:
+        job = _jobs().get(channel_id, job_id)
+    except ChannelError:
+        return   # the job record is gone: nothing in flight
+    if job["status"] in {"cancelled", "published", "scheduled_on_platform", "draft_saved"}:
+        return
+    if job.get("publish_attempted_at") or job["status"] in ATTEMPTED_STATUSES:
+        raise ChannelError(409, "posting_job_in_flight",
+                           "คลิปนี้กดโพสต์ไปแล้วและยังรอตรวจผล แก้หรือลบคิวไม่ได้ ตรวจผลเดิมบน TikTok ก่อน",
+                           action="review_platform_result")
+    if job["status"] == "prepared" and cancel:
+        _jobs().cancel(channel_id, job_id)
+        return
+    raise ChannelError(409, "posting_job_in_flight",
+                       "คลิปนี้มีงานโพสต์ที่ยังไม่จบ (Extension ถือสิทธิ์อยู่หรือเตรียมไว้) ให้พักงานจากแผง Extension ก่อน",
+                       action="park_job_in_panel")
+
+
 @router.patch("/{item_id}")
 def patch_queue(item_id: str, req: QueuePatchRequest, scope: ChannelScope = Depends(get_channel_scope)):
     channel_id = _channel_of(scope)
@@ -1331,6 +1359,7 @@ def patch_queue(item_id: str, req: QueuePatchRequest, scope: ChannelScope = Depe
         # Free the export for a new prepare BEFORE the queue row changes (the two stores must not nest
         # transactions); releasing is idempotent, so a retry after a half-done reset is safe.
         existing = ScheduleQueueStore.get_item(item_id, **_kw(channel_id))
+        _settle_job_before_edit(channel_id, existing, cancel=True)
         if existing and existing.get("status") == "draft_on_platform" and existing.get("posting_job_id"):
             from scripts.api_tiktok_autopost import _jobs
             _jobs().release_draft(channel_id, existing["posting_job_id"])
@@ -1344,6 +1373,8 @@ def patch_queue(item_id: str, req: QueuePatchRequest, scope: ChannelScope = Depe
 def remove_queue(item_id: str, scope: ChannelScope = Depends(get_channel_scope)):
     channel_id = _channel_of(scope)
     _guard_writable(scope)
+
+    _settle_job_before_edit(channel_id, ScheduleQueueStore.get_item(item_id, **_kw(channel_id)), cancel=False)
 
     def guard(item: Dict[str, Any]) -> None:
         if item.get("status") in {"scheduled_on_platform", "confirmation_unknown", "draft_on_platform"}:

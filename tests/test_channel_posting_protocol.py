@@ -829,3 +829,93 @@ def test_reconcile_and_manual_proofs_must_carry_a_notice(store):
     done = jobs.acknowledge(*_ack_args(row), "published",
                             {"kind": "manual_user_confirmation", "notice": "operator saw the post on Studio > Content"}, reconcile=True)
     assert done["status"] == "published"
+
+
+# ---- R4: job <-> queue consistency ----
+
+def _queue_row(env, queue_id="queue-r4"):
+    from scripts.schedule_store import ScheduleQueueStore
+    client, api, registry, video, export, _ = env
+    with ScheduleQueueStore.transaction(channel_id="main") as rows:
+        rows.append({"id": queue_id, "channel_id": "main", "export_id": export["id"], "status": "planned"})
+    return queue_id
+
+
+def _queue_get(queue_id="queue-r4"):
+    from scripts.schedule_store import ScheduleQueueStore
+    return ScheduleQueueStore.get_item(queue_id, channel_id="main")
+
+
+def test_unknown_outcome_is_mirrored_to_the_queue_and_the_final_proof_replaces_it(api_env):
+    client, api, registry, video, export, _ = api_env
+    queue_id = _queue_row(api_env)
+    prepared = client.post("/api/tiktok-autopost/prepare", json={"video_path": str(video), "export_id": export["id"], "queue_id": queue_id}).json()
+    row = client.post("/api/tiktok-autopost/claim", json={"protocol_version": 2, "job_id": prepared["job_id"], "lease_owner": "extension-a"}).json()
+    started = client.post("/api/tiktok-autopost/attempt", json=action_body(row)).json()
+    unknown = client.post("/api/tiktok-autopost/ack", json={**action_body(started), "outcome": "confirmation_unknown", "proof": {}})
+    assert unknown.status_code == 200, unknown.text
+    queued = _queue_get(queue_id)
+    assert queued["status"] == "confirmation_unknown" and queued["posting_job_id"] == prepared["job_id"]
+    assert registry.get(export["id"], channel_id="main")["status"] != "posted"          # nothing else was touched
+    assert not api._jobs().get("main", prepared["job_id"])["effects_applied"]
+    final = client.post("/api/tiktok-autopost/reconcile", json={**action_body(unknown.json()), "outcome": "published",
+                        "proof": {"kind": "manual_user_confirmation", "notice": "ตรวจบน TikTok Studio แล้วโพสต์จริง"}})
+    assert final.status_code == 200, final.text
+    assert _queue_get(queue_id)["status"] == "posted"
+
+
+def test_clear_of_a_prepared_job_resets_its_queue_row(api_env):
+    client, api, registry, video, export, _ = api_env
+    queue_id = _queue_row(api_env)
+    prepared = client.post("/api/tiktok-autopost/prepare", json={"video_path": str(video), "export_id": export["id"], "queue_id": queue_id}).json()
+    assert _queue_get(queue_id)["status"] == "ready_for_extension"
+    assert client.post("/api/tiktok-autopost/clear", json={"job_id": prepared["job_id"]}).status_code == 200
+    row = _queue_get(queue_id)
+    assert row["status"] == "planned" and "posting_job_id" not in row
+    again = client.post("/api/tiktok-autopost/prepare", json={"video_path": str(video), "export_id": export["id"], "queue_id": queue_id})
+    assert again.status_code == 200, again.text                                       # not refused with 409 any more
+
+
+def test_missing_queue_row_does_not_keep_a_confirmed_receipt_pending(api_env):
+    from scripts.schedule_store import ScheduleQueueStore
+    client, api, registry, video, export, _ = api_env
+    queue_id = _queue_row(api_env)
+    prepared = client.post("/api/tiktok-autopost/prepare", json={"video_path": str(video), "export_id": export["id"], "queue_id": queue_id}).json()
+    row = client.post("/api/tiktok-autopost/claim", json={"protocol_version": 2, "job_id": prepared["job_id"], "lease_owner": "extension-a"}).json()
+    started = client.post("/api/tiktok-autopost/attempt", json=action_body(row)).json()
+    assert ScheduleQueueStore.remove_item(queue_id, channel_id="main") is not None
+    done = client.post("/api/tiktok-autopost/ack", json={**action_body(started), "outcome": "published",
+                       "proof": {"kind": "platform_success_notice", "notice": "Posted successfully"}})
+    assert done.status_code == 200, done.text
+    assert api._jobs().get("main", prepared["job_id"])["effects_applied"] is True
+
+
+def test_queue_edit_is_refused_while_the_job_is_in_flight(api_env):
+    from scripts import api_schedule_queue as queue_api
+    from scripts.channel_store import ChannelError
+    client, api, registry, video, export, _ = api_env
+    queue_id = _queue_row(api_env)
+    prepared = client.post("/api/tiktok-autopost/prepare", json={"video_path": str(video), "export_id": export["id"], "queue_id": queue_id}).json()
+    existing = lambda: _queue_get(queue_id)
+    # prepared only: may be cancelled (reset) but not silently left alive by a delete
+    with pytest.raises(ChannelError) as err:
+        queue_api._settle_job_before_edit("main", existing(), cancel=False)
+    assert err.value.code == "posting_job_in_flight"
+    row = client.post("/api/tiktok-autopost/claim", json={"protocol_version": 2, "job_id": prepared["job_id"], "lease_owner": "extension-a"}).json()
+    with pytest.raises(ChannelError) as err:                      # claimed by the extension: park it from the panel first
+        queue_api._settle_job_before_edit("main", existing(), cancel=True)
+    assert err.value.code == "posting_job_in_flight"
+    client.post("/api/tiktok-autopost/attempt", json=action_body(row))
+    with pytest.raises(ChannelError) as err:                      # attempted: the post may exist on TikTok
+        queue_api._settle_job_before_edit("main", existing(), cancel=True)
+    assert err.value.code == "posting_job_in_flight"
+    assert api._jobs().get("main", prepared["job_id"])["status"] != "cancelled"
+
+
+def test_queue_reset_cancels_a_prepared_job_first(api_env):
+    from scripts import api_schedule_queue as queue_api
+    client, api, registry, video, export, _ = api_env
+    queue_id = _queue_row(api_env)
+    prepared = client.post("/api/tiktok-autopost/prepare", json={"video_path": str(video), "export_id": export["id"], "queue_id": queue_id}).json()
+    queue_api._settle_job_before_edit("main", _queue_get(queue_id), cancel=True)
+    assert api._jobs().get("main", prepared["job_id"])["status"] == "cancelled"

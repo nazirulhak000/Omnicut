@@ -5353,6 +5353,8 @@ async function runDetectTikTokQuota({allowNavigate = false} = {}) {
   const fromTab = await runDetectQuotaFromTab();
   if (typeof fromTab?.scheduledCount === 'number') return fromTab;
   if (!allowNavigate) return fromTab;
+  // Counting walks the upload tab over to Content: never while a job is mid-flight (its filled form would be thrown away).
+  if ((await postingState()).activeJob) return {...(fromTab || {}), countSkipped: 'active_job'};
   try {
     const counted = await runCountScheduledOnContent();
     const detector = globalThis.OmniCutQuotaDetector;
@@ -5368,8 +5370,8 @@ async function runDetectTikTokQuota({allowNavigate = false} = {}) {
 }
 
 let actionRunning = false;
-
 let pinnedUploadTabId = null;
+const NO_TAB_RECOVERY_ACTIONS = new Set(['click-post-only', 'save-draft-only', 'wait-for-upload-only', 'prepare-details', 'upload-cover-only']);
 
 const actions = {
 
@@ -5447,7 +5449,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     try {
 
-      if (!['retry-posting-receipt', 'release-posting-job', 'select-posting-channel', 'claim-posting-job', 'reconcile-posting-result', 'detect-tiktok-quota', 'broadcast-batch-signal', 'verify-post-content', 'verify-draft-content'].includes(message.action)) pinnedUploadTabId = (await findUploadTab()).id;
+      if (!['retry-posting-receipt', 'release-posting-job', 'select-posting-channel', 'claim-posting-job', 'reconcile-posting-result', 'detect-tiktok-quota', 'broadcast-batch-signal', 'verify-post-content', 'verify-draft-content'].includes(message.action)) {
+        // The click steps work on the already-filled form. If that tab has gone (a post sends it on to Content) bringing a
+        // Studio tab back to a blank upload page would only destroy the page that proves what happened.
+        pinnedUploadTabId = (await findUploadTab({recover: !NO_TAB_RECOVERY_ACTIONS.has(message.action)})).id;
+      }
 
       const result = await action(message);
 
