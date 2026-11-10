@@ -1118,25 +1118,21 @@ function anyStepChecked() {
 
 }
 
+let settlePendingConfirm = null;
 function askConfirm(message) {
-
+  // a question that is still open is answered "no" before a new one is shown (no stacked listeners, no hanging promise)
+  if (settlePendingConfirm) settlePendingConfirm(false);
   return new Promise((resolve) => {
-
     confirmText.textContent = message;
-
     confirmOverlay.classList.add('show');
-
     const cleanup = (result) => {
-
+      settlePendingConfirm = null;
       confirmOverlay.classList.remove('show');
-
       confirmOkBtn.removeEventListener('click', onOk);
-
       confirmCancelBtn.removeEventListener('click', onCancel);
-
       resolve(result);
-
     };
+    settlePendingConfirm = cleanup;
 
     const onOk = () => cleanup(true);
 
@@ -1649,9 +1645,19 @@ async function handlePrepareClick(item) {
 }
 
 async function prepareClip(item) {
-
   if (busy) return;
-
+  // the manual route had no guard at all: same rules as the batch (already posted, QC, price text, placeholders, past slot)
+  const manualBlock = (() => {
+    const guard = globalThis.OmniPostGuard;
+    if (!guard) return '';
+    const record = exportRecordIndex ? exportRecordIndex.get(item.export_id) : undefined;
+    const code = guard.clipSkipReason({ ...item, tiktok_caption: item.tiktok_caption || '' }, record, Date.now(), { exportsKnown: Boolean(exportRecordIndex), ignoreSlot: !(item.schedule_date && item.schedule_time) });
+    return code ? (BLOCK_REASON_TH[code] || code) : '';
+  })();
+  if (manualBlock) {
+    setStatus(`เตรียมคลิปนี้ไม่ได้: ${manualBlock}`, 'error');
+    return;
+  }
   setBusy(true);
 
   setStatus(`กำลังเตรียม "${item.hook_title || item.name}"...`);
@@ -2881,9 +2887,55 @@ function guardBatchClips(clips) {
   return { kept, skipped };
 }
 
-batchStartBtn?.addEventListener('click', async () => {
+// ── One run at a time (this panel and every other open panel) ───────────────
+const PANEL_RUN_ID = `panel-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+let batchStarting = false;            // set synchronously on the first click, before any await
+let runLockBeatTimer = null;
+const lockStorage = () => (typeof chrome !== 'undefined' ? chrome.storage?.local : null);
+function startRunLockBeat() {
+  stopRunLockBeat();
+  runLockBeatTimer = setInterval(() => {
+    const storage = lockStorage();
+    if (storage) globalThis.OmniRunLock?.beat(storage, PANEL_RUN_ID).catch(() => {});
+  }, globalThis.OmniRunLock?.BEAT_MS || 10000);
+}
+function stopRunLockBeat() { if (runLockBeatTimer) { clearInterval(runLockBeatTimer); runLockBeatTimer = null; } }
+async function releaseRunLock() {
+  stopRunLockBeat();
+  const storage = lockStorage();
+  if (storage) { try { await globalThis.OmniRunLock?.release(storage, PANEL_RUN_ID); } catch (_) {} }
+}
+// A run that is cut off (panel closed/reloaded, browser crash) leaves its job claimed and the loop gone: park the job
+// so it can never be posted twice, and say so.
+async function recoverInterruptedRun() {
+  const storage = lockStorage();
+  const lockApi = globalThis.OmniRunLock;
+  if (!storage || !lockApi) return;
+  try {
+    const orphan = await lockApi.takeOrphan(storage);
+    if (!orphan) return;
+    appendBatchLog('รอบรันก่อนหน้าถูกตัดกลางคัน (ปิดแผง/รีโหลด/เบราว์เซอร์ปิด) — พักงานที่ค้างไว้ ตรวจที่ TikTok Studio > Content ก่อนรันใหม่', 'warn');
+    await panelWorkerRequest({ action: 'release-posting-job', park: true }).catch((err) => appendBatchLog(`พักงานที่ค้างไม่สำเร็จ: ${err.message}`, 'error'));
+    setStatus('รอบรันก่อนหน้าถูกตัดกลางคัน — พักงานที่ค้างแล้ว ตรวจผลบน TikTok ก่อนรันใหม่', 'warn');
+  } catch (_) {}
+}
+window.addEventListener('beforeunload', (event) => {
+  if (batchStarting || activeBatchRunner) { event.preventDefault(); event.returnValue = ''; }
+});
+recoverInterruptedRun();
 
-  if (busy) return;
+batchStartBtn?.addEventListener('click', async () => {
+  if (busy || batchStarting) return;
+  batchStarting = true;   // synchronous: a double click or a second event can never reach the confirm dialog twice
+  try {
+    await runBatchFromPanel();
+  } finally {
+    batchStarting = false;
+    await releaseRunLock();   // idempotent; covers every early exit after the lock was taken
+  }
+});
+
+async function runBatchFromPanel() {
 
   const query = clipSearchInput ? clipSearchInput.value.trim().toLowerCase() : '';
 
@@ -2927,11 +2979,20 @@ batchStartBtn?.addEventListener('click', async () => {
 (จำกัดตามโควตา TikTok Studio สูงสุด 30 รายการ จากคิวทั้งหมด ${targetClips.length} คลิป)`;
 
   const ok = await askConfirm(confirmMsg);
-
   if (!ok) return;
-
+  const lockStore = lockStorage();
+  if (!lockStore || !globalThis.OmniRunLock) {
+    setStatus('ไม่พบตัวล็อกรอบ (run_lock.js) จึงไม่เริ่มรัน เพื่อกันรันซ้อน', 'error');
+    return;
+  }
+  const lockResult = await globalThis.OmniRunLock.acquire(lockStore, PANEL_RUN_ID);
+  if (!lockResult.ok) {
+    setStatus('มีอีกแผง/อีกหน้าต่างกำลังรันอยู่ (หรือเพิ่งเริ่มพร้อมกัน) จึงไม่เริ่มรอบนี้ — รอให้รอบนั้นจบก่อน', 'error');
+    return;
+  }
+  startRunLockBeat();
+  if (lockResult.recovered) appendBatchLog('พบรอบรันเก่าที่ถูกตัดกลางคัน — งานที่ค้างจะถูกพักก่อนเริ่มคลิปแรก', 'warn');
   try {
-
     await openTikTokUploadTab(false);
 
   } catch (_) {}
@@ -3117,14 +3178,18 @@ batchStartBtn?.addEventListener('click', async () => {
         });
       });
       if (!response?.success) {
-        throw new Error(response?.error || response?.reason || 'กดโพสต์บนหน้า TikTok ไม่สำเร็จ');
+        const failure = new Error(response?.error || response?.reason || 'กดโพสต์บนหน้า TikTok ไม่สำเร็จ');
+        // true = the click happened, false = provably not; missing (port closed, worker restarted) = unknown
+        if (typeof response?.postAttempted === 'boolean') failure.postAttempted = response.postAttempted;
+        throw failure;
       }
       return response;
     },
 
     reconcile: async (_clip, outcome, result) => {
       if (globalThis.OmniBatchOrchestrator?.shouldReconcileAfterPost?.(outcome, result)) {
-        await panelWorkerRequest({ action: 'reconcile-posting-result', manual: false }).catch(() => ({}));
+        await panelWorkerRequest({ action: 'reconcile-posting-result', manual: false })
+          .catch((err) => appendBatchLog(`ตรวจผลซ้ำกับ TikTok ไม่สำเร็จ (${err.message}) — ตรวจที่ TikTok Studio > Content เอง`, 'warn'));
       }
       loadExports().catch(() => {});
       return outcome || { success: true };
@@ -3153,10 +3218,10 @@ batchStartBtn?.addEventListener('click', async () => {
     checkQuota: async () => {
       try {
         await checkTikTokQuota(true, true);
-        return currentQuotaState;
-      } catch (_) {
-        return currentQuotaState;
+      } catch (err) {
+        appendBatchLog(`นับโควตาสดไม่สำเร็จ (${err.message}) — ใช้ตัวเลขล่าสุดที่มี`, 'warn');
       }
+      return currentQuotaState;
     },
     notifySignal: async (signal) => {
       try {
@@ -3172,24 +3237,19 @@ batchStartBtn?.addEventListener('click', async () => {
     },
   };
 
-  const orchestratorModule = globalThis.OmniBatchOrchestrator || (typeof window !== 'undefined' ? window.OmniBatchOrchestrator : null);
-  const runnerModule = orchestratorModule || globalThis.OmniBatchRunner || (typeof window !== 'undefined' ? window.OmniBatchRunner : null);
-
-  if (!runnerModule || !runnerModule.createBatchRunner) {
-
-    appendBatchLog('ไม่พบโมดูล OmniBatchRunner', 'error');
-
+  const runnerModule = globalThis.OmniBatchOrchestrator || (typeof window !== 'undefined' ? window.OmniBatchOrchestrator : null);
+  if (!runnerModule || !runnerModule.createBatchOrchestrator) {
+    // hard stop: there is no weaker fallback runner any more (no circuit breaker / unknown handling there)
+    appendBatchLog('ไม่พบโมดูล batch_orchestrator.js จึงไม่เริ่มรัน', 'error');
+    setStatus('ไม่พบโมดูล batch_orchestrator.js — โหลดส่วนขยายใหม่', 'error');
     setBusy(false);
-
     if (batchStartBtn) batchStartBtn.disabled = false;
-
     stopKeepAlive();
-
+    await releaseRunLock();
     return;
-
   }
 
-  const runner = runnerModule.createBatchRunner({
+  const runner = runnerModule.createBatchOrchestrator({
 
     clips: slicedClips,
 
@@ -3203,6 +3263,7 @@ batchStartBtn?.addEventListener('click', async () => {
 
       autoSkipOnError: true,
       allowDraft: true, // the panel has a real "Save draft" step now (save-draft-only)
+      requiredActions: ['prepareClip', 'uploadVideo|injectFile', 'awaitProcessing', 'fillDetails|fillMetadata', 'submitPost|triggerSubmit', 'verifySuccessToast', 'reconcile|updateBackend'],
 
     },
 
@@ -3305,10 +3366,9 @@ batchStartBtn?.addEventListener('click', async () => {
   try {
 
     const summary = await runner.start();
-
-    appendBatchLog(`สรุปผลลัพธ์: สำเร็จ ${summary.successful}/${summary.total} คลิป (ข้าม ${summary.failed})`, summary.failed > 0 ? 'warn' : 'success');
-
-    setStatus(`อัปโหลดแบบกลุ่มเสร็จสิ้น! สำเร็จ ${summary.successful}/${summary.total} คลิป`, 'success');
+    const verdict = runnerModule.finalVerdict(summary);
+    appendBatchLog(`สรุปผลลัพธ์: ${verdict.text}`, verdict.kind);
+    setStatus(verdict.text, verdict.kind);
 
   } catch (err) {
 
@@ -3317,24 +3377,16 @@ batchStartBtn?.addEventListener('click', async () => {
     setStatus(`การอัปโหลดแบบกลุ่มหยุดลง: ${err.message}`, 'error');
 
   } finally {
-
     stopKeepAlive();
-
     activeBatchRunner = null;
-
     setBusy(false);
-
     if (batchStartBtn) batchStartBtn.disabled = false;
-
     if (batchPauseBtn) batchPauseBtn.hidden = false;
-
     if (batchResumeBtn) batchResumeBtn.hidden = true;
-
+    await releaseRunLock();
     await loadExports();
-
   }
-
-});
+}
 
 batchPauseBtn?.addEventListener('click', () => {
 
@@ -3350,7 +3402,7 @@ batchResumeBtn?.addEventListener('click', () => {
 
 batchStopBtn?.addEventListener('click', async () => {
 
-  const ok = await askConfirm('ต้องการหยุดการทำงานของ Batch Auto-Post ใช่หรือไม่?');
+  const ok = await askConfirm('ต้องการหยุดการทำงานของ Batch Auto-Post ใช่หรือไม่? (ถ้ากำลังกดโพสต์ ระบบจะรอตรวจผลของคลิปนี้ให้จบก่อนจึงหยุด)');
 
   if (ok) {
 

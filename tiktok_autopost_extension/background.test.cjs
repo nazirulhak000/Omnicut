@@ -997,7 +997,9 @@ test('stats sync accepts the real Studio posts page and stamps a visible build t
   // Build identity: chrome://extensions + the Tools tab both prove the fresh
   // code is running, so stale cached sidepanel.js (the ghost "จำกัดโดเมน"
   // banner that never existed in this repo) can be caught by the user's eyes.
-  assert.equal(manifest.version, '0.4.3');
+  assert.equal(manifest.version, '0.4.4');
+  assert.equal(manifest.content_scripts, undefined, 'no legacy content script');
+  for (const gone of ['batch_runner.js', 'batch_runner.test.cjs', 'content_script.js', 'popup.html', 'popup.js']) assert.ok(!fs.existsSync(path.join(__dirname, gone)), gone + ' must stay deleted');
   assert.match(sideHtml, /id="buildTag"/);
   assert.match(sideJs, /getManifest/);
   // The strict domain banner must never come back: resolution is a loose
@@ -1012,12 +1014,9 @@ test('stats sync accepts the real Studio posts page and stamps a visible build t
 test('extension UI exposes single consolidated TikTok upload opener and complies with clean UI standard', () => {
   const sideHtml = fs.readFileSync(path.join(__dirname, 'sidepanel.html'), 'utf8');
   const sideJs = fs.readFileSync(path.join(__dirname, 'sidepanel.js'), 'utf8');
-  const popupHtml = fs.readFileSync(path.join(__dirname, 'popup.html'), 'utf8');
-  const popupJs = fs.readFileSync(path.join(__dirname, 'popup.js'), 'utf8');
 
-  // Verify single global header opener exists in sidepanel and single opener in popup
+  // Verify single global header opener exists in sidepanel and the old popup is gone
   assert.match(sideHtml, /id="headerOpenTikTokBtn"/);
-  assert.match(popupHtml, /id="popupOpenTikTokBtn"/);
 
   // Verify redundant buttons were removed (User requested exactly one single spot)
   assert.doesNotMatch(sideHtml, /id="listOpenTikTokBtn"/);
@@ -1028,12 +1027,9 @@ test('extension UI exposes single consolidated TikTok upload opener and complies
   // Verify listeners and URL opener in JS
   assert.match(sideJs, /headerOpenTikTokBtn/);
   assert.match(sideJs, /tiktok\.com\/tiktokstudio\/upload/);
-  assert.match(popupJs, /popupOpenTikTokBtn/);
-  assert.match(popupJs, /tiktok\.com\/tiktokstudio\/upload/);
 
   // Verify clean UI standard: no emojis in button texts
   assert.doesNotMatch(sideHtml, /<button[^>]*>[^<]*[\u{1F300}-\u{1F9FF}][^<]*<\/button>/u);
-  assert.doesNotMatch(popupHtml, /<button[^>]*>[^<]*[\u{1F300}-\u{1F9FF}][^<]*<\/button>/u);
 });
 
 test('extension UI exposes dynamic backend health status and bilingual upload status check', () => {
@@ -1613,4 +1609,26 @@ test('R2 typeCaption never types price text, placeholders or oversize text', asy
   await assert.rejects(() => ctx.typeCaption(send, 'ราคา 199 บาท', '#a'), /content_blocked.*price_in_caption/);
   await assert.rejects(() => ctx.typeCaption(send, '{product_name}', ''), /content_blocked.*placeholder_in_caption/);
   await assert.rejects(() => ctx.typeCaption(send, 'ก'.repeat(4001), ''), /content_blocked.*caption_too_long/);
+});
+
+test('R3 panel wiring: one run at a time, no legacy runner, manual prepare guarded, honest end state', () => {
+  const side = fs.readFileSync(path.join(__dirname, 'sidepanel.js'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, 'sidepanel.html'), 'utf8');
+  assert.doesNotMatch(html, /batch_runner\.js/);
+  assert.match(html, /run_lock\.js/);
+  assert.doesNotMatch(side, /OmniBatchRunner/);
+  assert.doesNotMatch(side, /createBatchRunner/);
+  // the starting flag is set before the first await of the click handler
+  const handler = side.slice(side.indexOf("batchStartBtn?.addEventListener('click'"));
+  assert.ok(handler.indexOf('batchStarting = true') > 0 && handler.indexOf('batchStarting = true') < handler.indexOf('await'));
+  assert.match(side, /beforeunload/);
+  assert.match(side, /OmniRunLock\.acquire/);
+  assert.match(side, /requiredActions:/);
+  assert.match(side, /runnerModule\.finalVerdict\(summary\)/);
+  // the manual prepare route runs the same content/status guard as the batch
+  const manual = side.slice(side.indexOf('async function prepareClip(item)'), side.indexOf('async function prepareClip(item)') + 900);
+  assert.match(manual, /clipSkipReason/);
+  // worker answers carry postAttempted so the orchestrator can tell "unknown" from "failed"
+  const bg = fs.readFileSync(path.join(__dirname, 'background.js'), 'utf8');
+  assert.match(bg, /postAttempted/);
 });

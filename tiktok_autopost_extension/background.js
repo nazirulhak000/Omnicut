@@ -4647,9 +4647,8 @@ async function runClickPostOnly() {
     }, job);
 
   } catch (err) {
-
+    err.postAttempted = Boolean(attempted);   // the panel must know whether a click happened (unknown) or not (plain failure)
     if (attempted) {
-
       // Fallback: check if the tab navigated to /content during or right after post
 
       try {
@@ -4844,6 +4843,7 @@ async function runSaveDraftOnly() {
       throw new Error(`draft_not_confirmed: ${why} -- ตรวจที่ TikTok Studio > แบบร่าง ก่อนลองใหม่`);
     }
   } catch (err) {
+    err.postAttempted = Boolean(attempted);
     if (attempted) {
       // The click happened: never retry, never lose the fact. The panel/operator reconciles by hand.
       try { await savePostingReceipt(job, sourceAccount, 'confirmation_unknown', {}); }
@@ -5412,19 +5412,8 @@ const actions = {
 
   'detect-tiktok-quota': message => runDetectTikTokQuota({allowNavigate: Boolean(message && message.allowNavigate)}),
   'wait-for-upload-only': () => runWaitForUploadOnly(),
-  'broadcast-batch-signal': async (message) => {
-    const tabs = typeof chrome?.tabs?.query === 'function'
-      ? await chrome.tabs.query({ url: ['*://*.tiktok.com/*', '*://tiktok.com/*'] })
-      : [];
-    for (const t of tabs) {
-      if (t?.id && chrome.tabs?.sendMessage) {
-        try {
-          chrome.tabs.sendMessage(t.id, { action: 'batch-signal', signal: message.signal });
-        } catch (_) {}
-      }
-    }
-    return { success: true, signal: message.signal };
-  },
+  // Kept for the panel's pause/resume/abort notifications; the legacy content script that listened is gone.
+  'broadcast-batch-signal': async (message) => ({ success: true, signal: message.signal }),
 
   'select-posting-channel': message => selectPostingChannel(message.channelId),
 
@@ -5474,7 +5463,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     }
 
-  })().then(sendResponse).catch(err => sendResponse({success:false, error:err.message || String(err)}));
+  })().then(sendResponse).catch(err => sendResponse({success:false, error:err.message || String(err), ...(typeof err?.postAttempted === 'boolean' ? {postAttempted: err.postAttempted} : {})}));
 
   return true;
 
