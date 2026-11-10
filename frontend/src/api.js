@@ -285,6 +285,11 @@ export const getCoverBadges = () => api.get('/covers/badges').then(r => r.data);
 export const getCoverHighlights = (videoPath) =>
   api.post('/covers/highlights', { video_path: videoPath }).then(r => r.data);
 
+// The default cover moment: the sharpest frame while the hook nameplate is on
+// screen. `timestamp` is null when the server could not analyse the clip.
+export const getRecommendedCoverFrame = (videoPath) =>
+  api.get('/covers/recommended-frame', { params: { video_path: videoPath } }).then(r => r.data);
+
 export const generateCoverHooks = (productName, angleTitle = '', scriptContent = '') =>
   api.post('/covers/generate-hooks', {
     product_name: productName,

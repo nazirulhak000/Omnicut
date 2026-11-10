@@ -1,0 +1,54 @@
+{
+  "cases": [
+    {
+      "name": "viral red brand tier wins",
+      "overlays": [{"kind": "hook", "tiers": [{"look": {"color": "#FE2C55"}}, {"look": {"color": "#F7F7F7"}}, {"look": {"color": "#D0D0D0"}}]}],
+      "expected": "#FE2C55"
+    },
+    {
+      "name": "clean yellow brand tier wins",
+      "overlays": [{"kind": "hook", "tiers": [{"look": {"color": "#FFE600"}}, {"look": {"color": "#F7F7F7"}}, {"look": {"color": "#D0D0D0"}}]}],
+      "expected": "#FFE600"
+    },
+    {
+      "name": "white brand, coloured model: model tier is the accent",
+      "overlays": [{"kind": "hook", "tiers": [{"look": {"color": "#FFFFFF"}}, {"look": {"color": "#4CE0FF"}}, {"look": {"color": "#C8C8C8"}}]}],
+      "expected": "#4CE0FF"
+    },
+    {
+      "name": "all grey keeps the SOP green",
+      "overlays": [{"kind": "hook", "tiers": [{"look": {"color": "#D0D0D0"}}, {"look": {"color": "#D0D0D0"}}, {"look": {"color": "#D0D0D0"}}]}],
+      "expected": null
+    },
+    {
+      "name": "dark chromatic colour is lifted toward white",
+      "overlays": [{"kind": "hook", "tiers": [{"look": {"color": "#3B0FA8"}}]}],
+      "expected": "#7657C2"
+    },
+    {
+      "name": "very dark colour is not an accent",
+      "overlays": [{"kind": "hook", "tiers": [{"look": {"color": "#1A0033"}}]}],
+      "expected": null
+    },
+    {
+      "name": "hidden hook is ignored",
+      "overlays": [{"kind": "hook", "hidden": true, "tiers": [{"look": {"color": "#FE2C55"}}]}],
+      "expected": null
+    },
+    {
+      "name": "non-hook overlays are skipped, hook after them is used",
+      "overlays": [{"kind": "text", "tiers": [{"look": {"color": "#00FF00"}}]}, {"kind": "hook", "tiers": [{"look": {"color": "#A855F7"}}]}],
+      "expected": "#A855F7"
+    },
+    {
+      "name": "null and non-hex tier colours are skipped",
+      "overlays": [{"kind": "hook", "tiers": [{"look": {"color": null}}, {"look": {"color": "red"}}, {"look": {"color": "#84CC16"}}]}],
+      "expected": "#84CC16"
+    },
+    {
+      "name": "no overlays",
+      "overlays": [],
+      "expected": null
+    }
+  ]
+}

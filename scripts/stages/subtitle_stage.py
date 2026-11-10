@@ -12,6 +12,7 @@ from scripts.hook_line import apply_hook_line, merge_adjacent_spans
 from scripts.overlay_model import HOOK_NAMEPLATE_DEFAULT_SEC, guess_brand_model, migrate_to_overlays
 from scripts.pipeline_context import PipelineContext
 from scripts.project_manifest import ProjectManifest
+from scripts.subtitle.reveal_color import pick_reveal_hex
 
 
 def _materialize_product_callouts(
@@ -193,6 +194,13 @@ class SubtitleStage:
                 hook_style=ctx.hook_style,
                 bilingual=ctx.bilingual_subtitles,
                 ghost_reveal=getattr(ctx, "ghost_reveal", True),
+                # The active word takes the hook's accent so nameplate and
+                # captions share one tone; None (sync off, or a hook with no
+                # coloured tier) keeps the SOP green.
+                reveal_color=(
+                    pick_reveal_hex(effective_overlays)
+                    if getattr(ctx, "reveal_color_sync", True) else None
+                ),
                 caption_position=ctx.caption_position,
                 caption_color=ctx.caption_color,
                 caption_scale=ctx.caption_scale,

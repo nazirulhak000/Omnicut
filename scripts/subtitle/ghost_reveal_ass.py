@@ -75,20 +75,33 @@ def word_pops(word: Dict) -> bool:
     return bool(word.get("pop", True))
 
 
-def _state_tags(state: str, pop: bool = True) -> str:
+def active_colour_for(hex_colour: Optional[str]) -> str:
+    """The ASS colour of the word being spoken: `hex_colour`, else the SOP green.
+
+    The reveal follows the hook's own colour when the caller resolves one (see
+    `scripts/subtitle/reveal_color.py`); `None` keeps the SOP default so every
+    caller that never opted in renders byte-for-byte as before.
+    """
+    if not hex_colour:
+        return ACTIVE_COLOUR
+    return f"{ass_colour(hex_colour)}&"
+
+
+def _state_tags(state: str, pop: bool = True, active_colour: Optional[str] = None) -> str:
     if state == "spoken":
         return f"{{\\c{SPOKEN_COLOUR}\\alpha&H00&\\fscx100\\fscy100}}"
     if state == "active":
         scale = ""
         if pop and ACTIVE_SCALE_PCT != 100:
             scale = f"\\fscx{ACTIVE_SCALE_PCT}\\fscy{ACTIVE_SCALE_PCT}"
-        return f"{{\\c{ACTIVE_COLOUR}\\alpha&H00&{scale}}}"
+        return f"{{\\c{active_colour or ACTIVE_COLOUR}\\alpha&H00&{scale}}}"
     # ghost: still drawn, so it holds its width and the line cannot reflow.
     return f"{{\\alpha{GHOST_ALPHA}}}"
 
 
 def build_reveal_line(
-    words: Sequence[str], active_idx: int, pops: Optional[Sequence[bool]] = None
+    words: Sequence[str], active_idx: int, pops: Optional[Sequence[bool]] = None,
+    active_colour: Optional[str] = None,
 ) -> str:
     """
     The whole line as ASS text, with word `active_idx` lit.
@@ -107,7 +120,7 @@ def build_reveal_line(
         else:
             state = "ghost"
         pop = True if pops is None else bool(pops[i])
-        parts.append(f"{_state_tags(state, pop)}{w}")
+        parts.append(f"{_state_tags(state, pop, active_colour)}{w}")
     return "".join(parts)
 
 
@@ -154,6 +167,7 @@ def build_multiline_reveal_events(
     style: str = "TikTokWhite",
     layer: int = 1,
     suffix: str = "",
+    active_colour: Optional[str] = None,
 ) -> List[str]:
     """
     A reveal spread over several rendered lines, one anchor per line.
@@ -188,7 +202,7 @@ def build_multiline_reveal_events(
                 text = build_settle_line(words)          # already said
             elif other_li == li:
                 text = build_reveal_line(                # holds the active word
-                    words, wi, [word_pops(w) for w in other_line]
+                    words, wi, [word_pops(w) for w in other_line], active_colour
                 )
             else:
                 text = _ghost_line(words)                # still to come
@@ -226,6 +240,7 @@ def build_ghost_reveal_events(
     layer: int = 1,
     prefix_tags: str = "",
     suffix: str = "",
+    active_colour: Optional[str] = None,
 ) -> List[str]:
     """
     Dialogue lines rendering `reveal` as a progressive ghost reveal.
@@ -254,7 +269,7 @@ def build_ghost_reveal_events(
             # A zero-width span would be a Dialogue libass drops; letting it
             # through would make that word never light up at all.
             continue
-        text = build_reveal_line(words, i, [word_pops(w) for w in reveal])
+        text = build_reveal_line(words, i, [word_pops(w) for w in reveal], active_colour)
         events.append(
             f"Dialogue: {layer},{_ass_time(start)},{_ass_time(end)},{style},,0,0,0,,"
             f"{prefix_tags}{text}{suffix}"

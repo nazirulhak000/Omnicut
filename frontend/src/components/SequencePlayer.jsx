@@ -16,6 +16,7 @@ import { previewPointToSource, sourcePointToPreview } from '../lib/subjectFrameM
 import { subjectPromptReference } from '../lib/subjectPromptReference.js';
 import { revealTrackForCue } from '../lib/captionEdits.js';
 import { ASS_TO_PREVIEW_COLOR, highlightBurstLines, hookHighlightKeywords } from '../lib/kineticHighlight.js';
+import { resolveRevealColor } from '../lib/revealColor.js';
 import {
   PROXY_POLL_MS, buildingClipIds, isProxyableSource, mergeProxyEntry,
   readProxyResponse, shouldPoll,
@@ -1102,7 +1103,7 @@ function splitRevealByLines(reveal, lines) {
   return cursor === reveal.length ? out : null;
 }
 
-function ghostRevealSegments(reveal, t, lineWords = null) {
+function ghostRevealSegments(reveal, t, lineWords = null, activeColor = GHOST_ACTIVE_COLOR) {
   if (!Array.isArray(reveal) || reveal.length === 0) return null;
   let activeIdx = -1;
   for (let i = 0; i < reveal.length; i += 1) {
@@ -1123,7 +1124,7 @@ function ghostRevealSegments(reveal, t, lineWords = null) {
     }
     if (globalIdx === activeIdx) {
       const scale = GHOST_NO_POP_RE.test(word.text) ? 1 : GHOST_ACTIVE_SCALE;
-      return { text: word.text, color: GHOST_ACTIVE_COLOR, scale };
+      return { text: word.text, color: activeColor, scale };
     }
     return { text: word.text, color: GHOST_SPOKEN_COLOR, scale: 1, ghost: true };
   });
@@ -1504,14 +1505,14 @@ function drawSingleCue(ctx, cue, t, style = {}, outBounds = null) {
     ? splitRevealByLines(revealTrack, thaiLines)
     : null;
   const revealSingle = (revealTrack && thaiLines.length === 1)
-    ? ghostRevealSegments(revealTrack, t)
+    ? ghostRevealSegments(revealTrack, t, null, style.revealColor || GHOST_ACTIVE_COLOR)
     : null;
 
   // Draw Thai lines
   thaiLines.forEach((line, idx) => {
     const lineY = thaiStartY + (idx * thaiLineH);
     const revealSegments = revealLines
-      ? ghostRevealSegments(revealTrack, t, revealLines[idx])
+      ? ghostRevealSegments(revealTrack, t, revealLines[idx], style.revealColor || GHOST_ACTIVE_COLOR)
       : revealSingle;
     const segments = revealSegments || parsedThaiLines[idx] || [{ text: line, color: primaryColor }];
 
@@ -3163,11 +3164,17 @@ function SequencePlayer({
     [overlays, productName],
   );
   const highlightKeywordsKey = highlightKeywords.join('\u0001');
+  // The word being spoken takes the hook's accent (default on), the same pick
+  // scripts/subtitle/reveal_color.py makes for the export.
+  const revealColor = useMemo(
+    () => resolveRevealColor(overlays, captionStyle.revealColorSync),
+    [overlays, captionStyle.revealColorSync],
+  );
   const captionDrawStyle = useMemo(
-    () => ({ ...captionStyle, highlightKeywords }),
+    () => ({ ...captionStyle, highlightKeywords, revealColor }),
     // captionKey below lists every caption field that reaches the canvas.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [captionStyle, highlightKeywordsKey],
+    [captionStyle, highlightKeywordsKey, revealColor],
   );
   const previewAccentColor = visualStyle?.accent || '#FFE600';
   const previewSpotlight = useMemo(
@@ -3532,7 +3539,7 @@ function SequencePlayer({
     setPlayhead(t);
   };
 
-  const captionKey = `${captionStyle.hidden}:${captionStyle.captionPosition}:${captionStyle.captionColor}:${captionStyle.captionScale}:${captionStyle.captionX ?? ''}:${captionStyle.captionY ?? ''}:${captionStyle.fontName}:${captionStyle.bilingualSubtitles}:${captionStyle.ghostReveal}:${visualStyle.id}:${highlightKeywordsKey}`;
+  const captionKey = `${captionStyle.hidden}:${captionStyle.captionPosition}:${captionStyle.captionColor}:${captionStyle.captionScale}:${captionStyle.captionX ?? ''}:${captionStyle.captionY ?? ''}:${captionStyle.fontName}:${captionStyle.bilingualSubtitles}:${captionStyle.ghostReveal}:${revealColor}:${visualStyle.id}:${highlightKeywordsKey}`;
   const cuesKey = (cues || []).map(c => `${c._uid || c.id}:${c.start}:${c.end}:${c.text}:${c.translation}:${c.scale || 1}:${c.x ?? ''}:${c.y ?? ''}:${c.position ?? ''}`).join(';;');
   // An overlay carries a whole look per tier now, so anything short of the
   // real thing would miss a colour or an outline the user just changed.

@@ -87,8 +87,8 @@ from scripts.subtitle import (
     _force_highlight,
 )
 from scripts.subtitle.ghost_reveal_ass import (
-    ACTIVE_COLOUR as GHOST_ACTIVE_COLOUR,
     _ass_time,
+    active_colour_for,
     anchor_tags,
     build_ghost_reveal_events,
     build_multiline_reveal_events,
@@ -754,6 +754,10 @@ class SubtitleEngine:
         hook_style: Optional[Dict[str, object]] = None,
         bilingual: bool = True,
         ghost_reveal: bool = True,
+        # `#RRGGBB` of the word being spoken under a ghost reveal; None keeps
+        # the SOP green. The subtitle stage fills it from the hook's accent
+        # (scripts/subtitle/reveal_color.py) so captions share the hook's tone.
+        reveal_color: Optional[str] = None,
         video_width: int = VIDEO_WIDTH,
         video_height: int = VIDEO_HEIGHT,
         caption_position: str = "bottom",
@@ -1056,6 +1060,10 @@ class SubtitleEngine:
             visible = "{" + blur_tag + colour_tag + r"\bord1\shad1" + alpha_tags + "}"
             return f"{hidden_mark_components}{before}{visible}{tone}{hidden_mark_components}{after}"
 
+        # One colour for the body words and their detached tone companions, so a
+        # recoloured reveal cannot leave a green tone over a red word.
+        reveal_active_colour = active_colour_for(reveal_color)
+
         def reveal_mark_events(
             anchor: str,
             parts: Tuple[str, str, str],
@@ -1076,7 +1084,7 @@ class SubtitleEngine:
                 out.append(
                     f"Dialogue: 1,{cls._format_ass_time(word_start)},{cls._format_ass_time(green_end)},"
                     f"{style_name},,0,0,0,,{anchor}"
-                    f"{caption_mark_overlay(parts, shadow=False, colour=GHOST_ACTIVE_COLOUR)}"
+                    f"{caption_mark_overlay(parts, shadow=False, colour=reveal_active_colour)}"
                 )
             if cue_end > green_end:
                 out.append(
@@ -1550,6 +1558,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                             anchors,
                             style=style,
                             layer=1,
+                            active_colour=reveal_active_colour,
                         )
                         # Companion glyphs for the stacked marks. caption_mark_
                         # position() anchors on the caption block as a whole,
@@ -1610,6 +1619,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                             style=style,
                             layer=1,
                             prefix_tags=anchor,
+                            active_colour=reveal_active_colour,
                         )
                         # A companion glyph appears with its own word and then
                         # stays for the rest of the cue, matching the body text

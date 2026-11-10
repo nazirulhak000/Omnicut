@@ -2304,6 +2304,7 @@ export default function EditorShell({
         // toggles changed the preview and then the export ignored them.
         bilingual_subtitles: style.bilingualSubtitles !== false,
         ghost_reveal: !!style.ghostReveal,
+        reveal_color_sync: style.revealColorSync !== false,
         show_watermark: style.showWatermark !== false,
         font_name: style.fontName,
         bgm_name: style.bgmName,
@@ -3042,6 +3043,7 @@ export default function EditorShell({
                     // line whatever the project said, and could not reveal at all.
                     bilingualSubtitles: style.bilingualSubtitles,
                     ghostReveal: style.ghostReveal,
+                    revealColorSync: style.revealColorSync,
                     hidden: isCaptionHidden,
                   }}
                   isMuted={isAudioMuted}
@@ -3798,6 +3800,7 @@ export default function EditorShell({
                       // line whatever the project said, and could not reveal at all.
                       bilingualSubtitles: style.bilingualSubtitles,
                       ghostReveal: style.ghostReveal,
+                      revealColorSync: style.revealColorSync,
                       hidden: isCaptionHidden,
                     }}
                     isMuted={isAudioMuted}
