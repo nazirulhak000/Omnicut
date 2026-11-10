@@ -135,3 +135,33 @@ def test_resolve_draft_closes_a_row_posted_outside_the_app_and_refuses_everythin
     assert row["confirmation_receipt"]["kind"] == "posted_outside_the_app" and "Content" in row["confirmation_receipt"]["evidence"]
     assert calls["marked"] == "exp-b"                                                      # the export is marked posted like the app's own button
     assert client.post("/api/schedule-queue/draft-late-b/resolve-draft", json={"resolution": "posted_outside", "evidence": "เห็นแถวเดียวกันใน Content"}).status_code == 409   # only once
+
+
+# ---- a scheduled post the operator deleted on TikTok ----
+
+def test_deleted_scheduled_post_returns_to_planned_and_its_accepted_job_is_retired(queue, monkeypatch):
+    import scripts.api_tiktok_autopost as autopost
+    from scripts.posting_jobs import PostingJobStore
+    monkeypatch.setattr(autopost, "BASE_DIR", queue)                                    # jobs in the temp dir, never the real file
+    store = PostingJobStore(queue)
+    store.table.save([
+        {"id": "job-s", "job_id": "job-s", "channel_id": "main", "export_id": "exp-s", "status": "scheduled_on_platform", "revision": 3, "audit": []},
+        {"id": "job-p", "job_id": "job-p", "channel_id": "main", "export_id": "exp-p", "status": "published", "revision": 3, "audit": []},
+    ])
+    seed({"id": "sched", "status": "scheduled_on_platform", "scheduled_at": iso(2, 9), "posting_job_id": "job-s", "export_id": "exp-s", "draft_job_id": "old"},
+         {"id": "live", "status": "posted", "scheduled_at": iso(-1, 9), "posting_job_id": "job-p", "export_id": "exp-p"},
+         {"id": "plain", "status": "planned", "scheduled_at": iso(3, 9)})
+    done = queue_api.resolve_deleted_on_platform("main", "sched", "แถวหายจาก Studio > Content แล้ว")
+    row = get("sched")
+    assert done["status"] == "planned" and row["status"] == "planned" and row["scheduled_at"] == iso(2, 9)   # the slot is kept
+    assert not any(k in row for k in ("posting_job_id", "draft_job_id", "extension_prepared_at"))
+    assert "Content" in row["deleted_on_platform"]["evidence"]
+    assert store.get("main", "job-s")["status"] == "cancelled"                                                # the export can be prepared again
+    from scripts.channel_store import ChannelError
+    for item_id in ("live", "plain"):                                                                          # a live post / a plain row: not this tool
+        with pytest.raises(ChannelError) as err:
+            queue_api.resolve_deleted_on_platform("main", item_id, "ไม่ควรทำได้เลย")
+        assert err.value.code == "deleted_resolution_not_applicable"
+    assert store.get("main", "job-p")["status"] == "published"
+    with pytest.raises(ChannelError):
+        store.retire_deleted("main", "job-p")                                                                  # published jobs are never retired

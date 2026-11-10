@@ -234,6 +234,11 @@ class ResolveDraftRequest(BaseModel):
     evidence: str = Field(min_length=8, max_length=300)
 
 
+class ResolveDeletedRequest(BaseModel):
+    # what was seen (e.g. the row is gone from Studio > Content); stored on the row
+    evidence: str = Field(min_length=8, max_length=300)
+
+
 class RescheduleAssignment(BaseModel):
     id: str
     scheduled_at: str
@@ -1532,6 +1537,39 @@ def commit_reschedule_overdue(req: RescheduleOverdueCommitRequest, scope: Channe
             by_id[item_id]["scheduled_at"] = iso
             by_id[item_id]["updated_at"] = stamp
     return {"success": True, "count": len(wanted), "items": [{"id": i, "scheduled_at": iso} for i, iso in wanted.items()]}
+
+
+def resolve_deleted_on_platform(channel_id: Optional[str], item_id: str, evidence: str) -> Dict[str, Any]:
+    """The scheduled post of this clip was deleted on TikTok (by the operator): the row goes back to `planned` (its slot is kept),
+    its accepted job is retired so the clip can be prepared again. A live (published) post is not handled here."""
+    row = ScheduleQueueStore.get_item(item_id, **_kw(channel_id))
+    if row is None:
+        raise _item_not_found(item_id)
+    if row.get("status") != "scheduled_on_platform":
+        raise ChannelError(409, "deleted_resolution_not_applicable", "ปิดงานแบบ 'ลบบน TikTok แล้ว' ได้เฉพาะคิวที่ TikTok รับตั้งเวลาไว้")
+    from scripts.api_tiktok_autopost import _jobs
+    if row.get("posting_job_id"):
+        _jobs().retire_deleted(channel_id or "main", row["posting_job_id"])
+
+    def reset(item: Dict[str, Any], _records: List[Dict[str, Any]]) -> None:
+        stamp = now_iso()
+        item["status"] = "planned"
+        for key in ("posting_job_id", "draft_job_id", "extension_prepared_at", "draft_saved_at"):
+            item.pop(key, None)
+        item["deleted_on_platform"] = {"evidence": evidence, "at": stamp}
+        item["updated_at"] = stamp
+
+    result = ScheduleQueueStore.update_item(item_id, reset, **_kw(channel_id))
+    if result is None:
+        raise _item_not_found(item_id)
+    return result
+
+
+@router.post("/{item_id}/resolve-deleted")
+def resolve_deleted(item_id: str, req: ResolveDeletedRequest, scope: ChannelScope = Depends(get_channel_scope)):
+    channel_id = _channel_of(scope)
+    _guard_writable(scope)
+    return resolve_deleted_on_platform(channel_id, item_id, req.evidence)
 
 
 @router.post("/{item_id}/resolve-draft")

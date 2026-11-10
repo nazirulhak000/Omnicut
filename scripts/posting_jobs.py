@@ -347,6 +347,19 @@ class PostingJobStore:
             self._audit(row, "release_draft", reason=reason)
             return deepcopy(row)
 
+    def retire_deleted(self, channel_id, job_id, *, reason="deleted_on_platform_by_operator"):
+        """The operator deleted the scheduled post / draft on TikTok: retire its job so the export can be prepared again.
+        Only a job TikTok had ACCEPTED as scheduled (or a saved draft). A published job is a live post: never retired here."""
+        with self.table.scoped_mutate(channel_id) as rows:
+            row = self._find(rows, job_id)
+            if row["status"] == "cancelled":
+                return deepcopy(row)
+            if row["status"] not in {"scheduled_on_platform", "draft_saved"}:
+                raise ChannelError(409, "posting_reconciliation_required", "ปิดงานด้วยวิธีนี้ได้เฉพาะงานที่ TikTok รับตั้งเวลา/เป็นแบบร่าง (โพสต์สดแล้วทำไม่ได้)")
+            row.update(status="cancelled", revision=row["revision"] + 1, updated_at=self.clock())
+            self._audit(row, "retire_deleted", reason=reason)
+            return deepcopy(row)
+
     def update_cover(self, channel_id, job_id, cover_path, *, cover_sha256=None):
         with self.table.scoped_mutate(channel_id) as rows:
             row = self._find(rows, job_id)
