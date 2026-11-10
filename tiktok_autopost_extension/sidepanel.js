@@ -1610,10 +1610,11 @@ function renderClipCards(ready) {
       const meta = body.querySelector('.card-meta');
       if (meta) meta.textContent = item.schedule_date
         ? `แบบร่างอยู่บน TikTok · จะเผยแพร่ ${item.schedule_date} ${item.schedule_time || ''}`
-        : 'แบบร่างอยู่บน TikTok · ยังไม่มีเวลา เลือกเวลาด้านล่าง';
+        : 'แบบร่างอยู่บน TikTok · ยังไม่มีเวลา ตั้งเวลาในช่อง "เวลาเผยแพร่"';
       const slot = document.createElement('div');
       slot.className = 'draft-slot-controls';
       const label = document.createElement('span');
+      label.className = 'draft-slot-label';
       label.textContent = 'เวลาเผยแพร่';
       const dateIn = document.createElement('input'); dateIn.type = 'date'; dateIn.value = item.schedule_date || ''; dateIn.setAttribute('aria-label', 'วันที่เผยแพร่');
       const timeIn = document.createElement('input'); timeIn.type = 'time'; timeIn.step = 60; timeIn.value = item.schedule_time || ''; timeIn.setAttribute('aria-label', 'เวลาเผยแพร่');
@@ -1624,7 +1625,7 @@ function renderClipCards(ready) {
       body.appendChild(slot);
       btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'btn-primary';
+      btn.className = 'btn-primary draft-now';
       btn.textContent = 'โพสต์ตอนนี้';
       btn.addEventListener('click', () => startDraftPublish(item, { now: true }));
     } else {
@@ -1642,7 +1643,7 @@ function renderClipCards(ready) {
       card.classList.add('blocked');
       const note = document.createElement('div');
       note.className = 'card-blocked-note';
-      note.textContent = `ใช้ไม่ได้: ${blockReason}${item.is_draft && /ผ่านแล้ว/.test(blockReason) ? ' — เลือกเวลาใหม่ด้านล่าง' : ''}`;
+      note.textContent = `ใช้ไม่ได้: ${blockReason}${item.is_draft && /ผ่านแล้ว/.test(blockReason) ? ' — ตั้งเวลาใหม่ในช่อง "เวลาเผยแพร่"' : ''}`;
       body.insertBefore(note, btn);
     }
 

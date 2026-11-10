@@ -997,7 +997,7 @@ test('stats sync accepts the real Studio posts page and stamps a visible build t
   // Build identity: chrome://extensions + the Tools tab both prove the fresh
   // code is running, so stale cached sidepanel.js (the ghost "จำกัดโดเมน"
   // banner that never existed in this repo) can be caught by the user's eyes.
-  assert.equal(manifest.version, '0.7.1');
+  assert.equal(manifest.version, '0.7.2');
   assert.equal(manifest.content_scripts, undefined, 'no legacy content script');
   for (const gone of ['batch_runner.js', 'batch_runner.test.cjs', 'content_script.js', 'popup.html', 'popup.js']) assert.ok(!fs.existsSync(path.join(__dirname, gone)), gone + ' must stay deleted');
   assert.match(sideHtml, /id="buildTag"/);
@@ -1825,4 +1825,15 @@ test('collectContentRows walks a virtualized list: a row far below the first scr
   top = 0;
   const bounded = await ctx.collectContentRows(send, {maxSteps: 2});
   assert.ok(bounded.rows.length <= 20, 'the scan is bounded');
+});
+
+test('draft card layout: caption, then date | time in two equal columns, time styled like date, full-width action', () => {
+  const html = fs.readFileSync(path.join(__dirname, 'sidepanel.html'), 'utf8');
+  const side = fs.readFileSync(path.join(__dirname, 'sidepanel.js'), 'utf8');
+  assert.match(html, /\.draft-slot-controls \{ display: grid; grid-template-columns: 1fr 1fr;/);
+  assert.match(html, /\.draft-slot-label \{ grid-column: 1 \/ -1;/);
+  assert.match(html, /input\[type="date"\], input\[type="time"\], select \{/, 'the time box shares the field style of the date box');
+  assert.match(html, /\.draft-slot-controls input \{[^}]*height: 40px/, 'touch-friendly field height');
+  assert.match(side, /label\.className = 'draft-slot-label'/);
+  assert.match(side, /btn\.className = 'btn-primary draft-now'/);
 });
