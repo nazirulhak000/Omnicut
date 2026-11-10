@@ -587,6 +587,32 @@ async function main() {
 
     // optional fault: Chrome stops the MV3 service worker in the middle of the batch
     const killAt = Number((process.argv.find(a => a.startsWith('--kill-worker-at=')) || '').split('=')[1]) || 0;
+    // --kill-at-submit: deterministic G1 fault -- stop the worker the moment the panel logs the post click step (7/10 TRIGGER_SUBMIT)
+    const killAtSubmit = process.argv.includes('--kill-at-submit');
+    let killedAtSubmit = false;
+    // --kill-after-attempt: the REAL G1 window -- stop the worker as soon as the server recorded the one-shot /attempt (the post click
+    // is then imminent or done). The outcome must stay unknown and the clip must never be clicked twice.
+    const killAfterAttempt = process.argv.includes('--kill-after-attempt');
+    let killedAfterAttempt = false;
+    const attemptRecorded = async () => {
+      const queue = await api.get('/api/schedule-queue');
+      const row = (queue.data?.items || []).find(item => item.id === clips[0].id);
+      if (!row?.posting_job_id) return false;
+      const job = await api.get(`/api/tiktok-autopost/jobs/${row.posting_job_id}`);
+      return (job.data?.audit || []).some(entry => entry.event === 'publish_attempt');
+    };
+    const killWorker = async (label) => {
+      try {
+        const sw = await new Cdp((await (await fetch(`http://127.0.0.1:${PORT}/json/version`)).json()).webSocketDebuggerUrl).open();
+        const { targetInfos } = await sw.call('Target.getTargets');
+        const workers = targetInfos.filter(t => t.type === 'service_worker' && t.url.startsWith(`chrome-extension://${extId}/`));
+        console.log(`[fault] stopping ${workers.length} extension service worker(s) ${label}`);
+        await panel.call('ServiceWorker.enable').catch(() => {});
+        await panel.call('ServiceWorker.stopAllWorkers').catch(e => console.log('[fault] stopAllWorkers:', e.message));
+        for (const w of workers) await sw.call('Target.closeTarget', { targetId: w.targetId }).catch(() => {});
+        sw.close();
+      } catch (e) { console.log('[fault] failed:', e.message); }
+    };
     if (killAt) {
       setTimeout(async () => {
         try {
@@ -611,13 +637,21 @@ async function main() {
     const stopAtSubmit = process.argv.includes('--stop-at-submit');
     let stopPressed = false;
     while (Date.now() - t0 < Math.max(15, clipCount * 6) * 60 * 1000) {
-      await sleep(stopAtSubmit && !stopPressed ? 700 : 5000);
+      await sleep((stopAtSubmit && !stopPressed) || (killAtSubmit && !killedAtSubmit) || (killAfterAttempt && !killedAfterAttempt) ? 300 : 5000);
       log = await panel.eval(`document.getElementById('batchLogBox')?.innerText || ''`, false).catch(() => '');
       if (stopAtSubmit && !stopPressed && /7\/10 TRIGGER_SUBMIT/.test(log)) {
         stopPressed = true;
         await panel.eval(`document.getElementById('batchStopBtn').click()`, false);
         await confirmWhenShown(panel);
         step('Stop pressed at TRIGGER_SUBMIT');
+      }
+      if (killAtSubmit && !killedAtSubmit && /7\/10 TRIGGER_SUBMIT/.test(log)) {
+        killedAtSubmit = true;
+        await killWorker('at TRIGGER_SUBMIT');
+      }
+      if (killAfterAttempt && !killedAfterAttempt && await attemptRecorded().catch(() => false)) {
+        killedAfterAttempt = true;
+        await killWorker('right after /attempt was recorded');
       }
       // live progress: print each new panel log entry as it appears
       const entries = log.split(/(?=\[\d\d:\d\d:\d\d\])/).map(x => x.trim()).filter(Boolean);

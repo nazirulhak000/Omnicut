@@ -37,6 +37,7 @@ INTENTS = {"schedule", "draft", "post_now", "publish_draft"}
 CLICK_KINDS = {"post", "draft"}
 # A job in one of these states pressed (or may have pressed) a publish/draft button: it can never be released or
 # re-prepared by "force", only reconciled with evidence.
+UNPOSTED_MIN_AGE_SECONDS = 600   # a click younger than this may still be showing up on TikTok
 ATTEMPTED_STATUSES = {"publishing", "confirmation_unknown", "scheduled_on_platform", "draft_saved", "published"}
 # Evidence kinds that need a human-readable notice: nothing may be confirmed with a bare {"kind": ...}.
 NOTICE_REQUIRED_KINDS = {"content_page_reconciled", "manual_user_confirmation", "user_confirmed"}
@@ -345,6 +346,23 @@ class PostingJobStore:
                 raise ChannelError(409, "posting_reconciliation_required", "ยกเลิกได้เฉพาะงานที่บันทึกเป็นแบบร่าง")
             row.update(status="cancelled", revision=row["revision"] + 1, updated_at=self.clock())
             self._audit(row, "release_draft", reason=reason)
+            return deepcopy(row)
+
+    def retire_unposted(self, channel_id, job_id, *, reason="verified_not_posted_by_operator", min_age_seconds=UNPOSTED_MIN_AGE_SECONDS):
+        """The click was attempted (worker died / result unknown) but the operator verified on TikTok that NOTHING was posted:
+        retire the job so the clip can be prepared again. Only a job still `publishing` / `confirmation_unknown`, and only after
+        `min_age_seconds` since the click (TikTok can take minutes to list a post) -- a wrong call here would double-post."""
+        with self.table.scoped_mutate(channel_id) as rows:
+            row = self._find(rows, job_id)
+            if row["status"] == "cancelled":
+                return deepcopy(row)
+            if row["status"] not in {"publishing", "confirmation_unknown"}:
+                raise ChannelError(409, "posting_reconciliation_required", "ปิดงานด้วยวิธีนี้ได้เฉพาะงานที่กดโพสต์แล้วแต่ยังไม่รู้ผล")
+            age = self.clock() - float(row.get("publish_attempted_at") or 0)
+            if age < min_age_seconds:
+                raise ChannelError(409, "posting_too_recent", f"เพิ่งกดโพสต์ได้ {int(age)} วินาที TikTok อาจยังไม่แสดงโพสต์ รออย่างน้อย {int(min_age_seconds // 60)} นาทีแล้วตรวจอีกครั้ง")
+            row.update(status="cancelled", revision=row["revision"] + 1, updated_at=self.clock())
+            self._audit(row, "retire_unposted", reason=reason)
             return deepcopy(row)
 
     def retire_deleted(self, channel_id, job_id, *, reason="deleted_on_platform_by_operator"):

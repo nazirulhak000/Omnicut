@@ -3091,6 +3091,18 @@
     },
     {
       "method": "POST",
+      "path": "/api/schedule-queue/{item_id}/resolve-unposted",
+      "scope": "channel",
+      "allow_query_scope": false,
+      "access": "write",
+      "risk": "blocker",
+      "resource_params": [
+        "item_id"
+      ],
+      "module": "scripts.api_schedule_queue"
+    },
+    {
+      "method": "POST",
       "path": "/api/schedule-queue/{item_id}/resolve-deleted",
       "scope": "channel",
       "allow_query_scope": false,

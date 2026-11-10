@@ -1292,6 +1292,7 @@ def list_queue(
     # exports can fill in a missing export_id.
     export_id_by_path = ExportRegistry.path_index(**_kw(channel_id))
     episode_numbers = _episode_map(channel_id)
+    job_status = _job_status_map(channel_id)
     now = dt.datetime.now(PROJECT_TZ)
     enriched = []
     for row in sort_records(records):
@@ -1305,6 +1306,7 @@ def list_queue(
             except Exception:
                 pass
         item["episode_no"] = episode_numbers.get(item.get("export_id"))
+        item["posting_job_status"] = job_status.get(item.get("posting_job_id"))
         scheduled = _queue_timestamp(item.get("scheduled_at", ""))
         item["is_overdue"] = bool(item.get("status") == "planned" and scheduled and scheduled < now)
         # planned OR draft-on-TikTok clips whose slot passed (or is < 15 min away): they must get a new time before they can run
@@ -1357,6 +1359,15 @@ def _issue_episodes(channel_id: Optional[str], rows: List[Dict[str, Any]]) -> No
                             angle_id=export.get("angle_id") or row.get("angle_id"), export_id=row.get("export_id"))
         except Exception:
             continue
+
+
+def _job_status_map(channel_id: Optional[str]) -> Dict[str, str]:
+    """posting job id -> status, so the listing can show a row whose post click was attempted but never confirmed."""
+    try:
+        from scripts.api_tiktok_autopost import _jobs
+        return {r["id"]: r.get("status") for r in _jobs().table.scoped_load(channel_id or "main")}
+    except Exception:
+        return {}
 
 
 def _with_episodes(channel_id: Optional[str], rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -1537,6 +1548,38 @@ def commit_reschedule_overdue(req: RescheduleOverdueCommitRequest, scope: Channe
             by_id[item_id]["scheduled_at"] = iso
             by_id[item_id]["updated_at"] = stamp
     return {"success": True, "count": len(wanted), "items": [{"id": i, "scheduled_at": iso} for i, iso in wanted.items()]}
+
+
+def resolve_unposted_on_platform(channel_id: Optional[str], item_id: str, evidence: str) -> Dict[str, Any]:
+    """The post click was attempted but the result never arrived (worker died ...) and the operator verified that TikTok has NO
+    such post: retire the stuck job, the row goes back to `planned` (slot kept) so the clip can be sent again."""
+    row = ScheduleQueueStore.get_item(item_id, **_kw(channel_id))
+    if row is None:
+        raise _item_not_found(item_id)
+    if not row.get("posting_job_id") or row.get("status") in {"posted", "scheduled_on_platform", "draft_on_platform", "planned"}:
+        raise ChannelError(409, "unposted_resolution_not_applicable", "ปิดงานแบบ 'ยังไม่โพสต์จริง' ได้เฉพาะคลิปที่กดโพสต์แล้วแต่ยังรอตรวจผล")
+    from scripts.api_tiktok_autopost import _jobs
+    _jobs().retire_unposted(channel_id or "main", row["posting_job_id"])
+
+    def reset(item: Dict[str, Any], _records: List[Dict[str, Any]]) -> None:
+        stamp = now_iso()
+        item["status"] = "planned"
+        for key in ("posting_job_id", "draft_job_id", "extension_prepared_at", "draft_saved_at"):
+            item.pop(key, None)
+        item["unposted_resolution"] = {"evidence": evidence, "at": stamp}
+        item["updated_at"] = stamp
+
+    result = ScheduleQueueStore.update_item(item_id, reset, **_kw(channel_id))
+    if result is None:
+        raise _item_not_found(item_id)
+    return result
+
+
+@router.post("/{item_id}/resolve-unposted")
+def resolve_unposted(item_id: str, req: ResolveDeletedRequest, scope: ChannelScope = Depends(get_channel_scope)):
+    channel_id = _channel_of(scope)
+    _guard_writable(scope)
+    return resolve_unposted_on_platform(channel_id, item_id, req.evidence)
 
 
 def resolve_deleted_on_platform(channel_id: Optional[str], item_id: str, evidence: str) -> Dict[str, Any]:

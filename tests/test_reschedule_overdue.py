@@ -165,3 +165,46 @@ def test_deleted_scheduled_post_returns_to_planned_and_its_accepted_job_is_retir
     assert store.get("main", "job-p")["status"] == "published"
     with pytest.raises(ChannelError):
         store.retire_deleted("main", "job-p")                                                                  # published jobs are never retired
+
+
+# ---- a post click that never confirmed (worker died after /attempt) and TikTok shows nothing ----
+
+def test_unposted_attempt_is_retired_only_after_the_wait_and_never_for_a_live_or_finished_job(queue, monkeypatch):
+    import time
+    import scripts.api_tiktok_autopost as autopost
+    from scripts.channel_store import ChannelError
+    from scripts.posting_jobs import PostingJobStore
+    monkeypatch.setattr(autopost, "BASE_DIR", queue)
+    store = PostingJobStore(queue)
+    now = time.time()
+    store.table.save([
+        {"id": "job-new", "job_id": "job-new", "channel_id": "main", "export_id": "e1", "status": "publishing", "revision": 4, "audit": [], "publish_attempted_at": now - 30},
+        {"id": "job-old", "job_id": "job-old", "channel_id": "main", "export_id": "e2", "status": "publishing", "revision": 4, "audit": [], "publish_attempted_at": now - 1200},
+        {"id": "job-unk", "job_id": "job-unk", "channel_id": "main", "export_id": "e3", "status": "confirmation_unknown", "revision": 4, "audit": [], "publish_attempted_at": now - 1200},
+        {"id": "job-ok", "job_id": "job-ok", "channel_id": "main", "export_id": "e4", "status": "scheduled_on_platform", "revision": 4, "audit": [], "publish_attempted_at": now - 1200},
+    ])
+    seed({"id": "r-new", "status": "ready_for_extension", "scheduled_at": iso(2, 9), "posting_job_id": "job-new", "export_id": "e1"},
+         {"id": "r-old", "status": "ready_for_extension", "scheduled_at": iso(2, 10), "posting_job_id": "job-old", "export_id": "e2"},
+         {"id": "r-unk", "status": "confirmation_unknown", "scheduled_at": iso(2, 11), "posting_job_id": "job-unk", "export_id": "e3"},
+         {"id": "r-ok", "status": "scheduled_on_platform", "scheduled_at": iso(2, 12), "posting_job_id": "job-ok", "export_id": "e4"},
+         {"id": "r-plain", "status": "planned", "scheduled_at": iso(2, 13)})
+    assert listing()["r-old"]["posting_job_status"] == "publishing"                       # the listing shows the stuck job
+    with pytest.raises(ChannelError) as err:                                               # a click younger than 10 minutes may still show up on TikTok
+        queue_api.resolve_unposted_on_platform("main", "r-new", "เปิด Content แล้วไม่เห็นโพสต์")
+    assert err.value.code == "posting_too_recent" and store.get("main", "job-new")["status"] == "publishing"
+    assert get("r-new")["status"] == "ready_for_extension"
+    for item_id in ("r-ok", "r-plain"):                                                    # a finished job / a plain row is not this tool
+        with pytest.raises(ChannelError) as err:
+            queue_api.resolve_unposted_on_platform("main", item_id, "ไม่ควรทำได้เลย")
+        assert err.value.code == "unposted_resolution_not_applicable"
+    assert client.post("/api/schedule-queue/r-old/resolve-unposted", json={"evidence": "x"}).status_code == 422   # evidence is required text
+    for item_id, job in (("r-old", "job-old"), ("r-unk", "job-unk")):
+        done = client.post(f"/api/schedule-queue/{item_id}/resolve-unposted", json={"evidence": "เปิด Content แล้วไม่เห็นโพสต์นี้ หลังรอ 20 นาที"})
+        assert done.status_code == 200, done.text
+        row = get(item_id)
+        assert row["status"] == "planned" and row["scheduled_at"] in (iso(2, 10), iso(2, 11)) and "posting_job_id" not in row
+        assert "ไม่เห็นโพสต์" in row["unposted_resolution"]["evidence"]
+        assert store.get("main", job)["status"] == "cancelled"                             # the clip can be prepared again
+    assert store.get("main", "job-ok")["status"] == "scheduled_on_platform"
+    with pytest.raises(ChannelError):
+        store.retire_unposted("main", "job-ok", min_age_seconds=0)                         # an accepted job is never retired here

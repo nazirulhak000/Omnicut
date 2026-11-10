@@ -343,6 +343,8 @@ export const previewScheduleAutofill = (payload) => api.post('/schedule-queue/au
 export const commitScheduleAutofill = (payload) => api.post('/schedule-queue/auto-fill', payload).then(r => r.data);
 // Clips whose slot already passed (planned or saved as a TikTok draft): preview the new slots, then apply them all-or-nothing.
 export const previewRescheduleOverdue = (payload = {}) => api.post('/schedule-queue/reschedule-overdue/preview', payload).then(r => r.data);
+// The post click was attempted but never confirmed and the operator verified on TikTok that nothing was posted (server waits >= 10 min).
+export const resolveUnpostedQueue = (id, evidence) => api.post(`/schedule-queue/${id}/resolve-unposted`, { evidence }).then(r => r.data);
 export const commitRescheduleOverdue = (assignments) => api.post('/schedule-queue/reschedule-overdue', { assignments }).then(r => r.data);
 
 // Non-commerce Gadget Media campaign workflow.

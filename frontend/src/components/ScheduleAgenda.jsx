@@ -4,7 +4,7 @@ import { Modal, Badge } from './ui';
 import PaginationControls from './PaginationControls';
 import PublicationReviewModal from './PublicationReviewModal.jsx';
 import { useChannel } from '../context/ChannelContext.jsx';
-import { commitRescheduleOverdue, commitScheduleAutofill, copyScheduleTemplate, createScheduleQueue, getScheduleQueue, getScheduleTemplate, prepareScheduleQueue, previewRescheduleOverdue, previewScheduleAutofill, removeScheduleQueue, resetScheduleTemplate, saveScheduleTemplate, updateScheduleQueue } from '../api';
+import { commitRescheduleOverdue, resolveUnpostedQueue, commitScheduleAutofill, copyScheduleTemplate, createScheduleQueue, getScheduleQueue, getScheduleTemplate, prepareScheduleQueue, previewRescheduleOverdue, previewScheduleAutofill, removeScheduleQueue, resetScheduleTemplate, saveScheduleTemplate, updateScheduleQueue } from '../api';
 import { addDays, buildScheduleIso, dateOnly, DEFAULT_PRIMARY_TIMES, estimateQueueCoverage, groupScheduleItems, localParts, mergeScheduleDraft, nextTemplateSlotAfterLatest, parseDateOnly, primaryTimeOptions, PROJECT_TIME_ZONE, scheduleTimeOptions, templateForWeek, toLocalDateTime, WEEKDAY_LABELS, weekStartForDate } from '../lib/scheduleQueue';
 import { getStylePreset } from '../lib/stylePresetCatalog';
 import { useChannelDraft } from '../hooks/useChannelDraft.js';
@@ -973,6 +973,17 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   const shortTime = (iso) => String(iso || '').replace('T', ' ').slice(0, 16);
 
   // Clips whose time already passed get new template slots. Preview first; the server re-checks every slot when it applies them.
+  // The post click was made but its result never arrived. Only after the operator looked at TikTok Studio > Content and saw nothing.
+  const resolveUnposted = async (item) => {
+    const ok = window.confirm('คลิปนี้กดโพสต์ไปแล้วแต่ไม่ได้รับผลยืนยัน\nยืนยันเมื่อคุณเปิด TikTok Studio > Content แล้วไม่เห็นโพสต์นี้ (รออย่างน้อย 10 นาทีหลังกดโพสต์) เท่านั้น\nถ้ายังมีโพสต์อยู่ การกดต่อจะโพสต์ซ้ำ');
+    if (!ok) return;
+    try {
+      const updated = await resolveUnpostedQueue(item.id, 'ผู้ใช้ตรวจ TikTok Studio > Content แล้วไม่พบโพสต์นี้');
+      setQueue((prev) => prev.map((row) => row.id === item.id ? { ...row, ...updated, posting_job_status: null } : row));
+      showToast?.('ปิดงานแล้ว คลิปกลับมารอจัดส่ง');
+    } catch (error) { showToast?.(error.response?.data?.detail || error.message, 'error'); }
+  };
+
   const openReschedule = async () => {
     setRescheduleOpen(true);
     setReschedulePlan(null);
@@ -1613,6 +1624,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                             <label className="flex items-center gap-1.5 text-[10px] text-slate-500"><Clock className="w-3.5 h-3.5 text-cyan-300" /><select value={scheduleDrafts.current.get(item.id)?.time || parts.time} disabled={item.status !== 'planned'} onChange={(event) => updateScheduleField(item, 'time', event.target.value)} className="px-2 py-1.5 rounded-lg bg-black/50 border border-white/[0.1] text-xs text-white font-mono">{timeOptions.map((time) => <option key={time} value={time}>{time}</option>)}</select></label>
                             {overdue && item.status === 'planned' && <button type="button" onClick={() => openRequeue(item)} className="px-2.5 py-1.5 rounded-lg border border-red-400/30 text-red-200 text-[11px]">จัดคิวใหม่</button>}
                             {item.status === 'planned' || item.status === 'failed' ? <button type="button" onClick={() => prepareItem(item)} className="px-2.5 py-1.5 rounded-lg bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-[11px] font-bold flex items-center gap-1 transition-colors"><Rocket className="w-3.5 h-3.5" />เตรียมให้ Extension</button> : item.status === 'ready_for_extension' ? <button type="button" onClick={() => resetForMove(item)} className="px-2.5 py-1.5 rounded-lg border border-amber-400/25 text-amber-200 text-[11px]">รีเซ็ตเพื่อย้าย</button> : item.status === 'draft_on_platform' ? <button type="button" onClick={() => resetDraft(item)} className="min-h-11 px-2.5 py-1.5 rounded-lg border border-slate-400/30 text-slate-200 text-[11px] focus-visible:outline-2 focus-visible:outline-cyan-300" title="ลบแบบร่างบน TikTok แล้ว รีเซ็ตกลับเป็นรอจัดส่ง">รีเซ็ตแบบร่าง</button> : null}
+                            {['publishing', 'confirmation_unknown'].includes(item.posting_job_status) && item.status !== 'posted' && <button type="button" onClick={() => resolveUnposted(item)} className="min-h-11 px-2.5 py-1.5 rounded-lg border border-red-400/30 text-red-200 text-[11px] focus-visible:outline-2 focus-visible:outline-red-300" title="ใช้เมื่อเปิด TikTok Studio แล้วไม่เห็นโพสต์นี้ (ต้องผ่านไป 10 นาทีหลังกดโพสต์)">ยืนยันว่ายังไม่โพสต์</button>}
                             {clip && onOpenCoverStudio ? <button type="button" data-cover-state={hasCover ? 'ready' : 'missing'} onClick={() => onOpenCoverStudio(clip)} className={`p-1.5 rounded-lg border transition-colors ${hasCover ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20' : 'border-white/[0.1] text-slate-600 hover:text-white hover:border-white/[0.2]'}`} title={hasCover ? 'มีภาพปกแล้ว · คลิกเพื่อแก้ไข' : 'ยังไม่มีภาพปก · คลิกเพื่อสร้าง'} aria-label={hasCover ? 'มีภาพปกแล้ว คลิกเพื่อแก้ไข' : 'ยังไม่มีภาพปก คลิกเพื่อสร้าง'}><ImageIcon className="w-3.5 h-3.5" /></button> : <span role="img" data-cover-state={hasCover ? 'ready' : 'missing'} className={`p-1.5 rounded-lg border ${hasCover ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-300' : 'border-white/[0.08] text-slate-700'}`} title={hasCover ? 'มีภาพปกแล้ว' : 'ยังไม่มีภาพปก'} aria-label={hasCover ? 'มีภาพปกแล้ว' : 'ยังไม่มีภาพปก'}><ImageIcon className="w-3.5 h-3.5" /></span>}
                             {item.status === 'planned' ? <button type="button" onClick={() => removeItem(item)} className="p-1.5 rounded-lg border border-white/[0.1] text-slate-500 hover:text-red-300" title="นำออกจากคิว"><Trash2 className="w-3.5 h-3.5" /></button> : null}
                           </div>
