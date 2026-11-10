@@ -28,7 +28,8 @@ async function confirmWhenShown(panel, timeoutMs = 45000) {
     if (shown) { await panel.eval(`document.getElementById('confirmOkBtn').click()`, false); return true; }
     await sleep(500);
   }
-  throw new Error('confirm dialog never appeared (preflight blocked the run?)');
+  const log = await panel.eval(`document.getElementById('batchLogBox')?.innerText || ''`, false).catch(() => '');
+  throw new Error('confirm dialog never appeared (preflight blocked the run?) ' + String(log).split(/\r?\n/).slice(-12).join(' | '));
 }
 const portUp = async () => { try { return (await fetch(`http://127.0.0.1:${PORT}/json/version`)).ok; } catch (_) { return false; } };
 
@@ -634,16 +635,19 @@ async function main() {
     let printed = 0;
     // --stop-at-submit: press the panel's real Stop the moment the post click starts. The clip must still be verified and
     // recorded (a live post must never go unrecorded) and only then does the run stop.
-    const stopAtSubmit = process.argv.includes('--stop-at-submit');
+    // --stop-at-step=3: press Stop at an EARLIER step (before any click): nothing may be posted and the job must be released (G5)
+    const stopStep = (process.argv.find(a => a.startsWith('--stop-at-step=')) || '').split('=')[1] || '';
+    const stopAtSubmit = process.argv.includes('--stop-at-submit') || Boolean(stopStep);
+    const stopRe = new RegExp(`${stopStep || '7'}/10 `);
     let stopPressed = false;
     while (Date.now() - t0 < Math.max(15, clipCount * 6) * 60 * 1000) {
       await sleep((stopAtSubmit && !stopPressed) || (killAtSubmit && !killedAtSubmit) || (killAfterAttempt && !killedAfterAttempt) ? 300 : 5000);
       log = await panel.eval(`document.getElementById('batchLogBox')?.innerText || ''`, false).catch(() => '');
-      if (stopAtSubmit && !stopPressed && /7\/10 TRIGGER_SUBMIT/.test(log)) {
+      if (stopAtSubmit && !stopPressed && stopRe.test(log)) {
         stopPressed = true;
         await panel.eval(`document.getElementById('batchStopBtn').click()`, false);
         await confirmWhenShown(panel);
-        step('Stop pressed at TRIGGER_SUBMIT');
+        step(`Stop pressed at step ${stopStep || '7'}/10`);
       }
       if (killAtSubmit && !killedAtSubmit && /7\/10 TRIGGER_SUBMIT/.test(log)) {
         killedAtSubmit = true;
