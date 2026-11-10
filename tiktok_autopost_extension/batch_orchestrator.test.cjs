@@ -125,7 +125,7 @@ test('Phase 1: Interrupting Modal (Copyright / Tutorial / Discard) is dismissed 
   ]);
 });
 
-test('Phase 1: Quota Full scenario stops safely in schedule_only mode and switches to draft_saved in smart mode', async () => {
+test('Phase 1: Quota Full scenario stops safely in schedule_only mode; smart mode stops (never posts live) once the schedule quota is full', async () => {
   // 1. schedule_only mode when 30/30 full -> stops immediately with 0 uploads
   let uploadedCount = 0;
   const fullSchedOrchestrator = createBatchOrchestrator({
@@ -141,7 +141,8 @@ test('Phase 1: Quota Full scenario stops safely in schedule_only mode and switch
   assert.equal(fullSummary.state, ORCHESTRATOR_STATES.COMPLETED);
   assert.equal(uploadedCount, 0);
 
-  // 2. smart mode when 29/30 scheduled -> Clip 1 is 'schedule', Clip 2 automatically switches to 'draft'
+  // 2. smart mode when 29/30 scheduled -> Clip 1 is 'schedule'; Clip 2 would be a draft, which the side panel
+  //    cannot save (its submit step presses Post = publish live), so the batch must stop before touching it
   const modesApplied = [];
   const smartOrchestrator = createBatchOrchestrator({
     clips: [
@@ -158,11 +159,30 @@ test('Phase 1: Quota Full scenario stops safely in schedule_only mode and switch
   });
 
   const smartSummary = await smartOrchestrator.start();
-  assert.equal(smartSummary.successful, 2);
+  assert.equal(smartSummary.successful, 1);
   assert.deepEqual(modesApplied, [
     { id: 'c1', mode: 'schedule' },
-    { id: 'c2', mode: 'draft' },
   ]);
+
+  // draft_only never starts a clip either
+  let draftOnlyUploads = 0;
+  const draftOnly = createBatchOrchestrator({
+    clips: [{ id: 'd1', hook_title: 'Draft clip' }],
+    options: { mode: 'draft_only', maxScheduleQuota: 30, cooldownSeconds: 0 },
+    actions: { checkQuota: async () => ({ scheduledCount: 0, draftCount: 0 }), injectFile: async () => { draftOnlyUploads += 1; } },
+  });
+  await draftOnly.start();
+  assert.equal(draftOnlyUploads, 0);
+
+  // an embedder that really saves drafts can still opt in
+  const modes = [];
+  const optIn = createBatchOrchestrator({
+    clips: [{ id: 'e1', hook_title: 'Draft clip' }],
+    options: { mode: 'draft_only', allowDraft: true, maxScheduleQuota: 30, cooldownSeconds: 0 },
+    actions: { checkQuota: async () => ({ scheduledCount: 0, draftCount: 0 }), applyScheduleOrDraft: async (clip, targetMode) => { modes.push(targetMode); } },
+  });
+  await optIn.start();
+  assert.deepEqual(modes, ['draft']);
 });
 
 test('Phase 1: Transient Network Disconnect automatically retries and recovers without failing the clip', async () => {
@@ -410,4 +430,47 @@ test('an unconfirmed post is counted as unknown (never success); two in a row st
   assert.equal(ok.successful, 2);
   assert.equal(ok.unknown, 1);
   assert.equal(ok.state, ORCHESTRATOR_STATES.COMPLETED);
+});
+
+test('Draft mode (allowDraft): smart schedules until the schedule quota is full, then saves drafts with the draft step', async () => {
+  const submitted = [];
+  const orchestrator = createBatchOrchestrator({
+    clips: [{ id: 'c1', hook_title: 'Last schedule slot' }, { id: 'c2', hook_title: 'First draft' }, { id: 'c3', hook_title: 'Second draft' }],
+    options: { mode: 'smart', allowDraft: true, maxScheduleQuota: 30, maxDraftQuota: 30, cooldownSeconds: 0 },
+    actions: {
+      checkQuota: async () => ({ scheduledCount: 29, draftCount: 0 }),
+      submitPost: async (clip, targetMode) => { submitted.push({ id: clip.id, mode: targetMode }); return { success: true, outcome: targetMode === 'draft' ? 'draft_saved' : 'scheduled_on_platform' }; },
+    },
+  });
+  const summary = await orchestrator.start();
+  assert.equal(summary.successful, 3);
+  assert.deepEqual(submitted, [
+    { id: 'c1', mode: 'schedule' },
+    { id: 'c2', mode: 'draft' },
+    { id: 'c3', mode: 'draft' },
+  ]);
+});
+
+test('Draft mode: draft quota full (30/30) stops the batch and never saves a 31st draft', async () => {
+  const submitted = [];
+  const logs = [];
+  const orchestrator = createBatchOrchestrator({
+    clips: [{ id: 'd1', hook_title: 'Draft 30' }, { id: 'd2', hook_title: 'Draft 31' }, { id: 'd3', hook_title: 'Draft 32' }],
+    options: { mode: 'draft_only', allowDraft: true, maxDraftQuota: 30, cooldownSeconds: 0 },
+    onLog: (line) => logs.push(String(line)),
+    actions: {
+      checkQuota: async () => ({ scheduledCount: 10, draftCount: 29 }),
+      submitPost: async (clip, targetMode) => { submitted.push({ id: clip.id, mode: targetMode }); return { success: true, outcome: 'draft_saved' }; },
+    },
+  });
+  const summary = await orchestrator.start();
+  assert.equal(summary.successful, 1);
+  assert.deepEqual(submitted, [{ id: 'd1', mode: 'draft' }]);
+  assert.ok(logs.some((line) => /โควตาแบบร่างเต็ม/.test(line)));
+});
+
+test('Draft mode: draft_saved counts as success (not unknown) and is never sent to reconcile', async () => {
+  const { shouldReconcileAfterPost } = require('./batch_orchestrator.js');
+  assert.equal(shouldReconcileAfterPost('draft_saved', { outcome: 'draft_saved' }), false);
+  assert.equal(shouldReconcileAfterPost('confirmation_unknown', {}), true);
 });

@@ -3875,6 +3875,64 @@
 
 
   /* Filter Chips Bar (Tab 1) */
+  .select-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 2px 10px;
+    font-size: 12px;
+    color: var(--muted, #8b8b99);
+  }
+  .select-all {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    color: var(--text, inherit);
+  }
+  .select-all input, .card-check input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--rose);
+    cursor: pointer;
+  }
+  .select-info {
+    margin-left: auto;
+    font-weight: 600;
+  }
+  .select-clear {
+    background: none;
+    border: 0;
+    padding: 2px 4px;
+    color: var(--rose);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .select-clear[hidden] { display: none; }
+  .card-check {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 2;
+    display: inline-flex;
+    padding: 3px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.55);
+    cursor: pointer;
+  }
+  .card.blocked { opacity: 0.55; }
+  .card.blocked .card-check { cursor: not-allowed; }
+  .card-blocked-note {
+    font-size: 11px;
+    font-weight: 600;
+    color: #f87171;
+    margin: 2px 0 6px;
+  }
+  .card.selected {
+    border-color: var(--rose);
+    box-shadow: 0 0 0 1px var(--rose);
+  }
   .filter-chips-bar {
     display: flex;
     align-items: center;
@@ -4072,7 +4130,7 @@
 
         </div>
 
-        <span class="batch-engine-tag">Engine v0.3.3</span>
+        <span class="batch-engine-tag">Engine v0.4.1</span>
 
       </div>
 
@@ -4148,11 +4206,11 @@
 
           <select id="batchModeSelect" class="batch-mode-select" title="เลือกรูปแบบการโพสต์">
 
-            <option value="smart">Smart Queue (ตั้งเวลาคลิปแรก + แบบร่างที่เหลือ)</option>
+            <option value="schedule_only">Schedule Only (ตั้งเวลาตามตารางทุกคลิป)</option>
 
-            <option value="draft_only">Draft Only (บันทึกเป็นแบบร่างทั้งหมด)</option>
+            <option value="smart">Smart Queue (ตั้งเวลาก่อน โควตาเต็มแล้วบันทึกแบบร่าง)</option>
 
-            <option value="schedule_only">Schedule Only (ตั้งเวลาตามตารางเท่านั้น)</option>
+            <option value="draft_only">Draft Only (บันทึกเป็นแบบร่างทั้งหมด ไม่โพสต์)</option>
 
           </select>
 
@@ -4293,6 +4351,12 @@
       <button type="button" class="filter-chip" data-filter="ready">รอโพสต์ (<span id="filterCountReady">0</span>)</button>
       <button type="button" class="filter-chip" data-filter="scheduled">กำหนดเวลาแล้ว (<span id="filterCountScheduled">0</span>)</button>
       <button type="button" class="filter-chip" data-filter="unscheduled">ไม่มีเวลา (<span id="filterCountUnscheduled">0</span>)</button>
+    </div>
+
+    <div class="select-bar" id="selectBar">
+      <label class="select-all"><input type="checkbox" id="selectAllVisible"> เลือกทั้งหมดที่แสดง</label>
+      <span id="selectedInfo" class="select-info">ยังไม่ได้เลือก</span>
+      <button type="button" id="clearSelection" class="select-clear" hidden>ล้างที่เลือก</button>
     </div>
 
     <div id="list"></div>

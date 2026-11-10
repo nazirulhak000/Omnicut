@@ -8,6 +8,8 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   // Channel rule: never publish price / discount text (breaks TikTok rules).
   const PRICE_RE = /฿|\bTHB\b|\d[\d,]*\s*บาท|ราคา|ลดราคา|ส่วนลด|ลด\s*\d+\s*%|\d+\s*%\s*off|\$\s*\d/i;
+  // A template placeholder that was never filled in, e.g. {product_name}.
+  const PLACEHOLDER_RE = /\{[a-z][a-z0-9_]*\}/i;
   const MIN_LEAD_MS = 15 * 60 * 1000;
 
   const alnum = text => String(text || '').toLowerCase().replace(/[^a-z0-9ก-๙]/g, '');
@@ -42,20 +44,21 @@
   //   exportRecord: the /api/exports row of clip.export_id (undefined = missing)
   //   options.exportsKnown: false when the registry could not be read (then do not guess)
   function clipSkipReason(clip, exportRecord, now = Date.now(), options = {}) {
-    const { exportsKnown = true, allowPriceCaption = false } = options;
+    const { exportsKnown = true, allowPriceCaption = false, ignoreSlot = false } = options;
     if (exportsKnown && clip.export_id) {
       if (!exportRecord) return 'export_missing';
       if (exportRecord.is_posted || exportRecord.export_status === 'posted') return 'export_already_posted';
       if (exportRecord.is_qc_rejected) return 'export_qc_rejected';
     }
     const { caption, hashtags } = clipCaptionText(clip);
+    if (PLACEHOLDER_RE.test(`${caption} ${hashtags}`)) return 'placeholder_in_caption';
     if (!allowPriceCaption && PRICE_RE.test(`${caption} ${hashtags}`)) return 'price_in_caption';
-    if (clip.schedule_date && clip.schedule_time) {
+    if (!ignoreSlot && clip.schedule_date && clip.schedule_time) {
       const slot = new Date(`${clip.schedule_date}T${clip.schedule_time}:00`).getTime();
       if (!Number.isFinite(slot) || slot - now < MIN_LEAD_MS) return 'slot_passed_or_too_close';
     }
     return '';
   }
 
-  return { PRICE_RE, MIN_LEAD_MS, rowMatchesClip, clipCaptionText, clipSkipReason };
+  return { PRICE_RE, PLACEHOLDER_RE, MIN_LEAD_MS, rowMatchesClip, clipCaptionText, clipSkipReason };
 });

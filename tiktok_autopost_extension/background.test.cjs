@@ -508,6 +508,7 @@ test('cover upload retries once when TikTok replaces the hidden input during fil
         targetNumber += 1;
         return {result: {objectId: targetNumber === 1 ? 'stale-cover-input' : 'replacement-cover-input'}};
       }
+      if (expression.includes('ImageUpload__root')) return {result: {value: false}};
       return {result: {value: true}};
     }
     if (method === 'DOM.setFileInputFiles') return {};
@@ -524,6 +525,202 @@ test('cover upload retries once when TikTok replaces the hidden input during fil
     'stale-cover-input',
     'replacement-cover-input',
   ]);
+});
+
+test('cover upload counts as done when TikTok empties the input after reading the file', async () => {
+  // Live 2026-11-10: TikTok clears input.files at once and swaps the button for a thumbnail.
+  const ctx = worker();
+  const calls = [];
+  const send = async (method, params = {}) => {
+    calls.push({method, params});
+    if (method === 'Runtime.evaluate') {
+      const expression = String(params.expression || '');
+      if (expression.includes('dialogCandidates') && params.returnByValue === false) return {result: {objectId: 'cover-input'}};
+      return {result: {value: true}};
+    }
+    if (method === 'Runtime.callFunctionOn') return {result: {value: {fileCount: 0}}};
+    return {};
+  };
+  await ctx.OmniAutomation.uploadCover(send, 'D:/covers/demo_cover_3x4.jpg');
+  assert.equal(calls.filter(call => call.method === 'DOM.setFileInputFiles').length, 1);
+});
+
+test('after a real post (tab left on Studio > Content) the next action brings that tab back to the upload page', async () => {
+  // Live 2026-11-10: TikTok moves the tab to Content after posting; every later action failed with
+  // "ไม่พบแท็บ ... หน้าอัปโหลด" and the batch skipped the remaining clips.
+  const CONTENT = 'https://www.tiktok.com/tiktokstudio/content';
+  const UPLOAD = 'https://www.tiktok.com/tiktokstudio/upload';
+  let url = CONTENT;
+  const updates = [];
+  const ctx = worker({
+    tabs: {
+      query: async (q) => (q && q.active ? [] : [{id: 3, url, active: true}]),
+      update: async (_id, props) => { updates.push(props.url); url = props.url; return {id: 3, url}; },
+      get: async () => ({id: 3, url, status: 'complete'}),
+    },
+    debugger: {attach: async () => {}, detach: async () => {}, sendCommand: async () => ({result: {value: true}})},
+  });
+  ctx.focusTikTokTab = async (tab) => tab;
+  const tab = await ctx.findUploadTab();
+  assert.equal(tab.id, 3);
+  assert.deepEqual(Array.from(updates), [UPLOAD]);
+
+  // no Studio tab at all: still a clear error, nothing is navigated
+  const none = worker({tabs: {query: async () => [], update: async () => { throw new Error('must not navigate'); }}});
+  await assert.rejects(() => none.findUploadTab(), /ไม่พบแท็บ TikTok Studio/);
+
+  // verify-post-content must not pre-navigate: it works from the Content tab as it is
+  const noRecover = worker({tabs: {query: async (q) => (q && q.active ? [] : [{id: 3, url: CONTENT}]), update: async () => { throw new Error('must not navigate'); }}});
+  await assert.rejects(() => noRecover.findUploadTab({recover: false}), /ไม่พบแท็บ TikTok Studio/);
+  assert.equal((await noRecover.findAnyStudioTab()).id, 3);
+});
+
+// ---- draft mode: Save draft button, evidence = Content > Drafts, never the Post button ----
+const DRAFTS_URL = 'https://www.tiktok.com/tiktokstudio/content?tab=draft';
+
+function draftHarness({ job = {}, buttonPresent = true, urlAfterClick = DRAFTS_URL, pageText = 'Posts 219\nDrafts 1\nสุดยอดพัดลมตัวนี้ ลมแรงมาก\nNov 10, 2026, 12:05PM', pageUrl = DRAFTS_URL } = {}) {
+  const ctx = worker();
+  const log = { calls: [], expressions: [], receipts: [] };
+  let clicked = false;
+  ctx.fetchPendingJob = async () => ({ job_id: 'job-1', channel_id: 'main', caption: 'สุดยอดพัดลมตัวนี้ ลมแรงมาก', target_handle: '@mainuser', lease_expires_at: 9999999999, ...job });
+  ctx.findUploadTab = async () => ({ id: 7, windowId: 3, url: UPLOAD_URL });
+  ctx.waitForUploadComplete = async () => true;
+  ctx.dismissLeaveConfirmDialogIfPresent = async () => false;
+  ctx.guardPostingAction = async (_job, _send, _tab, opts) => { log.calls.push(opts && opts.beginPublish ? 'attempt' : 'check'); return '@mainuser'; };
+  ctx.postingState = async () => ({});
+  ctx.persistPostingState = async () => {};
+  ctx.focusTikTokTab = async (tab) => tab;
+  ctx.savePostingReceipt = async (_job, _source, outcome, proof) => { log.calls.push('receipt:' + outcome); log.receipts.push({ outcome, proof }); };
+  ctx.openUploadPage = async () => { log.calls.push('upload-page'); };
+  ctx.chrome.tabs = { get: async () => ({ id: 7, url: clicked ? urlAfterClick : UPLOAD_URL }) };
+  ctx.chrome.debugger = {
+    attach: async () => {}, detach: async () => {},
+    sendCommand: async (_target, method, params = {}) => {
+      if (method !== 'Runtime.evaluate') return {};
+      const expression = String(params.expression || '');
+      log.expressions.push(expression);
+      if (expression.includes('window.innerWidth')) return { result: { value: { w: 1440, h: 900, dpr: 1, focus: true } } };
+      if (expression.startsWith('Boolean(document.querySelector(')) return { result: { value: buttonPresent } };
+      if (expression.includes('save_draft_button')) { clicked = true; log.calls.push('clicked'); return { result: { value: { success: true } } }; }
+      if (expression.includes('location.href')) return { result: { value: { url: pageUrl, text: pageText } } };
+      return { result: { value: true } };
+    },
+  };
+  return { ctx, log };
+}
+
+test('runSaveDraftOnly saves a draft: one Save draft click, evidence = Drafts page + matching row, ack draft_saved', async () => {
+  const { ctx, log } = draftHarness();
+  const result = await ctx.runSaveDraftOnly();
+  assert.equal(result.success, true);
+  assert.equal(result.outcome, 'draft_saved');
+  assert.equal(result.posted, false);
+  assert.deepEqual(Array.from(log.calls), ['attempt', 'clicked', 'receipt:draft_saved', 'upload-page']);
+  assert.equal(log.receipts[0].proof.kind, 'drafts_page_confirmed');
+  assert.match(log.receipts[0].proof.confirmation_token, /^job-1:/);
+  // it must never go near the Post button
+  assert.ok(!log.expressions.some(e => e.includes('post_video_button')), 'Post button untouched');
+});
+
+test('runSaveDraftOnly refuses a job that carries a publish time (wrong mode) before touching the page', async () => {
+  const { ctx, log } = draftHarness({ job: { schedule_date: '2026-11-12', schedule_time: '09:00' } });
+  await assert.rejects(() => ctx.runSaveDraftOnly(), /ไม่ใช่งานแบบร่าง/);
+  assert.deepEqual(Array.from(log.calls), []);
+  assert.equal(log.expressions.length, 0);
+});
+
+test('runSaveDraftOnly with no Save draft button stops without clicking and without burning the attempt', async () => {
+  const { ctx, log } = draftHarness({ buttonPresent: false });
+  await assert.rejects(() => ctx.runSaveDraftOnly(), /Save draft/);
+  assert.deepEqual(Array.from(log.calls), []); // no fence, no click, no receipt
+  assert.ok(!log.expressions.some(e => e.includes('post_video_button')));
+});
+
+test('runSaveDraftOnly: TikTok never opens Drafts after the click -> not confirmed, receipt is confirmation_unknown', async () => {
+  const { ctx, log } = draftHarness({ urlAfterClick: UPLOAD_URL });
+  ctx.waitForDraftConfirmation = (send, tabId, caption) => ({ confirmed: false, reason: 'no-navigation' });
+  await assert.rejects(() => ctx.runSaveDraftOnly(), /draft_not_confirmed.*ไม่พาไปหน้าแบบร่าง/);
+  assert.deepEqual(Array.from(log.calls), ['attempt', 'clicked', 'receipt:confirmation_unknown']);
+});
+
+test('runSaveDraftOnly: Drafts page opens but no row matches the caption -> not confirmed (never ack draft_saved)', async () => {
+  const { ctx, log } = draftHarness({ pageText: 'Posts 219\nDrafts 3\nคลิปอื่นทั้งหมด ไม่ตรงกัน\nNov 9, 2026' });
+  ctx.waitForDraftConfirmation = async (send, tabId, caption) => {
+    const evidence = await ctx.readDraftRowEvidence(send, caption);
+    return evidence.rowVisible === false ? { confirmed: false, reason: 'draft-row-not-found', evidence } : { confirmed: true, evidence };
+  };
+  await assert.rejects(() => ctx.runSaveDraftOnly(), /draft_not_confirmed.*ไม่พบแถวแบบร่าง/);
+  assert.ok(!log.calls.includes('receipt:draft_saved'));
+  assert.ok(log.calls.includes('receipt:confirmation_unknown'));
+});
+
+test('draft evidence helpers: URL, caption key and count are read from the Drafts page', async () => {
+  const ctx = worker();
+  assert.equal(ctx.isDraftsUrl('https://www.tiktok.com/tiktokstudio/content?tab=draft'), true);
+  assert.equal(ctx.isDraftsUrl('https://www.tiktok.com/tiktokstudio/content'), false);
+  assert.equal(ctx.isDraftsUrl('https://www.tiktok.com/tiktokstudio/upload?tab=draft'), false);
+  assert.equal(ctx.draftCaptionKey('Hello, World! สวัสดี 123'), 'helloworldสวัสดี123'.slice(0, 14));
+  const send = async () => ({ result: { value: { url: DRAFTS_URL, text: 'โพสต์ 219\nแบบร่าง 4\nแกะกล่องสุดคุ้ม ของแท้\nNov 10' } } });
+  const hit = await ctx.readDraftRowEvidence(send, 'แกะกล่องสุดคุ้ม ของแท้ ราคาดี');
+  assert.deepEqual(JSON.parse(JSON.stringify(hit)), { url: DRAFTS_URL, onDrafts: true, draftCount: 4, rowVisible: true });
+  const miss = await ctx.readDraftRowEvidence(send, 'ข้อความอื่นที่ไม่มีในหน้า');
+  assert.equal(miss.rowVisible, false);
+  const noCaption = await ctx.readDraftRowEvidence(send, '');
+  assert.equal(noCaption.rowVisible, null);
+});
+
+// ---- account check: read from the page twice per clip, fence-validate at every step ----
+function accountReadHarness({ handle = '@mainuser' } = {}) {
+  const saved = {};
+  const ctx = durableWorker(saved);
+  const routes = [];
+  let reads = 0;
+  let now = 1_000_000;
+  ctx.Date = { now: () => now };
+  ctx.postingRequest = async (route, _channel, body) => { routes.push(route); return { ...(await ctx.postingState()).activeJob, revision: 3 }; };
+  const send = async () => { reads += 1; return { result: { value: { handles: [handle] } } }; };
+  return { ctx, send, routes, saved, reads: () => reads, advance: (ms) => { now += ms; } };
+}
+
+test('account check: the page is read at the first step and before publishing, steps in between reuse the verified handle', async () => {
+  const h = accountReadHarness();
+  const job = await seedJob(h.ctx);
+  await h.ctx.guardPostingAction(job, h.send, 7);                       // first guarded step: reads
+  assert.equal(h.reads(), 1);
+  for (let i = 0; i < 4; i += 1) await h.ctx.guardPostingAction(job, h.send, 7); // caption/product/cover/schedule: reuse
+  assert.equal(h.reads(), 1);
+  assert.deepEqual(Array.from(h.routes), ['/validate', '/validate', '/validate', '/validate', '/validate']); // fence still checked every step
+  await h.ctx.guardPostingAction(job, h.send, 7, { beginPublish: true }); // right before the click: fresh read
+  assert.equal(h.reads(), 2);
+  assert.equal(h.routes.at(-1), '/attempt');
+});
+
+test('account check: before publishing the page is ALWAYS read again, and a switched account stops it', async () => {
+  const h = accountReadHarness();
+  const job = await seedJob(h.ctx);
+  await h.ctx.guardPostingAction(job, h.send, 7);
+  const switched = async () => ({ result: { value: { handles: ['@someoneelse'] } } });
+  await assert.rejects(() => h.ctx.guardPostingAction(job, switched, 7, { beginPublish: true }), /account_handle_mismatch/);
+  assert.ok(!h.routes.includes('/attempt'), 'no attempt is recorded for a wrong account');
+});
+
+test('account check: another job or an old verification is read again; an unreadable account is never cached', async () => {
+  const h = accountReadHarness();
+  const job = await seedJob(h.ctx);
+  await h.ctx.guardPostingAction(job, h.send, 7);
+  assert.equal(h.reads(), 1);
+  h.advance(16 * 60 * 1000);                                             // verification too old
+  await h.ctx.guardPostingAction(job, h.send, 7);
+  assert.equal(h.reads(), 2);
+  const other = protocolJob({ job_id: 'job-2' });
+  await seedJob(h.ctx, other);
+  await h.ctx.guardPostingAction(other, h.send, 7);                      // a different job never inherits the handle
+  assert.equal(h.reads(), 3);
+  const blank = accountReadHarness();
+  const blankJob = await seedJob(blank.ctx);
+  const nothing = async () => ({ result: { value: { handles: [] } } });
+  await assert.rejects(() => blank.ctx.guardPostingAction(blankJob, nothing, 7), /source_account_required/);
+  await assert.rejects(() => blank.ctx.guardPostingAction(blankJob, nothing, 7), /source_account_required/); // still reads, never reuses a failure
 });
 
 test('schedule time follows TikTok five-minute increments', () => {
@@ -633,7 +830,7 @@ test('stats sync accepts the real Studio posts page and stamps a visible build t
   // Build identity: chrome://extensions + the Tools tab both prove the fresh
   // code is running, so stale cached sidepanel.js (the ghost "จำกัดโดเมน"
   // banner that never existed in this repo) can be caught by the user's eyes.
-  assert.equal(manifest.version, '0.3.3');
+  assert.equal(manifest.version, '0.4.1');
   assert.match(sideHtml, /id="buildTag"/);
   assert.match(sideJs, /getManifest/);
   // The strict domain banner must never come back: resolution is a loose

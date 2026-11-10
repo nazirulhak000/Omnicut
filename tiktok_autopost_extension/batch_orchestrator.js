@@ -98,6 +98,7 @@
   } = {}) {
     const {
       mode = 'smart', // 'smart' | 'schedule_only' | 'draft_only'
+      allowDraft = false, // only an embedder that really saves drafts may set this
       maxBatchCap = 30,
       maxScheduleQuota = 30,
       maxDraftQuota = 30,
@@ -506,6 +507,17 @@
         const clipAttempts = {};
         while (currentIndex < batchClips.length && !isAborted) {
           const clip = batchClips[currentIndex];
+          // The side panel has no "save as draft" step: its submit step presses Post, which with no schedule
+          // set publishes LIVE. So a draft target (Draft Only, or Smart once the schedule quota is full) must
+          // stop the batch instead of posting by accident, unless the embedder really saves drafts (the panel does).
+          if (!allowDraft && resolveTargetMode(clip) === 'draft') {
+            log('⛔ โควตาตั้งเวลาเต็ม (หรือเลือกโหมดแบบร่าง) แต่แผงข้างยังไม่รองรับการบันทึกแบบร่าง จึงหยุดเพื่อกันโพสต์สดโดยไม่ตั้งใจ', 'error');
+            break;
+          }
+          if (resolveTargetMode(clip) === 'draft' && draftUsed >= maxDraftQuota) {
+            log(`⛔ โควตาแบบร่างเต็ม ${maxDraftQuota}/${maxDraftQuota} คลิปแล้ว หยุดการทำงาน (ลบแบบร่างเก่าบน TikTok ก่อนจึงจะบันทึกเพิ่มได้)`, 'error');
+            break;
+          }
           try {
             await executeSingleClipStages(clip, currentIndex);
             if (consecutiveUnknown >= maxConsecutiveUnknown) {

@@ -20,6 +20,8 @@ test('clipSkipReason: export problems, price caption, passed slot; and ok', () =
   assert.equal(clipSkipReason(clip(), { is_qc_rejected: true }, NOW), 'export_qc_rejected');
   assert.equal(clipSkipReason(clip({ tiktok_caption: 'ลดราคาวันนี้' }), rec, NOW), 'price_in_caption');
   assert.equal(clipSkipReason(clip({ tiktok_hashtags: '#ลด50%' }), rec, NOW), 'price_in_caption');
+  assert.equal(clipSkipReason(clip({ tiktok_caption: 'ต้องมี! {product_name} ปลดปล่อยสองมือ' }), rec, NOW), 'placeholder_in_caption');
+  assert.equal(clipSkipReason(clip({ tiktok_caption: 'ใช้ {product_name} ดี' }), rec, NOW, { allowPriceCaption: true }), 'placeholder_in_caption');
   assert.equal(clipSkipReason(clip({ tiktok_caption: 'ลดราคาวันนี้' }), rec, NOW, { allowPriceCaption: true }), '');
   assert.equal(clipSkipReason(clip({ schedule_date: '2026-11-09', schedule_time: '12:10' }), rec, NOW), 'slot_passed_or_too_close');
   assert.equal(clipSkipReason(clip({ schedule_date: '', schedule_time: '' }), rec, NOW), '');
@@ -41,4 +43,16 @@ test('row matching: caption start + scheduled day/time', () => {
   assert.equal(rowMatchesClip(row('Nov 11, 7:00 AM (GMT+7) Bangkok'), c).reason, 'schedule_badge_mismatch');
   assert.equal(rowMatchesClip('00:25' + nl + 'อย่างอื่น', c).reason, 'caption_not_found');
   assert.equal(rowMatchesClip(row('Nov 10, 9:00 PM (GMT+7) Bangkok'), { ...c, schedule_time: '21:00' }).ok, true);
+});
+
+test('clipSkipReason: a draft-only run ignores the publish slot, nothing else', () => {
+  const NOW2 = Date.parse('2026-11-10T04:30:00Z');
+  const rec = { id: 'exp-1' };
+  const past = { export_id: 'exp-1', tiktok_caption: 'ok', schedule_date: '2026-11-09', schedule_time: '12:10' };
+  assert.equal(clipSkipReason(past, rec, NOW2), 'slot_passed_or_too_close');
+  assert.equal(clipSkipReason(past, rec, NOW2, { ignoreSlot: true }), '');
+  // the other guards still apply to drafts: price text, missing export, placeholder
+  assert.equal(clipSkipReason({ ...past, tiktok_caption: 'ลดราคาวันนี้' }, rec, NOW2, { ignoreSlot: true }), 'price_in_caption');
+  assert.equal(clipSkipReason(past, undefined, NOW2, { ignoreSlot: true }), 'export_missing');
+  assert.equal(clipSkipReason({ ...past, tiktok_caption: 'ใช้ {product_name}' }, rec, NOW2, { ignoreSlot: true }), 'placeholder_in_caption');
 });

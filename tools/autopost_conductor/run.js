@@ -19,7 +19,7 @@ const CHROME_EXE = process.env.OMNICUT_CHROME || 'C:\\Program Files\\Google\\Chr
 const PROFILE_DIR = path.join(ROOT, 'tools', 'tiktok_browser_profile');
 
 function parseArgs(argv) {
-  const args = { channel: 'main', limit: 10, port: 9333, dryRun: false, health: false, noLaunch: false, queueId: null, allowPriceCaption: false, coverFallback: false, viewport: null, net: null, clipBudgetMin: 25 };
+  const args = { channel: 'main', limit: 10, port: 9333, dryRun: false, health: false, noLaunch: false, queueId: null, allowPriceCaption: false, coverFallback: false, viewport: null, net: null, clipBudgetMin: 25, mode: 'schedule' };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === '--dry-run') args.dryRun = true;
@@ -27,6 +27,7 @@ function parseArgs(argv) {
     else if (a === '--no-launch') args.noLaunch = true;
     else if (a === '--allow-price-caption') args.allowPriceCaption = true;
     else if (a === '--cover-fallback') args.coverFallback = true;
+    else if (a === '--mode') args.mode = argv[++i];
     else if (a === '--viewport') args.viewport = argv[++i];
     else if (a === '--net') args.net = argv[++i];
     else if (a === '--clip-budget-min') args.clipBudgetMin = Number(argv[++i]);
@@ -37,6 +38,7 @@ function parseArgs(argv) {
     else throw new Error(`unknown argument: ${a}`);
   }
   if (!Number.isInteger(args.limit) || args.limit < 1) throw new Error('--limit ต้องเป็นจำนวนเต็ม >= 1');
+  if (!['schedule', 'draft'].includes(args.mode)) throw new Error('--mode ต้องเป็น schedule | draft');
   if (args.viewport && !/^\d{3,4}x\d{3,4}$/.test(args.viewport)) throw new Error('--viewport ต้องเป็นรูปแบบ 1366x768');
   if (args.net && !['slow', 'blip', 'offline'].includes(args.net)) throw new Error('--net ต้องเป็น slow | blip | offline');
   if (!(args.clipBudgetMin > 0)) throw new Error('--clip-budget-min ต้องมากกว่า 0');
@@ -210,6 +212,8 @@ async function main() {
     const shot = async label => shim.screenshot(await tabId(), path.join(runDir, `${label}.png`)).catch(e => log('warn', `screenshot: ${e.message}`));
     const deps = {
       worker, api, log, sleep, recover,
+      // Live TikTok quota (scheduled posts / drafts, 30 each): runBatch never plans more than what is left.
+      quota: () => worker.send('detect-tiktok-quota', { allowNavigate: true }),
       // Chrome crashed / was closed / its tab hung between clips: relaunch, re-check login, redo viewport.
       ensureBrowser: async () => {
         const alive = await portUp(args.port) && await shim.evaluate(await tabId(), '1').then(() => true).catch(() => false);
@@ -284,9 +288,9 @@ async function main() {
         }
       },
     };
-    const summary = await runBatch(deps, { clips, dryRun: args.dryRun, channelId: args.channel, coverFallback: args.coverFallback, clipBudgetMs: args.clipBudgetMin * 60000, shouldStop: () => stopRequested });
+    const summary = await runBatch(deps, { clips, dryRun: args.dryRun, channelId: args.channel, coverFallback: args.coverFallback, mode: args.mode, clipBudgetMs: args.clipBudgetMin * 60000, shouldStop: () => stopRequested });
     fs.writeFileSync(path.join(runDir, 'summary.json'), JSON.stringify(summary, null, 2));
-    log('info', `สรุป: โพสต์ ${summary.posted} · ตั้งเวลา ${summary.scheduled} · dry-run ${summary.dry_run_ok} · ข้าม ${summary.skipped} · ล้ม ${summary.failed} · ไม่ชัด ${summary.unknown}`);
+    log('info', `สรุป: โพสต์ ${summary.posted} · ตั้งเวลา ${summary.scheduled} · แบบร่าง ${summary.drafted} · dry-run ${summary.dry_run_ok} · ข้าม ${summary.skipped} · ล้ม ${summary.failed} · ไม่ชัด ${summary.unknown}`);
     if (summary.aborted) { alert(summary.aborted); process.exitCode = 2; }
     else if (summary.failed || summary.unknown) process.exitCode = 1;
   } catch (error) {

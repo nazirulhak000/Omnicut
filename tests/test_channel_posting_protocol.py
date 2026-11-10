@@ -637,3 +637,85 @@ def test_notice_must_still_be_a_platform_sentence(store):
     for notice in ["Video published by someone", "published", "Draft saved", ""]:
         with pytest.raises(ChannelError):
             jobs.acknowledge(*_ack_args(row), "published", {"kind": "platform_success_notice", "notice": notice})
+
+
+# ---- draft_saved: the "Save draft" button (no toast; TikTok opens Content > Drafts) ----
+
+def test_draft_saved_is_accepted_with_drafts_page_proof_and_is_not_a_post(store):
+    jobs, _ = store
+    row = attempt(jobs, claimed(jobs))
+    done = jobs.acknowledge(*_ack_args(row), "draft_saved", {"kind": "drafts_page_confirmed"})
+    assert done["status"] == "draft_saved"
+    assert done["receipt"]["outcome"] == "draft_saved"
+    # a saved draft still blocks preparing the same export again (no duplicate drafts)
+    with pytest.raises(ChannelError) as exc:
+        jobs.prepare("main", payload(), idempotency_key="again")
+    assert exc.value.code == "posting_export_already_prepared"
+
+
+def test_draft_saved_accepts_a_platform_sentence_or_manual_confirmation_only(store):
+    jobs, _ = store
+    def attempted(export_id):
+        prepared = jobs.prepare("main", {**payload(), "export_id": export_id})
+        return attempt(jobs, jobs.claim("main", prepared["job_id"], f"extension-{export_id}"))
+
+    for index, notice in enumerate(["Draft saved", "บันทึกแบบร่างแล้ว", "Video draft saved."]):
+        row = attempted(f"exp-notice-{index}")
+        done = jobs.acknowledge(*_ack_args(row), "draft_saved", {"kind": "platform_success_notice", "notice": notice})
+        assert done["status"] == "draft_saved"
+    row = attempted("exp-manual")
+    assert jobs.acknowledge(*_ack_args(row), "draft_saved", {"kind": "user_confirmed"})["status"] == "draft_saved"
+
+
+def test_draft_saved_rejects_missing_or_wrong_evidence_and_scheduled_jobs(store):
+    jobs, _ = store
+    row = attempt(jobs, claimed(jobs))
+    for proof in [{}, {"kind": "content_page_reconciled"}, {"kind": "platform_success_notice", "notice": "Video published"},
+                  {"kind": "platform_success_notice", "notice": ""}]:
+        with pytest.raises(ChannelError) as exc:
+            jobs.acknowledge(*_ack_args(row), "draft_saved", proof)
+        assert exc.value.code == "posting_confirmation_required"
+    assert jobs.get("main", row["job_id"])["status"] == "publishing"
+    # a job that carries a publish time is not a draft job
+    data = {**payload(), "export_id": "exp-sched", "schedule_date": "2026-11-12", "schedule_time": "09:00"}
+    sched = attempt(jobs, jobs.claim("main", jobs.prepare("main", data)["job_id"], "extension-z"))
+    with pytest.raises(ChannelError) as exc:
+        jobs.acknowledge(*_ack_args(sched), "draft_saved", {"kind": "drafts_page_confirmed"})
+    assert exc.value.code == "posting_confirmation_required"
+
+
+def test_drafts_page_proof_cannot_confirm_a_post(store):
+    jobs, _ = store
+    row = attempt(jobs, claimed(jobs))
+    for outcome in ["published", "scheduled_on_platform"]:
+        with pytest.raises(ChannelError) as exc:
+            jobs.acknowledge(*_ack_args(row), outcome, {"kind": "drafts_page_confirmed"})
+        assert exc.value.code == "posting_confirmation_required"
+
+
+def test_draft_proof_must_carry_the_confirmation_token_of_this_click(store):
+    jobs, _ = store
+    row = claimed(jobs)
+    row = jobs.validate_action(row["channel_id"], row["job_id"], row["lease_owner"], row["lease_token"],
+                               row["revision"], "@mainuser", begin_publish=True, confirmation_token="tok-123")
+    with pytest.raises(ChannelError):
+        jobs.acknowledge(*_ack_args(row), "draft_saved", {"kind": "drafts_page_confirmed", "confirmation_token": "other"})
+    done = jobs.acknowledge(*_ack_args(row), "draft_saved", {"kind": "drafts_page_confirmed", "confirmation_token": "tok-123"})
+    assert done["status"] == "draft_saved"
+
+
+def test_release_draft_frees_the_export_but_never_a_scheduled_or_published_job(store):
+    jobs, _ = store
+    row = attempt(jobs, claimed(jobs))
+    jobs.acknowledge(*_ack_args(row), "draft_saved", {"kind": "drafts_page_confirmed"})
+    released = jobs.release_draft("main", row["job_id"])
+    assert released["status"] == "cancelled"
+    assert jobs.release_draft("main", row["job_id"])["status"] == "cancelled"  # idempotent
+    assert jobs.prepare("main", payload(), idempotency_key="after-release")["status"] == "prepared"
+    data = {**payload(), "export_id": "exp-pub"}
+    pub = attempt(jobs, jobs.claim("main", jobs.prepare("main", data)["job_id"], "extension-p"))
+    jobs.acknowledge(*_ack_args(pub), "published", {"kind": "platform_success_notice", "notice": "Video published"})
+    with pytest.raises(ChannelError) as exc:
+        jobs.release_draft("main", pub["job_id"])
+    assert exc.value.code == "posting_reconciliation_required"
+    assert jobs.get("main", pub["job_id"])["status"] == "published"

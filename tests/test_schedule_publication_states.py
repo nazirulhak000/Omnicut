@@ -16,11 +16,15 @@ def isolated_queue(tmp_path, monkeypatch):
     table.save([
         {"id": "accepted", "channel_id": "main", "status": "scheduled_on_platform", "scheduled_at": "2026-10-12T09:00:00+07:00", "export_id": "export-old", "posting_job_id": "job-old"},
         {"id": "unknown", "channel_id": "main", "status": "confirmation_unknown", "scheduled_at": "2026-10-12T12:00:00+07:00"},
-        {"id": "planned", "channel_id": "main", "status": "planned", "scheduled_at": "2026-10-12T16:00:00+07:00"}])
+        {"id": "planned", "channel_id": "main", "status": "planned", "scheduled_at": "2026-10-12T16:00:00+07:00"},
+        {"id": "drafted", "channel_id": "main", "status": "draft_on_platform", "scheduled_at": "2026-10-12T18:00:00+07:00", "export_id": "export-draft", "posting_job_id": "job-draft"}])
     class Queue:
         @staticmethod
         def list_items(channel_id=None):
             return table.scoped_load(channel_id)
+        @staticmethod
+        def get_item(item_id, channel_id=None):
+            return next((dict(r) for r in table.scoped_load(channel_id) if r["id"] == item_id), None)
         @staticmethod
         def update_item(item_id, fn, channel_id=None):
             with table.scoped_mutate(channel_id) as rows:
@@ -98,3 +102,66 @@ def test_stale_export_requires_explicit_reselect_without_changing_identity(tmp_p
     assert exc.value.code == "stale_export"
     assert exc.value.extra == {"action": "reselect_export", "export_id": "export-old", "latest_export_id": "export-new"}
     assert payload.export_id == "export-old" and payload.video_path == "old.mp4"
+
+
+# ---- draft_on_platform: a saved draft is not a post ----
+
+def test_draft_state_is_listed_and_labelled_as_a_draft(isolated_queue):
+    client, _ = isolated_queue
+    body = client.get("/api/schedule-queue", params={"status": "draft_on_platform"}).json()
+    assert [row["id"] for row in body["items"]] == ["drafted"]
+    assert "แบบร่าง" in body["status_labels"]["draft_on_platform"]
+    assert body["status_labels"]["draft_on_platform"] != body["status_labels"]["posted"]
+
+
+@pytest.mark.parametrize("payload", [{"status": "posted"}, {"status": "failed"}, {"scheduled_at": "2026-10-13T09:00:00+07:00"},
+                                     {"status": "planned", "scheduled_at": "2026-10-13T09:00:00+07:00"}])
+def test_draft_row_can_only_be_reset_to_planned(isolated_queue, payload):
+    client, table = isolated_queue
+    before = table.load()
+    response = client.patch("/api/schedule-queue/drafted", json=payload)
+    assert response.status_code == 409
+    assert response.json()["code"] == "draft_reset_required"
+    assert table.load() == before
+
+
+def test_draft_row_cannot_be_removed_and_status_cannot_be_invented(isolated_queue):
+    client, table = isolated_queue
+    before = table.load()
+    removed = client.delete("/api/schedule-queue/drafted")
+    assert removed.status_code == 409 and removed.json()["code"] == "platform_result_reconciliation_required"
+    invented = client.patch("/api/schedule-queue/planned", json={"status": "draft_on_platform"})
+    assert invented.status_code == 409 and invented.json()["code"] == "platform_receipt_required"
+    assert table.load() == before
+
+
+def test_reset_after_deleting_the_draft_on_tiktok_releases_the_job_then_replans(isolated_queue, monkeypatch):
+    client, table = isolated_queue
+    released = []
+    class Jobs:
+        @staticmethod
+        def release_draft(channel_id, job_id):
+            released.append((channel_id, job_id))
+    import scripts.api_tiktok_autopost as autopost
+    monkeypatch.setattr(autopost, "_jobs", lambda: Jobs)
+    response = client.patch("/api/schedule-queue/drafted", json={"status": "planned"})
+    assert response.status_code == 200
+    assert response.json()["status"] == "planned"
+    assert "posting_job_id" not in response.json()
+    assert released == [("main", "job-draft")]
+    # a second reset is a plain planned->planned edit and must not touch the job store again
+    assert client.patch("/api/schedule-queue/drafted", json={"status": "planned"}).status_code == 200
+    assert released == [("main", "job-draft")]
+
+
+def test_failed_job_release_leaves_the_row_a_draft(isolated_queue, monkeypatch):
+    client, table = isolated_queue
+    class Jobs:
+        @staticmethod
+        def release_draft(channel_id, job_id):
+            raise ChannelError(409, "posting_reconciliation_required", "not a draft job")
+    import scripts.api_tiktok_autopost as autopost
+    monkeypatch.setattr(autopost, "_jobs", lambda: Jobs)
+    response = client.patch("/api/schedule-queue/drafted", json={"status": "planned"})
+    assert response.status_code == 409
+    assert next(row for row in table.load() if row["id"] == "drafted")["status"] == "draft_on_platform"

@@ -1,6 +1,6 @@
 'use strict';
 // One source of truth shared with the extension (price rule, Content-page row matching).
-const { PRICE_RE, rowMatchesClip } = require('../../tiktok_autopost_extension/post_guard.js');
+const { PRICE_RE, PLACEHOLDER_RE, rowMatchesClip } = require('../../tiktok_autopost_extension/post_guard.js');
 // Sequential, unattended TikTok posting. One clip at a time, per channel.
 // All TikTok DOM work is delegated to the verified extension worker through
 // `worker.send(action)`; this module owns ordering, safety stops and results.
@@ -35,12 +35,16 @@ function clipFromQueueItem(item) {
 }
 
 // Returns '' when the clip can be posted, otherwise a short skip reason.
-function skipReason(clip, { now = Date.now(), allowPriceCaption = false } = {}) {
+function skipReason(clip, { now = Date.now(), allowPriceCaption = false, mode = 'schedule' } = {}) {
   if (!clip.export_id || !clip.rel_path) return 'no_export';
-  if (!clip.schedule_date || !clip.schedule_time) return 'no_schedule';
-  const slot = new Date(`${clip.schedule_date}T${clip.schedule_time}:00`).getTime();
-  if (!Number.isFinite(slot) || slot - now < MIN_LEAD_MS) return 'slot_passed_or_too_close';
+  if (mode !== 'draft') {
+    // a draft has no publish time, so only a scheduled post needs a future slot
+    if (!clip.schedule_date || !clip.schedule_time) return 'no_schedule';
+    const slot = new Date(`${clip.schedule_date}T${clip.schedule_time}:00`).getTime();
+    if (!Number.isFinite(slot) || slot - now < MIN_LEAD_MS) return 'slot_passed_or_too_close';
+  }
   if (!clip.tiktok_product_id) return 'no_tiktok_product_id';
+  if (PLACEHOLDER_RE.test(`${clip.caption} ${clip.hashtags}`)) return 'placeholder_in_caption';
   if (!allowPriceCaption && PRICE_RE.test(`${clip.caption} ${clip.hashtags}`)) return 'price_in_caption';
   return '';
 }
@@ -64,7 +68,7 @@ async function loadExportIndex(api) {
   } catch (_) { return null; }
 }
 
-async function pickClips(api, { queueId = null, limit = 10, now = Date.now(), allowPriceCaption = false, dryRun = false } = {}) {
+async function pickClips(api, { queueId = null, limit = 10, now = Date.now(), allowPriceCaption = false, dryRun = false, mode = 'schedule' } = {}) {
   const res = await api.get('/api/schedule-queue');
   if (!res.ok) throw new Error(`schedule-queue ${res.status}: ${res.data?.detail || ''}`);
   const items = (res.data.items || [])
@@ -79,7 +83,7 @@ async function pickClips(api, { queueId = null, limit = 10, now = Date.now(), al
     if (exportIndex && !record) { skipped.push({ id: clip.id, title: clip.title, reason: 'export_missing' }); continue; }
     if (record?.is_posted || record?.export_status === 'posted') { skipped.push({ id: clip.id, title: clip.title, reason: 'export_already_posted' }); continue; }
     if (record?.is_qc_rejected) { skipped.push({ id: clip.id, title: clip.title, reason: 'export_qc_rejected' }); continue; }
-    let reason = skipReason(clip, { now, allowPriceCaption });
+    let reason = skipReason(clip, { now, allowPriceCaption, mode });
     if (reason === 'slot_passed_or_too_close' && dryRun) {
       const slot = dryRunSlot(now);
       clip.schedule_date = slot.date;
@@ -104,7 +108,8 @@ function shouldReconcile(outcome, result) {
   return outcome === 'confirmation_unknown' || result?.outcome === 'confirmation_unknown' || Boolean(result?.markError);
 }
 
-async function runClip(deps, clip, { dryRun = false, channelId = 'main', coverFallback = false } = {}) {
+async function runClip(deps, clip, { dryRun = false, channelId = 'main', coverFallback = false, mode = 'schedule' } = {}) {
+  const draft = mode === 'draft';
   const { worker, api, log, shot, dumpDom, sleep } = deps;
   const send = (action, payload) => worker.send(action, payload);
   let step = 'prepare';
@@ -113,7 +118,7 @@ async function runClip(deps, clip, { dryRun = false, channelId = 'main', coverFa
       video_path: clip.rel_path, export_id: clip.export_id, cover_path: clip.cover_path,
       caption: clip.caption, hashtags: clip.hashtags, product_id: clip.product_id, angle_id: clip.angle_id,
       tiktok_product_id: clip.tiktok_product_id, product_name: clip.product_name,
-      queue_id: clip.queue_id, schedule_date: clip.schedule_date, schedule_time: clip.schedule_time,
+      queue_id: clip.queue_id, schedule_date: draft ? null : clip.schedule_date, schedule_time: draft ? null : clip.schedule_time,
     };
     let res = await api.post('/api/tiktok-autopost/prepare', payload);
     if (!res.ok && res.status === 409 && /already_prepared|มีงานโพสต์อยู่แล้ว|มีคลิปรอโพสต์ค้างอยู่/.test(JSON.stringify(res.data))) {
@@ -149,8 +154,8 @@ async function runClip(deps, clip, { dryRun = false, channelId = 'main', coverFa
     step = 'details';
     const details = await send('prepare-details', {
       caption: clip.caption, hashtags: clip.hashtags, productId: clip.tiktok_product_id,
-      scheduleMode: true, cartName: clip.product_name || '',
-      scheduleDate: clip.schedule_date, scheduleTime: clip.schedule_time,
+      scheduleMode: !draft, cartName: clip.product_name || '',
+      scheduleDate: draft ? '' : clip.schedule_date, scheduleTime: draft ? '' : clip.schedule_time,
       coverPath: prepared.cover_path || clip.cover_path || '',
     });
     let coverFallbackUsed = false;
@@ -160,7 +165,7 @@ async function runClip(deps, clip, { dryRun = false, channelId = 'main', coverFa
     const beforeCover = ['caption', 'product', 'schedule'];
     if (details?.success === false && details.step === 'cover' && (coverFallback || dryRun)
         && beforeCover.every(k => details.completed?.includes(k))) {
-      log('warn', 'หน้า TikTok ไม่มีช่องอัปโหลดปกเอง — ใช้ปกอัตโนมัติของ TikTok แทน');
+      log('warn', `อัปโหลดปกไม่สำเร็จ (${details.error || 'ไม่ทราบสาเหตุ'}) — ใช้ปกอัตโนมัติของ TikTok แทน`);
       await deps.dismissCoverModal?.();
       coverFallbackUsed = true;
     } else {
@@ -177,17 +182,28 @@ async function runClip(deps, clip, { dryRun = false, channelId = 'main', coverFa
     }
 
     step = 'post';
-    const result = await send('click-post-only');
+    // A draft never presses Post (with no schedule that would publish LIVE): it has its own step.
+    const result = await send(draft ? 'save-draft-only' : 'click-post-only');
     await shot(`${clip.id}_after_post`);
     expectOk(result, 'กดโพสต์');
-    const outcome = result.outcome || (result.posted ? 'published' : 'confirmation_unknown');
+    const outcome = result.outcome || (draft ? 'confirmation_unknown' : (result.posted ? 'published' : 'confirmation_unknown'));
     step = 'reconcile';
     if (shouldReconcile(outcome, result)) await send('reconcile-posting-result', { manual: false }).catch(() => {});
     await send('retry-posting-receipt').catch(() => {});
-    let status = outcome === 'published' ? 'posted' : outcome === 'scheduled_on_platform' ? 'scheduled' : 'unknown';
+    let status = outcome === 'published' ? 'posted' : outcome === 'scheduled_on_platform' ? 'scheduled' : outcome === 'draft_saved' ? 'drafted' : 'unknown';
+    if (draft && status === 'posted') throw new Error('draft run got a published outcome: stop (the Post button must never be pressed in draft mode)');
     // Second, independent proof: the clip must really be listed on TikTok Studio > Content.
     let verified = null;
-    if (status !== 'unknown' && deps.verifyOnContentPage) {
+    if (status === 'drafted') {
+      // Draft proof: Content > Drafts must list a row for this caption (the worker already saw it once).
+      step = 'verify';
+      const reply = await send('verify-draft-content', { caption: prepared.caption || clip.caption }).catch(e => ({ verified: false, reason: e.message }));
+      verified = { ok: Boolean(reply?.verified), reason: reply?.reason || '' };
+      if (!verified.ok) {
+        log('warn', `ตรวจหน้า Drafts แล้วไม่ยืนยัน: ${verified.reason} — ถือว่ายังไม่แน่ใจ`);
+        status = 'unknown';
+      }
+    } else if (status !== 'unknown' && deps.verifyOnContentPage) {
       step = 'verify';
       verified = await deps.verifyOnContentPage(clip).catch(e => ({ ok: false, reason: e.message }));
       if (!verified.ok) {
@@ -196,7 +212,7 @@ async function runClip(deps, clip, { dryRun = false, channelId = 'main', coverFa
       }
     }
     return { status, outcome, job_id: prepared.job_id, cover_fallback: coverFallbackUsed, verified: verified ? verified.ok : null,
-      ...(verified && !verified.ok ? { error: `content_page_not_verified: ${verified.reason}` } : {}) };
+      ...(verified && !verified.ok ? { error: `${draft ? 'drafts' : 'content'}_page_not_verified: ${verified.reason}` } : {}) };
   } catch (error) {
     const message = error?.message || String(error);
     // Evidence first: what did the page look like when this step failed?
@@ -251,27 +267,48 @@ async function runClipGuarded(deps, clip, options, budgetMs) {
   }
 }
 
-async function runBatch(deps, { clips, dryRun = false, channelId = 'main', coverFallback = false, clipBudgetMs = 25 * 60 * 1000, maxClipAttempts = 2, cooldownSec = [20, 40],
+async function runBatch(deps, { clips, dryRun = false, channelId = 'main', coverFallback = false, mode = 'schedule', clipBudgetMs = 25 * 60 * 1000, maxClipAttempts = 2, cooldownSec = [20, 40],
   maxConsecutiveFailures = 3, maxConsecutiveUnknown = 2, shouldStop = () => false, random = Math.random } = {}) {
   const { log, sleep } = deps;
   const results = [];
   let failStreak = 0;
   let unknownStreak = 0;
   let aborted = null;
+  // TikTok caps scheduled posts and drafts (30 each). Read the live counts once and never plan more clips
+  // than what is left; when the counts cannot be read, say so and fall back to the operator's --limit.
+  let quota = null;
+  if (!dryRun && deps.quota) {
+    quota = await deps.quota().catch(error => ({ success: false, error: error.message }));
+    const used = mode === 'draft' ? quota?.draftCount : quota?.scheduledCount;
+    const left = mode === 'draft' ? quota?.remainingDraft : quota?.remainingSchedule;
+    if (typeof used === 'number' && typeof left === 'number') {
+      log('info', `โควตา TikTok (${mode === 'draft' ? 'แบบร่าง' : 'ตั้งเวลา'}): ใช้ไป ${used}/30 · เหลือ ${left}`);
+      if (left <= 0) {
+        log('error', `โควตา${mode === 'draft' ? 'แบบร่าง' : 'ตั้งเวลา'}เต็ม 30/30 หยุดก่อนเริ่ม`);
+        return { total: 0, aborted: `quota_full_${mode}`, quota, posted: 0, scheduled: 0, drafted: 0, unknown: 0, skipped: 0, failed: 0, dry_run_ok: 0, results: [] };
+      }
+      if (clips.length > left) {
+        log('warn', `มี ${clips.length} คลิป แต่โควตาเหลือ ${left} — รันเฉพาะ ${left} คลิปแรก`);
+        clips = clips.slice(0, left);
+      }
+    } else {
+      log('warn', `อ่านโควตา TikTok ไม่ได้${quota?.error ? ` (${quota.error})` : ''} — ใช้ --limit เป็นตัวกัน`);
+    }
+  }
   for (let i = 0; i < clips.length; i += 1) {
     if (shouldStop()) { aborted = 'stopped_by_user'; break; }
     const clip = clips[i];
-    log('info', `[${i + 1}/${clips.length}] ${clip.title} (${clip.schedule_date} ${clip.schedule_time})${dryRun ? ' [dry-run]' : ''}`);
+    log('info', `[${i + 1}/${clips.length}] ${clip.title} (${mode === 'draft' ? 'แบบร่าง' : `${clip.schedule_date} ${clip.schedule_time}`})${dryRun ? ' [dry-run]' : ''}`);
     let result;
     try {
       await betweenClips(deps);
-      result = await runClipGuarded(deps, clip, { dryRun, channelId, coverFallback }, clipBudgetMs);
+      result = await runClipGuarded(deps, clip, { dryRun, channelId, coverFallback, mode }, clipBudgetMs);
       // A transient hiccup BEFORE the post click (caption not accepted, slow list, ...) is
       // retried once from a clean page. Never after the click: that could post twice.
       if (result.status === 'failed' && PRE_POST_STEPS.has(result.step) && maxClipAttempts > 1) {
         log('warn', `พลาดที่ขั้น ${result.step} (${result.error}) — ลองใหม่อีกครั้งจากหน้าสะอาด`);
         await betweenClips(deps);
-        result = await runClipGuarded(deps, clip, { dryRun, channelId, coverFallback }, clipBudgetMs);
+        result = await runClipGuarded(deps, clip, { dryRun, channelId, coverFallback, mode }, clipBudgetMs);
         result.retried = true;
       }
     } catch (error) {
@@ -293,8 +330,8 @@ async function runBatch(deps, { clips, dryRun = false, channelId = 'main', cover
   }
   const count = status => results.filter(r => r.status === status).length;
   return {
-    total: clips.length, aborted,
-    posted: count('posted'), scheduled: count('scheduled'), unknown: count('unknown'),
+    total: clips.length, aborted, mode, quota,
+    posted: count('posted'), scheduled: count('scheduled'), drafted: count('drafted'), unknown: count('unknown'),
     skipped: count('skipped'), failed: count('failed'), dry_run_ok: count('dry_run_ok'), results,
   };
 }

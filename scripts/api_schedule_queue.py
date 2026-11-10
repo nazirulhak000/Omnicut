@@ -44,13 +44,14 @@ DAY_INDICES = tuple(range(7))
 # An hour-of-day bucket needs at least this many measured posts before it may
 # influence slot ranking; a single lucky post is noise, not a best time.
 MIN_HOUR_SAMPLES = 3
-ACTIVE_STATUSES = {"planned", "ready_for_extension", "awaiting_post", "failed", "scheduled_on_platform", "confirmation_unknown"}
+ACTIVE_STATUSES = {"planned", "ready_for_extension", "awaiting_post", "failed", "scheduled_on_platform", "confirmation_unknown", "draft_on_platform"}
 ALL_STATUSES = ACTIVE_STATUSES | {"posted"}
 STATUS_LABELS = {
     "planned": "รอจัดส่ง",
     "ready_for_extension": "พร้อมทำใน Extension",
     "awaiting_post": "รอกดโพสต์",
     "scheduled_on_platform": "TikTok รับตั้งเวลาแล้ว",
+    "draft_on_platform": "บันทึกเป็นแบบร่างบน TikTok แล้ว",
     "confirmation_unknown": "รอตรวจผลจาก TikTok",
     "posted": "โพสต์แล้ว",
     "failed": "ผิดพลาด",
@@ -1301,7 +1302,15 @@ def patch_queue(item_id: str, req: QueuePatchRequest, scope: ChannelScope = Depe
             raise ChannelError(409, "platform_result_reconciliation_required",
                                "TikTok รับงานแล้วหรือผลยังไม่ชัดเจน ต้องตรวจและแก้ผลบนแพลตฟอร์มก่อนเปลี่ยนคิว",
                                action="review_platform_result")
-        if req.status in {"scheduled_on_platform", "confirmation_unknown"}:
+        if current == "draft_on_platform":
+            # A saved draft is not a post. The only edit is "I deleted that draft on TikTok": back to planned.
+            if req.status != "planned" or req.scheduled_at is not None:
+                raise ChannelError(409, "draft_reset_required",
+                                   "คลิปนี้บันทึกเป็นแบบร่างบน TikTok แล้ว ลบแบบร่างบน TikTok แล้วรีเซ็ตกลับเป็นรอโพสต์ก่อนจึงจะแก้คิวได้",
+                                   action="reset_draft")
+            item.pop("posting_job_id", None)
+            item.pop("extension_prepared_at", None)
+        if req.status in {"scheduled_on_platform", "confirmation_unknown", "draft_on_platform"}:
             raise ChannelError(409, "platform_receipt_required", "สถานะนี้ต้องมาจากหลักฐานผล TikTok ไม่สามารถตั้งเองได้")
         if item.get("status") == "posted" and req.status != "posted":
             raise HTTPException(status_code=409, detail="รายการที่โพสต์แล้วแก้ไขไม่ได้")
@@ -1318,6 +1327,13 @@ def patch_queue(item_id: str, req: QueuePatchRequest, scope: ChannelScope = Depe
                 item["posted_at"] = now_iso()
         item["updated_at"] = now_iso()
 
+    if req.status == "planned" and req.scheduled_at is None:
+        # Free the export for a new prepare BEFORE the queue row changes (the two stores must not nest
+        # transactions); releasing is idempotent, so a retry after a half-done reset is safe.
+        existing = ScheduleQueueStore.get_item(item_id, **_kw(channel_id))
+        if existing and existing.get("status") == "draft_on_platform" and existing.get("posting_job_id"):
+            from scripts.api_tiktok_autopost import _jobs
+            _jobs().release_draft(channel_id, existing["posting_job_id"])
     result = ScheduleQueueStore.update_item(item_id, apply, **_kw(channel_id))
     if result is None:
         raise _item_not_found(item_id)
@@ -1330,7 +1346,7 @@ def remove_queue(item_id: str, scope: ChannelScope = Depends(get_channel_scope))
     _guard_writable(scope)
 
     def guard(item: Dict[str, Any]) -> None:
-        if item.get("status") in {"scheduled_on_platform", "confirmation_unknown"}:
+        if item.get("status") in {"scheduled_on_platform", "confirmation_unknown", "draft_on_platform"}:
             raise ChannelError(409, "platform_result_reconciliation_required",
                                "ต้องตรวจและยกเลิกงานบน TikTok ก่อนนำรายการนี้ออกจากคิว",
                                action="review_platform_result")

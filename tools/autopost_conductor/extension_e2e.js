@@ -119,7 +119,9 @@ async function main() {
   const realPost = process.argv.includes('--real-post');
   const verifyProbe = process.argv.includes('--verify-probe');
   const leaveProbe = process.argv.includes('--leave-probe');
-  const clipCount = Number((process.argv.find(a => a.startsWith('--clips=')) || '').split('=')[1]) || 1;
+  // --pick=N: tick N clips with the panel's own checkboxes (instead of search + count limit); only those may run.
+  const pick = Number((process.argv.find(a => a.startsWith('--pick=')) || '').split('=')[1]) || 0;
+  const clipCount = pick || Number((process.argv.find(a => a.startsWith('--clips=')) || '').split('=')[1]) || 1;
   const apiKey = readApiKey();
   const api = createApi({ apiKey, channelId: 'main' });
   const outDir = path.join(ROOT, '.tmp', 'extension_e2e', new Date().toISOString().replace(/[:.]/g, '-'));
@@ -129,7 +131,7 @@ async function main() {
 
   // 1) pick ONE eligible clip so the panel's search filter leaves exactly one
   const { clips } = await pickClips(api, { limit: clipCount });
-  if (!verifyProbe && !clips.length) throw new Error('ไม่มีคลิปพร้อมโพสต์ในคิว (ตรวจเวลา/export)');
+  if (!verifyProbe && !process.argv.includes('--draft-probe') && !process.argv.includes('--quota-probe') && !process.argv.includes('--smart-overflow') && !clips.length) throw new Error('ไม่มีคลิปพร้อมโพสต์ในคิว (ตรวจเวลา/export)');
   const clip = clips[0] || { title: '' };
   step('clips eligible', `${clips.length} (asked ${clipCount})`);
 
@@ -215,6 +217,127 @@ async function main() {
       process.exitCode = ok ? 0 : 1;
       return;
     }
+    if (process.argv.includes('--smart-overflow')) {
+      // Smart Queue at 29/30 scheduled: clip 1 takes the last schedule slot (the post click is stubbed: nothing is
+      // published), clip 2 must switch to a REAL draft. Only the quota number is simulated; every other step is real.
+      // --full: the schedule quota is 30/30 (clip 1 must already be a draft); one clip only, so the draft is queue-bound.
+      const full = process.argv.includes('--full');
+      let n = 0;
+      for (let i = 0; i < 40 && n < 1; i += 1) { n = await panel.eval(`typeof allClips === 'undefined' ? -1 : allClips.length`, false).catch(() => -1); if (n < 1) await sleep(1500); }
+      await panel.eval(`(() => {
+        const set = (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('change', {bubbles: true})); };
+        set('batchModeSelect', 'smart');
+        const cf = document.getElementById('coverFallbackToggle'); if (cf && cf.checked) cf.click();
+        return true;
+      })()`, false);
+      const first = clips[0]?.title;
+      const picked = await panel.eval(`(() => {
+        const cards = [...document.querySelectorAll('#list .card')].filter(c => !c.classList.contains('blocked'));
+        const hook = c => (c.querySelector('.card-hook')?.innerText || '').trim();
+        const one = cards.find(c => hook(c) === ${JSON.stringify(first)});
+        const wanted = ${JSON.stringify((process.argv.find(a => a.startsWith('--second=')) || '').slice('--second='.length))};
+        const two = cards.find(c => c !== one && (!wanted || hook(c).includes(wanted)));
+        if (!one || (!two && !${JSON.stringify(full)})) return {ok: false, cards: cards.length, matching: [...document.querySelectorAll('#list .card')].filter(c => wanted && hook(c).includes(wanted)).map(c => ({blocked: c.classList.contains('blocked'), note: c.querySelector('.card-blocked-note')?.innerText || '', hook: hook(c).slice(0, 50)}))};
+        for (const c of [one, ...(${JSON.stringify(full)} ? [] : [two])]) { const box = c.querySelector('.card-check input'); if (box && !box.checked) box.click(); }
+        return {ok: true, one: hook(one), two: two ? hook(two) : null};
+      })()`, false);
+      step('ticked 2 clips', JSON.stringify(picked));
+      if (!picked.ok) throw new Error('ต้องมีคลิปที่ใช้ได้อย่างน้อย 2 คลิปในแผง');
+      await panel.eval(`(() => {
+        window.checkTikTokQuota = async () => { currentQuotaState = {scheduledCount: ${full ? 30 : 29}, scheduledAt: Date.now(), draftCount: 0, remainingSchedule: ${full ? 0 : 1}, remainingDraft: 30, maxSchedule: 30, maxDraft: 30}; updateQuotaUI(); };
+        const original = chrome.runtime.sendMessage.bind(chrome.runtime);
+        chrome.runtime.sendMessage = (message, cb) => {
+          if (message && message.action === 'click-post-only') { setTimeout(() => cb && cb({ success: true, clicked: false, outcome: 'scheduled_on_platform', stubbed: true }), 300); return; }
+          if (message && message.action === 'verify-post-content') { setTimeout(() => cb && cb({ success: true, verified: true, stubbed: true }), 300); return; }
+          return original(message, cb);
+        };
+        return true;
+      })()`, false);
+      step('quota simulated 29/30; post click + post verify stubbed; save-draft-only is REAL');
+      await panel.eval(`document.getElementById('batchStartBtn').click()`, false);
+      await sleep(800);
+      await panel.eval(`document.getElementById('confirmOkBtn').click()`, false);
+      let log = '';
+      for (let i = 0; i < 120; i += 1) {
+        await sleep(4000);
+        log = await panel.eval(`document.getElementById('batchLogBox')?.innerText || ''`, false).catch(() => '');
+        if (/อัปโหลดครบชุด|สรุปผลลัพธ์|หยุดอัตโนมัติ|หยุดการทำงาน/.test(log)) break;
+      }
+      fs.writeFileSync(path.join(outDir, 'panel_log.txt'), log);
+      console.log(log.split('\n').filter(l => /โหมด:|สำเร็จ|ล้มเหลว|หยุด|แบบร่าง|draft/i.test(l)).slice(-12).join('\n'));
+      const modes = [...log.matchAll(/โหมด: (ตั้งเวลา|แบบร่าง)/g)].map(m => m[1]);
+      report.modes = modes;
+      report.ok = modes.join(',') === (full ? 'แบบร่าง' : 'ตั้งเวลา,แบบร่าง') && (log.match(/✅ \[/g) || []).length === (full ? 1 : 2);
+      process.exitCode = report.ok ? 0 : 1;
+      console.log(report.ok ? '[E2E PASS] smart overflow: schedule then draft' : '[E2E FAIL] smart overflow');
+      return;
+    }
+    if (process.argv.includes('--draft-probe')) {
+      // Second proof for drafts: the Drafts list must hold a row for this caption (true) and not for another (false).
+      const q = await api.get('/api/schedule-queue');
+      const drafted = (q.data.items || []).filter(i => i.status === 'draft_on_platform');
+      let allGood = drafted.length > 0;
+      for (const [label, caption, expect] of [...drafted.map(i => ['real draft', i.caption, true]), ['unknown caption', 'ข้อความที่ไม่เคยถูกบันทึกเป็นแบบร่างเลย', false]]) {
+        const t0 = Date.now();
+        const verdict = await panel.eval(`new Promise(r => chrome.runtime.sendMessage(${JSON.stringify({ action: 'verify-draft-content', caption })}, r))`, true, 5 * 60 * 1000);
+        const good = Boolean(verdict?.verified) === expect;
+        allGood = allGood && good;
+        console.log(`[draft-verify] ${good ? 'OK ' : 'BAD'} ${label} expect=${expect} reply=${JSON.stringify(verdict)} (${Math.round((Date.now() - t0) / 1000)}s)`);
+      }
+      const quota = await panel.eval(`new Promise(r => chrome.runtime.sendMessage({action: 'detect-tiktok-quota', allowNavigate: true}, r))`, true, 5 * 60 * 1000);
+      console.log('[draft-quota]', JSON.stringify({ scheduled: quota?.scheduledCount, draft: quota?.draftCount, remainingDraft: quota?.remainingDraft, source: quota?.source }));
+      report.ok = allGood && quota?.draftCount === drafted.length;
+      process.exitCode = report.ok ? 0 : 1;
+      console.log(report.ok ? '[E2E PASS] draft probe' : '[E2E FAIL] draft probe');
+      return;
+    }
+    if (process.argv.includes('--quota-probe')) {
+      // The panel's own "check quota" button + the worker action: counts the future-dated rows of Studio > Content.
+      const t0 = Date.now();
+      const direct = await panel.eval(`new Promise(r => chrome.runtime.sendMessage({action: 'detect-tiktok-quota', allowNavigate: true}, r))`, true, 5 * 60 * 1000);
+      step('worker detect-tiktok-quota', `${Math.round((Date.now() - t0) / 1000)}s ${JSON.stringify({ ok: direct?.success, scheduled: direct?.scheduledCount, draft: direct?.draftCount, remaining: direct?.remainingSchedule, source: direct?.source, err: direct?.countError })}`);
+      await panel.eval(`document.getElementById('btnCheckQuota').click()`, false);
+      let ui = {};
+      for (let i = 0; i < 60; i += 1) {
+        await sleep(3000);
+        ui = await panel.eval(`({value: document.getElementById('quotaScheduleValue')?.innerText, remain: document.getElementById('quotaScheduleRemain')?.innerText, info: document.getElementById('batchLimitInfo')?.innerText, loading: document.getElementById('btnCheckQuota')?.classList.contains('loading')})`, false);
+        if (!ui.loading && ui.value && !/--/.test(ui.value)) break;
+      }
+      step('panel quota UI', JSON.stringify(ui));
+      report.quota = { direct: { scheduled: direct?.scheduledCount, remaining: direct?.remainingSchedule, source: direct?.source }, ui };
+      report.ok = typeof direct?.scheduledCount === 'number' && Boolean(ui.value) && !/--/.test(ui.value);
+      process.exitCode = report.ok ? 0 : 1;
+      console.log(report.ok ? '[E2E PASS] quota probe' : '[E2E FAIL] quota probe');
+      return;
+    }
+    if (process.argv.includes('--dropdown-probe')) {
+      // No posting: only read what the panel WOULD do for each dropdown value (button label + info line).
+      let count = 0;
+      for (let i = 0; i < 40 && count < 1; i += 1) { count = await panel.eval(`typeof allClips === 'undefined' ? -1 : allClips.length`, false).catch(() => -1); if (count < 1) await sleep(1500); }
+      await panel.eval(`checkTikTokQuota(false, true)`, true, 5 * 60 * 1000); // the quota button: counts the Content list
+      const afterButton = await panel.eval(`({s: currentQuotaState.scheduledCount, r: currentQuotaState.remainingSchedule})`, false);
+      await panel.eval(`checkTikTokQuota(true, false)`, true); // a silent refresh must NOT forget that count
+      const afterSilent = await panel.eval(`({s: currentQuotaState.scheduledCount, r: currentQuotaState.remainingSchedule})`, false);
+      console.log('[quota] after button', JSON.stringify(afterButton), 'after silent refresh', JSON.stringify(afterSilent));
+      report.quota_kept = JSON.stringify(afterButton) === JSON.stringify(afterSilent);
+      const rows = [];
+      for (const mode of ['schedule_only', 'smart']) {
+        for (const limit of ['auto_quota', '30', '20', '10', '5', 'all']) {
+          const r = await panel.eval(`(() => {
+            const set = (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('change', {bubbles: true})); };
+            set('batchModeSelect', ${JSON.stringify(mode)}); set('batchLimitSelect', ${JSON.stringify(limit)});
+            return {mode: ${JSON.stringify(mode)}, limit: ${JSON.stringify(limit)}, button: document.getElementById('batchStartBtn').innerText.replace(/\s+/g, ' ').trim(), info: document.getElementById('batchLimitInfo').innerText, modeOptions: [...document.getElementById('batchModeSelect').options].map(o => o.value).join(',')};
+          })()`, false);
+          rows.push(r);
+          console.log(`[dropdown] ${r.mode.padEnd(13)} ${String(r.limit).padEnd(10)} -> ${r.button} | ${r.info}`);
+        }
+      }
+      report.dropdowns = rows;
+      report.ok = rows.length === 12;
+      process.exitCode = 0;
+      console.log('[E2E PASS] dropdown probe');
+      return;
+    }
     if (verifyProbe) {
       // Real Content-page verification against clips that were really scheduled (must be true),
       // and against one that was never posted (must be false).
@@ -248,15 +371,35 @@ async function main() {
     }
     if (count < 1) throw new Error('แผงข้างโหลดรายการคลิปไม่ได้ (ตรวจ API key/Backend)');
     step('panel clips loaded', String(count));
+    // --narrow=W: lay the TikTok tab out only W CSS px wide (docked side panel / OS scaling): the extension must cope
+    const narrow = Number((process.argv.find(a => a.startsWith('--narrow=')) || '').split('=')[1]) || 0;
+    if (narrow) { await tt.call('Emulation.setDeviceMetricsOverride', { width: narrow, height: 800, deviceScaleFactor: 0, mobile: false }); step('tiktok viewport narrowed', String(narrow)); }
     const title = clip.title.slice(0, 40);
     await panel.eval(`(() => {
       const set = (id, v) => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('input', {bubbles: true})); el.dispatchEvent(new Event('change', {bubbles: true})); };
-      ${clipCount === 1 ? `set('clipSearchInput', ${JSON.stringify(title)});` : ''}
-      set('batchModeSelect', 'schedule_only');
-      set('batchLimitSelect', ${JSON.stringify(['5', '10', '20', '30'].includes(String(clipCount)) ? String(clipCount) : 'all')});
+      ${clipCount === 1 && !pick ? `set('clipSearchInput', ${JSON.stringify(title)});` : ''}
+      set('batchModeSelect', ${JSON.stringify(process.argv.includes('--draft') ? 'draft_only' : 'schedule_only')});
+      ${pick ? '' : `set('batchLimitSelect', ${JSON.stringify(['5', '10', '20', '30'].includes(String(clipCount)) ? String(clipCount) : 'all')});`}
       const cf = document.getElementById('coverFallbackToggle'); if (cf && !cf.checked) cf.click();
       return true;
     })()`, false);
+    if (pick) {
+      const titles = clips.slice(0, pick).map(c => c.title);
+      const ticked = await panel.eval(`(() => {
+        const wanted = ${JSON.stringify(titles)};
+        let n = 0;
+        for (const card of document.querySelectorAll('#list .card')) {
+          const hook = (card.querySelector('.card-hook')?.innerText || '').trim();
+          if (wanted.includes(hook)) { const box = card.querySelector('.card-check input'); if (box && !box.checked) { box.click(); n += 1; } }
+        }
+        return n;
+      })()`, false);
+      step('ticked via checkbox', `${ticked}/${pick}`);
+      const ui = await panel.eval(`({info: document.getElementById('selectedInfo')?.innerText, capped: document.getElementById('batchCappedCount')?.innerText, limitDisabled: document.getElementById('batchLimitSelect')?.disabled, selected: document.querySelectorAll('#list .card.selected').length, blocked: document.querySelectorAll('#list .card.blocked').length, blockedBoxesDisabled: [...document.querySelectorAll('#list .card.blocked .card-check input')].every(b => b.disabled), note: document.querySelector('#list .card.blocked .card-blocked-note')?.innerText || ''})`, false);
+      step('selection UI', JSON.stringify(ui));
+      report.selection_ui = ui;
+      if (ticked !== pick || String(ui.capped) !== String(pick) || !ui.limitDisabled || (ui.blocked > 0 && !ui.blockedBoxesDisabled)) throw new Error(`ติ๊กเลือกไม่ตรง: ${JSON.stringify({ ticked, ui })}`);
+    }
     await sleep(800);
     const filtered = await panel.eval(`document.getElementById('batchCountBadge')?.innerText || ''`, false);
     step('filtered', filtered);
@@ -267,7 +410,11 @@ async function main() {
         const original = chrome.runtime.sendMessage.bind(chrome.runtime);
         chrome.runtime.sendMessage = (message, cb) => {
           if (message && message.action === 'click-post-only') {
-            setTimeout(() => cb && cb({ success: true, clicked: false, outcome: 'scheduled_on_platform', stubbed: true }), 300);
+            // --content-after-post: like a real post, TikTok sends the tab on to Studio > Content
+            const leave = ${JSON.stringify(process.argv.includes('--content-after-post'))}
+              ? chrome.tabs.query({ url: '*://www.tiktok.com/tiktokstudio/*' }).then(tabs => tabs[0] && chrome.tabs.update(tabs[0].id, { url: 'https://www.tiktok.com/tiktokstudio/content' })).then(() => new Promise(r => setTimeout(r, 4000)))
+              : Promise.resolve();
+            leave.catch(() => {}).then(() => setTimeout(() => cb && cb({ success: true, clicked: false, outcome: 'scheduled_on_platform', stubbed: true }), 300));
             return;
           }
           // nothing was really posted, so the Content-page check would (rightly) fail: stub it too

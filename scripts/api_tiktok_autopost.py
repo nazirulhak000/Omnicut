@@ -602,7 +602,7 @@ def _apply_outcome_effects(scope, job):
                 raise ChannelError(409, "posting_queue_changed", "คิวเปลี่ยนงานหรือยกเลิกแล้ว ต้องตรวจผลก่อน")
             if row.get("posting_job_id") and row["posting_job_id"] != job["job_id"]:
                 raise ChannelError(409, "posting_queue_changed", "คิวผูกกับงานอื่นแล้ว ต้องตรวจผลก่อน")
-            row["status"] = "posted" if job["status"] == "published" else "scheduled_on_platform"
+            row["status"] = {"published": "posted", "draft_saved": "draft_on_platform"}.get(job["status"], "scheduled_on_platform")
             row["posting_job_id"] = job["job_id"]
         if ScheduleQueueStore.update_item(job["queue_id"], apply, channel_id=scope.channel_id) is None:
             raise ChannelError(404, "posting_queue_missing", "ไม่พบคิวเดิม จึงยังบันทึกผลคิวไม่สำเร็จ")

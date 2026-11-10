@@ -86,6 +86,24 @@ globalThis.OmniAutomation = (() => {
     return {nodeId: await findCoverInputNodeId(send)};
   }
 
+  // True when the cover editor has taken the uploaded image: the upload button now shows a thumbnail
+  // (or is gone) instead of the empty "Upload cover" label.
+  async function coverFileConsumed(send) {
+    const end = Date.now() + 4000;
+    do {
+      const consumed = await evaluate(send, `(() => {
+        const root = document.querySelector('[class*="ImageUpload__root"]');
+        if (!root) return false;
+        const label = root.querySelector('label.ImageUpload__uploadArea');
+        if (label && /Upload cover|อัปโหลดปก/i.test(label.innerText || '')) return false;
+        return Boolean(root.querySelector('img, canvas')) || !label;
+      })()`);
+      if (consumed) return true;
+      await new Promise(resolve => setTimeout(resolve, 400));
+    } while (Date.now() < end);
+    return false;
+  }
+
   async function notifyCoverInput(send, target) {
     // Resolve the exact DOM node that received DOM.setFileInputFiles. A fresh
     // document query can return a different hidden input when TikTok rerenders
@@ -318,6 +336,9 @@ globalThis.OmniAutomation = (() => {
       else setParams.nodeId = target.nodeId;
       await send('DOM.setFileInputFiles', setParams);
       notified = await notifyCoverInput(send, target);
+      // TikTok empties the input as soon as it has read the file (files.length 0) and swaps the
+      // upload button for the cover thumbnail. That is success, not "file ignored" (live, 2026-11-10).
+      if (!notified) notified = await coverFileConsumed(send);
       if (notified) break;
       if (attempt === 0) target = await resolveCoverInputTarget(send, fileInputQuery);
     }

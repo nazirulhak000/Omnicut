@@ -554,24 +554,18 @@ function updateQuotaUI() {
   }
 }
 
-function getEffectiveBatchLimit(totalAvailable) {
+function getEffectiveBatchLimit(totalAvailable, { forceAuto = false } = {}) {
   const mode = batchModeSelect?.value || 'smart';
-  const limitChoice = batchLimitSelect?.value || 'auto_quota';
+  const limitChoice = forceAuto ? 'auto_quota' : (batchLimitSelect?.value || 'auto_quota');
 
   let cap = 30; // TikTok maximum quota per category
 
   if (limitChoice === 'auto_quota') {
-    if (mode === 'schedule_only' && currentQuotaState.remainingSchedule != null) {
-      cap = Math.min(30, currentQuotaState.remainingSchedule);
-    } else if (mode === 'draft_only' && currentQuotaState.remainingDraft != null) {
-      cap = Math.min(30, currentQuotaState.remainingDraft);
-    } else if (mode === 'smart') {
-      const sRem = currentQuotaState.remainingSchedule != null ? currentQuotaState.remainingSchedule : 30;
-      const dRem = currentQuotaState.remainingDraft != null ? currentQuotaState.remainingDraft : 30;
-      cap = Math.min(30, sRem + dRem);
-    } else {
-      cap = 30;
-    }
+    const sRem = currentQuotaState.remainingSchedule != null ? currentQuotaState.remainingSchedule : 30;
+    const dRem = currentQuotaState.remainingDraft != null ? currentQuotaState.remainingDraft : 30;
+    if (mode === 'schedule_only') cap = Math.min(30, sRem);
+    else if (mode === 'draft_only') cap = Math.min(30, dRem);
+    else cap = Math.min(30, sRem + dRem); // smart: schedule until the schedule quota is full, drafts after
   } else if (limitChoice === 'all') {
     cap = totalAvailable;
   } else {
@@ -591,8 +585,15 @@ function updateBatchCountDisplay(filteredCount = null) {
       ).length
     : allClips.length);
 
-  const capped = getEffectiveBatchLimit(count);
+  const picked = selectedClipsInList().length;
+  const capped = picked > 0 ? getEffectiveBatchLimit(picked, { forceAuto: true }) : getEffectiveBatchLimit(count);
 
+  if (batchLimitSelect) {
+    batchLimitSelect.disabled = picked > 0;
+    batchLimitSelect.title = picked > 0
+      ? 'ติ๊กเลือกคลิปไว้ — จะโพสต์เฉพาะที่ติ๊ก ไม่ใช้ตัวจำกัดจำนวน'
+      : 'จำกัดจำนวนคลิปที่จะอัปโหลดในรอบนี้ ป้องกันการล้นโควตา TikTok Studio';
+  }
   if (batchCountBadge) {
     batchCountBadge.textContent = String(count);
   }
@@ -601,7 +602,9 @@ function updateBatchCountDisplay(filteredCount = null) {
   }
   if (batchLimitInfo) {
     const limitChoice = batchLimitSelect?.value || 'auto_quota';
-    if (limitChoice === 'auto_quota') {
+    if (picked > 0) {
+      batchLimitInfo.textContent = picked > capped ? `เลือกไว้ ${picked} · โควตารับได้ ${capped}` : `เลือกเอง ${picked} คลิป`;
+    } else if (limitChoice === 'auto_quota') {
       batchLimitInfo.textContent = `โควตาว่าง: ${capped} คลิป`;
     } else if (limitChoice === 'all') {
       batchLimitInfo.textContent = `รันทั้งหมด ${count} คลิป`;
@@ -614,18 +617,26 @@ function updateBatchCountDisplay(filteredCount = null) {
   }
 }
 
-async function checkTikTokQuota(silent = false) {
+async function checkTikTokQuota(silent = false, allowNavigate = false) {
   const btn = document.getElementById('btnCheckQuota');
   if (btn) btn.classList.add('loading');
   try {
     const res = await new Promise((resolve) => {
-      chrome.runtime.sendMessage({ action: 'detect-tiktok-quota' }, (r) => resolve(r || {}));
+      chrome.runtime.sendMessage({ action: 'detect-tiktok-quota', allowNavigate }, (r) => resolve(r || {}));
     });
     if (res && res.success) {
+      // A silent refresh does not open the Content list, so it cannot see scheduled posts. Keep a count
+      // read in the last 15 minutes instead of overwriting it with "unknown -> 30 free".
+      const keepScheduled = res.scheduledCount == null && currentQuotaState.scheduledCount != null
+        && Date.now() - (currentQuotaState.scheduledAt || 0) < 15 * 60 * 1000;
+      const scheduledCount = keepScheduled ? currentQuotaState.scheduledCount : res.scheduledCount;
       currentQuotaState = {
-        scheduledCount: res.scheduledCount,
+        scheduledCount,
+        scheduledAt: scheduledCount != null ? (keepScheduled ? currentQuotaState.scheduledAt : Date.now()) : null,
         draftCount: res.draftCount,
-        remainingSchedule: res.remainingSchedule ?? (res.scheduledCount != null ? Math.max(0, 30 - res.scheduledCount) : 30),
+        remainingSchedule: keepScheduled
+          ? currentQuotaState.remainingSchedule
+          : (res.remainingSchedule ?? (res.scheduledCount != null ? Math.max(0, 30 - res.scheduledCount) : 30)),
         remainingDraft: res.remainingDraft ?? (res.draftCount != null ? Math.max(0, 30 - res.draftCount) : 30),
         maxSchedule: res.maxSchedule || 30,
         maxDraft: res.maxDraft || 30,
@@ -644,7 +655,7 @@ async function checkTikTokQuota(silent = false) {
   }
 }
 
-btnCheckQuota?.addEventListener('click', () => checkTikTokQuota(false));
+btnCheckQuota?.addEventListener('click', () => checkTikTokQuota(false, true));
 batchLimitSelect?.addEventListener('change', () => updateBatchCountDisplay());
 batchModeSelect?.addEventListener('change', () => updateBatchCountDisplay());
 
@@ -719,6 +730,33 @@ const previewVideoPlayer = document.getElementById('previewVideoPlayer');
 const previewSelectBtn = document.getElementById('previewSelectBtn');
 
 let allClips = [];
+// Clips the operator ticked in the list. When any is ticked, the batch posts exactly those
+// (in list order) instead of "first N of the queue".
+const selectedClipKeys = new Set();
+let visibleClips = [];
+function selectionKey(clip) {
+  return String(clip.id || `k:${clip.export_id || clip.rel_path || clip.name || ''}`);
+}
+const BLOCK_REASON_TH = {
+  no_export: 'ไม่มีไฟล์วิดีโอ',
+  export_missing: 'ไฟล์ export หายจากระบบ',
+  export_already_posted: 'โพสต์ไปแล้ว',
+  export_qc_rejected: 'QC ไม่ผ่าน',
+  price_in_caption: 'caption มีราคา/ส่วนลด',
+  placeholder_in_caption: 'caption มี {…} ที่ยังไม่แทนค่า',
+  slot_passed_or_too_close: 'เวลาโพสต์ผ่านแล้วหรือใกล้เกินไป',
+};
+// '' = usable; otherwise why the batch would skip this clip (same guard the batch uses).
+function clipBlockReason(clip) {
+  const guard = globalThis.OmniPostGuard;
+  if (!guard) return '';
+  const record = exportRecordIndex ? exportRecordIndex.get(clip.export_id) : undefined;
+  const code = guard.clipSkipReason(clip, record, Date.now(), { exportsKnown: Boolean(exportRecordIndex) });
+  return code ? (BLOCK_REASON_TH[code] || code) : '';
+}
+function selectedClipsInList() {
+  return allClips.filter((c) => selectedClipKeys.has(selectionKey(c)) && !clipBlockReason(c));
+}
 // export_id -> /api/exports row (null when the registry could not be read)
 let exportRecordIndex = null;
 
@@ -1396,13 +1434,48 @@ function filterAndRenderClips() {
   if (clipCountBadge) {
     clipCountBadge.textContent = String(filtered.length);
   }
+  // Drop ticks for clips that left the queue (posted / removed) so the count stays honest.
+  const knownKeys = new Set(allClips.map(selectionKey));
+  for (const key of [...selectedClipKeys]) if (!knownKeys.has(key)) selectedClipKeys.delete(key);
+  visibleClips = filtered;
   updateBatchCountDisplay(filtered.length);
 
   renderClipCards(filtered);
+  updateSelectionBar();
 
 }
 
 clipSearchInput?.addEventListener('input', filterAndRenderClips);
+
+const selectAllVisible = document.getElementById('selectAllVisible');
+const selectedInfo = document.getElementById('selectedInfo');
+const clearSelectionBtn = document.getElementById('clearSelection');
+
+function updateSelectionBar() {
+  const picked = selectedClipsInList().length;
+  const usableVisible = visibleClips.filter((c) => !clipBlockReason(c));
+  const visiblePicked = usableVisible.filter((c) => selectedClipKeys.has(selectionKey(c))).length;
+  if (selectedInfo) selectedInfo.textContent = picked ? `เลือกแล้ว ${picked} คลิป` : 'ยังไม่ได้เลือก';
+  if (clearSelectionBtn) clearSelectionBtn.hidden = picked === 0;
+  if (selectAllVisible) {
+    selectAllVisible.disabled = usableVisible.length === 0;
+    selectAllVisible.checked = usableVisible.length > 0 && visiblePicked === usableVisible.length;
+    selectAllVisible.indeterminate = visiblePicked > 0 && visiblePicked < usableVisible.length;
+  }
+}
+
+selectAllVisible?.addEventListener('change', () => {
+  for (const clip of visibleClips) {
+    if (selectAllVisible.checked && !clipBlockReason(clip)) selectedClipKeys.add(selectionKey(clip));
+    else if (!selectAllVisible.checked) selectedClipKeys.delete(selectionKey(clip));
+  }
+  filterAndRenderClips();
+});
+
+clearSelectionBtn?.addEventListener('click', () => {
+  selectedClipKeys.clear();
+  filterAndRenderClips();
+});
 
 function renderClipCards(ready) {
 
@@ -1427,6 +1500,27 @@ function renderClipCards(ready) {
       card.style.borderColor = 'rgba(34, 211, 238, 0.6)';
 
     }
+
+    const key = selectionKey(item);
+    const check = document.createElement('label');
+    check.className = 'card-check';
+    check.title = 'ติ๊กเพื่อเลือกคลิปนี้ไปโพสต์';
+    const blockReason = clipBlockReason(item);
+    if (blockReason) selectedClipKeys.delete(key);
+    const checkInput = document.createElement('input');
+    checkInput.type = 'checkbox';
+    checkInput.disabled = Boolean(blockReason);
+    if (blockReason) check.title = `เลือกไม่ได้: ${blockReason}`;
+    checkInput.checked = selectedClipKeys.has(key);
+    checkInput.setAttribute('aria-label', `เลือกคลิป ${item.hook_title || item.name || ''}`);
+    checkInput.addEventListener('change', () => {
+      if (checkInput.checked) selectedClipKeys.add(key); else selectedClipKeys.delete(key);
+      card.classList.toggle('selected', checkInput.checked);
+      updateSelectionBar();
+      updateBatchCountDisplay();
+    });
+    check.appendChild(checkInput);
+    card.classList.toggle('selected', checkInput.checked);
 
     const thumbWrap = document.createElement('div');
 
@@ -1505,6 +1599,16 @@ function renderClipCards(ready) {
     btn.addEventListener('click', () => handlePrepareClick(item));
 
     body.appendChild(btn);
+
+    card.appendChild(check);
+
+    if (blockReason) {
+      card.classList.add('blocked');
+      const note = document.createElement('div');
+      note.className = 'card-blocked-note';
+      note.textContent = `ใช้ไม่ได้: ${blockReason}`;
+      body.insertBefore(note, btn);
+    }
 
     card.appendChild(thumbWrap);
 
@@ -2761,7 +2865,7 @@ function guardBatchClips(clips) {
   const now = Date.now();
   for (const clip of clips) {
     const record = exportRecordIndex ? exportRecordIndex.get(clip.export_id) : undefined;
-    const reason = guard.clipSkipReason(clip, record, now, { exportsKnown: Boolean(exportRecordIndex) });
+    const reason = guard.clipSkipReason(clip, record, now, { exportsKnown: Boolean(exportRecordIndex), ignoreSlot: (batchModeSelect?.value || 'smart') === 'draft_only' });
     if (reason) skipped.push({ title: clip.hook_title || clip.name || clip.id, reason });
     else kept.push(clip);
   }
@@ -2774,7 +2878,11 @@ batchStartBtn?.addEventListener('click', async () => {
 
   const query = clipSearchInput ? clipSearchInput.value.trim().toLowerCase() : '';
 
-  const searchedClips = query
+  // Ticked clips win over the search box and the count limit: post exactly those, in list order.
+  const pickedClips = selectedClipsInList();
+  const usingPicked = pickedClips.length > 0;
+
+  const searchedClips = usingPicked ? pickedClips : query
 
     ? allClips.filter((c) =>
 
@@ -2798,7 +2906,7 @@ batchStartBtn?.addEventListener('click', async () => {
 
   }
 
-  const effectiveLimit = getEffectiveBatchLimit(targetClips.length);
+  const effectiveLimit = getEffectiveBatchLimit(targetClips.length, { forceAuto: usingPicked });
   if (effectiveLimit === 0) {
     setStatus('โควตาใน TikTok Studio เต็มแล้ว (30/30) กรุณารอให้คลิปเผยแพร่หรือลบแบบร่างเดิมก่อน', 'error');
     return;
@@ -2807,7 +2915,13 @@ batchStartBtn?.addEventListener('click', async () => {
   // Capped by TikTok Quota (maximum 30 per run)
   const slicedClips = targetClips.slice(0, effectiveLimit);
 
-  const confirmMsg = `ต้องการเริ่มรันอัปโหลดอัตโนมัติ ${slicedClips.length} คลิปใช่หรือไม่?
+  const confirmMsg = usingPicked
+    ? `ต้องการโพสต์เฉพาะคลิปที่ติ๊กเลือก ${slicedClips.length} คลิปใช่หรือไม่?` +
+      (guardSkipped.length ? `
+(ข้าม ${guardSkipped.length} คลิปที่ใช้ไม่ได้ เช่น ไฟล์หาย/เวลาผ่านแล้ว/มีราคาใน caption)` : '') +
+      (slicedClips.length < targetClips.length ? `
+(โควตา TikTok Studio รับได้ ${slicedClips.length} จาก ${targetClips.length} คลิปที่ติ๊ก)` : '')
+    : `ต้องการเริ่มรันอัปโหลดอัตโนมัติ ${slicedClips.length} คลิปใช่หรือไม่?
 (จำกัดตามโควตา TikTok Studio สูงสุด 30 รายการ จากคิวทั้งหมด ${targetClips.length} คลิป)`;
 
   const ok = await askConfirm(confirmMsg);
@@ -2989,9 +3103,11 @@ batchStartBtn?.addEventListener('click', async () => {
       return response;
     },
 
-    submitPost: async (_clip, _mode) => {
+    submitPost: async (_clip, mode) => {
+      // A draft target must never press Post (with no schedule that publishes live): it has its own step.
+      const submitAction = mode === 'draft' ? 'save-draft-only' : 'click-post-only';
       const response = await new Promise((resolve, reject) => {
-        chrome.runtime.sendMessage({ action: 'click-post-only' }, (r) => {
+        chrome.runtime.sendMessage({ action: submitAction }, (r) => {
           if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
           if (!r) return reject(new Error('ไม่ได้รับคำตอบจาก Extension ในการกดโพสต์'));
           resolve(r);
@@ -3033,7 +3149,7 @@ batchStartBtn?.addEventListener('click', async () => {
     },
     checkQuota: async () => {
       try {
-        await checkTikTokQuota(true);
+        await checkTikTokQuota(true, true);
         return currentQuotaState;
       } catch (_) {
         return currentQuotaState;
@@ -3083,6 +3199,7 @@ batchStartBtn?.addEventListener('click', async () => {
       maxScheduleQuota: 30,
 
       autoSkipOnError: true,
+      allowDraft: true, // the panel has a real "Save draft" step now (save-draft-only)
 
     },
 

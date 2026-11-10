@@ -48,6 +48,7 @@ test('skipReason: past slot, no product, price caption, no schedule', () => {
   assert.equal(skipReason(clipFromQueueItem(item({ scheduled_at: '2026-11-09T10:05' })), { now }), 'slot_passed_or_too_close');
   assert.equal(skipReason(clipFromQueueItem(item({ tiktok_product_id: null })), { now }), 'no_tiktok_product_id');
   assert.equal(skipReason(clipFromQueueItem(item({ caption: 'ลด 50% วันนี้' })), { now }), 'price_in_caption');
+  assert.equal(skipReason(clipFromQueueItem(item({ caption: 'ต้องมี! {product_name} ดีมาก' })), { now }), 'placeholder_in_caption');
   assert.equal(skipReason(clipFromQueueItem(item({ caption: 'ลด 50% วันนี้' })), { now, allowPriceCaption: true }), '');
   assert.equal(skipReason(clipFromQueueItem(item({ scheduled_at: '' })), { now }), 'no_schedule');
 });
@@ -393,4 +394,111 @@ test('a replaced worker is the only one that answers (a stuck old worker must no
     ]);
     assert.equal(reply.success, true, JSON.stringify(reply));
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+// ---- draft mode (--mode draft): Save draft step, no schedule, never the Post button ----
+
+test('skipReason in draft mode: no publish time needed, a passed slot is fine, the other guards still apply', () => {
+  const now = Date.parse('2030-06-01T00:00:00');
+  const past = clipFromQueueItem(item({ scheduled_at: '2030-05-01T10:00' }));
+  const noTime = clipFromQueueItem(item({ scheduled_at: '' }));
+  assert.equal(skipReason(past, { now }), 'slot_passed_or_too_close');
+  assert.equal(skipReason(past, { now, mode: 'draft' }), '');
+  assert.equal(skipReason(noTime, { now }), 'no_schedule');
+  assert.equal(skipReason(noTime, { now, mode: 'draft' }), '');
+  assert.equal(skipReason(clipFromQueueItem(item({ caption: 'ลดราคา 50%' })), { now, mode: 'draft' }), 'price_in_caption');
+  assert.equal(skipReason(clipFromQueueItem(item({ caption: 'ใช้ {product_name}' })), { now, mode: 'draft' }), 'placeholder_in_caption');
+  assert.equal(skipReason(clipFromQueueItem(item({ tiktok_product_id: null })), { now, mode: 'draft' }), 'no_tiktok_product_id');
+});
+
+test('draft run: no schedule in the job, Save draft instead of Post, drafts-page proof, status drafted', async () => {
+  let preparedBody;
+  let detailsBody;
+  const { deps, calls } = fakeDeps({
+    onSend: (action, payload) => { if (action === 'prepare-details') detailsBody = payload; },
+    replies: {
+      'save-draft-only': { success: true, outcome: 'draft_saved', clicked: true, posted: false },
+      'verify-draft-content': { success: true, verified: true },
+    },
+    prepare: (body) => { preparedBody = body; return { ok: true, status: 200, data: { protocol_version: 2, channel_id: 'main', job_id: 'j1', cover_path: null, caption: 'พัดลมพกพา' } }; },
+  });
+  const res = await runClip(deps, clipFromQueueItem(item()), { mode: 'draft' });
+  assert.equal(res.status, 'drafted');
+  assert.equal(res.outcome, 'draft_saved');
+  assert.equal(res.verified, true);
+  assert.equal(preparedBody.schedule_date, null);
+  assert.equal(preparedBody.schedule_time, null);
+  assert.equal(detailsBody.scheduleMode, false);
+  assert.equal(detailsBody.scheduleDate, '');
+  assert.ok(!calls.includes('click-post-only'), 'the Post button must never be pressed');
+  assert.ok(!calls.includes('reconcile-posting-result'));
+  assert.deepEqual(calls.filter(c => !c.startsWith('GET')), [
+    'POST /api/tiktok-autopost/prepare', 'claim-posting-job', 'upload-file-only', 'wait-for-upload-only',
+    'prepare-details', 'save-draft-only', 'retry-posting-receipt', 'verify-draft-content']);
+});
+
+test('draft run: an unverified draft is unknown, and a published outcome in draft mode is refused', async () => {
+  const unverified = fakeDeps({ replies: { 'save-draft-only': { success: true, outcome: 'draft_saved' }, 'verify-draft-content': { success: true, verified: false, reason: 'draft_row_not_found' } } });
+  const a = await runClip(unverified.deps, clipFromQueueItem(item()), { mode: 'draft' });
+  assert.equal(a.status, 'unknown');
+  assert.match(a.error, /drafts_page_not_verified/);
+  const unconfirmed = fakeDeps({ replies: { 'save-draft-only': { success: true, outcome: 'confirmation_unknown' } } });
+  assert.equal((await runClip(unconfirmed.deps, clipFromQueueItem(item()), { mode: 'draft' })).status, 'unknown');
+  const published = fakeDeps({ replies: { 'save-draft-only': { success: true, outcome: 'published', posted: true } } });
+  const c = await runClip(published.deps, clipFromQueueItem(item()), { mode: 'draft' });
+  assert.notEqual(c.status, 'posted');
+});
+
+test('schedule mode is unchanged by the draft option (Post button, schedule in the job)', async () => {
+  let preparedBody;
+  const { deps, calls } = fakeDeps({
+    replies: { 'click-post-only': { success: true, outcome: 'scheduled_on_platform' } },
+    prepare: (body) => { preparedBody = body; return { ok: true, status: 200, data: { protocol_version: 2, channel_id: 'main', job_id: 'j1', cover_path: null } }; },
+  });
+  const res = await runClip(deps, clipFromQueueItem(item()), { mode: 'schedule' });
+  assert.equal(res.status, 'scheduled');
+  assert.equal(preparedBody.schedule_date, '2030-01-01');
+  assert.ok(!calls.includes('save-draft-only'));
+});
+
+test('batch quota gate: never plans more clips than the live quota allows; full quota stops before any clip', async () => {
+  const mk = (n) => Array.from({ length: n }, (_, i) => clipFromQueueItem(item({ id: `q${i}`, export_id: `e${i}` })));
+  const run = async (quota, clips, mode = 'schedule') => {
+    const { deps, calls, logs } = fakeDeps({ replies: { 'click-post-only': { success: true, outcome: 'scheduled_on_platform' }, 'save-draft-only': { success: true, outcome: 'draft_saved' }, 'verify-draft-content': { success: true, verified: true } } });
+    deps.quota = async () => quota;
+    deps.verifyOnContentPage = async () => ({ ok: true });
+    const summary = await runBatch(deps, { clips, mode, cooldownSec: [0, 0] });
+    return { summary, calls, logs };
+  };
+  // schedule: 28 used -> 2 left -> only the first 2 of 3 run
+  let r = await run({ success: true, scheduledCount: 28, remainingSchedule: 2, draftCount: 0, remainingDraft: 30 }, mk(3));
+  assert.equal(r.summary.scheduled, 2);
+  assert.equal(r.summary.total, 2);
+  // draft mode uses the DRAFT counter, not the schedule one
+  r = await run({ success: true, scheduledCount: 30, remainingSchedule: 0, draftCount: 29, remainingDraft: 1 }, mk(3), 'draft');
+  assert.equal(r.summary.drafted, 1);
+  // full quota: nothing is touched
+  r = await run({ success: true, scheduledCount: 30, remainingSchedule: 0 }, mk(2));
+  assert.equal(r.summary.aborted, 'quota_full_schedule');
+  assert.ok(!r.calls.includes('claim-posting-job'));
+  r = await run({ success: true, draftCount: 30, remainingDraft: 0 }, mk(2), 'draft');
+  assert.equal(r.summary.aborted, 'quota_full_draft');
+  // unreadable quota: say so, keep going (the --limit is the guard)
+  r = await run({ success: false, error: 'no tab' }, mk(1));
+  assert.equal(r.summary.scheduled, 1);
+  assert.ok(r.logs.some(([, m]) => /อ่านโควตา TikTok ไม่ได้/.test(m)));
+});
+
+test('dry run never asks for the quota (nothing is posted)', async () => {
+  const { deps } = fakeDeps();
+  let asked = 0;
+  deps.quota = async () => { asked += 1; return {}; };
+  await runBatch(deps, { clips: [clipFromQueueItem(item())], dryRun: true });
+  assert.equal(asked, 0);
+});
+
+test('CLI: --mode accepts schedule|draft only', () => {
+  assert.equal(parseArgs([]).mode, 'schedule');
+  assert.equal(parseArgs(['--mode', 'draft']).mode, 'draft');
+  assert.throws(() => parseArgs(['--mode', 'now']), /schedule \| draft/);
 });

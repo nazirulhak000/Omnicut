@@ -21,7 +21,12 @@ PROTOCOL_VERSION = 2
 _PUBLISHED_NOTICE = r"(?:(?:video|post) (?:posted|published)(?: successfully)?|(?:posted|published) successfully|(?:โพสต์|เผยแพร่)(?:วิดีโอ)?สำเร็จ)[.!]?"
 _SCHEDULED_NOTICE = r"(?:(?:video|post) scheduled(?: successfully)?|scheduled successfully|(?:ตั้งเวลา|กำหนดเวลา)(?:โพสต์|วิดีโอ)?สำเร็จ)[.!]?"
 
-FINAL_OUTCOMES = {"published", "scheduled_on_platform", "confirmation_unknown"}
+_DRAFT_NOTICE = r"(?:(?:video |post )?(?:draft saved|saved to drafts?|saved as draft)|บันทึกแบบร่าง(?:แล้ว|สำเร็จ)?)[.!]?"
+
+# draft_saved is final but is NOT a post: TikTok Studio shows no toast after "Save draft", it just opens
+# Content > Drafts, so the evidence is that page (kind drafts_page_confirmed) or a manual confirmation.
+FINAL_OUTCOMES = {"published", "scheduled_on_platform", "confirmation_unknown", "draft_saved"}
+DRAFT_PROOF_KINDS = {"drafts_page_confirmed", "platform_success_notice", "manual_user_confirmation", "user_confirmed"}
 
 
 def fingerprint(value) -> str:
@@ -176,6 +181,8 @@ class PostingJobStore:
                 "manual_user_confirmation",
                 "user_confirmed",
             }
+            if outcome == "draft_saved":
+                allowed_kinds = DRAFT_PROOF_KINDS
             if kind not in allowed_kinds:
                 raise ChannelError(422, "posting_confirmation_required", "ต้องมีข้อความยืนยันผลที่ตรงจาก TikTok ก่อนบันทึกผลสำเร็จ")
             if kind == "platform_success_notice":
@@ -186,6 +193,7 @@ class PostingJobStore:
                 patterns = {
                     "published": _PUBLISHED_NOTICE,
                     "scheduled_on_platform": _SCHEDULED_NOTICE,
+                    "draft_saved": _DRAFT_NOTICE,
                 }
                 notice_text = notice.strip() if isinstance(notice, str) else ""
                 bare_ok = outcome == "scheduled_on_platform" and re.fullmatch(_PUBLISHED_NOTICE, notice_text, flags=re.I)
@@ -199,6 +207,8 @@ class PostingJobStore:
                     and not re.fullmatch(_SCHEDULED_NOTICE, str(proof.get("notice") or "").strip(), flags=re.I)
                     and not (row.get("schedule_date") and row.get("schedule_time"))):
                 raise ChannelError(422, "posting_confirmation_required", "ข้อความ 'published' ใช้ยืนยันงานตั้งเวลาได้เฉพาะงานที่มีเวลานัดโพสต์")
+            if outcome == "draft_saved" and (row.get("schedule_date") or row.get("schedule_time")):
+                raise ChannelError(422, "posting_confirmation_required", "งานที่มีเวลานัดโพสต์ไม่ใช่งานแบบร่าง จึงบันทึกผลเป็นแบบร่างไม่ได้")
             if outcome != "confirmation_unknown" and row.get("confirmation_token") and proof.get("confirmation_token") != row["confirmation_token"]:
                 if kind not in {"manual_user_confirmation", "user_confirmed", "content_page_reconciled"}:
                     raise ChannelError(422, "posting_confirmation_required", "ข้อความยืนยันไม่ตรงกับการกดโพสต์ของงานนี้")
@@ -261,6 +271,19 @@ class PostingJobStore:
                 raise ChannelError(409, "posting_reconciliation_required", "งานที่กดโพสต์แล้วต้องตรวจผล ห้ามยกเลิกสิทธิ์")
             row.update(status="cancelled", revision=row["revision"] + 1, updated_at=self.clock())
             self._audit(row, "release", lease_owner=owner, forced=force)
+            return deepcopy(row)
+
+    def release_draft(self, channel_id, job_id, *, reason="draft_deleted_by_operator"):
+        """Cancel a draft_saved job (the operator deleted the draft on TikTok) so the export may be prepared again.
+        Only drafts: a job that published or scheduled is never released here."""
+        with self.table.scoped_mutate(channel_id) as rows:
+            row = self._find(rows, job_id)
+            if row["status"] == "cancelled":
+                return deepcopy(row)
+            if row["status"] != "draft_saved":
+                raise ChannelError(409, "posting_reconciliation_required", "ยกเลิกได้เฉพาะงานที่บันทึกเป็นแบบร่าง")
+            row.update(status="cancelled", revision=row["revision"] + 1, updated_at=self.clock())
+            self._audit(row, "release_draft", reason=reason)
             return deepcopy(row)
 
     def update_cover(self, channel_id, job_id, cover_path, *, cover_sha256=None):

@@ -15,6 +15,7 @@ const STATUS_LABELS = {
   ready_for_extension: 'พร้อมทำใน Extension',
   awaiting_post: 'รอกดโพสต์',
   scheduled_on_platform: 'TikTok รับตั้งเวลาแล้ว',
+  draft_on_platform: 'บันทึกเป็นแบบร่างบน TikTok แล้ว',
   confirmation_unknown: 'รอตรวจผลจาก TikTok',
   posted: 'โพสต์แล้ว',
   failed: 'ผิดพลาด',
@@ -25,6 +26,7 @@ const STATUS_STYLES = {
   ready_for_extension: 'text-cyan-200 bg-cyan-500/10 border-cyan-500/25',
   awaiting_post: 'text-violet-200 bg-violet-500/10 border-violet-500/25',
   scheduled_on_platform: 'text-blue-200 bg-blue-500/10 border-blue-500/25',
+  draft_on_platform: 'text-slate-200 bg-slate-500/10 border-slate-500/25',
   confirmation_unknown: 'text-amber-200 bg-amber-500/10 border-amber-500/25',
   posted: 'text-emerald-200 bg-emerald-500/10 border-emerald-500/25',
   failed: 'text-red-200 bg-red-500/10 border-red-500/25',
@@ -655,7 +657,16 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
     try {
       const updated = await updateScheduleQueue(item.id, { status: 'planned' });
       setQueue((prev) => prev.map((row) => row.id === item.id ? updated : row));
-    } catch (error) { showToast?.(error.response?.data?.detail || error.message, 'error'); }
+      return true;
+    } catch (error) { showToast?.(error.response?.data?.detail || error.message, 'error'); return false; }
+  };
+
+  // A saved draft is not a post. Resetting only makes sense after the draft was deleted on TikTok Studio,
+  // otherwise the clip could be saved as a second draft.
+  const resetDraft = async (item) => {
+    const ok = window.confirm('คลิปนี้ถูกบันทึกเป็นแบบร่างบน TikTok แล้ว\nรีเซ็ตเมื่อคุณลบแบบร่างนั้นบน TikTok Studio แล้วเท่านั้น (ไม่งั้นอาจได้แบบร่างซ้ำ)\n\nรีเซ็ตกลับเป็นรอจัดส่งเลยไหม?');
+    if (!ok) return;
+    if (await resetForMove(item)) showToast?.('รีเซ็ตแล้ว คลิปกลับมารอจัดส่ง');
   };
 
   const removeItem = async (item) => {
@@ -1349,6 +1360,15 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                                 >
                                   รีเซ็ต
                                 </button>
+                              ) : item.status === 'draft_on_platform' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => resetDraft(item)}
+                                  className="px-1.5 py-0.5 rounded border border-slate-400/30 text-slate-200 text-[9px]"
+                                  title="ลบแบบร่างบน TikTok แล้ว รีเซ็ตกลับเป็นรอจัดส่ง"
+                                >
+                                  รีเซ็ตแบบร่าง
+                                </button>
                               ) : null}
                               {clip && onOpenCoverStudio && (
                                 <button
@@ -1547,7 +1567,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                             <label className="flex items-center gap-1.5 text-[10px] text-slate-500"><CalendarDays className="w-3.5 h-3.5" /><input type="date" value={scheduleDrafts.current.get(item.id)?.date || parts.date} disabled={item.status !== 'planned'} onChange={(event) => updateScheduleField(item, 'date', event.target.value)} className="px-2 py-1.5 rounded-lg bg-black/50 border border-white/[0.1] text-xs text-white" /></label>
                             <label className="flex items-center gap-1.5 text-[10px] text-slate-500"><Clock className="w-3.5 h-3.5 text-cyan-300" /><select value={scheduleDrafts.current.get(item.id)?.time || parts.time} disabled={item.status !== 'planned'} onChange={(event) => updateScheduleField(item, 'time', event.target.value)} className="px-2 py-1.5 rounded-lg bg-black/50 border border-white/[0.1] text-xs text-white font-mono">{timeOptions.map((time) => <option key={time} value={time}>{time}</option>)}</select></label>
                             {overdue && item.status === 'planned' && <button type="button" onClick={() => openRequeue(item)} className="px-2.5 py-1.5 rounded-lg border border-red-400/30 text-red-200 text-[11px]">จัดคิวใหม่</button>}
-                            {item.status === 'planned' || item.status === 'failed' ? <button type="button" onClick={() => prepareItem(item)} className="px-2.5 py-1.5 rounded-lg bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-[11px] font-bold flex items-center gap-1 transition-colors"><Rocket className="w-3.5 h-3.5" />เตรียมให้ Extension</button> : item.status === 'ready_for_extension' ? <button type="button" onClick={() => resetForMove(item)} className="px-2.5 py-1.5 rounded-lg border border-amber-400/25 text-amber-200 text-[11px]">รีเซ็ตเพื่อย้าย</button> : null}
+                            {item.status === 'planned' || item.status === 'failed' ? <button type="button" onClick={() => prepareItem(item)} className="px-2.5 py-1.5 rounded-lg bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-[11px] font-bold flex items-center gap-1 transition-colors"><Rocket className="w-3.5 h-3.5" />เตรียมให้ Extension</button> : item.status === 'ready_for_extension' ? <button type="button" onClick={() => resetForMove(item)} className="px-2.5 py-1.5 rounded-lg border border-amber-400/25 text-amber-200 text-[11px]">รีเซ็ตเพื่อย้าย</button> : item.status === 'draft_on_platform' ? <button type="button" onClick={() => resetDraft(item)} className="min-h-11 px-2.5 py-1.5 rounded-lg border border-slate-400/30 text-slate-200 text-[11px] focus-visible:outline-2 focus-visible:outline-cyan-300" title="ลบแบบร่างบน TikTok แล้ว รีเซ็ตกลับเป็นรอจัดส่ง">รีเซ็ตแบบร่าง</button> : null}
                             {clip && onOpenCoverStudio ? <button type="button" data-cover-state={hasCover ? 'ready' : 'missing'} onClick={() => onOpenCoverStudio(clip)} className={`p-1.5 rounded-lg border transition-colors ${hasCover ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20' : 'border-white/[0.1] text-slate-600 hover:text-white hover:border-white/[0.2]'}`} title={hasCover ? 'มีภาพปกแล้ว · คลิกเพื่อแก้ไข' : 'ยังไม่มีภาพปก · คลิกเพื่อสร้าง'} aria-label={hasCover ? 'มีภาพปกแล้ว คลิกเพื่อแก้ไข' : 'ยังไม่มีภาพปก คลิกเพื่อสร้าง'}><ImageIcon className="w-3.5 h-3.5" /></button> : <span role="img" data-cover-state={hasCover ? 'ready' : 'missing'} className={`p-1.5 rounded-lg border ${hasCover ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-300' : 'border-white/[0.08] text-slate-700'}`} title={hasCover ? 'มีภาพปกแล้ว' : 'ยังไม่มีภาพปก'} aria-label={hasCover ? 'มีภาพปกแล้ว' : 'ยังไม่มีภาพปก'}><ImageIcon className="w-3.5 h-3.5" /></span>}
                             {item.status === 'planned' ? <button type="button" onClick={() => removeItem(item)} className="p-1.5 rounded-lg border border-white/[0.1] text-slate-500 hover:text-red-300" title="นำออกจากคิว"><Trash2 className="w-3.5 h-3.5" /></button> : null}
                           </div>

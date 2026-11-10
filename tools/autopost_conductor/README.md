@@ -10,8 +10,9 @@ no "is debugging this browser" bar. Same selectors and same backend `posting_job
 tools\start_autopost.bat --health            # open Studio, check login + upload input. No upload.
 tools\start_autopost.bat --dry-run --limit 3 # fill everything, screenshot, DO NOT click post, release job
 tools\start_autopost.bat --limit 10          # real posting of queue items (status planned/ready_for_extension)
+tools\start_autopost.bat --mode draft --limit 5   # save as DRAFTS (Save draft button), never Post, no schedule needed
 ```
-Options: `--channel main` `--queue-id ID` `--port 9333` `--no-launch` `--allow-price-caption` `--cover-fallback`
+Options: `--mode schedule|draft` (default schedule) `--channel main` `--queue-id ID` `--port 9333` `--no-launch` `--allow-price-caption` `--cover-fallback`
 Test/fault options: `--viewport 1366x768` (set window size) · `--net slow|blip|offline` (throttle / drop network) · `--clip-budget-min N` (time budget per clip, default 25)
 
 First time: run `--health`. It opens Chrome with profile `tools/tiktok_browser_profile`.
@@ -35,6 +36,15 @@ The extension is always loaded from a FRESH COPY (`.tmp/e2e_ext/`): Chrome cache
 manifest version, so reloading the same path can silently run OLD worker code. **In your own Chrome, reload the extension at
 `chrome://extensions` after updating it (the manifest version is bumped for exactly this reason).**
 Evidence: `.tmp/extension_e2e/<run>/` (`panel_log.txt`, `panel.png`, `upload_tab.png`).
+
+## Draft mode and the live quota
+- `--mode draft` uses the worker's `save-draft-only` step: it presses **Save draft** only (never Post), waits for TikTok to open
+  Content > Drafts, checks the draft row, acks `draft_saved` (queue status `draft_on_platform`, the export is NOT marked posted),
+  then checks Content > Drafts once more (`verify-draft-content`). A draft has no publish time, so passed slots are fine.
+- Before every real run it reads the live quota (`detect-tiktok-quota`): scheduled posts are counted from the Content list rows with a
+  future badge, drafts from the "Drafts N" tab. It never plans more clips than what is left of 30 (per mode) and stops with
+  `quota_full_schedule` / `quota_full_draft` when full. If the counts cannot be read it says so and `--limit` is the only guard.
+- Deleted the draft on TikTok? Reset the clip with `PATCH /api/schedule-queue/<id> {"status":"planned"}` (or the "รีเซ็ตแบบร่าง" button in the app).
 
 ## Safety rules (built in)
 - Sequential only; random 20–40 s cooldown between clips. Never concurrent (account-ban risk).

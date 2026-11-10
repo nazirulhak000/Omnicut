@@ -34,7 +34,7 @@
 
 // its own tab and deleted -- one UI surface instead of two).
 
-importScripts('automation.js', 'auth_key.js', 'post_guard.js');
+importScripts('automation.js', 'auth_key.js', 'post_guard.js', 'quota_detector.js');
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((err) => {
 
@@ -334,6 +334,9 @@ async function readStudioAccountOnce(send) {
 
 }
 
+// How long a verified account handle may be reused for the guard steps between the first read and the publish click.
+const ACCOUNT_REREAD_MS = 15 * 60 * 1000;
+
 async function guardPostingAction(job, send, tabId, {beginPublish = false, retried = false} = {}) {
 
   if (!job.job_id || job.protocol_version !== 2 || !job.lease_token) throw new Error('ต้องอัปเดต backend/extension เป็น posting protocol รุ่น 2');
@@ -382,7 +385,15 @@ async function guardPostingAction(job, send, tabId, {beginPublish = false, retri
 
   await persistPostingState(state);
 
-  const source = checkPostingAccount(job, await readStudioAccount(send));
+  // Reading the account opens the avatar menu on the page, so it is done twice per clip: at the first guarded
+  // step and again right before the publish/draft click (beginPublish always reads fresh; the click itself also
+  // re-checks the identity). The steps in between reuse this job's verified handle; the backend fence check
+  // (/validate: lease, revision, handle) still runs at every step.
+  const known = state.verifiedAccount;
+  const reuse = !beginPublish && known && known.jobId === job.job_id && known.handle
+    && Date.now() - known.checkedAt < ACCOUNT_REREAD_MS;
+  const source = checkPostingAccount(job, reuse ? known.handle : await readStudioAccount(send));
+  state.verifiedAccount = reuse ? known : {jobId: job.job_id, handle: source, checkedAt: Date.now()};
 
   state.accountWarning = source ? null : 'อ่านบัญชี Studio ไม่ได้: main compatibility อนุญาตพร้อม audit กรุณาตรวจบัญชี';
 
@@ -1140,7 +1151,7 @@ async function openUploadPage(tab) {
 
 }
 
-async function findUploadTab() {
+async function findUploadTab({recover = true} = {}) {
 
   if (pinnedUploadTabId !== null) {
 
@@ -1206,12 +1217,75 @@ async function findUploadTab() {
 
   }
 
+  // A real post makes TikTok send the tab on to Studio > Content, so no upload tab is left for the
+  // next clip. Bring that same Studio tab back to the upload page instead of giving up.
+  if (recover) {
+    const recovered = await recoverStudioTabToUpload();
+    if (recovered) return recovered;
+  }
+
   throw new Error(
 
     'ไม่พบแท็บ TikTok Studio ที่เปิดหน้าอัปโหลดอยู่ -- กรุณาเปิดหน้าอัปโหลด tiktok.com/tiktokstudio/upload ใน Chrome ก่อน'
 
   );
 
+}
+
+// Any open TikTok Studio tab (Content, Home, ...), the active one first. null when there is none.
+async function findAnyStudioTab() {
+  let tabs = [];
+  try { tabs = await chrome.tabs.query({ url: '*://*.tiktok.com/tiktokstudio*' }); } catch (e) { return null; }
+  const studio = (tabs || []).filter(t => {
+    try { const u = new URL(t.url || 'about:blank'); return u.hostname === 'www.tiktok.com' && u.pathname.startsWith('/tiktokstudio'); } catch (e) { return false; }
+  });
+  return studio.find(t => t.active) || studio[0] || null;
+}
+
+async function recoverStudioTabToUpload() {
+  const tab = await findAnyStudioTab();
+  if (!tab?.id) return null;
+  await navigateAcceptingLeave(tab.id, 'https://www.tiktok.com/tiktokstudio/upload');
+  for (let i = 0; i < 40; i += 1) {
+    await sleep(500);
+    let fresh;
+    try { fresh = await chrome.tabs.get(tab.id); } catch (e) { return null; }
+    if (isUploadTab(fresh) && (fresh.status === 'complete' || fresh.status === undefined)) {
+      await sleep(2500);
+      return focusTikTokTab(fresh);
+    }
+  }
+  return null;
+}
+
+// "1280x720@1.5" -- what the page really lays out in (window minus side panel, OS scaling). The
+// Add-product-links modal is clipped below about 1200 CSS px, so failures must say what it was.
+async function readPageViewport(send) {
+  try {
+    const r = await send('Runtime.evaluate', {
+      expression: '({w: window.innerWidth, h: window.innerHeight, dpr: window.devicePixelRatio, focus: document.hasFocus()})',
+      returnByValue: true,
+    });
+    return r?.result?.value || null;
+  } catch (e) { return null; }
+}
+function describeViewport(v) {
+  return v ? `${Math.round(v.w)}x${Math.round(v.h)}@${Number(v.dpr || 1).toFixed(2)} โฟกัส${v.focus ? 'มี' : 'ไม่มี'}` : 'ไม่ทราบ';
+}
+// A docked side panel / 125-150% scaling can leave the page narrower than TikTok's modals need even in
+// a maximized window. Lay the page out at 1440 wide for the length of this debugger session.
+async function ensureWorkableViewport(send) {
+  const v = await readPageViewport(send);
+  // Started from the docked side panel, keyboard focus sits in the panel, so TikTok's editor (Draft.js)
+  // ignores the keys we send. Make the page behave as focused for this debugger session.
+  try { await send('Emulation.setFocusEmulationEnabled', { enabled: true }); } catch (e) {}
+  if (!v || !v.w || v.w >= 1250) return v;
+  try {
+    await send('Emulation.setDeviceMetricsOverride', {
+      width: 1440, height: Math.max(Math.round(v.h || 0), 860), deviceScaleFactor: 0, mobile: false,
+    });
+  } catch (e) {}
+  return v;
 }
 
 // Thin CDP call wrapper -- every call site already knows the tabId, this
@@ -4474,6 +4548,8 @@ async function runUploadCoverOnly({coverPath = ''} = {}) {
 
     await send('Runtime.enable');
 
+    await ensureWorkableViewport(send);
+
     await guardPostingAction(job, send, tab.id);
 
     return await OmniAutomation.uploadCover(send, job.cover_path);
@@ -4512,6 +4588,8 @@ async function runAttachProductOnly({ productId, cartName = '' }) {
 
     await send('Runtime.enable');
 
+    const viewportBefore = await ensureWorkableViewport(send);
+
     await guardPostingAction(job, send, tab.id);
 
     const attachResult = await attachProductLink(send, productId, cartName);
@@ -4520,7 +4598,7 @@ async function runAttachProductOnly({ productId, cartName = '' }) {
 
       success: attachResult.success,
 
-      reason: attachResult.reason,
+      reason: attachResult.success ? attachResult.reason : `${attachResult.reason || ''} [จอ ${describeViewport(viewportBefore)}]`,
 
       attachedProduct: attachResult.success,
 
@@ -4579,6 +4657,8 @@ async function runScheduleModeOnly({ date = '', time = '' } = {}) {
     await send('DOM.enable');
 
     await send('Runtime.enable');
+
+    await ensureWorkableViewport(send);
 
     await guardPostingAction(job, send, tab.id);
 
@@ -4764,6 +4844,166 @@ async function runClickPostOnly() {
 
 }
 
+// ---- Draft mode: the "Save draft" button (data-e2e="save_draft_button"). Never presses Post. ----
+// TikTok Studio shows no toast after saving a draft; it opens Content > Drafts (?tab=draft) within ~1s
+// and lists the draft ("Drafts N" tab, row title = the description). That page is the evidence.
+const DRAFT_TAB_URL = 'https://www.tiktok.com/tiktokstudio/content?tab=draft';
+
+function isDraftsUrl(url) {
+  return /\/tiktokstudio\/content/.test(String(url || '')) && /[?&]tab=draft/.test(String(url || ''));
+}
+
+// first characters of the description, comparable with the row title in the Drafts list
+function draftCaptionKey(caption) {
+  return String(caption || '').toLowerCase().replace(/[^a-z0-9฀-๿]/g, '').slice(0, 14);
+}
+
+// rowVisible: true = a draft row whose title starts like this caption exists; null = no caption to compare
+// (nothing typed), so only the URL can speak.
+async function readDraftRowEvidence(send, caption) {
+  const key = draftCaptionKey(caption);
+  const out = await send('Runtime.evaluate', {
+    expression: `(() => ({url: location.href, text: document.body ? document.body.innerText : ''}))()`,
+    returnByValue: true,
+  });
+  const page = out?.result?.value || {url: '', text: ''};
+  const flat = String(page.text || '').toLowerCase().replace(/[^a-z0-9฀-๿]/g, '');
+  const countMatch = /Drafts\s+(\d+)|แบบร่าง\s+(\d+)/.exec(page.text || '');
+  return {
+    url: page.url,
+    onDrafts: isDraftsUrl(page.url),
+    draftCount: countMatch ? Number(countMatch[1] || countMatch[2]) : null,
+    rowVisible: key.length >= 6 ? flat.includes(key) : null,
+  };
+}
+
+async function waitForDraftConfirmation(send, tabId, caption, timeoutMs = 25000) {
+  const deadline = Date.now() + timeoutMs;
+  let sawDraftsUrl = false;
+  let last = null;
+  while (Date.now() < deadline) {
+    await sleep(700);
+    let tab;
+    try { tab = await chrome.tabs.get(tabId); } catch (e) { return {confirmed: false, reason: 'tab-gone'}; }
+    if (!isDraftsUrl(tab?.url)) continue;
+    sawDraftsUrl = true;
+    try { last = await readDraftRowEvidence(send, caption); } catch (e) { continue; }
+    if (last.onDrafts && last.rowVisible !== false && (last.draftCount === null || last.draftCount > 0)) {
+      return {confirmed: true, evidence: last};
+    }
+  }
+  return {confirmed: false, reason: sawDraftsUrl ? 'draft-row-not-found' : 'no-navigation', evidence: last};
+}
+
+async function runSaveDraftOnly() {
+  const job = await fetchPendingJob();
+  if (job.schedule_date || job.schedule_time) {
+    throw new Error('งานนี้มีเวลานัดโพสต์ ไม่ใช่งานแบบร่าง จึงไม่กดบันทึกแบบร่าง (กันสลับโหมดผิด)');
+  }
+  const tab = await findUploadTab();
+  const send = cdp(tab.id);
+  let sourceAccount = null;
+  let attempted = false;
+  let confirmation = null;
+  await chrome.debugger.attach({ tabId: tab.id }, '1.3');
+  try {
+    await send('DOM.enable');
+    await send('Runtime.enable');
+    await ensureWorkableViewport(send);
+    if (!await waitForUploadComplete(send, 60_000)) {
+      throw new Error('TikTok ยังประมวลผลไม่เสร็จ จึงยังไม่กดบันทึกแบบร่าง');
+    }
+    // Look for the button BEFORE fencing: a missing button must not burn the job's one attempt.
+    const ready = await send('Runtime.evaluate', {
+      expression: `Boolean(document.querySelector('button[data-e2e="save_draft_button"]:not([disabled])'))`,
+      returnByValue: true,
+    });
+    if (!ready?.result?.value) {
+      throw new Error('หาปุ่ม "Save draft" ที่กดได้ไม่เจอ (อาจยังประมวลผลไม่เสร็จ หรือ TikTok เปลี่ยนหน้า) -- ยังไม่ได้กดอะไร');
+    }
+    job.confirmation_token = `${job.job_id}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+    const state = await postingState();
+    state.activeJob = job;
+    await persistPostingState(state);
+    // Fence + identity check, then the one click. After this line the job counts as attempted.
+    sourceAccount = await guardPostingAction(job, send, tab.id, {beginPublish: true});
+    attempted = true;
+    const clicked = await send('Runtime.evaluate', {
+      expression: `(() => {
+        (${studioIdentityAtClick.toString()})(${JSON.stringify(job.target_handle)});
+        if (${Number(job.lease_expires_at) || 0} * 1000 <= Date.now()) throw new Error('posting_lease_expired: สิทธิ์หมดอายุก่อนกดบันทึกแบบร่าง');
+        const isNav = (el) => Boolean(el.closest('aside, nav, header, [class*="sidebar"], [class*="menu"], [class*="nav"], [class*="aside"]'));
+        const btn = document.querySelector('button[data-e2e="save_draft_button"]:not([disabled])');
+        if (!btn || isNav(btn)) return {success: false};
+        btn.scrollIntoView({behavior: 'instant', block: 'center'});
+        btn.click();
+        return {success: true};
+      })()`,
+      returnByValue: true,
+    });
+    if (clicked?.exceptionDetails) throw new Error(clicked.exceptionDetails.exception?.description || clicked.exceptionDetails.text || 'ตรวจบัญชีก่อนบันทึกแบบร่างไม่สำเร็จ');
+    if (!clicked?.result?.value?.success) throw new Error('หาปุ่ม "Save draft" ที่กดได้ไม่เจอ (อาจยังประมวลผลไม่เสร็จ) -- ยังไม่ได้กดอะไร');
+    await dismissLeaveConfirmDialogIfPresent(send, 200);
+    confirmation = await waitForDraftConfirmation(send, tab.id, job.caption);
+    if (!confirmation.confirmed) {
+      const why = {
+        'no-navigation': 'กดแล้วแต่ TikTok ไม่พาไปหน้าแบบร่างภายในเวลาที่กำหนด',
+        'draft-row-not-found': 'ไปหน้าแบบร่างแล้ว แต่ไม่พบแถวแบบร่างที่ตรงกับคำอธิบาย',
+        'tab-gone': 'แท็บ TikTok หายไประหว่างรอผล',
+      }[confirmation.reason] || 'ไม่พบสัญญาณว่าบันทึกแบบร่างสำเร็จ';
+      throw new Error(`draft_not_confirmed: ${why} -- ตรวจที่ TikTok Studio > แบบร่าง ก่อนลองใหม่`);
+    }
+  } catch (err) {
+    if (attempted) {
+      // The click happened: never retry, never lose the fact. The panel/operator reconciles by hand.
+      try { await savePostingReceipt(job, sourceAccount, 'confirmation_unknown', {}); }
+      catch (receiptError) { err.message += `; ผลยังรอส่งกลับ: ${receiptError.message}`; }
+    }
+    throw err;
+  } finally {
+    try { await chrome.debugger.detach({ tabId: tab.id }); } catch (e) {}
+  }
+  const proof = {kind: 'drafts_page_confirmed', confirmation_token: job.confirmation_token};
+  try {
+    await savePostingReceipt(job, sourceAccount, 'draft_saved', proof);
+  } catch (err) {
+    await focusTikTokTab(tab);
+    return {success: true, clicked: true, posted: false, outcome: 'draft_saved', marked: false, markError: err.message || String(err), evidence: confirmation.evidence};
+  }
+  await openUploadPage(tab); // leave the same tab ready for the next clip
+  return {success: true, clicked: true, posted: false, outcome: 'draft_saved', marked: false, evidence: confirmation.evidence};
+}
+
+// Second proof for a draft: Content > Drafts must list a row with this description, and the page must be Drafts.
+async function runVerifyDraftOnContent({caption = '', attempts = 5} = {}) {
+  let tab;
+  try { tab = await findUploadTab({recover: false}); } catch (e) { tab = await findAnyStudioTab(); }
+  if (!tab?.id) throw new Error('ไม่พบแท็บ TikTok Studio ที่เปิดอยู่ — กรุณาเปิดหน้า TikTok Studio');
+  const send = cdp(tab.id);
+  let evidence = {onDrafts: false, rowVisible: false};
+  try {
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      if (attempt) await sleep(5000);
+      if (!isDraftsUrl(tab.url) || attempt) {
+        await navigateAcceptingLeave(tab.id, DRAFT_TAB_URL);
+        await sleep(5000);
+      }
+      await chrome.debugger.attach({tabId: tab.id}, '1.3');
+      try {
+        await send('Runtime.enable');
+        evidence = await readDraftRowEvidence(send, caption);
+      } finally {
+        try { await chrome.debugger.detach({tabId: tab.id}); } catch (e) {}
+      }
+      if (evidence.onDrafts && evidence.rowVisible === true) break;
+    }
+  } finally {
+    try { await navigateAcceptingLeave(tab.id, 'https://www.tiktok.com/tiktokstudio/upload'); await sleep(2500); } catch (e) {}
+  }
+  const verified = Boolean(evidence.onDrafts && evidence.rowVisible === true);
+  return {success: true, verified, reason: verified ? '' : (evidence.onDrafts ? 'draft_row_not_found' : 'not_on_drafts_page'), draftCount: evidence.draftCount};
+}
+
 async function runTypeCaptionOnly({ caption, hashtags }) {
 
   const job = await fetchPendingJob();
@@ -4784,11 +5024,23 @@ async function runTypeCaptionOnly({ caption, hashtags }) {
 
     await send('Runtime.enable');
 
+    const viewportBefore = await ensureWorkableViewport(send);
+
     await waitForCaptionEditor(send);
 
     await guardPostingAction(job, send, tab.id);
 
-    await typeCaption(send, caption, hashtags);
+    try {
+      await typeCaption(send, caption, hashtags);
+    } catch (err) {
+      // Say what TikTok really holds, so one log line shows whether text was cut, reordered or never typed.
+      const seen = await send('Runtime.evaluate', {
+        expression: `(() => { const el = document.querySelector('[contenteditable="true"], .public-DraftEditor-content, [data-e2e*="caption"]'); const t = el ? (el.innerText || '').replace(/\\s+/g, ' ').trim() : ''; return t.slice(0, 90) + ' (' + t.length + ' ตัวอักษร)'; })()`,
+        returnByValue: true,
+      }).then(r => r?.result?.value, () => '').catch(() => '');
+      const vp = describeViewport(viewportBefore);
+      throw new Error(`${err.message || err} [TikTok มีข้อความ: "${seen || ''}" · ต้องการ ${String(caption || '').length}+${String(hashtags || '').length} ตัวอักษร · จอ ${vp}]`);
+    }
 
     return { success: true };
 
@@ -4935,7 +5187,10 @@ async function runPrepareDetails(message) {
 // list lags behind the success toast) and find the row with this clip's caption and, for a scheduled
 // post, its day and time. Returns {verified, reason}; always leaves the tab on the upload page.
 async function runVerifyPostOnContent({caption = '', scheduleDate = '', scheduleTime = '', attempts = 6} = {}) {
-  const tab = await findUploadTab();
+  // The post just left the tab on Studio > Content, so accept any Studio tab; do not pre-navigate.
+  let tab;
+  try { tab = await findUploadTab({recover: false}); } catch (e) { tab = await findAnyStudioTab(); }
+  if (!tab?.id) throw new Error('ไม่พบแท็บ TikTok Studio ที่เปิดอยู่ — กรุณาเปิดหน้า TikTok Studio');
   const send = cdp(tab.id);
   const clip = {caption, schedule_date: scheduleDate || '', schedule_time: scheduleTime || ''};
   let verdict = {ok: false, reason: 'row_not_found'};
@@ -5030,7 +5285,7 @@ async function ensureWorkableWindow(tab) {
   }
 }
 
-async function runDetectTikTokQuota() {
+async function runDetectQuotaFromTab() {
 
   const tabs = typeof chrome?.tabs?.query === 'function'
 
@@ -5134,6 +5389,94 @@ async function runDetectTikTokQuota() {
 
 }
 
+// No "Scheduled" tab exists on Studio > Content any more: scheduled posts are rows with a future-dated
+// badge. Open the list, scroll until the count is provably final, count, then put the tab back.
+// Only navigates when the caller allows it (the batch start / the quota button), never on silent refreshes.
+async function runCountScheduledOnContent() {
+  const detector = globalThis.OmniCutQuotaDetector;
+  if (!detector?.countScheduledFromListText) throw new Error('quota detector not loaded');
+  let tab;
+  try { tab = await findUploadTab({recover: false}); } catch (e) { tab = await findAnyStudioTab(); }
+  if (!tab?.id) throw new Error('no TikTok Studio tab');
+  const wasOnContent = /\/tiktokstudio\/content/.test(String(tab.url || '')) && !/[?&]tab=draft/.test(String(tab.url || ''));
+  const send = cdp(tab.id);
+  let result = {count: null, rowsParsed: 0, complete: false, draftCount: null};
+  try {
+    if (!wasOnContent) {
+      await navigateAcceptingLeave(tab.id, 'https://www.tiktok.com/tiktokstudio/content');
+      await sleep(6000);
+    }
+    await chrome.debugger.attach({tabId: tab.id}, '1.3');
+    try {
+      await send('Runtime.enable');
+      // The list is virtualized (only rows near the viewport exist), so walk it from the top in
+      // viewport-sized steps and merge every read into one map; stop once the count is provably final.
+      const seen = new Map();
+      const read = async (scrollBy) => {
+        const out = await send('Runtime.evaluate', {
+          expression: `(() => {
+            let el = document.querySelector('[data-omni-scroller]');
+            if (!el) {
+              const cands = [document.scrollingElement, ...document.querySelectorAll('div')].filter(e => {
+                if (!e || e.scrollHeight <= e.clientHeight + 80) return false;
+                const o = getComputedStyle(e).overflowY;
+                return e === document.scrollingElement || o === 'auto' || o === 'scroll';
+              });
+              el = cands.sort((a, b) => b.scrollHeight - a.scrollHeight)[0] || null;
+              if (el) el.setAttribute('data-omni-scroller', '1');
+            }
+            const text = document.body ? document.body.innerText : '';
+            if (!el) return {text, top: 0, client: 0, height: 0};
+            const before = el.scrollTop;
+            if (${Number(scrollBy) || 0} === -1) el.scrollTop = 0;
+            else if (${Number(scrollBy) || 0} > 0) el.scrollTop = before + Math.max(200, Math.floor(el.clientHeight * 0.7));
+            return {text, top: before, client: el.clientHeight, height: el.scrollHeight};
+          })()`,
+          returnByValue: true,
+        });
+        return out?.result?.value || {text: '', top: 0, client: 0, height: 0};
+      };
+      await read(-1); // jump to the top
+      await sleep(1200);
+      let atEnd = false;
+      for (let step = 0; step < 80 && !atEnd; step += 1) {
+        const snap = await read(1);
+        for (const row of detector.parseListRows(snap.text, Date.now())) seen.set(row.key, row.ts);
+        const draftCount = result.draftCount ?? detector.parseDraftCountFromText(snap.text);
+        result = {...detector.summarizeRows(seen, Date.now()), draftCount};
+        if (result.complete || result.rowsParsed >= 400) break;
+        atEnd = !snap.height || snap.top + snap.client >= snap.height - 8;
+        await sleep(900);
+      }
+    } finally {
+      try { await chrome.debugger.detach({tabId: tab.id}); } catch (e) {}
+    }
+  } finally {
+    if (!wasOnContent) {
+      try { await navigateAcceptingLeave(tab.id, 'https://www.tiktok.com/tiktokstudio/upload'); await sleep(2500); } catch (e) {}
+    }
+  }
+  return result;
+}
+
+async function runDetectTikTokQuota({allowNavigate = false} = {}) {
+  const fromTab = await runDetectQuotaFromTab();
+  if (typeof fromTab?.scheduledCount === 'number') return fromTab;
+  if (!allowNavigate) return fromTab;
+  try {
+    const counted = await runCountScheduledOnContent();
+    const detector = globalThis.OmniCutQuotaDetector;
+    let merged = fromTab?.success ? fromTab : {};
+    if (typeof counted?.count === 'number') merged = detector.applyScheduledCount(merged, counted.count);
+    // The Content page also carries the "Drafts N" tab: use it when the tab labels did not give a draft count.
+    if (typeof counted?.draftCount === 'number' && typeof merged.draftCount !== 'number') merged = detector.applyDraftCount(merged, counted.draftCount);
+    if (typeof counted?.count === 'number') return merged;
+  } catch (e) {
+    return {...(fromTab || {}), countError: String(e?.message || e)};
+  }
+  return fromTab;
+}
+
 let actionRunning = false;
 
 let pinnedUploadTabId = null;
@@ -5164,6 +5507,8 @@ const actions = {
 
   'upload-cover-only': message => runUploadCoverOnly(message),
   'verify-post-content': message => runVerifyPostOnContent(message),
+  'save-draft-only': () => runSaveDraftOnly(),
+  'verify-draft-content': message => runVerifyDraftOnContent(message),
 
   'prepare-details': message => runPrepareDetails(message),
 
@@ -5175,7 +5520,7 @@ const actions = {
 
   'reset-upload-page': () => cleanResetUploadTab(),
 
-  'detect-tiktok-quota': () => runDetectTikTokQuota(),
+  'detect-tiktok-quota': message => runDetectTikTokQuota({allowNavigate: Boolean(message && message.allowNavigate)}),
   'wait-for-upload-only': () => runWaitForUploadOnly(),
   'broadcast-batch-signal': async (message) => {
     const tabs = typeof chrome?.tabs?.query === 'function'
@@ -5223,7 +5568,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     try {
 
-      if (!['retry-posting-receipt', 'release-posting-job', 'select-posting-channel', 'claim-posting-job', 'reconcile-posting-result', 'detect-tiktok-quota', 'broadcast-batch-signal'].includes(message.action)) pinnedUploadTabId = (await findUploadTab()).id;
+      if (!['retry-posting-receipt', 'release-posting-job', 'select-posting-channel', 'claim-posting-job', 'reconcile-posting-result', 'detect-tiktok-quota', 'broadcast-batch-signal', 'verify-post-content', 'verify-draft-content'].includes(message.action)) pinnedUploadTabId = (await findUploadTab()).id;
 
       const result = await action(message);
 
