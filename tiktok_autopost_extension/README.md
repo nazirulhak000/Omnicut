@@ -17,6 +17,14 @@ headless twin of the same worker is `tools/autopost_conductor/`.
 (`schedule` / `draft` / `post_now`); the backend refuses a click or an outcome that contradicts it, and the worker reads the page's
 primary button ("Schedule" vs "Post") before it presses anything. A scheduled clip without a date **and** time is refused.
 
+## Publish a draft that sits on TikTok ("แบบร่างที่รอเผยแพร่")
+Queue rows saved as drafts (status "บันทึกเป็นแบบร่างบน TikTok แล้ว") appear in a list at the top of the panel. Pick a date/time and press
+"เผยแพร่ตามเวลานี้", or "โพสต์ตอนนี้" (live at once; the panel asks you to confirm it). The extension opens **that** draft from Studio >
+Content > Drafts (matched by caption; none or more than one match = stop), checks the editor shows the same caption, sets the slot (or
+"Now") and then uses the ordinary one-click Post step (same label/identity checks, single attempt, same confirmation). Nothing is
+uploaded again. A scheduled publication uses one of the 30 schedule slots, so when those are full only "post now" is possible.
+If the publication is cancelled before the click the row returns to "draft on TikTok" (never to "planned": the draft still exists).
+
 ## Safety rules that are always on
 - Price / discount text, unfilled `{placeholders}`, > 4000 characters, > 30 hashtags are refused everywhere (panel, worker, backend,
   conductor) by one rule set (`post_guard.js` ↔ `scripts/content_guard.py`; shared test cases in `tests/fixtures/`).

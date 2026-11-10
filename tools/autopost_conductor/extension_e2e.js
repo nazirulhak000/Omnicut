@@ -141,7 +141,7 @@ async function main() {
 
   // 1) pick ONE eligible clip so the panel's search filter leaves exactly one
   const { clips } = await pickClips(api, { limit: clipCount });
-  if (!verifyProbe && !process.argv.includes('--draft-probe') && !process.argv.includes('--quota-probe') && !process.argv.includes('--smart-overflow') && !clips.length) throw new Error('ไม่มีคลิปพร้อมโพสต์ในคิว (ตรวจเวลา/export)');
+  if (!verifyProbe && !process.argv.includes('--draft-probe') && !process.argv.includes('--quota-probe') && !process.argv.includes('--smart-overflow') && !process.argv.includes('--publish-draft') && !clips.length) throw new Error('ไม่มีคลิปพร้อมโพสต์ในคิว (ตรวจเวลา/export)');
   const clip = clips[0] || { title: '' };
   step('clips eligible', `${clips.length} (asked ${clipCount})`);
 
@@ -176,6 +176,59 @@ async function main() {
   step('panel open');
 
   try {
+    if (process.argv.includes('--publish-draft')) {
+      // Publish a draft that already sits on TikTok (saved earlier with --draft). The panel's REAL draft list and buttons,
+      // the REAL draft opening + caption check + schedule setting; the final Post click is stubbed unless --real-post.
+      //   --when=2026-11-19T10:15   slot for the scheduled publication (default: the row's own slot)
+      //   --now                     publish immediately instead (the panel asks for the live confirmation)
+      const whenArg = (process.argv.find(a => a.startsWith('--when=')) || '').split('=')[1] || '';
+      const publishNow = process.argv.includes('--now');
+      let cards = 0;
+      for (let i = 0; i < 20 && !cards; i += 1) {
+        cards = await panel.eval(`document.querySelectorAll('#draftPublishList .draft-publish-card').length`, false).catch(() => 0);
+        if (!cards) await sleep(1500);
+      }
+      if (!cards) throw new Error('no draft card in the panel (is there a queue row in draft_on_platform?)');
+      step('draft cards in panel', String(cards));
+      if (!realPost) {
+        await panel.eval(`(() => {
+          const original = chrome.runtime.sendMessage.bind(chrome.runtime);
+          chrome.runtime.sendMessage = (message, cb) => {
+            if (message && message.action === 'click-post-only') { setTimeout(() => cb && cb({ success: true, clicked: false, outcome: 'scheduled_on_platform', stubbed: true }), 300); return; }
+            if (message && message.action === 'verify-post-content') { setTimeout(() => cb && cb({ success: true, verified: true, stubbed: true }), 300); return; }
+            return original(message, cb);
+          };
+          return true;
+        })()`, false);
+        step('post click + content verify stubbed');
+      }
+      if (!publishNow && whenArg) {
+        const [d, tm] = whenArg.split('T');
+        await panel.eval(`(() => { const card = document.querySelector('#draftPublishList .draft-publish-card'); const [date, time] = card.querySelectorAll('input'); const set = (el, v) => { el.value = v; el.dispatchEvent(new Event('input', {bubbles: true})); el.dispatchEvent(new Event('change', {bubbles: true})); }; set(date, ${JSON.stringify(d)}); set(time, ${JSON.stringify(tm)}); return true; })()`, false);
+      }
+      await panel.eval(`document.querySelectorAll('#draftPublishList .draft-publish-card')[0].querySelectorAll('button')[${publishNow ? 1 : 0}].click()`, false);
+      await confirmWhenShown(panel);
+      step(publishNow ? 'publish NOW clicked (live confirmation accepted)' : 'publish with slot clicked');
+      const tp0 = Date.now();
+      let plog = '';
+      let pprinted = 0;
+      while (Date.now() - tp0 < 6 * 60 * 1000) {
+        await sleep(3000);
+        plog = await panel.eval(`document.getElementById('batchLogBox')?.innerText || ''`, false).catch(() => '');
+        const entries = plog.split(/(?=\[\d\d:\d\d:\d\d\])/).map(x => x.trim()).filter(Boolean);
+        for (; pprinted < entries.length; pprinted += 1) console.log(`[panel] ${entries[pprinted].slice(0, 220)}`);
+        if (/สรุปผลลัพธ์|ระบบลูปหยุดทำงาน|ยังไม่พร้อมรัน/.test(plog)) break;
+      }
+      // what the REAL editor looks like now (nothing was posted when the click is stubbed)
+      const editor = await tt.eval(`(() => { const radios = [...document.querySelectorAll('input[type=radio], [role=radio]')].map(r => ((r.closest('label') || r.parentElement || r).innerText || '').trim().slice(0, 14) + ':' + (r.checked || r.getAttribute('aria-checked'))); const post = document.querySelector('button[data-e2e="post_video_button"]'); return JSON.stringify({ url: location.href.replace(/draft_id=\\d+/, 'draft_id=N'), radios, post: post ? post.innerText.trim() : null }); })()`, false).catch(e => 'ERR ' + e.message);
+      console.log('[editor after steps]', editor);
+      fs.writeFileSync(path.join(outDir, 'panel_log.txt'), plog);
+      report.ok = /✅ \[1\/1\]/.test(plog) && !/ล้มเหลวที่ขั้น|หยุดอัตโนมัติ/.test(plog);
+      report.editor = editor;
+      console.log(report.ok ? '[E2E PASS] publish-from-draft' : '[E2E FAIL] publish-from-draft: ดู panel_log.txt');
+      process.exitCode = report.ok ? 0 : 1;
+      return;
+    }
     if (leaveProbe) {
       // Chrome's own "Leave site?" prompt: give the page a real beforeunload handler plus user
       // activation (as the automation's clicks do), then reset through the real worker action.

@@ -919,3 +919,95 @@ def test_queue_reset_cancels_a_prepared_job_first(api_env):
     prepared = client.post("/api/tiktok-autopost/prepare", json={"video_path": str(video), "export_id": export["id"], "queue_id": queue_id}).json()
     queue_api._settle_job_before_edit("main", _queue_get(queue_id), cancel=True)
     assert api._jobs().get("main", prepared["job_id"])["status"] == "cancelled"
+
+
+# ---- publish_draft: open a draft that sits on TikTok and publish it ----
+
+def _drafted_queue_row(env, queue_id="queue-pd"):
+    """A queue row that went through the real draft flow: draft_on_platform + a draft_saved job."""
+    client, api, registry, video, export, _ = env
+    _queue_row(env, queue_id)
+    prepared = client.post("/api/tiktok-autopost/prepare", json={"video_path": str(video), "export_id": export["id"], "queue_id": queue_id,
+                                                                  "intent": "draft", "caption": "แกะกล่องสายชาร์จ", "hashtags": "#t"}).json()
+    row = client.post("/api/tiktok-autopost/claim", json={"protocol_version": 2, "job_id": prepared["job_id"], "lease_owner": "extension-a"}).json()
+    started = client.post("/api/tiktok-autopost/attempt", json={**action_body(row), "click_kind": "draft"}).json()
+    done = client.post("/api/tiktok-autopost/ack", json={**action_body(started), "outcome": "draft_saved", "proof": {"kind": "drafts_page_confirmed"}})
+    assert done.status_code == 200, done.text
+    assert _queue_get(queue_id)["status"] == "draft_on_platform"
+    return queue_id, prepared["job_id"]
+
+
+def _publish_payload(env, queue_id, **extra):
+    client, api, registry, video, export, _ = env
+    return {"video_path": str(video), "export_id": export["id"], "queue_id": queue_id, "intent": "publish_draft",
+            "caption": "แกะกล่องสายชาร์จ", "hashtags": "#t", **extra}
+
+
+def test_publish_draft_schedules_from_the_draft_and_completes_the_queue(api_env):
+    client, api, registry, video, export, _ = api_env
+    queue_id, draft_job = _drafted_queue_row(api_env)
+    prepared = client.post("/api/tiktok-autopost/prepare", json=_publish_payload(api_env, queue_id, schedule_date="2030-01-02", schedule_time="09:00"))
+    assert prepared.status_code == 200, prepared.text
+    job = api._jobs().get("main", prepared.json()["job_id"])
+    assert job["intent"] == "publish_draft" and job["draft_source_job_id"] == draft_job
+    assert api._jobs().get("main", draft_job)["status"] == "draft_saved"        # stays until the publication succeeds
+    queued = _queue_get(queue_id)
+    assert queued["status"] == "ready_for_extension" and queued["posting_job_id"] == job["job_id"] and queued["draft_job_id"] == draft_job
+    row = client.post("/api/tiktok-autopost/claim", json={"protocol_version": 2, "job_id": job["job_id"], "lease_owner": "extension-a"}).json()
+    # a publication presses Post; it may never press Save draft
+    assert client.post("/api/tiktok-autopost/attempt", json={**action_body(row), "click_kind": "draft"}).status_code == 409
+    started = client.post("/api/tiktok-autopost/attempt", json={**action_body(row), "click_kind": "post"})
+    assert started.status_code == 200, started.text
+    # outcome rules follow the effective intent: a slot means "scheduled", never "published" from a bare toast, never a draft
+    assert client.post("/api/tiktok-autopost/ack", json={**action_body(started.json()), "outcome": "draft_saved", "proof": {"kind": "drafts_page_confirmed"}}).status_code == 422
+    bare = client.post("/api/tiktok-autopost/ack", json={**action_body(started.json()), "outcome": "published", "proof": {"kind": "platform_success_notice", "notice": "Video published"}})
+    assert bare.status_code == 422
+    done = client.post("/api/tiktok-autopost/ack", json={**action_body(started.json()), "outcome": "scheduled_on_platform",
+                       "proof": {"kind": "platform_success_notice", "notice": "Scheduled successfully", "confirmation_token": started.json().get("confirmation_token")}})
+    assert done.status_code == 200, done.text
+    assert _queue_get(queue_id)["status"] == "scheduled_on_platform"
+    assert api._jobs().get("main", draft_job)["status"] == "cancelled"          # consumed by the publication
+
+
+def test_publish_draft_now_needs_explicit_live_confirmation_and_ends_posted(api_env):
+    client, api, registry, video, export, _ = api_env
+    queue_id, _draft = _drafted_queue_row(api_env)
+    refused = client.post("/api/tiktok-autopost/prepare", json=_publish_payload(api_env, queue_id))
+    assert refused.status_code == 422 and refused.json()["code"] == "posting_live_confirmation_required"
+    half = client.post("/api/tiktok-autopost/prepare", json=_publish_payload(api_env, queue_id, schedule_date="2030-01-02"))
+    assert half.status_code == 422
+    assert _queue_get(queue_id)["status"] == "draft_on_platform"                  # nothing moved
+    ok = client.post("/api/tiktok-autopost/prepare", json=_publish_payload(api_env, queue_id, confirm_live=True))
+    assert ok.status_code == 200, ok.text
+    row = client.post("/api/tiktok-autopost/claim", json={"protocol_version": 2, "job_id": ok.json()["job_id"], "lease_owner": "extension-a"}).json()
+    started = client.post("/api/tiktok-autopost/attempt", json={**action_body(row), "click_kind": "post"}).json()
+    wrong = client.post("/api/tiktok-autopost/ack", json={**action_body(started), "outcome": "scheduled_on_platform",
+                        "proof": {"kind": "platform_success_notice", "notice": "Scheduled successfully"}})
+    assert wrong.status_code == 422                                              # an immediate publication is never "scheduled"
+    done = client.post("/api/tiktok-autopost/ack", json={**action_body(started), "outcome": "published",
+                       "proof": {"kind": "platform_success_notice", "notice": "Video published", "confirmation_token": started.get("confirmation_token")}})
+    assert done.status_code == 200, done.text
+    assert _queue_get(queue_id)["status"] == "posted"
+
+
+def test_publish_draft_refuses_a_row_that_is_not_a_draft_on_tiktok(api_env):
+    client, api, registry, video, export, _ = api_env
+    planned = _queue_row(api_env, "queue-not-draft")
+    res = client.post("/api/tiktok-autopost/prepare", json=_publish_payload(api_env, planned, schedule_date="2030-01-02", schedule_time="09:00"))
+    assert res.status_code == 409 and res.json()["code"] == "posting_draft_not_on_platform"
+    no_queue = client.post("/api/tiktok-autopost/prepare", json={"video_path": str(video), "export_id": export["id"], "intent": "publish_draft",
+                                                                 "caption": "x ok", "schedule_date": "2030-01-02", "schedule_time": "09:00"})
+    assert no_queue.status_code == 422 and no_queue.json()["code"] == "posting_draft_queue_required"
+
+
+def test_cleared_draft_publication_returns_the_row_to_draft_on_platform_not_planned(api_env):
+    client, api, registry, video, export, _ = api_env
+    queue_id, draft_job = _drafted_queue_row(api_env)
+    prepared = client.post("/api/tiktok-autopost/prepare", json=_publish_payload(api_env, queue_id, schedule_date="2030-01-02", schedule_time="09:00")).json()
+    assert client.post("/api/tiktok-autopost/clear", json={"job_id": prepared["job_id"]}).status_code == 200
+    row = _queue_get(queue_id)
+    assert row["status"] == "draft_on_platform"                                    # the draft still exists on TikTok
+    assert row["posting_job_id"] == draft_job
+    # and it can be published again afterwards
+    again = client.post("/api/tiktok-autopost/prepare", json=_publish_payload(api_env, queue_id, schedule_date="2030-01-03", schedule_time="10:00"))
+    assert again.status_code == 200, again.text

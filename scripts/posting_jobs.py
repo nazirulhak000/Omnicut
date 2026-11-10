@@ -31,7 +31,9 @@ DRAFT_PROOF_KINDS = {"drafts_page_confirmed", "platform_success_notice", "manual
 # What the operator meant to do with the clip. Stored in the job at prepare time; the worker states which button it
 # is about to press (click_kind) and the backend refuses a mismatch, so a "draft" job can never press Post and a
 # scheduled/immediate job can never save a draft. Jobs prepared by old clients have no intent (inferred from the schedule).
-INTENTS = {"schedule", "draft", "post_now"}
+# publish_draft = open a draft that already sits on TikTok and publish it (scheduled when the job has date+time, live
+# otherwise). It behaves like `schedule` / `post_now` for every outcome rule (see effective_intent) but never uploads.
+INTENTS = {"schedule", "draft", "post_now", "publish_draft"}
 CLICK_KINDS = {"post", "draft"}
 # A job in one of these states pressed (or may have pressed) a publish/draft button: it can never be released or
 # re-prepared by "force", only reconciled with evidence.
@@ -46,6 +48,15 @@ def job_intent(row) -> str:
     if stored in INTENTS:
         return stored
     return "schedule" if (row.get("schedule_date") and row.get("schedule_time")) else "post_now"
+
+
+def effective_intent(row) -> str:
+    """The intent the OUTCOME rules apply to: a draft publication is a scheduled post when it carries a slot, else an
+    immediate one. (`draft` and the other intents are unchanged.)"""
+    intent = job_intent(row)
+    if intent == "publish_draft":
+        return "schedule" if (row.get("schedule_date") and row.get("schedule_time")) else "post_now"
+    return intent
 
 
 def fingerprint(value) -> str:
@@ -105,8 +116,12 @@ class PostingJobStore:
                     raise ChannelError(409, "posting_idempotency_conflict", "รหัสงานเดิมมีข้อมูลคลิปต่างกัน")
                 return deepcopy(existing)
             # A second key must not turn an uncertain/finished publish into a new job.
+            # The draft a publish_draft job is made from is not a competitor: it stays draft_saved until the publication
+            # succeeds (so a cleared/failed publication can be retried from the same draft).
+            draft_source = frozen.get("draft_source_job_id") if frozen.get("intent") == "publish_draft" else None
             existing_export = next((r for r in rows if r["export_id"] == frozen["export_id"]
-                                    and r["status"] != "cancelled"), None)
+                                    and r["status"] != "cancelled"
+                                    and not (draft_source and r["id"] == draft_source and r["status"] == "draft_saved")), None)
             if existing_export:
                 now = self.clock()
                 if (not existing_export.get("publish_attempted_at")
@@ -237,7 +252,7 @@ class PostingJobStore:
                     and not re.fullmatch(_SCHEDULED_NOTICE, str(proof.get("notice") or "").strip(), flags=re.I)
                     and not (row.get("schedule_date") and row.get("schedule_time"))):
                 raise ChannelError(422, "posting_confirmation_required", "ข้อความ 'published' ใช้ยืนยันงานตั้งเวลาได้เฉพาะงานที่มีเวลานัดโพสต์")
-            intent = job_intent(row)
+            intent = effective_intent(row)
             if outcome != "confirmation_unknown":
                 # The result must be the one the job was prepared for: a draft job cannot become a post, a post job
                 # cannot become a draft, an immediate post cannot become "scheduled".

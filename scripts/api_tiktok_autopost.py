@@ -192,8 +192,10 @@ class PrepareRequest(BaseModel):
     queue_id: Optional[str] = None
     schedule_date: Optional[str] = None
     schedule_time: Optional[str] = None
-    # schedule | draft | post_now. Missing = inferred (schedule when a time is given, else post_now: the old behaviour).
+    # schedule | draft | post_now | publish_draft. Missing = inferred (schedule when a time is given, else post_now).
     intent: Optional[str] = None
+    # publish_draft without a schedule posts LIVE: the operator must say so explicitly.
+    confirm_live: bool = False
     idempotency_key: Optional[str] = None
 
 
@@ -236,9 +238,15 @@ def _resolve_intent(req) -> str:
     has_date, has_time = bool(req.schedule_date), bool(req.schedule_time)
     intent = req.intent or ("schedule" if (has_date and has_time) else "post_now")
     if intent not in INTENTS:
-        raise ChannelError(422, "posting_intent_invalid", "intent ต้องเป็น schedule | draft | post_now")
+        raise ChannelError(422, "posting_intent_invalid", "intent ต้องเป็น schedule | draft | post_now | publish_draft")
     if intent == "schedule" and not (has_date and has_time):
         raise ChannelError(422, "posting_schedule_required", "งานตั้งเวลาต้องมีทั้งวันที่และเวลา (ไม่มีเวลา = จะกลายเป็นโพสต์สด จึงปฏิเสธ)")
+    if intent == "publish_draft":
+        if has_date != has_time:
+            raise ChannelError(422, "posting_schedule_required", "เผยแพร่จากแบบร่างต้องมีทั้งวันที่และเวลา หรือไม่มีทั้งคู่ (โพสต์ทันที)")
+        if not has_date and not getattr(req, "confirm_live", False):
+            raise ChannelError(422, "posting_live_confirmation_required", "เผยแพร่แบบร่างโดยไม่ตั้งเวลา = โพสต์สดทันที ต้องยืนยันชัดเจน (confirm_live)")
+        return intent
     if intent != "schedule" and (has_date or has_time):
         raise ChannelError(422, "posting_schedule_not_allowed", "งานแบบร่าง/โพสต์ทันทีต้องไม่มีวันที่หรือเวลานัด")
     return intent
@@ -292,12 +300,22 @@ def prepare(req: PrepareRequest, scope: ChannelScope = Depends(get_workflow_scop
             raise ChannelError(404, "resource_not_found", "ไม่พบสินค้าเจ้าของ export ในช่องนี้")
     if export_record.get("project_name") and (scope.strict or channel_id != "main"):
         require_project_owner(scope, export_record["project_name"])
+    draft_source_job_id = None
     if req.queue_id:
         from scripts.schedule_store import ScheduleQueueStore
         queue = ScheduleQueueStore.get_item(req.queue_id, channel_id=channel_id)
         require_record_owner(scope, queue, resource_label="คิวโพสต์")
         if queue.get("export_id") != export_record["id"]:
             raise ChannelError(409, "posting_parent_conflict", "คิวไม่ตรงกับ export ที่เลือก")
+        if req.intent == "publish_draft":
+            draft_source_job_id = queue.get("posting_job_id")
+            if queue.get("status") != "draft_on_platform" or not draft_source_job_id:
+                raise ChannelError(409, "posting_draft_not_on_platform", "เผยแพร่จากแบบร่างได้เฉพาะคิวที่อยู่ในสถานะ 'บันทึกเป็นแบบร่างบน TikTok แล้ว'")
+            source_job = _jobs().get(channel_id, draft_source_job_id)
+            if source_job["status"] != "draft_saved" or source_job.get("export_id") != export_record["id"]:
+                raise ChannelError(409, "posting_draft_not_on_platform", "งานแบบร่างเดิมไม่อยู่ในสถานะที่เผยแพร่ต่อได้")
+    elif req.intent == "publish_draft":
+        raise ChannelError(422, "posting_draft_queue_required", "เผยแพร่จากแบบร่างต้องระบุคิว (queue_id) ของแบบร่างนั้น")
     if not req.queue_id:
         latest_record = ExportRegistry.latest_for_angle(product_id, angle_id, channel_id=channel_id)
         if latest_record and latest_record.get("status") != "posted" and latest_record.get("id") != export_record.get("id"):
@@ -391,6 +409,7 @@ def prepare(req: PrepareRequest, scope: ChannelScope = Depends(get_workflow_scop
         "schedule_date": req.schedule_date,
         "schedule_time": req.schedule_time,
         "intent": intent,
+        **({"draft_source_job_id": draft_source_job_id} if draft_source_job_id else {}),
         "queue_id": req.queue_id,
         "target_handle": scope.channel.get("handle") or "",
         "channel_revision": int(scope.channel.get("revision", 0)),
@@ -416,7 +435,13 @@ def prepare(req: PrepareRequest, scope: ChannelScope = Depends(get_workflow_scop
             def _mark_ready(row, _records):
                 if row.get("export_id") != job["export_id"]:
                     raise ChannelError(409, "posting_parent_conflict", "คิวเปลี่ยน export ระหว่างเตรียมงานแล้ว จึงไม่ผูกงานผิดคลิป")
-                if row.get("status") not in {"planned", "failed"} and not (
+                from_draft = job.get("intent") == "publish_draft"
+                if from_draft:
+                    if not (row.get("status") == "draft_on_platform" and row.get("posting_job_id") == job.get("draft_source_job_id")) and not (
+                            row.get("status") == "ready_for_extension" and row.get("posting_job_id") == job["job_id"]):
+                        raise ChannelError(409, "posting_queue_changed", "คิวเปลี่ยนสถานะแล้ว จึงไม่ทับงานอื่น")
+                    row["draft_job_id"] = job.get("draft_source_job_id") or row.get("draft_job_id")
+                elif row.get("status") not in {"planned", "failed"} and not (
                         row.get("status") == "ready_for_extension" and row.get("posting_job_id") == job["job_id"]):
                     raise ChannelError(409, "posting_queue_changed", "คิวเปลี่ยนสถานะแล้ว จึงไม่ทับงานอื่น")
                 row["status"] = "ready_for_extension"
@@ -497,8 +522,13 @@ def _reset_queue_row(scope, job):
 
     def reset(row, _rows):
         if row.get("posting_job_id") == job["job_id"] and row.get("status") in {"ready_for_extension", "awaiting_post"}:
-            row["status"] = "planned"
-            row.pop("posting_job_id", None)
+            if job.get("intent") == "publish_draft" and row.get("draft_job_id"):
+                # the draft is still on TikTok: back to that state, not to "planned" (which would allow a duplicate upload)
+                row["status"] = "draft_on_platform"
+                row["posting_job_id"] = row["draft_job_id"]
+            else:
+                row["status"] = "planned"
+                row.pop("posting_job_id", None)
             row.pop("extension_prepared_at", None)
             row["updated_at"] = datetime.now().isoformat()
     ScheduleQueueStore.update_item(job["queue_id"], reset, channel_id=scope.channel_id)
@@ -649,6 +679,12 @@ def _apply_outcome_effects(scope, job):
         # A queue row that no longer exists is not a reason to keep the receipt pending forever: the post itself is
         # recorded on the job and the export; there is simply no row left to update.
         ScheduleQueueStore.update_item(job["queue_id"], apply, channel_id=scope.channel_id)
+    if job.get("intent") == "publish_draft" and job.get("draft_source_job_id") and job["status"] in {"published", "scheduled_on_platform"}:
+        # the draft was consumed by this publication: retire its job record (idempotent, never touches a non-draft job)
+        try:
+            _jobs().release_draft(scope.channel_id, job["draft_source_job_id"], reason="published_from_draft")
+        except ChannelError:
+            pass
     return _jobs().mark_effects_applied(scope.channel_id, job["job_id"])
 
 

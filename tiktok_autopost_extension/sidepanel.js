@@ -1412,6 +1412,7 @@ async function loadExports() {
 
   filterAndRenderClips();
   checkTikTokQuota(true);
+  loadDraftRows();
 }
 
 function filterAndRenderClips() {
@@ -2977,8 +2978,8 @@ batchStartBtn?.addEventListener('click', async () => {
   }
 });
 
-async function runBatchFromPanel() {
-
+// The clips a normal (list) run will post: the ticked ones, or the filtered queue, minus what the guard refuses, capped by quota.
+function selectBatchClipsFromList() {
   const query = clipSearchInput ? clipSearchInput.value.trim().toLowerCase() : '';
 
   // Ticked clips win over the search box and the count limit: post exactly those, in list order.
@@ -2998,27 +2999,35 @@ async function runBatchFromPanel() {
     setStatus(usingPicked
       ? `คลิปที่ติ๊กไว้ใช้ไม่ได้ทั้งหมด (${guardSkipped.map((item) => item.reason).slice(0, 3).join(', ')}) จึงไม่เริ่มรัน และไม่ไปรันคลิปอื่นแทน`
       : 'ไม่มีคลิปในรายการสำหรับเริ่มอัปโหลด', 'error');
-    return;
+    return null;
 
   }
 
   const effectiveLimit = getEffectiveBatchLimit(targetClips.length, { forceAuto: usingPicked });
   if (effectiveLimit === 0) {
     setStatus('โควตาใน TikTok Studio เต็มแล้ว (30/30) กรุณารอให้คลิปเผยแพร่หรือลบแบบร่างเดิมก่อน', 'error');
-    return;
+    return null;
   }
 
   // Capped by TikTok Quota (maximum 30 per run)
   const slicedClips = targetClips.slice(0, effectiveLimit);
+  return { usingPicked, guardSkipped, targetClips, slicedClips };
+}
 
-  const selectedModeForCheck = batchModeSelect?.value || 'smart';
+async function runBatchFromPanel(override = null) {
+
+  const selection = override ? { usingPicked: true, guardSkipped: [], targetClips: override.clips, slicedClips: override.clips } : selectBatchClipsFromList();
+  if (!selection) return;
+  const { usingPicked, guardSkipped, targetClips, slicedClips } = selection;
+
+  const selectedModeForCheck = override ? override.mode : (batchModeSelect?.value || 'smart');
   const readiness = await runPreflightAndReport(selectedModeForCheck, slicedClips.length);
   if (!readiness.ok) {
     setStatus(`ยังไม่พร้อมรัน: ${readiness.blockers.map((b) => `${b.label} (${b.detail})`).join('; ')}`, 'error');
     return;
   }
 
-  const confirmMsg = usingPicked
+  const confirmMsg = override ? override.confirmText : usingPicked
     ? `ต้องการโพสต์เฉพาะคลิปที่ติ๊กเลือก ${slicedClips.length} คลิปใช่หรือไม่?` +
       (guardSkipped.length ? `
 (ข้าม ${guardSkipped.length} คลิปที่ใช้ไม่ได้ เช่น ไฟล์หาย/เวลาผ่านแล้ว/มีราคาใน caption)` : '') +
@@ -3042,7 +3051,7 @@ async function runBatchFromPanel() {
   }
   startRunLockBeat();
   activeRecorder = newRunRecorder();
-  await activeRecorder?.start({ mode: batchModeSelect?.value || 'smart', channel: activeChannelId, clips: slicedClips.length, extension: chrome.runtime.getManifest?.().version, panel: PANEL_RUN_ID });
+  await activeRecorder?.start({ mode: override ? override.mode : (batchModeSelect?.value || 'smart'), kind: override ? 'publish_draft' : 'batch', channel: activeChannelId, clips: slicedClips.length, extension: chrome.runtime.getManifest?.().version, panel: PANEL_RUN_ID });
   if (lockResult.recovered) appendBatchLog('พบรอบรันเก่าที่ถูกตัดกลางคัน — งานที่ค้างจะถูกพักก่อนเริ่มคลิปแรก', 'warn');
   try {
     await openTikTokUploadTab(false);
@@ -3062,7 +3071,7 @@ async function runBatchFromPanel() {
 
   startKeepAlive();
 
-  const selectedMode = batchModeSelect?.value || 'smart';
+  const selectedMode = override ? (override.mode === 'publish_now' ? 'smart' : 'schedule_only') : (batchModeSelect?.value || 'smart');
   guardSkipped.forEach((item) => appendBatchLog(`ข้ามคลิป "${item.title}": ${item.reason}`, 'warn'));
   if (guardSkipped.length) appendBatchLog(`ข้ามทั้งหมด ${guardSkipped.length} คลิปที่ยังไม่ควรโพสต์อัตโนมัติ (เหตุผลข้างบน)`, 'warn');
 
@@ -3083,9 +3092,10 @@ async function runBatchFromPanel() {
         tiktok_product_id: clip.tiktok_product_id || null,
         product_name: clip.product_name || clip.cart_name || null,
         queue_id: clip.is_scheduled ? clip.id : null,
-        intent: isDraftMode ? 'draft' : 'schedule',
+        intent: clip.publish_draft ? 'publish_draft' : (isDraftMode ? 'draft' : 'schedule'),
         schedule_date: isDraftMode ? null : (clip.schedule_date || null),
         schedule_time: isDraftMode ? null : (clip.schedule_time || null),
+        ...(clip.publish_draft && clip.publish_now ? { confirm_live: true } : {}),
       };
 
       let res = await scopedPanelFetch(`${BACKEND}/api/tiktok-autopost/prepare`, {
@@ -3165,7 +3175,9 @@ async function runBatchFromPanel() {
       return prepared;
     },
 
-    uploadVideo: async (_clip) => {
+    uploadVideo: async (clip) => {
+      // a draft publication has nothing to upload: open the draft and put the form in the mode the job needs
+      if (clip?.publish_draft) return panelWorkerRequest({ action: 'open-draft-for-publish' });
       const uploadResp = await new Promise((resolve, reject) => {
         chrome.runtime.sendMessage({ action: 'upload-file-only' }, (r) => {
           if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
@@ -3180,7 +3192,8 @@ async function runBatchFromPanel() {
       return uploadResp;
     },
 
-    awaitProcessing: async (_clip) => {
+    awaitProcessing: async (clip) => {
+      if (clip?.publish_draft) return { success: true, skipped: 'draft' };   // the video of a draft is already on TikTok
       const waitResp = await new Promise((resolve, reject) => {
         chrome.runtime.sendMessage({ action: 'wait-for-upload-only' }, (r) => {
           if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
@@ -3195,6 +3208,7 @@ async function runBatchFromPanel() {
     },
 
     fillDetails: async (clip, mode) => {
+      if (clip?.publish_draft) return { success: true, skipped: 'draft' };   // caption, product and cover are already in the draft
       const scheduleMode = (mode === 'schedule');
       const response = await new Promise((resolve, reject) => {
         chrome.runtime.sendMessage({
@@ -3269,6 +3283,7 @@ async function runBatchFromPanel() {
       return { ...submitResult, outcome: 'confirmation_unknown', verified: false, verifyReason: verdict?.reason };
     },
     checkQuota: async () => {
+      if (override && override.mode === 'publish_now') return {};   // publishing now uses no schedule slot
       try {
         await checkTikTokQuota(true, true);
       } catch (err) {
@@ -3558,3 +3573,78 @@ document.getElementById('batchHistoryBtn')?.addEventListener('click', async () =
   try { await navigator.clipboard.writeText(text); setStatus('คัดลอกประวัติรอบล่าสุดแล้ว (มีหลักฐานตอนล้ม ตัดข้อมูลส่วนตัวแล้ว)', 'success'); }
   catch (err) { setStatus(`คัดลอกไม่สำเร็จ: ${err.message}`, 'error'); }
 });
+
+// ── Publish a draft that sits on TikTok ─────────────────────────────────────
+let draftRows = [];
+function draftSlotDefault(row) {
+  const parts = queueScheduleParts(row.scheduled_at);
+  if (!parts.schedule_date || !parts.schedule_time) return { date: '', time: '' };
+  const slot = new Date(`${parts.schedule_date}T${parts.schedule_time}:00`).getTime();
+  return slot - Date.now() >= (globalThis.OmniLimits?.MIN_LEAD_MS || 900000) + 5 * 60 * 1000 ? { date: parts.schedule_date, time: parts.schedule_time } : { date: '', time: '' };
+}
+function draftClipFromRow(row, when) {
+  return {
+    ...row,
+    rel_path: row.video_path, name: row.project_name || row.video_path, is_scheduled: true,
+    tiktok_caption: row.caption, tiktok_hashtags: row.hashtags,
+    cover_url: null, thumbnail_url: null,
+    publish_draft: true, publish_now: when.now === true, force_mode: 'schedule',
+    schedule_date: when.now ? '' : when.date, schedule_time: when.now ? '' : when.time,
+  };
+}
+function renderDraftRows() {
+  const list = document.getElementById('draftPublishList');
+  const count = document.getElementById('draftPublishCount');
+  if (count) count.textContent = String(draftRows.length);
+  const wrap = document.getElementById('draftPublishPanel');
+  if (wrap) wrap.hidden = draftRows.length === 0;
+  if (!list) return;
+  list.innerHTML = '';
+  for (const row of draftRows) {
+    const card = document.createElement('div');
+    card.className = 'draft-publish-card';
+    const title = document.createElement('div');
+    title.className = 'draft-publish-title';
+    title.textContent = row.hook_title || row.caption || row.video_path;
+    card.appendChild(title);
+    const slot = draftSlotDefault(row);
+    const date = document.createElement('input'); date.type = 'date'; date.value = slot.date; date.setAttribute('aria-label', 'วันที่เผยแพร่');
+    const time = document.createElement('input'); time.type = 'time'; time.value = slot.time; time.step = 60; time.setAttribute('aria-label', 'เวลาเผยแพร่');
+    const scheduleBtn = document.createElement('button'); scheduleBtn.type = 'button'; scheduleBtn.className = 'btn-log-action'; scheduleBtn.textContent = 'เผยแพร่ตามเวลานี้';
+    const nowBtn = document.createElement('button'); nowBtn.type = 'button'; nowBtn.className = 'btn-log-action'; nowBtn.textContent = 'โพสต์ตอนนี้';
+    scheduleBtn.addEventListener('click', () => startDraftPublish(row, { now: false, date: date.value, time: time.value }));
+    nowBtn.addEventListener('click', () => startDraftPublish(row, { now: true }));
+    const controls = document.createElement('div');
+    controls.className = 'draft-publish-controls';
+    controls.append(date, time, scheduleBtn, nowBtn);
+    card.appendChild(controls);
+    list.appendChild(card);
+  }
+}
+async function loadDraftRows() {
+  try {
+    const res = await scopedPanelFetch(`${BACKEND}/api/schedule-queue?status=draft_on_platform`);
+    draftRows = res.ok ? ((await res.json()).items || []).filter((item) => item.status === 'draft_on_platform') : [];
+  } catch (_) { draftRows = []; }
+  renderDraftRows();
+}
+async function startDraftPublish(row, when) {
+  if (busy || batchStarting) return;
+  if (!when.now && (!when.date || !when.time)) { setStatus('เลือกวันและเวลาก่อน หรือกด "โพสต์ตอนนี้"', 'error'); return; }
+  const clip = draftClipFromRow(row, when);
+  const guard = globalThis.OmniPostGuard;
+  const reason = guard?.clipSkipReason(clip, undefined, Date.now(), { exportsKnown: false, ignoreSlot: when.now === true, requireSchedule: when.now !== true });
+  if (reason) { setStatus(`เผยแพร่แบบร่างนี้ไม่ได้: ${BLOCK_REASON_TH[reason] || reason}`, 'error'); return; }
+  const title = row.hook_title || row.caption || row.video_path;
+  const confirmText = when.now
+    ? `โพสต์ "${title}" จากแบบร่าง "ตอนนี้" — คลิปจะขึ้นเผยแพร่สดทันที ไม่ใช่การตั้งเวลา ยืนยันหรือไม่?`
+    : `เผยแพร่ "${title}" จากแบบร่าง ตั้งเวลา ${when.date} ${when.time} ใช่หรือไม่? (ใช้ช่องตั้งเวลา 1 ช่อง)`;
+  batchStarting = true;
+  try {
+    await runBatchFromPanel({ clips: [clip], mode: when.now ? 'publish_now' : 'schedule_only', confirmText });
+  } finally {
+    batchStarting = false;
+    await releaseRunLock();
+    loadDraftRows();
+  }
+}

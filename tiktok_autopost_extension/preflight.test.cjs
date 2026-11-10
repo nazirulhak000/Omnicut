@@ -60,3 +60,11 @@ test('narrow window is only a warning; formatPreflight lists every check', () =>
   assert.match(formatPreflight(r), /เตือน · ขนาดหน้าต่าง/);
   assert.equal(formatPreflight(r).split('\n').length, r.checks.length);
 });
+
+test('publishing a draft now needs no schedule slot, so a full schedule quota is not a blocker for it', () => {
+  const full = { ...good(), mode: 'publish_now', worker: { ...good().worker, quota: { remainingSchedule: 0, remainingDraft: 0 } } };
+  const r = evaluatePreflight(full);
+  assert.equal(r.ok, true);
+  assert.match(r.checks.find((c) => c.id === 'quota').detail, /ไม่ใช้ช่องตั้งเวลา/);
+  assert.equal(evaluatePreflight({ ...full, mode: 'schedule_only' }).ok, false);   // a scheduled publication still needs a free slot
+});

@@ -997,7 +997,7 @@ test('stats sync accepts the real Studio posts page and stamps a visible build t
   // Build identity: chrome://extensions + the Tools tab both prove the fresh
   // code is running, so stale cached sidepanel.js (the ghost "จำกัดโดเมน"
   // banner that never existed in this repo) can be caught by the user's eyes.
-  assert.equal(manifest.version, '0.5.0');
+  assert.equal(manifest.version, '0.6.0');
   assert.equal(manifest.content_scripts, undefined, 'no legacy content script');
   for (const gone of ['batch_runner.js', 'batch_runner.test.cjs', 'content_script.js', 'popup.html', 'popup.js']) assert.ok(!fs.existsSync(path.join(__dirname, gone)), gone + ' must stay deleted');
   assert.match(sideHtml, /id="buildTag"/);
@@ -1686,7 +1686,7 @@ test('R5 panel wiring: preflight before the confirm dialog, history of every log
   assert.ok(html.indexOf('limits.js') < html.indexOf('post_guard.js') && html.indexOf('limits.js') < html.indexOf('batch_orchestrator.js'), 'limits.js loads first');
   assert.match(html, /id="batchPreflightBtn"/);
   assert.match(html, /id="batchHistoryBtn"/);
-  const handler = side.slice(side.indexOf('async function runBatchFromPanel()'));
+  const handler = side.slice(side.indexOf('async function runBatchFromPanel('));
   assert.ok(handler.indexOf('runPreflightAndReport(') > 0 && handler.indexOf('runPreflightAndReport(') < handler.indexOf('askConfirm('), 'preflight runs before the confirm dialog');
   assert.match(handler, /if \(!readiness\.ok\)/);
   assert.match(side, /activeRecorder\?\.log\(kind, msg\)/);
@@ -1695,4 +1695,101 @@ test('R5 panel wiring: preflight before the confirm dialog, history of every log
   assert.match(side, /activeRecorder\?\.setJob\(prepared\.job_id/);
   // clean-UI rule: the new buttons start with a verb and carry no icon
   assert.doesNotMatch(html, /id="batchPreflightBtn"[^>]*>\s*<svg/);
+});
+
+// ---- publish from draft ----
+function publishDraftHarness({ job, pick = { ok: true, count: 1 }, editor, switched = { success: true } }) {
+  const ctx = worker();
+  const seen = { switched: null, nowEval: 0, clicked: 0, navigated: [], detached: 0 };
+  ctx.fetchPendingJob = async () => job;
+  ctx.findUploadTab = async () => ({ id: 7, url: 'https://www.tiktok.com/tiktokstudio/upload' });
+  ctx.navigateAcceptingLeave = async (_id, url) => { seen.navigated.push(url); };
+  ctx.sleep = async () => {};
+  ctx.ensureWorkableViewport = async () => null;
+  ctx.guardPostingAction = async () => '@main';
+  ctx.switchToScheduleMode = async (_send, args) => { seen.switched = args; return switched; };
+  ctx.chrome.debugger = {
+    attach: async () => {}, detach: async () => { seen.detached += 1; },
+    sendCommand: async (_t, method, params) => {
+      if (method !== 'Runtime.evaluate') return {};
+      const expression = String(params.expression);
+      if (expression.includes('components_DraftRowLayout_FlexRow')) return { result: { value: pick } };
+      if (expression.includes('post_video_button')) return { result: { value: editor } };
+      if (expression.includes("labels = ['Now'")) { seen.nowEval += 1; return { result: { value: { ok: true } } }; }
+      return { result: { value: {} } };
+    },
+  };
+  return { ctx, seen };
+}
+const draftJob = (over = {}) => ({ job_id: 'j1', intent: 'publish_draft', status: 'claimed', caption: 'บอกลาสมาร์ตวอทช์หนักๆ อัปเกรดชีวิต', schedule_date: '2030-01-02', schedule_time: '09:00', ...over });
+const goodEditor = (ctx) => ({ url: 'https://www.tiktok.com/tiktokstudio/upload?from=creator_center&draft_id=1&open_editor=0', hasPost: true, caption: ctx.OmniPostGuard.captionKey('บอกลาสมาร์ตวอทช์หนักๆ อัปเกรดชีวิต') });
+
+test('publish_draft behaves like schedule / post_now for the button label, outcome and dismissal rules', () => {
+  const ctx = worker();
+  assert.equal(ctx.jobIntent({ intent: 'publish_draft', schedule_date: '2030-01-02', schedule_time: '09:00' }), 'schedule');
+  assert.equal(ctx.jobIntent({ intent: 'publish_draft' }), 'post_now');
+  assert.equal(ctx.jobIntent({ intent: 'draft' }), 'draft');
+});
+
+test('open-draft-for-publish: a scheduled publication opens the matching draft, checks its caption and sets the slot', async () => {
+  const probe = worker();
+  const { ctx, seen } = publishDraftHarness({ job: draftJob(), editor: goodEditor(probe) });
+  ctx.OmniPostGuard = probe.OmniPostGuard;
+  const result = await ctx.runOpenDraftForPublish();
+  assert.equal(result.success, true);
+  assert.equal(result.mode, 'schedule');
+  assert.deepEqual(seen.navigated, ['https://www.tiktok.com/tiktokstudio/content?tab=draft']);
+  assert.deepEqual({ date: seen.switched.date, time: seen.switched.time }, { date: '2030-01-02', time: '09:00' });
+  assert.equal(seen.detached, 1);
+});
+
+test('open-draft-for-publish: an immediate publication keeps/sets "Now" and never touches the schedule', async () => {
+  const probe = worker();
+  const { ctx, seen } = publishDraftHarness({ job: draftJob({ schedule_date: null, schedule_time: null }), editor: goodEditor(probe) });
+  const result = await ctx.runOpenDraftForPublish();
+  assert.equal(result.mode, 'now');
+  assert.equal(seen.nowEval, 1);
+  assert.equal(seen.switched, null);
+});
+
+test('open-draft-for-publish refuses: wrong job kind, already attempted, no/ambiguous draft, different caption, unset slot', async () => {
+  const probe = worker();
+  const editor = goodEditor(probe);
+  await assert.rejects(() => publishDraftHarness({ job: draftJob({ intent: 'draft' }), editor }).ctx.runOpenDraftForPublish(), /intent_mismatch/);
+  await assert.rejects(() => publishDraftHarness({ job: draftJob({ publish_attempted_at: 1700000000, status: 'publishing' }), editor }).ctx.runOpenDraftForPublish(), /posting_reconciliation_required/);
+  await assert.rejects(() => publishDraftHarness({ job: draftJob({ caption: 'สั้น' }), editor }).ctx.runOpenDraftForPublish(), /สั้นเกินกว่า/);
+  await assert.rejects(() => publishDraftHarness({ job: draftJob(), pick: { ok: false, count: 0 }, editor }).ctx.runOpenDraftForPublish(), /draft_not_found/);
+  await assert.rejects(() => publishDraftHarness({ job: draftJob(), pick: { ok: false, count: 2 }, editor }).ctx.runOpenDraftForPublish(), /draft_ambiguous/);
+  await assert.rejects(() => publishDraftHarness({ job: draftJob(), editor: { ...editor, caption: 'caption-ของคลิปอื่นทั้งหมด' } }).ctx.runOpenDraftForPublish(), /draft_mismatch/);
+  const noSlot = publishDraftHarness({ job: draftJob(), editor, switched: { success: false, reason: 'schedule_toggle_not_confirmed' } });
+  await assert.rejects(() => noSlot.ctx.runOpenDraftForPublish(), /schedule_not_set/);
+  assert.equal(noSlot.seen.detached, 1, 'the debugger is always detached');
+});
+
+test('open-draft-for-publish never presses Post or Save draft (source scan) and is wired as an action', () => {
+  const bg = fs.readFileSync(path.join(__dirname, 'background.js'), 'utf8');
+  const fn = bg.slice(bg.indexOf('async function runOpenDraftForPublish()'), bg.indexOf('let actionRunning = false;'));
+  assert.doesNotMatch(fn, /post_video_button"\]\)\.click|save_draft_button|\.click\(\);\s*\/\/ post/i);
+  assert.doesNotMatch(fn, /clickPostButton|runClickPostOnly|savePostingReceipt/);
+  assert.match(bg, /'open-draft-for-publish': \(\) => runOpenDraftForPublish\(\)/);
+});
+
+test('publish-from-draft panel wiring: draft list, explicit live confirmation, no upload steps for a draft', () => {
+  const side = fs.readFileSync(path.join(__dirname, 'sidepanel.js'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, 'sidepanel.html'), 'utf8');
+  assert.match(html, /id="draftPublishPanel"/);
+  assert.match(html, /id="draftPublishList"/);
+  // the list only shows queue rows that really are drafts on TikTok
+  assert.match(side, /schedule-queue\?status=draft_on_platform/);
+  // a draft is never re-uploaded or re-filled; the worker opens it instead
+  assert.match(side, /if \(clip\?\.publish_draft\) return panelWorkerRequest\(\{ action: 'open-draft-for-publish' \}\)/);
+  assert.match(side, /if \(clip\?\.publish_draft\) return \{ success: true, skipped: 'draft' \}/);
+  // "post now" is live: the backend flag is only sent for an explicit now, and the confirm text says it is live
+  assert.match(side, /clip\.publish_draft && clip\.publish_now \? \{ confirm_live: true \}/);
+  assert.match(side, /เผยแพร่สดทันที ไม่ใช่การตั้งเวลา/);
+  // it goes through the same one-run lock, preflight and orchestrator as every other run
+  const start = side.slice(side.indexOf('async function startDraftPublish('));
+  assert.match(start, /batchStarting = true/);
+  assert.match(start, /runBatchFromPanel\(\{ clips: \[clip\]/);
+  assert.doesNotMatch(html, /id="draftPublishPanel"[^>]*>\s*<svg/);
 });

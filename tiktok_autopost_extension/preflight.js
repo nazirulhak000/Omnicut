@@ -58,6 +58,9 @@
       else add('viewport', 'ขนาดหน้าต่าง', 'ok', width ? `${Math.round(width)}px` : '');
 
       // quota for the mode that will be used
+      if (mode === 'publish_now') {
+        add('quota', 'โควตา', 'ok', 'โพสต์ตอนนี้ ไม่ใช้ช่องตั้งเวลา');
+      } else {
       const q = worker.quota || {};
       const remS = typeof q.remainingSchedule === 'number' ? q.remainingSchedule : null;
       const remD = typeof q.remainingDraft === 'number' ? q.remainingDraft : null;
@@ -69,6 +72,7 @@
       else {
         const left = needsDraft ? remD : remS;
         add('quota', 'โควตา', clipCount > left ? 'warn' : 'ok', `เหลือ ${left}${clipCount > left ? ` (คลิปที่เลือก ${clipCount} — จะรันเฉพาะ ${left} คลิปแรก)` : ''}`);
+      }
       }
     }
 

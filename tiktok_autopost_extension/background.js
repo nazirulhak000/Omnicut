@@ -4254,6 +4254,8 @@ async function clickPostButton(send, tabId, beforeClick = async () => {}, job = 
 // only because the job really carries a schedule.
 // What the operator meant to do with this job; old jobs without an intent are inferred from their schedule.
 function jobIntent(job) {
+  // publish_draft = publish a draft that already sits on TikTok: a scheduled post when it has a slot, else an immediate one
+  if (job?.intent === 'publish_draft') return (job.schedule_date && job.schedule_time) ? 'schedule' : 'post_now';
   if (['schedule', 'draft', 'post_now'].includes(job?.intent)) return job.intent;
   return (job?.schedule_date && job?.schedule_time) ? 'schedule' : 'post_now';
 }
@@ -5446,6 +5448,88 @@ async function clearAttention() {
   try { await chrome.action?.setBadgeText?.({text: ''}); } catch (e) {}
   return {success: true};
 }
+// Publish-from-draft, step 1: open THIS job's draft from Studio > Content > Drafts, check it is the right one and put the
+// form in the mode the job needs (a slot, or "Now"). It never presses Post / Save draft: the click is the ordinary
+// click-post-only step (same label check, identity check, single /attempt, same confirmation and reconcile rules).
+async function runOpenDraftForPublish() {
+  const job = await fetchPendingJob();
+  if (job.intent !== 'publish_draft') throw new Error('intent_mismatch: งานนี้ไม่ใช่งานเผยแพร่จากแบบร่าง');
+  if (job.publish_attempted_at || (job.status && job.status !== 'claimed')) {
+    throw new Error('posting_reconciliation_required: งานนี้เลยขั้นเตรียมแล้ว ห้ามเปิดแบบร่างซ้ำ');
+  }
+  const guard = globalThis.OmniPostGuard;
+  const key = guard?.captionKey ? guard.captionKey(job.caption) : '';
+  if (key.length < 8) throw new Error('caption สั้นเกินกว่าจะจับคู่แบบร่างอย่างปลอดภัย จึงไม่เปิดแบบร่างใด');
+  const tab = await findUploadTab();
+  await navigateAcceptingLeave(tab.id, DRAFT_TAB_URL);
+  await sleep(6000);
+  const send = cdp(tab.id);
+  await chrome.debugger.attach({tabId: tab.id}, '1.3');
+  try {
+    await send('DOM.enable');
+    await send('Runtime.enable');
+    await ensureWorkableViewport(send);
+    await guardPostingAction(job, send, tab.id);
+    const found = await send('Runtime.evaluate', {
+      expression: `(() => {
+        const key = ${JSON.stringify(key)};
+        const norm = (text) => String(text || '').toLowerCase().split('').filter((ch) => /[a-z0-9]/.test(ch) || (ch >= 'ก' && ch <= '๙')).join('');
+        const rows = Array.from(document.querySelectorAll('[data-tt="components_DraftRowLayout_FlexRow"]')).filter((row) => norm(row.innerText).includes(key));
+        if (rows.length !== 1) return {ok: false, count: rows.length};
+        const cell = rows[0].children[rows[0].children.length - 1];
+        const buttons = cell ? cell.querySelectorAll('button[data-tt="components_DraftCells_Clickable"]') : [];
+        if (!buttons.length) return {ok: false, count: 1, noButtons: true};
+        buttons[0].click();   // the first action of a draft row is "edit" (pencil); the other two are cut and delete
+        return {ok: true, count: 1};
+      })()`,
+      returnByValue: true,
+    });
+    const pick = found?.result?.value || {};
+    if (pick.count === 0) throw new Error('draft_not_found: ไม่พบแบบร่างบน TikTok ที่ตรงกับ caption ของคลิปนี้ (ถูกลบไปแล้วหรือยังไม่ได้บันทึก) จึงไม่เผยแพร่');
+    if (pick.count > 1) throw new Error('draft_ambiguous: มีแบบร่างมากกว่าหนึ่งอันที่ caption ตรงกัน จึงไม่เดาว่าอันไหน — ลบอันที่ซ้ำบน TikTok ก่อน');
+    if (!pick.ok) throw new Error('draft_open_failed: หาปุ่มแก้ไขของแบบร่างไม่เจอ (หน้า TikTok อาจเปลี่ยน) จึงไม่เผยแพร่');
+    // the editor of that draft must load, and it must be the same caption
+    let editor = null;
+    for (let i = 0; i < 50; i += 1) {
+      await sleep(500);
+      const probe = await send('Runtime.evaluate', {
+        expression: `(() => {
+          const norm = (text) => String(text || '').toLowerCase().split('').filter((ch) => /[a-z0-9]/.test(ch) || (ch >= 'ก' && ch <= '๙')).join('');
+          const field = document.querySelector('[contenteditable="true"]');
+          return {url: location.href, hasPost: Boolean(document.querySelector('button[data-e2e="post_video_button"]')), caption: field ? norm(field.innerText).slice(0, 60) : ''};
+        })()`,
+        returnByValue: true,
+      });
+      const value = probe?.result?.value;
+      if (value && /draft_id=/.test(value.url || '') && value.hasPost && value.caption) { editor = value; break; }
+    }
+    if (!editor) throw new Error('draft_editor_not_loaded: เปิดแบบร่างแล้วแต่หน้าแก้ไขไม่โหลดภายในเวลาที่กำหนด');
+    if (!editor.caption.includes(key)) throw new Error('draft_mismatch: แบบร่างที่เปิดมี caption ไม่ตรงกับคลิปนี้ จึงหยุดก่อนโพสต์');
+    if (job.schedule_date && job.schedule_time) {
+      const normalizedTime = normalizeScheduleTime(String(job.schedule_time).trim());
+      if (!normalizedTime) throw new Error('schedule_time_invalid: เวลานัดโพสต์ไม่ถูกต้อง');
+      const switched = await switchToScheduleMode(send, {date: job.schedule_date, time: normalizedTime});
+      if (!switched.success) throw new Error(`schedule_not_set: ตั้งเวลาในแบบร่างไม่สำเร็จ (${switched.reason || 'ไม่ทราบสาเหตุ'}) จึงไม่เผยแพร่`);
+    } else {
+      const now = await send('Runtime.evaluate', {
+        expression: `(() => {
+          const labels = ['Now', 'ตอนนี้'];
+          const radios = Array.from(document.querySelectorAll('input[type=radio], [role=radio]'));
+          const nowRadio = radios.find((r) => labels.includes(((r.closest('label') || r.parentElement || r).innerText || '').trim()));
+          if (!nowRadio) return {ok: false};
+          if (!(nowRadio.checked || nowRadio.getAttribute('aria-checked') === 'true')) (nowRadio.closest('label') || nowRadio).click();
+          return {ok: true};
+        })()`,
+        returnByValue: true,
+      });
+      if (!now?.result?.value?.ok) throw new Error('mode_now_not_found: หาตัวเลือก "ตอนนี้" ไม่เจอ จึงไม่เผยแพร่');
+    }
+    return {success: true, draftOpened: true, mode: (job.schedule_date && job.schedule_time) ? 'schedule' : 'now'};
+  } finally {
+    try { await chrome.debugger.detach({tabId: tab.id}); } catch (e) {}
+  }
+}
+
 let actionRunning = false;
 let pinnedUploadTabId = null;
 const NO_TAB_RECOVERY_ACTIONS = new Set(['click-post-only', 'save-draft-only', 'wait-for-upload-only', 'prepare-details', 'upload-cover-only']);
@@ -5492,6 +5576,7 @@ const actions = {
   'detect-tiktok-quota': message => runDetectTikTokQuota({allowNavigate: Boolean(message && message.allowNavigate)}),
   'wait-for-upload-only': () => runWaitForUploadOnly(),
   'run-preflight': () => runPreflight(),
+  'open-draft-for-publish': () => runOpenDraftForPublish(),
   'capture-evidence': () => runCaptureEvidence(),
   'notify-attention': message => notifyAttention(message),
   'clear-attention': () => clearAttention(),

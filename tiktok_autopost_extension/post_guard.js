@@ -109,5 +109,7 @@
     return '';
   }
 
-  return { PRICE_RE, PLACEHOLDER_RE, MAX_TEXT_CHARS, MAX_HASHTAGS, normalizeText, contentReason, MIN_LEAD_MS, rowMatchesClip, clipCaptionText, clipSkipReason };
+  const captionKey = (caption) => alnum(caption).slice(0, 20);
+
+  return { captionKey, PRICE_RE, PLACEHOLDER_RE, MAX_TEXT_CHARS, MAX_HASHTAGS, normalizeText, contentReason, MIN_LEAD_MS, rowMatchesClip, clipCaptionText, clipSkipReason };
 });
