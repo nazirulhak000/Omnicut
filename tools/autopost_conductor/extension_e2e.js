@@ -464,9 +464,19 @@ async function main() {
     const t0 = Date.now();
     let log = '';
     let printed = 0;
+    // --stop-at-submit: press the panel's real Stop the moment the post click starts. The clip must still be verified and
+    // recorded (a live post must never go unrecorded) and only then does the run stop.
+    const stopAtSubmit = process.argv.includes('--stop-at-submit');
+    let stopPressed = false;
     while (Date.now() - t0 < Math.max(15, clipCount * 6) * 60 * 1000) {
-      await sleep(5000);
+      await sleep(stopAtSubmit && !stopPressed ? 700 : 5000);
       log = await panel.eval(`document.getElementById('batchLogBox')?.innerText || ''`, false).catch(() => '');
+      if (stopAtSubmit && !stopPressed && /7\/10 TRIGGER_SUBMIT/.test(log)) {
+        stopPressed = true;
+        await panel.eval(`document.getElementById('batchStopBtn').click()`, false);
+        await confirmWhenShown(panel);
+        step('Stop pressed at TRIGGER_SUBMIT');
+      }
       // live progress: print each new panel log entry as it appears
       const entries = log.split(/(?=\[\d\d:\d\d:\d\d\])/).map(x => x.trim()).filter(Boolean);
       for (; printed < entries.length; printed += 1) console.log(`[panel] ${entries[printed].slice(0, 200)}`);
