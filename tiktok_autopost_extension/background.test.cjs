@@ -997,7 +997,7 @@ test('stats sync accepts the real Studio posts page and stamps a visible build t
   // Build identity: chrome://extensions + the Tools tab both prove the fresh
   // code is running, so stale cached sidepanel.js (the ghost "จำกัดโดเมน"
   // banner that never existed in this repo) can be caught by the user's eyes.
-  assert.equal(manifest.version, '0.6.0');
+  assert.equal(manifest.version, '0.7.0');
   assert.equal(manifest.content_scripts, undefined, 'no legacy content script');
   for (const gone of ['batch_runner.js', 'batch_runner.test.cjs', 'content_script.js', 'popup.html', 'popup.js']) assert.ok(!fs.existsSync(path.join(__dirname, gone)), gone + ' must stay deleted');
   assert.match(sideHtml, /id="buildTag"/);
@@ -1774,22 +1774,28 @@ test('open-draft-for-publish never presses Post or Save draft (source scan) and 
   assert.match(bg, /'open-draft-for-publish': \(\) => runOpenDraftForPublish\(\)/);
 });
 
-test('publish-from-draft panel wiring: draft list, explicit live confirmation, no upload steps for a draft', () => {
+test('publish-from-draft panel wiring: drafts are cards in the main list, ticked and run like any clip', () => {
   const side = fs.readFileSync(path.join(__dirname, 'sidepanel.js'), 'utf8');
   const html = fs.readFileSync(path.join(__dirname, 'sidepanel.html'), 'utf8');
-  assert.match(html, /id="draftPublishPanel"/);
-  assert.match(html, /id="draftPublishList"/);
-  // the list only shows queue rows that really are drafts on TikTok
-  assert.match(side, /schedule-queue\?status=draft_on_platform/);
+  assert.doesNotMatch(html, /id="draftPublishPanel"/, 'no separate box any more');
+  assert.match(html, /data-filter="draft"/);
+  assert.match(html, /id="filterCountDraft"/);
+  // draft rows of the queue become clips of the list
+  assert.match(side, /'awaiting_post', 'failed', 'draft_on_platform'\]\.includes\(item\.status\)/);
+  // the card says what it is, lets the slot be changed, and posts live only through its own confirmed run
+  assert.match(side, /แบบร่างอยู่บน TikTok · จะเผยแพร่/);
+  assert.match(side, /btn\.addEventListener\('click', \(\) => startDraftPublish\(item, \{ now: true \}\)\)/);
+  assert.match(side, /เผยแพร่สดทันที ไม่ใช่การตั้งเวลา/);
+  // an unticked whole-queue run never publishes a draft by itself
+  assert.match(side, /matchesQuery: \(c\) => !c\.is_draft && /);
+  // a draft is never part of a draft-only run, and still needs a valid slot otherwise
+  assert.match(side, /draft_in_draft_mode/);
+  assert.match(side, /function blockCodeFor\(/);
   // a draft is never re-uploaded or re-filled; the worker opens it instead
   assert.match(side, /if \(clip\?\.publish_draft\) return panelWorkerRequest\(\{ action: 'open-draft-for-publish' \}\)/);
   assert.match(side, /if \(clip\?\.publish_draft\) return \{ success: true, skipped: 'draft' \}/);
-  // "post now" is live: the backend flag is only sent for an explicit now, and the confirm text says it is live
   assert.match(side, /clip\.publish_draft && clip\.publish_now \? \{ confirm_live: true \}/);
-  assert.match(side, /เผยแพร่สดทันที ไม่ใช่การตั้งเวลา/);
-  // it goes through the same one-run lock, preflight and orchestrator as every other run
   const start = side.slice(side.indexOf('async function startDraftPublish('));
   assert.match(start, /batchStarting = true/);
   assert.match(start, /runBatchFromPanel\(\{ clips: \[clip\]/);
-  assert.doesNotMatch(html, /id="draftPublishPanel"[^>]*>\s*<svg/);
 });

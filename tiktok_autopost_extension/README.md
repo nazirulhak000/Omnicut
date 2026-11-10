@@ -17,13 +17,18 @@ headless twin of the same worker is `tools/autopost_conductor/`.
 (`schedule` / `draft` / `post_now`); the backend refuses a click or an outcome that contradicts it, and the worker reads the page's
 primary button ("Schedule" vs "Post") before it presses anything. A scheduled clip without a date **and** time is refused.
 
-## Publish a draft that sits on TikTok ("แบบร่างที่รอเผยแพร่")
-Queue rows saved as drafts (status "บันทึกเป็นแบบร่างบน TikTok แล้ว") appear in a list at the top of the panel. Pick a date/time and press
-"เผยแพร่ตามเวลานี้", or "โพสต์ตอนนี้" (live at once; the panel asks you to confirm it). The extension opens **that** draft from Studio >
-Content > Drafts (matched by caption; none or more than one match = stop), checks the editor shows the same caption, sets the slot (or
-"Now") and then uses the ordinary one-click Post step (same label/identity checks, single attempt, same confirmation). Nothing is
-uploaded again. A scheduled publication uses one of the 30 schedule slots, so when those are full only "post now" is possible.
-If the publication is cancelled before the click the row returns to "draft on TikTok" (never to "planned": the draft still exists).
+## Publish a draft that sits on TikTok
+A clip saved as a draft (queue status "บันทึกเป็นแบบร่างบน TikTok แล้ว") is a card of the main list: status "แบบร่างบน TikTok รอเผยแพร่",
+its planned publish time, and its own date/time fields (a passed slot makes the card unselectable until a new time is set). Filter chip
+"แบบร่าง" shows only them.
+- **Scheduled**: tick the draft cards and press "เริ่มรันอัปโหลด" like any run (each draft is published at its own slot; drafts and normal
+  clips can be mixed). A whole-queue run without ticks never publishes drafts by itself; a Draft-only run never publishes them.
+- **Post now**: the button on the card. It goes live immediately, so it is its own run and asks for an explicit confirmation.
+The extension opens **that** draft from Studio > Content > Drafts (matched by caption; none or more than one match = stop), checks the
+editor shows the same caption, sets the slot (or "Now") and then uses the ordinary one-click Post step (same label/identity checks, single
+attempt, same confirmation). Nothing is uploaded again. A scheduled publication uses one of the 30 schedule slots; when they are full the
+run stops with that reason and only "post now" is possible. If a publication is cancelled before the click the row returns to
+"draft on TikTok" (never to "planned": the draft still exists).
 
 ## Safety rules that are always on
 - Price / discount text, unfilled `{placeholders}`, > 4000 characters, > 30 hashtags are refused everywhere (panel, worker, backend,

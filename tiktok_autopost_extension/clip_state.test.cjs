@@ -102,3 +102,17 @@ test('R1 pickBatchCandidates: ticked clips mean "exactly these", even when none 
   const gone = pickBatchCandidates({ allClips, selectedKeys: new Set(['zzz']), keyOf });
   assert.equal(gone.usingPicked, false);
 });
+
+test('a queue row saved as a draft on TikTok becomes a draft clip (publish_draft, schedule slot, own status label)', () => {
+  const clips = buildExtensionClipList([], [
+    { id: 'q-draft', status: 'draft_on_platform', export_id: 'e1', video_path: 'a.mp4', scheduled_at: '2030-01-02T09:00+07:00' },
+    { id: 'q-plan', status: 'planned', export_id: 'e2', video_path: 'b.mp4' },
+    { id: 'q-done', status: 'scheduled_on_platform', export_id: 'e3', video_path: 'c.mp4' },
+  ]);
+  const byId = Object.fromEntries(clips.map((c) => [c.id, c]));
+  assert.ok(byId['q-draft'].is_draft && byId['q-draft'].publish_draft);
+  assert.equal(byId['q-draft'].force_mode, 'schedule');
+  assert.deepEqual(getExtensionStatus(byId['q-draft']), { kind: 'draft', label: 'แบบร่างบน TikTok รอเผยแพร่' });
+  assert.ok(!byId['q-plan'].is_draft && !byId['q-plan'].publish_draft);
+  assert.equal(byId['q-done'], undefined, 'rows TikTok already scheduled are not listed');
+});

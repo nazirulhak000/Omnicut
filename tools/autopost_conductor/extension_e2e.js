@@ -183,18 +183,20 @@ async function main() {
       //   --now                     publish immediately instead (the panel asks for the live confirmation)
       const whenArg = (process.argv.find(a => a.startsWith('--when=')) || '').split('=')[1] || '';
       const publishNow = process.argv.includes('--now');
-      let cards = 0;
-      for (let i = 0; i < 20 && !cards; i += 1) {
-        cards = await panel.eval(`document.querySelectorAll('#draftPublishList .draft-publish-card').length`, false).catch(() => 0);
-        if (!cards) await sleep(1500);
+      // The draft is a CARD of the main list (status "draft"): tick it and run, or use the card's own "post now" button.
+      const DRAFT_CARD = `[...document.querySelectorAll('#list .card')].find((c) => c.querySelector('.card-status.draft'))`;
+      let found = false;
+      for (let i = 0; i < 20 && !found; i += 1) {
+        found = await panel.eval(`Boolean(${DRAFT_CARD})`, false).catch(() => false);
+        if (!found) await sleep(1500);
       }
-      if (!cards) throw new Error('no draft card in the panel (is there a queue row in draft_on_platform?)');
-      step('draft cards in panel', String(cards));
+      if (!found) throw new Error('no draft card in the main list (is there a queue row in draft_on_platform?)');
+      step('draft card in list', await panel.eval(`(${DRAFT_CARD}).querySelector('.card-meta').textContent.trim()`, false));
       if (!realPost) {
         await panel.eval(`(() => {
           const original = chrome.runtime.sendMessage.bind(chrome.runtime);
           chrome.runtime.sendMessage = (message, cb) => {
-            if (message && message.action === 'click-post-only') { setTimeout(() => cb && cb({ success: true, clicked: false, outcome: 'scheduled_on_platform', stubbed: true }), 300); return; }
+            if (message && message.action === 'click-post-only') { setTimeout(() => cb && cb({ success: true, clicked: false, outcome: ${publishNow ? "'published'" : "'scheduled_on_platform'"}, stubbed: true }), 300); return; }
             if (message && message.action === 'verify-post-content') { setTimeout(() => cb && cb({ success: true, verified: true, stubbed: true }), 300); return; }
             return original(message, cb);
           };
@@ -202,13 +204,21 @@ async function main() {
         })()`, false);
         step('post click + content verify stubbed');
       }
-      if (!publishNow && whenArg) {
-        const [d, tm] = whenArg.split('T');
-        await panel.eval(`(() => { const card = document.querySelector('#draftPublishList .draft-publish-card'); const [date, time] = card.querySelectorAll('input'); const set = (el, v) => { el.value = v; el.dispatchEvent(new Event('input', {bubbles: true})); el.dispatchEvent(new Event('change', {bubbles: true})); }; set(date, ${JSON.stringify(d)}); set(time, ${JSON.stringify(tm)}); return true; })()`, false);
+      if (publishNow) {
+        await panel.eval(`(${DRAFT_CARD}).querySelector('button.btn-primary').click()`, false);
+      } else {
+        if (whenArg) {
+          const [d, tm] = whenArg.split('T');
+          await panel.eval(`(() => { const card = ${DRAFT_CARD}; const [date, time] = card.querySelectorAll('.draft-slot-controls input'); const set = (el, v) => { el.value = v; el.dispatchEvent(new Event('change', {bubbles: true})); }; set(date, ${JSON.stringify(d)}); set(time, ${JSON.stringify(tm)}); return true; })()`, false);
+          await sleep(800);   // the list re-renders after the slot changed
+        }
+        const ticked = await panel.eval(`(() => { const card = ${DRAFT_CARD}; const box = card.querySelector('.card-check input'); if (box.disabled) return 'blocked: ' + (card.querySelector('.card-blocked-note')?.textContent || ''); box.click(); return 'ticked'; })()`, false);
+        step('draft card tick', ticked);
+        if (ticked !== 'ticked') throw new Error(`draft card cannot be ticked: ${ticked}`);
+        await panel.eval(`document.getElementById('batchStartBtn').click()`, false);
       }
-      await panel.eval(`document.querySelectorAll('#draftPublishList .draft-publish-card')[0].querySelectorAll('button')[${publishNow ? 1 : 0}].click()`, false);
       await confirmWhenShown(panel);
-      step(publishNow ? 'publish NOW clicked (live confirmation accepted)' : 'publish with slot clicked');
+      step(publishNow ? 'publish NOW clicked (live confirmation accepted)' : 'ticked draft run started');
       const tp0 = Date.now();
       let plog = '';
       let pprinted = 0;

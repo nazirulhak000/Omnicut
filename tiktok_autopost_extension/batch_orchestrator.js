@@ -587,6 +587,12 @@
             log(`⛔ ${haltReason} จึงหยุดเพื่อกันโพสต์สดโดยไม่ตั้งใจ`, 'error');
             break;
           }
+          if (clip.force_mode === 'schedule' && resolveTargetMode(clip) === 'schedule' && scheduleUsed >= maxScheduleQuota) {
+            // e.g. publishing a draft: it needs one of the schedule slots like any scheduled post
+            haltReason = `ช่องตั้งเวลาเต็ม ${maxScheduleQuota}/${maxScheduleQuota} (การเผยแพร่แบบร่างแบบตั้งเวลาก็ใช้ช่องนี้ — ใช้ "โพสต์ตอนนี้" หรือรอให้มีช่องว่าง)`;
+            log(`⛔ ${haltReason}`, 'error');
+            break;
+          }
           if (resolveTargetMode(clip) === 'draft' && draftUsed >= maxDraftQuota) {
             haltReason = `โควตาแบบร่างเต็ม ${maxDraftQuota}/${maxDraftQuota}`;
             log(`⛔ ${haltReason} หยุดการทำงาน (ลบแบบร่างเก่าบน TikTok ก่อนจึงจะบันทึกเพิ่มได้)`, 'error');

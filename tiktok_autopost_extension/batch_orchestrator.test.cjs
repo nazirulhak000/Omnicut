@@ -532,3 +532,16 @@ test('R5: a failed or unconfirmed clip asks the embedder for page evidence; a br
   assert.deepEqual(unknownSeen, ['unknown']);
   assert.equal(stats.unknown, 1);                       // the run still finished and counted the clip
 });
+
+test('a forced schedule (publishing a draft) stops when the schedule slots are used up, instead of failing at TikTok', async () => {
+  const sent = [];
+  const o = createBatchOrchestrator({
+    clips: [{ id: 'd1', hook_title: 'แบบร่าง', force_mode: 'schedule', publish_draft: true }],
+    options: { cooldownSeconds: 0, currentScheduleCount: 30, maxScheduleQuota: 30, mode: 'smart' },
+    actions: { submitPost: async () => { sent.push('submit'); return { success: true, outcome: 'scheduled_on_platform' }; }, updateBackend: async () => {} },
+  });
+  const stats = await o.start();
+  assert.deepEqual(sent, []);
+  assert.equal(stats.finalKind, 'halted');
+  assert.match(stats.haltReason, /ช่องตั้งเวลาเต็ม/);
+});

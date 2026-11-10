@@ -4002,13 +4002,9 @@
     background: rgba(255, 255, 255, 0.12);
     color: #f1f5f9;
   }
-    .draft-publish-panel { margin: 8px 0; padding: 8px 10px; border: 1px solid rgba(127,127,127,.35); border-radius: 8px; }
-    .draft-publish-panel summary { cursor: pointer; font-weight: 600; }
-    .draft-publish-hint { margin: 6px 0; font-size: 12px; opacity: .75; }
-    .draft-publish-card { padding: 8px 0; border-top: 1px solid rgba(127,127,127,.2); }
-    .draft-publish-title { font-size: 13px; margin-bottom: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .draft-publish-controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-    .draft-publish-controls input { min-width: 0; }
+    .draft-slot-controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0; font-size: 12px; }
+    .draft-slot-controls input { min-width: 0; }
+    .card-status.draft { color: #f5a524; }
 </style>
 
 </head>
@@ -4137,7 +4133,7 @@
 
         </div>
 
-        <span class="batch-engine-tag">Engine v0.6.0</span>
+        <span class="batch-engine-tag">Engine v0.7.0</span>
 
       </div>
 
@@ -4336,12 +4332,6 @@
 
     </div>
 
-    <details id="draftPublishPanel" class="draft-publish-panel" hidden>
-      <summary>แบบร่างที่รอเผยแพร่ (<span id="draftPublishCount">0</span>)</summary>
-      <p class="draft-publish-hint">คลิปที่บันทึกเป็นแบบร่างบน TikTok แล้ว — เปิดแบบร่างเดิมแล้วตั้งเวลาหรือโพสต์ต่อ ไม่อัปโหลดซ้ำ (ช่องตั้งเวลาเต็ม 30 โพสต์ตอนนี้ได้อย่างเดียว)</p>
-      <div id="draftPublishList" class="draft-publish-list"></div>
-    </details>
-
     <div class="search-filter-bar">
 
       <div class="search-box">
@@ -4366,6 +4356,7 @@
     <div class="filter-chips-bar" id="filterChipsBar">
       <button type="button" class="filter-chip active" data-filter="all">ทั้งหมด (<span id="filterCountAll">0</span>)</button>
       <button type="button" class="filter-chip" data-filter="ready">รอโพสต์ (<span id="filterCountReady">0</span>)</button>
+      <button type="button" class="filter-chip" data-filter="draft">แบบร่าง (<span id="filterCountDraft">0</span>)</button>
       <button type="button" class="filter-chip" data-filter="scheduled">กำหนดเวลาแล้ว (<span id="filterCountScheduled">0</span>)</button>
       <button type="button" class="filter-chip" data-filter="unscheduled">ไม่มีเวลา (<span id="filterCountUnscheduled">0</span>)</button>
     </div>

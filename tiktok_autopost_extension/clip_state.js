@@ -4,7 +4,8 @@
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (root) root.OmniCutClipState = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, () => {
-  const ACTIVE_QUEUE_STATUSES = new Set(['planned', 'ready_for_extension', 'awaiting_post', 'failed']);
+  // draft_on_platform: saved as a draft on TikTok, waiting to be published from there (never re-uploaded)
+  const ACTIVE_QUEUE_STATUSES = new Set(['planned', 'ready_for_extension', 'awaiting_post', 'failed', 'draft_on_platform']);
 
   function normalisePath(value) {
     return String(value || '').replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase();
@@ -39,6 +40,7 @@
         rel_path: item.rel_path || item.video_path,
         name: item.name || item.project_name || item.video_path,
         is_scheduled: true,
+        ...(item.status === 'draft_on_platform' ? { is_draft: true, publish_draft: true, force_mode: 'schedule' } : {}),
       }));
     const scheduledKeys = new Set(scheduled.map(clipKey).filter(Boolean));
     const unscheduled = exportsList
@@ -48,6 +50,7 @@
   }
 
   function getExtensionStatus(item) {
+    if (item?.is_draft) return { kind: 'draft', label: 'แบบร่างบน TikTok รอเผยแพร่' };
     return item?.is_scheduled
       ? { kind: 'scheduled', label: 'จัดเวลาโพสต์แล้ว' }
       : { kind: 'unscheduled', label: 'ตัดต่อเสร็จแล้ว แต่ยังไม่ได้จัดเวลา' };
