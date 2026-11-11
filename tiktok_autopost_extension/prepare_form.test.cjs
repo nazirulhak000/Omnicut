@@ -51,3 +51,13 @@ test('queued writes retain the newest edit and a failed save can be retried',asy
   await assert.rejects(()=>store.save(values),/storage full/);fail=false;
   await store.save(values);assert.equal((await store.load()).caption,values.caption);
 });
+test('the completed MONSTER AC530 caption and 06:40 slot pass at 01:00 Bangkok',()=>{
+  const complete={...values,caption:'บอกลาอาการเจ็บหู! อัปเกรดชีวิตด้วย หูฟังเปิดหู MONSTER AC530 หูฟัง Open-Ear ใส่สบาย เบสแน่น พิกัดในตะกร้าเลย 👇',hashtags:'#นายหน้าtiktok #รีวิวหูฟัง #MONSTERAC530 #หูฟังเปิดหู #tiktokป้ายยา',date:'2026-11-12',time:'06:40'};
+  const result=form.validate(item,complete,guard,{},Date.parse('2026-11-12T01:00:00+07:00'));
+  assert.deepEqual(result.issues,[]);assert.ok(result.item);
+});
+test('structured backend validation errors retain a readable reason and field',()=>{
+  assert.equal(form.describeError({detail:'งานเดิมยังไม่เสร็จ',code:'posting_instance_busy'},409),'posting_instance_busy: งานเดิมยังไม่เสร็จ');
+  assert.match(form.describeError({detail:[{loc:['body','schedule_time'],msg:'Field required'}]},422),/body.schedule_time: Field required/);
+  assert.equal(form.describeError({},503),'HTTP 503');
+});

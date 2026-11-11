@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round CODEX-AUTOPOST-PREPARE-ACK-20261112 | 0.10.5 รอ backend prepare/claim ก่อนปิด dialog, inline errors/retry และ old-job handoff; Node 272/272, real sidebar mouse tests 38/38, backend read-only 27/27 compatibility | 2026-11-12 | ดำเนินการโดย: Codex (GPT-6) |
 | Round CODEX-AUTOPOST-PREPARE-SAVE-FEEDBACK-20261112 | 0.10.4 ฟอร์ม autosave/บันทึกข้อมูลใน extension แยกคลิป/ช่อง, restore หลัง reload, แจ้ง placeholder และวันที่/เวลา; Node 270/270, sidebar 33/33, backend read-only 27/27 compatibility | 2026-11-12 | ดำเนินการโดย: Codex (GPT-6) |
 | Round CODEX-AUTOPOST-PREPARE-AND-HARDENING-20261112 | เตรียมคลิปเปิดแก้ caption/slot ได้ก่อน claim; Smart quota, complete Drafts scan, atomic run lock, frozen context และ recovery ตามจริง; 0.10.3, Node 266/266, docked sidebar 28/28, real backend 27/27 compatibility; ไม่โพสต์จริง | 2026-11-12 | ดำเนินการโดย: Codex (GPT-6) |
 | Round CODEX-AUTOPOST-HELPER-AUDIT-PLAN-20261111 | ตรวจ extension v0.10.1 และจัดแผน 8 ประเด็น / 4 รอบ; Node 211/211, isolated probes พบช่องว่าง 4 กรณี; ไม่แก้โค้ดหรือโพสต์จริง | 2026-11-11 | ดำเนินการโดย: Codex (GPT-6) |
@@ -18779,3 +18780,13 @@ Plan before code:
 - [x] Jev ก่อนเริ่ม/ก่อน commit confidence 1.00; report disclosure 2.98/3 confidence 0.98 จากข้อความ ไม่ใช่หลักฐานโค้ด
 - [x] รายงาน `_Docs/Reports/AUTOPOST_PREPARE_SAVE_20261112.md`; รุ่น 0.10.4; ลบภาพทดสอบ/download/state หลังตรวจ
 - Notes: เก็บเฉพาะข้อมูลฟอร์มในเครื่อง ไม่เขียนทับคิวส่วนกลางหรือ runtime dirty เดิม; ไม่โพสต์ TikTok จริง; เจ้าของต้อง reload extension
+
+## Round CODEX-AUTOPOST-PREPARE-ACK-20261112
+ดำเนินการโดย: Codex (GPT-6) · วันที่: 2026-11-12
+
+- [x] ตรวจชุดข้อความ MONSTER AC530 และ 06:40 กับ guard จริง: ผ่านที่ 01:00 Bangkok; ยังไม่ทราบ live click error เดิม ไม่กล่าวหาว่าข้อมูลผู้ใช้ผิด
+- [x] คง dialog จน backend prepare และ worker claim ยืนยัน; direct click handler + inline JS/API error; เก็บข้อมูลเมื่อ error และ retry ได้; ป้องกัน double submit/ปิดระหว่าง handoff
+- [x] manual prepare ใช้ release/park guard เดิมก่อนรับ job ใหม่; ไม่ force-release งานที่ attempt แล้ว; structured API errors อ่านได้พร้อมชื่อ field
+- [x] Node extension+conductor 272/272; docked sidebar mouse events จริง + fixtures 38/38 รวม rejected/delayed/retried acknowledgement; backend read-only 27/27 compatibility หลังแก้เครื่องมือให้รอโหลดรายการ; compile/diff check ผ่าน
+- [x] Jev scope confidence 1.00, report disclosure 2.94/3 confidence 0.95 จากข้อความ; รายงาน `_Docs/Reports/AUTOPOST_PREPARE_ACK_20261112.md`
+- Notes: ไม่มี prepare/claim/post ของคิวจริงระหว่างทดสอบ; คิว/exports/pending hash เท่ากัน; ไม่ลอง debug profile ที่ถูกปฏิเสธซ้ำ; ลบภาพทดสอบหลังตรวจ; รุ่น 0.10.5 ต้อง reload extension

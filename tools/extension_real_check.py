@@ -78,6 +78,7 @@ with sync_playwright() as p:
     page.on("console", lambda m: errors.append("console: " + m.text[:160]) if m.type == "error" else None)
     page.goto(f"chrome-extension://{ext_id}/sidepanel.html")
     page.wait_for_timeout(6000)
+    page.wait_for_function("() => document.querySelectorAll('.card').length > 0 || !!document.querySelector('#list .error')", timeout=45000)
 
     # Covers are lazy-loaded below the batch controls. Scroll them into view before
     # asserting their decoded size; a lazy image off-screen is not a load failure.

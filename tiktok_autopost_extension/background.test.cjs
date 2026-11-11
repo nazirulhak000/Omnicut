@@ -1016,7 +1016,7 @@ test('stats sync accepts the real Studio posts page and stamps a visible build t
   // Build identity: chrome://extensions + the Tools tab both prove the fresh
   // code is running, so stale cached sidepanel.js (the ghost "จำกัดโดเมน"
   // banner that never existed in this repo) can be caught by the user's eyes.
-  assert.equal(manifest.version, '0.10.4');
+  assert.equal(manifest.version, '0.10.5');
   assert.equal(manifest.content_scripts, undefined, 'no legacy content script');
   for (const gone of ['batch_runner.js', 'batch_runner.test.cjs', 'content_script.js', 'popup.html', 'popup.js']) assert.ok(!fs.existsSync(path.join(__dirname, gone)), gone + ' must stay deleted');
   assert.match(sideHtml, /id="buildTag"/);
@@ -1647,7 +1647,7 @@ test('R3 panel wiring: one run at a time, no legacy runner, manual prepare guard
   assert.match(side, /requiredActions:/);
   assert.match(side, /runnerModule\.finalVerdict\(summary\)/);
   // the manual prepare route runs the same content/status guard as the batch
-  const manual = side.slice(side.indexOf('async function prepareClip(item)'), side.indexOf('async function prepareClip(item)') + 900);
+  const manual = side.slice(side.indexOf('async function prepareClip(item,'), side.indexOf('async function prepareClip(item,') + 1300);
   assert.match(manual, /clipSkipReason/);
   // worker answers carry postAttempted so the orchestrator can tell "unknown" from "failed"
   const bg = fs.readFileSync(path.join(__dirname, 'background.js'), 'utf8');

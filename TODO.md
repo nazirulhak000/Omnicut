@@ -4,6 +4,8 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round CODEX-AUTOPOST-PREPARE-ACK-20261112 · 0.10.5 รอ prepare/claim ยืนยันก่อนปิด modal, inline error/retry, guarded old-job handoff; Node 272/272, sidebar mouse-click 38/38, read-only backend 27/27 compatibility → [_Docs/Reports/AUTOPOST_PREPARE_ACK_20261112.md](_Docs/Reports/AUTOPOST_PREPARE_ACK_20261112.md), HISTORY.md · ดำเนินการโดย: Codex (GPT-6)
+
 - [x] Round CODEX-AUTOPOST-PREPARE-SAVE-FEEDBACK-20261112 · 0.10.4 บันทึกฟอร์มอัตโนมัติ/ปุ่มบันทึก แยกคลิปและช่อง, restore หลัง reload, แจ้ง placeholder/slot ครบ; Node 270/270, sidebar 33/33, read-only backend 27/27 compatibility → [_Docs/Reports/AUTOPOST_PREPARE_SAVE_20261112.md](_Docs/Reports/AUTOPOST_PREPARE_SAVE_20261112.md), HISTORY.md · ดำเนินการโดย: Codex (GPT-6)
 
 - [x] Round CODEX-AUTOPOST-PREPARE-AND-HARDENING-20261112 · เสร็จ 0.10.3; Node 266/266, sidebar 28/28, backend 27/27; ผู้ใช้ยืนยัน commit/merge หลัง Jev gate แล้ว → [_Docs/Reports/AUTOPOST_PREPARE_HARDENING_20261112.md](_Docs/Reports/AUTOPOST_PREPARE_HARDENING_20261112.md), HISTORY.md · ดำเนินการโดย: Codex (GPT-6)
@@ -14,7 +16,7 @@
   - [x] Node extension+conductor 259/259; docked sidebar จริงกับ fixtures 17/17; backend จริง 27/27 ในโหมด compatibility รูปปก (strict resize ยังตอบ 1080px)
   - [x] บันทึกผล/ข้อจำกัดใน `_Docs/Reports/AUTOPOST_P0_IMPLEMENTATION_20261112.md`; ไม่โพสต์จริง ไม่เขียนคิวจริง
   - [x] ผู้ใช้ตัดสินใจตาม Jev gate ให้ทดสอบบัญชี TikTok จริงเพิ่มเติม (2026-11-12)
-  - [ ] ตรวจบัญชีจริง/side panel/Drafts inventory และหลักฐาน P0 ผ่าน session เดิมแบบ read-only ก่อนสรุปรอบ; ยังไม่ commit/merge/ปิดรอบ
+  - [ ] ตรวจบัญชีจริง/side panel/Drafts inventory และหลักฐาน P0 ผ่าน session เดิมแบบ read-only ก่อนสรุปรอบ; โค้ด implementation รวม main แล้ว แต่การตรวจบัญชีจริงยังค้าง
     - ติดข้อจำกัด: automatic approval review ปฏิเสธเปิด Chrome โปรไฟล์เดิมพร้อมพอร์ต debug 9333 (`blocked by policy`); ยังไม่มี debug session ให้เชื่อมต่อ และไม่ได้ตรวจบัญชีจริง
   - Notes: รักษางาน dirty เดิมทั้งหมด; ผู้ใช้อนุญาตแก้ P0 และทดสอบ sidebar จริง; ไม่สุ่มเผยแพร่คลิปจากคิวจริงเพื่อทดสอบ
 

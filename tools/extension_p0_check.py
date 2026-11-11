@@ -56,6 +56,17 @@ class Sidebar:
             raise RuntimeError(str(result['exceptionDetails']))
         return result.get('result', {}).get('value')
 
+    def click(self, selector):
+        point = self.evaluate('''(() => {
+            const button=document.querySelector(''' + json.dumps(selector) + ''');
+            button.scrollIntoView({block:'center'});
+            const r=button.getBoundingClientRect(),x=r.x+r.width/2,y=r.y+r.height/2;
+            if(!button.contains(document.elementFromPoint(x,y)))throw Error('Click target is covered');
+            return {x,y};
+        })()''')
+        self.call('Input.dispatchMouseEvent', {'type':'mousePressed', **point, 'button':'left', 'clickCount':1})
+        self.call('Input.dispatchMouseEvent', {'type':'mouseReleased', **point, 'button':'left', 'clickCount':1})
+
 
 def main():
     checks = []
@@ -165,9 +176,9 @@ def main():
             check('cancelled confirmation sends no backend writes', not writes and sidebar.evaluate('fixtureWrites.length') == 0, writes)
 
             # The reported Prepare button must open editable data even when the batch guard blocks it.
-            worker.evaluate("() => {fetchPendingJob=async()=>({job_id:'fixture-prepare',channel_id:'main'});}")
+            worker.evaluate("() => {globalThis.originalManualRelease=releasePostingJob;globalThis.manualHandoff=false;releasePostingJob=async()=>{manualHandoff=true;return {success:true,released:true};};fetchPendingJob=async()=>{if(!manualHandoff)throw Error('posting_instance_busy');return {job_id:'fixture-prepare',channel_id:'main'};};}")
             sidebar.evaluate('''globalThis.originalFixtureFetch=authedFetch;globalThis.preparePayloads=[];
-              authedFetch=async(url,key,options={})=>{if(url.endsWith('/prepare')){const body=JSON.parse(options.body);preparePayloads.push(body);return new Response(JSON.stringify({job_id:'fixture-prepare',protocol_version:2,channel_id:'main'}),{status:200});}return originalFixtureFetch(url,key,options);};
+              authedFetch=async(url,key,options={})=>{if(url.endsWith('/prepare')){const body=JSON.parse(options.body);preparePayloads.push(body);if(globalThis.rejectPrepare)return new Response(JSON.stringify({detail:'fixture_prepare_rejected'}),{status:422});if(globalThis.prepareResponseGate)await prepareResponseGate;return new Response(JSON.stringify({job_id:'fixture-prepare',protocol_version:2,channel_id:'main'}),{status:200});}return originalFixtureFetch(url,key,options);};
               globalThis.originalOpenUpload=openTikTokUploadTab;openTikTokUploadTab=async()=>({id:0});
               globalThis.originalLoadExports=loadExports;loadExports=async()=>{};
               exportRecordIndex=new Map([['exp-1',{export_id:'exp-1'}]]);
@@ -214,9 +225,24 @@ def main():
             sidebar.evaluate("document.getElementById('clipSetupCaption').value='Feature works well';document.getElementById('clipSetupIntent').value='schedule';document.getElementById('clipSetupIntent').dispatchEvent(new Event('change'));document.getElementById('clipSetupForm').requestSubmit()")
             opener.wait_for_timeout(250)
             check('missing schedule cannot silently become a live post', sidebar.evaluate('preparePayloads.length===0'))
-            sidebar.evaluate("document.getElementById('clipSetupDate').value='2030-01-01';document.getElementById('clipSetupTime').value='12:00';exportRecordIndex=new Map([['exp-1',{export_id:'exp-1'}]]);document.getElementById('clipSetupForm').requestSubmit()")
+            sidebar.evaluate("document.getElementById('clipSetupDate').value='2030-01-01';document.getElementById('clipSetupTime').value='12:00';exportRecordIndex=new Map([['exp-1',{export_id:'exp-1'}]]);globalThis.rejectPrepare=true")
+            sidebar.click('#clipSetupPrepare')
             opener.wait_for_timeout(500)
-            check('corrected caption and explicit slot prepare a claimed job', sidebar.evaluate("preparePayloads.length===1 && preparePayloads[0].intent==='schedule' && preparePayloads[0].caption==='Feature works well' && activeClip?.job_id==='fixture-prepare'"), sidebar.evaluate("({payloads:preparePayloads,active:activeClip,status:document.getElementById('status').textContent})"))
+            check('actual Prepare click retains the form and shows backend rejection inline', sidebar.evaluate("document.querySelector('.clip-setup-dialog')?.open===true && document.getElementById('clipSetupError').textContent.includes('fixture_prepare_rejected') && activeClip===null"))
+            check('rejected preparation preserves saved fields and permits retry', sidebar.evaluate("document.getElementById('clipSetupCaption').value==='Feature works well' && document.getElementById('clipSetupDate').value==='2030-01-01' && !document.getElementById('clipSetupPrepare').disabled"))
+            screenshot = sidebar.call('Page.captureScreenshot', {'format':'png'})
+            (ROOT / '.tmp' / 'autopost-prepare-error.png').write_bytes(base64.b64decode(screenshot['data']))
+            sidebar.evaluate("globalThis.rejectPrepare=false;globalThis.prepareResponseGate=new Promise(resolve=>globalThis.releasePrepareResponse=resolve);exportRecordIndex=new Map([['exp-1',{export_id:'exp-1'}]])")
+            sidebar.click('#clipSetupPrepare')
+            opener.wait_for_timeout(250)
+            check('dialog stays open and disables repeat clicks while awaiting backend acknowledgement', sidebar.evaluate("document.querySelector('.clip-setup-dialog')?.open===true && document.getElementById('clipSetupPrepare').disabled && preparePayloads.length===2"))
+            sidebar.evaluate("document.getElementById('clipSetupPrepare').click()")
+            check('repeat click cannot send a duplicate prepare request', sidebar.evaluate('preparePayloads.length===2'))
+            sidebar.evaluate('releasePrepareResponse();true')
+            opener.wait_for_timeout(500)
+            check('corrected caption and explicit slot prepare a claimed job', sidebar.evaluate("preparePayloads.length===2 && preparePayloads[1].intent==='schedule' && preparePayloads[1].caption==='Feature works well' && activeClip?.job_id==='fixture-prepare' && !document.querySelector('.clip-setup-dialog')"), sidebar.evaluate("({payloads:preparePayloads,active:activeClip,status:document.getElementById('status').textContent})"))
+            check('manual preparation performs the guarded old-job handoff before claiming', worker.evaluate('manualHandoff'))
+            worker.evaluate('() => {releasePostingJob=originalManualRelease;}')
             sidebar.evaluate("activeClip=null;resetChecklist();renderActiveClipBanner();openTikTokUploadTab=originalOpenUpload;authedFetch=originalFixtureFetch;loadExports=originalLoadExports")
             sidebar.evaluate("globalThis.knownProductForm=OmniPrepareForm.open({export_id:'known-product',product_name:'MONSTER AC530',caption:'Review {product_name}'},{guard:OmniPostGuard,record:{},channelId:'main'});true")
             opener.wait_for_timeout(200)

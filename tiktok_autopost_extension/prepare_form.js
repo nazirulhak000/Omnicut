@@ -51,7 +51,13 @@
     if (!result.item && !issues.length) issues.push({field: result.code === 'slot_passed_or_too_close' ? 'Date' : 'Caption', message: result.error || reasons[result.code] || result.code});
     return issues.length ? {issues} : {...result, issues: []};
   }
-  async function open(item, {guard, record, exportsKnown = true, reasons = {}, channelId, storage = globalThis.chrome?.storage?.local}) {
+  function describeError(body, status) {
+    let detail = body?.detail ?? body?.message ?? body?.error;
+    if (Array.isArray(detail)) detail = detail.map(entry => `${(entry.loc || []).join('.')}: ${entry.msg || JSON.stringify(entry)}`).join(' · ');
+    else if (detail && typeof detail === 'object') detail = detail.message || JSON.stringify(detail);
+    return `${body?.code ? body.code + ': ' : ''}${detail || `HTTP ${status || 'error'}`}`;
+  }
+  async function open(item, {guard, record, exportsKnown = true, reasons = {}, channelId, onPrepare, storage = globalThis.chrome?.storage?.local}) {
     const store = createStore(storage, {channelId, clipId: item.export_id || item.id || item.rel_path, queueId: item.is_scheduled ? item.id : ''});
     const saved = await store.load();
     const initial = saved || {caption: item.tiktok_caption || item.caption || '', hashtags: item.tiktok_hashtags || item.hashtags || '',
@@ -64,13 +70,13 @@
       dialog.setAttribute('aria-labelledby', 'clipSetupTitle');
       dialog.innerHTML = `<form id="clipSetupForm" novalidate><h2 id="clipSetupTitle">เตรียมข้อมูลคลิป</h2>
         <p>บันทึกข้อมูลไว้ใน extension เครื่องนี้ได้แม้ยังกรอกไม่ครบ การเตรียมคลิปยังไม่อัปโหลดหรือเผยแพร่</p>
-        <p id="clipSetupError" role="alert"></p>
+        <p id="clipSetupError" role="alert" tabindex="-1"></p>
         <label for="clipSetupCaption">คำอธิบายคลิป</label><textarea id="clipSetupCaption" rows="4" aria-describedby="clipSetupError"></textarea>
         <label for="clipSetupTags">แฮชแท็ก</label><input id="clipSetupTags" type="text" aria-describedby="clipSetupError">
         <label for="clipSetupIntent">รูปแบบการเตรียม</label><select id="clipSetupIntent"><option value="schedule">ตั้งเวลาโพสต์</option><option value="draft">บันทึกเป็นแบบร่างบน TikTok</option></select>
         <div id="clipSetupSlot"><label for="clipSetupDate">วันที่โพสต์</label><input id="clipSetupDate" type="date" aria-describedby="clipSetupError"><label for="clipSetupTime">เวลาโพสต์</label><input id="clipSetupTime" type="time" step="300" aria-describedby="clipSetupError"><p>เลือกเวลาอย่างน้อย 15 นาทีข้างหน้า</p></div>
         <p id="clipSetupSaveStatus" role="status"></p>
-        <div class="row"><button id="clipSetupCancel" type="button">ปิด</button><button id="clipSetupSave" type="button">บันทึกข้อมูล</button><button class="btn-primary" type="submit">เตรียมคลิปต่อ</button></div></form>`;
+        <div class="row"><button id="clipSetupCancel" type="button">ปิด</button><button id="clipSetupSave" type="button">บันทึกข้อมูล</button><button id="clipSetupPrepare" class="btn-primary" type="button">เตรียมคลิปต่อ</button></div></form>`;
       document.body.appendChild(dialog);
       const field = id => dialog.querySelector('#clipSetup' + id);
       field('Caption').value = initial.caption; field('Tags').value = initial.hashtags;
@@ -88,7 +94,7 @@
           if (current === sequence) field('SaveStatus').textContent = 'บันทึกข้อมูลแล้วใน extension เปิดกลับมาแก้ต่อได้';
           return true;
         } catch (err) {
-          if (current === sequence) field('SaveStatus').textContent = `บันทึกไม่สำเร็จ: ${err.message}`;
+          if (current === sequence) field('SaveStatus').textContent = `บันทึกไม่สำเร็จ: ${err?.message || String(err)}`;
           return false;
         }
       }
@@ -99,12 +105,12 @@
       field('Form').addEventListener('input', () => { clearErrors(); saveEdits(); });
       field('Form').addEventListener('change', () => { sync(); clearErrors(); saveEdits(); });
       field('Save').onclick = saveEdits;
-      let finished = false, submitting = false;
+      let finished = false, submitting = false, preparingJob = false;
       async function finish(value) { if (finished) return; finished = true; await saveEdits(); dialog.close(); dialog.remove(); resolve(value); }
-      field('Cancel').onclick = () => finish(null);
-      dialog.addEventListener('cancel', event => { event.preventDefault(); finish(null); });
-      field('Form').addEventListener('submit', async event => {
-        event.preventDefault();
+      field('Cancel').onclick = () => { if (!preparingJob) finish(null); };
+      dialog.addEventListener('cancel', event => { event.preventDefault(); if (!preparingJob) finish(null); });
+      async function prepare(event) {
+        event?.preventDefault();
         if (submitting || finished) return;
         submitting = true;
         try {
@@ -119,11 +125,28 @@
           field(result.issues[0].field).focus();
           return;
         }
+        if (onPrepare) {
+          preparingJob = true;
+          for (const id of ['Caption', 'Tags', 'Date', 'Time', 'Intent', 'Save', 'Cancel', 'Prepare']) field(id).disabled = true;
+          field('Prepare').textContent = 'กำลังเตรียมคลิป';
+          field('SaveStatus').textContent = 'บันทึกข้อมูลแล้ว กำลังรอระบบยืนยันเตรียมคลิป';
+          await onPrepare(result.item);
+        }
         await finish(result.item);
-        } finally { submitting = false; }
-      });
+        } catch (err) {
+          field('Error').textContent = `เตรียมคลิปไม่สำเร็จ: ${err?.message || String(err)}`;
+          field('SaveStatus').textContent = 'ข้อมูลที่กรอกยังบันทึกอยู่ แก้สาเหตุแล้วลองเตรียมอีกครั้งได้';
+          field('Error').focus();
+        } finally {
+          preparingJob = false; submitting = false;
+          for (const id of ['Caption', 'Tags', 'Date', 'Time', 'Intent', 'Save', 'Cancel', 'Prepare']) field(id).disabled = false;
+          field('Prepare').textContent = 'เตรียมคลิปต่อ';
+        }
+      }
+      field('Prepare').onclick = prepare;
+      field('Form').addEventListener('submit', prepare);
       sync(); dialog.showModal(); field('Caption').focus();
     });
   }
-  return {build, validate, fillProductName, createStore, open};
+  return {build, validate, fillProductName, createStore, describeError, open};
 });

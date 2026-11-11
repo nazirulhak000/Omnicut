@@ -1812,17 +1812,21 @@ async function handlePrepareClick(item) {
   const record = exportRecordIndex?.get(item.export_id);
   const hardCode = globalThis.OmniPostGuard.clipSkipReason(item, record, Date.now(), {exportsKnown:Boolean(exportRecordIndex),ignoreSlot:true});
   if (['export_missing','export_already_posted','export_qc_rejected'].includes(hardCode)) {setStatus(BLOCK_REASON_TH[hardCode] || hardCode,'error');return;}
-  const edited = await globalThis.OmniPrepareForm.open(item,{guard:globalThis.OmniPostGuard,record,exportsKnown:Boolean(exportRecordIndex),reasons:BLOCK_REASON_TH,channelId:channel});
-  if (!edited) return;
-  if (channel !== activeChannelId || epoch !== channelEpoch) throw new Error('ช่องเปลี่ยนแล้ว กรุณาเตรียมคลิปใหม่');
-  await prepareClip(edited);
+  await globalThis.OmniPrepareForm.open(item,{
+    guard:globalThis.OmniPostGuard,record,exportsKnown:Boolean(exportRecordIndex),reasons:BLOCK_REASON_TH,channelId:channel,
+    onPrepare:async edited => {
+      if (channel !== activeChannelId || epoch !== channelEpoch) throw new Error('ช่องเปลี่ยนแล้ว กรุณาเตรียมคลิปใหม่');
+      const prepared = await prepareClip(edited, {throwOnError:true});
+      if (!prepared?.job_id) throw new Error('ระบบยังไม่ยืนยันรับงานเตรียมคลิป กรุณาลองใหม่');
+    },
+  });
   } catch (err) {setStatus(err.message,'error');}
   finally {preparingClip = false;}
 
 }
 
-async function prepareClip(item) {
-  if (busy) return;
+async function prepareClip(item, {throwOnError = false} = {}) {
+  if (busy) { if (throwOnError) throw new Error('มีขั้นตอนอื่นกำลังทำงาน กรุณารอแล้วลองใหม่'); return null; }
   // the manual route had no guard at all: same rules as the batch (already posted, QC, price text, placeholders, past slot)
   const manualBlock = (() => {
     const guard = globalThis.OmniPostGuard;
@@ -1833,7 +1837,8 @@ async function prepareClip(item) {
   })();
   if (manualBlock) {
     setStatus(`เตรียมคลิปนี้ไม่ได้: ${manualBlock}`, 'error');
-    return;
+    if (throwOnError) throw new Error(manualBlock);
+    return null;
   }
   setBusy(true);
 
@@ -1841,6 +1846,9 @@ async function prepareClip(item) {
 
   try {
 
+    // A restored worker may own a previous claim even when this panel has no active card.
+    // Use the same guarded handoff as the batch; attempted jobs are parked, never force-released.
+    await panelWorkerRequest({action:'release-posting-job', park:true});
     await panelWorkerRequest({action:'select-posting-channel', channelId:activeChannelId});
 
     const preparePayload = {
@@ -1930,7 +1938,7 @@ async function prepareClip(item) {
 
         const body = await res.json().catch(() => ({}));
 
-        throw new Error(body.detail || errBody.detail || `HTTP ${res.status}`);
+        throw new Error(globalThis.OmniPrepareForm.describeError(Object.keys(body).length ? body : errBody, res.status));
 
       }
 
@@ -1976,15 +1984,18 @@ async function prepareClip(item) {
 
       setStatus('เตรียมคลิปแล้ว แต่เปิดหน้าอัปโหลดไม่สำเร็จ: ' + openError.message, 'error');
 
-      return;
+      return activeClip;
 
     }
 
     setStatus('เตรียมคลิปแล้ว และเปิดหน้าอัปโหลดให้แล้ว ทำต่อได้เลย', 'success');
+    return activeClip;
 
   } catch (err) {
 
     setStatus('เตรียมคลิปไม่สำเร็จ: ' + err.message, 'error');
+    if (throwOnError) throw err;
+    return null;
 
   } finally {
 
