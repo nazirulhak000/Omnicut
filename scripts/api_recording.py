@@ -6,6 +6,7 @@ raw video the render pipeline can map onto script beats exactly.
 See C:\\Users\\Winon\\.claude\\plans\\cheeky-cooking-quokka.md (Phase B).
 """
 
+import asyncio
 import time
 from pathlib import Path
 from typing import Any, Dict
@@ -100,7 +101,8 @@ async def upload_recording_segment(
             buffer.write(chunk)
 
     try:
-        info = VideoEditor.get_media_info(str(dest_path))
+        # ffprobe is a blocking subprocess; keep it off the event loop.
+        info = await asyncio.to_thread(VideoEditor.get_media_info, str(dest_path))
         probed_duration = float(info.get("duration") or 0.0)
         if probed_duration <= 0:
             raise ValueError("ไฟล์วิดีโอที่อัปโหลดเสียหายหรือตรวจสอบความยาวไม่สำเร็จ")

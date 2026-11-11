@@ -597,7 +597,8 @@ def test_middleware_order_on_real_app():
 
     names = [m.cls.__name__ for m in app.user_middleware]
     # MaintenanceGateMiddleware (P2.3) is the innermost layer: 503 for writes during migration.
-    assert names == ["CORSMiddleware", "AuthGateMiddleware", "ChannelScopeMiddleware", "MaintenanceGateMiddleware"]
+    # GZipMiddleware is added last, so it is outermost and compresses every reply (added 2026-11-11).
+    assert names == ["GZipMiddleware", "CORSMiddleware", "AuthGateMiddleware", "ChannelScopeMiddleware", "MaintenanceGateMiddleware"]
 
 
 def test_cors_preflight_allows_channel_header(monkeypatch, registry):

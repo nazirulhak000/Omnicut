@@ -3,8 +3,12 @@ Lightning-Fast Bilingual Subtitle Translator (Thai -> English)
 Uses 1-shot batch translation & dictionary mapping to achieve < 0.5s translation speed.
 """
 
+import json
+import os
 import sys
 import re
+import tempfile
+import threading
 import time
 from typing import Dict, List, Optional
 from concurrent.futures import ThreadPoolExecutor
@@ -65,6 +69,77 @@ class SubtitleTranslator:
 
     _CACHE: Dict[str, str] = {}
 
+    # Translations survive a backend restart: the same Thai clause is asked
+    # for again on every subtitle re-roll and re-render, and each miss costs a
+    # network round trip (measured 2.5-8s per clause once the free Google
+    # endpoint starts refusing). Keyed by the exact text sent to the provider.
+    _DISK_LOCK = threading.Lock()
+    _disk_cache: Dict[str, str] = {}
+    _disk_cache_path = None
+    _disk_dirty = False
+
+    # The free Google endpoint answers TooManyRequests for a long stretch once
+    # it starts (observed across a whole day). Retrying it for every clause
+    # only adds failed attempts and sleeps before the fallback provider is
+    # used anyway, so after a refusal it is skipped for a while.
+    GOOGLE_COOLDOWN_SECONDS = 600.0
+    _google_blocked_until = 0.0
+
+    @classmethod
+    def _cache_file(cls):
+        from scripts import config
+        return config.PROJECTS_DIR / ".cache" / "subtitle_translations.json"
+
+    @classmethod
+    def _load_disk_cache_locked(cls) -> None:
+        path = cls._cache_file()
+        if cls._disk_cache_path == path:
+            return
+        cls._disk_cache_path = path
+        cls._disk_cache = {}
+        cls._disk_dirty = False
+        try:
+            loaded = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return
+        if isinstance(loaded, dict):
+            cls._disk_cache = {
+                k: v for k, v in loaded.items()
+                if isinstance(k, str) and isinstance(v, str) and v
+            }
+
+    @classmethod
+    def _disk_lookup(cls, text: str) -> Optional[str]:
+        with cls._DISK_LOCK:
+            cls._load_disk_cache_locked()
+            return cls._disk_cache.get(text)
+
+    @classmethod
+    def _remember(cls, text: str, translated: str) -> None:
+        cls._CACHE[text] = translated
+        with cls._DISK_LOCK:
+            cls._load_disk_cache_locked()
+            if cls._disk_cache.get(text) != translated:
+                cls._disk_cache[text] = translated
+                cls._disk_dirty = True
+
+    @classmethod
+    def _flush_disk_cache(cls) -> None:
+        """Write new translations atomically; a failure only costs the cache."""
+        with cls._DISK_LOCK:
+            if not cls._disk_dirty or cls._disk_cache_path is None:
+                return
+            path = cls._disk_cache_path
+            try:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                fd, tmp_name = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=str(path.parent))
+                with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                    json.dump(cls._disk_cache, handle, ensure_ascii=False, indent=0, sort_keys=True)
+                os.replace(tmp_name, path)
+                cls._disk_dirty = False
+            except OSError:
+                pass
+
     @classmethod
     def _translate_single(cls, text: str, custom_dict: Optional[Dict[str, str]] = None) -> str:
         if not text:
@@ -76,6 +151,10 @@ class SubtitleTranslator:
             return cls.DICT[norm_text]
         if text in cls._CACHE:
             return cls._CACHE[text]
+        stored = cls._disk_lookup(text)
+        if stored:
+            cls._CACHE[text] = stored
+            return stored
         # One attempt used to be the whole story: a single hiccup (and the
         # free endpoint rate-limits readily when several phrases go out at
         # once) returned "" and that cue simply never got an English line.
@@ -83,15 +162,19 @@ class SubtitleTranslator:
         # what a per-request limit looks like -- so retry with a short backoff
         # before giving up.
         for attempt in range(3):
+            if time.monotonic() < cls._google_blocked_until:
+                break
             try:
                 t = GoogleTranslator(source="auto", target="en")
                 res = t.translate(text)
                 if res and not any(sig in res for sig in ["Error 500", "500.", "That's an error", "<html", "<body"]):
                     cleaned = res.strip().replace("\n", " ").replace("\\", "")
-                    cls._CACHE[text] = cleaned
+                    cls._remember(text, cleaned)
                     return cleaned
-            except Exception:
-                pass
+            except Exception as exc:
+                if type(exc).__name__ == "TooManyRequests":
+                    cls._google_blocked_until = time.monotonic() + cls.GOOGLE_COOLDOWN_SECONDS
+                    break
             if attempt < 2:
                 time.sleep(0.4 * (attempt + 1))
 
@@ -106,7 +189,7 @@ class SubtitleTranslator:
             res = MyMemoryTranslator(source="th-TH", target="en-US").translate(text)
             if res and not any(sig in res for sig in ["Error 500", "500.", "That's an error", "<html", "<body"]):
                 cleaned = res.strip().replace("\n", " ").replace("\\", "")
-                cls._CACHE[text] = cleaned
+                cls._remember(text, cleaned)
                 return cleaned
         except Exception:
             pass
@@ -129,6 +212,7 @@ class SubtitleTranslator:
         # place; 3 with retries finishes about as fast and comes back whole.
         with ThreadPoolExecutor(max_workers=3) as executor:
             results = list(executor.map(lambda p: cls._translate_single(p, norm_custom), cleaned_phrases))
+        cls._flush_disk_cache()
 
         # Never fail silently: a missing English line is invisible in the ASS
         # (the cue just renders Thai-only), so say it out loud instead.

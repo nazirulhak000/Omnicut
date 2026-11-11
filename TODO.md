@@ -26,14 +26,18 @@
 
 - [x] Round ANTIGRAVITY-FIX-SECURITY-TEST-FIXTURE-LEAK-20261111 · แก้ไขปัญหา OMNICUT_APP_PASSWORD จาก .env รั่วไหลเข้าสู่ test environment ทำให้ tests/test_security_boundary_agent.py::test_unconfigured_lan_bind_is_rejected ผ่านไม่สมบูรณ์: เพิ่ม monkeypatch.delenv("OMNICUT_APP_PASSWORD", raising=False) และเพิ่ม os.environ["OMNICUT_APP_PASSWORD"] = "" ใน tests/conftest.py (Pytest security boundary 15/15 passed 100%, test_api_auth 91/91 passed 100%, parity 212/212 passed 100%) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
 
-- [ ] แผนงานช่วงถัดไป (Speed & System Hardening Phase 2 Implementation Roadmap):
-  - [ ] ข1 + ก1: แปลซับ — รวมหลายท่อนต่อ request (Batching) + Local File Cache ใน `scripts/bilingual_subtitles.py` (ลดเวลาร่างแรก ~120 วิ)
-  - [ ] ข2: ตัดการคำนวณเงาไล่ระดับ Hook (FFmpeg `geq` filter) เมื่อพ้นช่วง fade-in/out (ลดเวลาเรนเดอร์ 13.8 วิ)
-  - [ ] ก2: บันทึก Cache ผลทดสอบตัวเข้ารหัส (Encoder Probe Cache) ใน backend launch
-  - [ ] P0 Fix: แปลง `VideoEditor.get_media_info()` ใน `scripts/api_recording.py:103` สู่ `asyncio.to_thread`
-  - [ ] P0 Fix: ถอด `02_Assets` ออกจาก `allowed_roots` ของ `delete_file` ใน `scripts/api_videos.py:1208`
-  - [ ] P0 Fix: เพิ่ม backup `.bak` ก่อนเขียนทับ `draft_content.json` ใน `scripts/agent/omnicut_agent_tools.py:528`
-  - [ ] P1 Fix: เพิ่ม Global 500 JSON exception handler ใน `scripts/api_server.py:191`
+- [ ] Round CLAUDE-SPEED-AND-HARDENING-PHASE2-20261112 · ทำ roadmap ช่วงที่ 2 (ผู้ใช้สั่ง 2026-11-12 "เคลียร์ทุกเฟส") · กิ่ง `feat/speed-phase2` · รายละเอียด+ตัวเลข: [รายงานหัวข้อ 7](_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md) · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
+  - [x] ข2 · `scripts/video_editor.py`: แหล่งเงา Hook (`geq`) หยุดหลัง fade จบ — กราฟคลิป 43.6 วิ 40.07 → 23.43 วิ · framemd5 เหมือนกัน 1,307/1,307 · เรนเดอร์จริงผ่าน `VideoEditor` 270/270 เฟรมเหมือนกัน ไฟล์เท่ากันทุกไบต์ · ดูเฟรมด้วยตาแล้ว
+  - [x] ก1 · `scripts/translator.py`: cache คำแปลลงดิสก์ (`03_Projects/.cache/subtitle_translations.json`) — 32 ท่อน 79.8 → 0.01 วิ เมื่อเคยแปลแล้ว
+  - [x] ข1 (บางส่วน) · `scripts/translator.py`: Google ตอบ `TooManyRequests` แล้วเลิกลองซ้ำ 10 นาที — ครั้งแรก 79.8 → 26.2 วิ · **batching ไม่ได้ทำ**: Google ปฏิเสธเครื่องนี้ต่อเนื่อง ทดสอบไม่ได้ว่าบรรทัดอังกฤษยังตรงท่อนไทย
+  - [ ] ก2 · ไม่ทำ: ได้ 1.4 วิต่อการเปิด backend (ไม่ใช่ต่อคลิป) แต่ไดรเวอร์เปลี่ยนแล้วค่าที่จำไว้ทำให้เรนเดอร์ล้ม
+  - [x] P0 · `scripts/api_recording.py`: ffprobe ผ่าน `asyncio.to_thread`
+  - [ ] P0 · ถอด `02_Assets` จาก `delete_file` — **ไม่ทำ รอเจ้าของตัดสิน**: `SystemAssets.jsx:101` และ `MediaAssetsHub.jsx:209` ใช้ endpoint นี้ลบไฟล์ที่ผู้ใช้อัปโหลดเองหลังกดยืนยัน ถอดแล้วปุ่มลบสองหน้านั้นใช้ไม่ได้
+  - [x] P0 · `scripts/agent/omnicut_agent_tools.py`: สำเนา `draft_content.json.<เวลา>.bak` ก่อนเขียนทับ (เทสตรวจจากซอร์ส ยังไม่ได้รันกับดราฟต์ CapCut จริง)
+  - [x] P1 · `scripts/api_server.py`: error ที่ไม่มีใครจับตอบเป็น JSON 500 (ส่งชนิด error ไม่ส่งข้อความ กัน path หลุด; traceback ลง log)
+  - [x] เทสใหม่ `tests/test_speed_phase2.py` 10 ข้อผ่าน · แก้ `tests/test_channel_scope.py::test_middleware_order_on_real_app` ที่ล้มอยู่ก่อน (GZip ถูกเพิ่มรอบ 2026-11-11 แต่เทสไม่ได้อัปเดต)
+  - [x] pytest เต็มชุด (ไม่รวม `tests/motion_capture` เพราะรอบนี้ไม่แตะ UI): 5405 passed, 22 skipped, **1 failed** ใน 27:06 — `tests/test_background_isolation_sam2.py::test_sam2_preflight_check` ล้มเฉพาะตอนรันทั้งชุด รันเดี่ยวผ่านทั้งก่อนและหลังแก้ (ยังไม่ได้หาสาเหตุ) · `tests/motion_capture` ไม่ได้รัน
+  - ยังไม่ทำ: วัดเวลาเรนเดอร์ทั้ง pipeline ซ้ำหลังแก้ (harness ต้องยิง TTS ใหม่) · วัด editor ในเบราว์เซอร์ · วัดบนเครื่อง RTX 4060 · ข3–ข6
 
 - [x] Round CLAUDE-AUTOPOST-EXTENSION-WEB-QUALITY-20261111 · side panel ของ `tiktok_autopost_extension` v0.10.1: axe-core 389 → 0 จุด (ธีมมืด/สว่าง, 3 แท็บ, 320–400px), modal ยืนยัน + พรีวิวเป็น native `<dialog>`, แท็บมี keyboard pattern, รูปปก 540x960 → 160px lazy · ไม่แตะ logic โพสต์ → ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
   - [x] ตรวจกับ extension ที่โหลดจริงแล้ว (ผู้ใช้สั่ง 2026-11-11): `tools/extension_real_check.py` 27/27 ในโปรไฟล์ Chromium แยกที่ไม่มี login TikTok · คิว/exports ฝั่ง server เหมือนเดิมทุกไบต์
