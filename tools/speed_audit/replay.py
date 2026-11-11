@@ -65,6 +65,19 @@ def strip_gradient(graph):
     return out
 
 
+def gradient_enable(graph):
+    # Blend the scrim only while it can be visible; outside that window its alpha is 0.
+    m = re.search(r"if\(lt\(T\\,([\d.]+)\)\\,0\\,if\(lt\(T\\,([\d.]+)\)\\,1\\,max\(0\\,1-\(T-[\d.]+\)/([\d.]+)\)", graph)
+    if not m:
+        raise SystemExit("scrim alpha expression not found")
+    start, end = float(m.group(1)), float(m.group(2)) + float(m.group(3)) + 0.1
+    out, n = re.subn(r"(\[grad_alpha_\d+\]overlay=x=0:y=0:format=auto)",
+                     lambda k: f"{k.group(1)}:enable='between(t\\,{start:g}\\,{end:g})'", graph)
+    if not n:
+        raise SystemExit("scrim overlay not found")
+    return out
+
+
 def with_qa(graph):
     # B5 experiment: black/freeze detectors on a side branch of the same pass
     if not graph.endswith("[v_final]"):
@@ -131,6 +144,8 @@ def build(variant):
         graph = no_gradient(graph)
     if "stripgrad" in parts:
         graph = strip_gradient(graph)
+    if "gradenable" in parts:
+        graph = gradient_enable(graph)
     if "oldgrad" in parts:
         graph = old_gradient(graph)
     if "qa" in parts:

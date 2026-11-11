@@ -2772,10 +2772,22 @@ class VideoEditor:
             # 1307/1307 identical framemd5 on a 43.6s clip, 40.1s -> 23.4s.
             # (eof_action=pass was tried and changed 4 frames inside the fade.)
             scrim_source_dur = min(total_duration + 0.5, span_end + fade_tail + 0.5)
+            # The alpha depends on the row and the time, never on the column,
+            # so geq runs on a 2 px wide strip (yuva420p needs an even width)
+            # and nearest-neighbour scaling repeats that strip across the
+            # frame: 540x fewer expression evaluations, identical pixels
+            # (md5 of all 1274 filtered frames of a 42.5s clip unchanged).
             filter_complex.append(
-                f"color=c=black:s={VIDEO_WIDTH}x{grad_h}:d={scrim_source_dur:.6f}[{src}];"
-                f"[{src}]format=yuva420p,geq=lum='0':cb='128':cr='128':a='{alpha_expr}'[{alpha}];"
-                f"{current_v}[{alpha}]overlay=x=0:y=0:format=auto{out};"
+                f"color=c=black:s=2x{grad_h}:d={scrim_source_dur:.6f}[{src}];"
+                f"[{src}]format=yuva420p,geq=lum='0':cb='128':cr='128':a='{alpha_expr}',"
+                f"scale={VIDEO_WIDTH}:{grad_h}:flags=neighbor[{alpha}];"
+                # Outside the span and its fade the scrim alpha is 0, so the
+                # blend is switched off there and frames pass through as they
+                # are. The 0.1s margin covers the scrim source running at 25
+                # fps under a 30 fps frame: a frame just past the fade can
+                # still be paired with the last scrim frame before it.
+                f"{current_v}[{alpha}]overlay=x=0:y=0:format=auto"
+                f":enable='between(t\\,{span_start:g}\\,{span_end + fade_tail + 0.1:g})'{out};"
             )
             current_v = out
 

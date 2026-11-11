@@ -122,6 +122,39 @@ def test_sam2_preflight_check(monkeypatch, tmp_path):
     assert res["runtime"]["sam2_runtime"] is True
 
 
+def test_sam2_preflight_refuses_when_free_ram_is_too_low(monkeypatch, tmp_path):
+    """60 frames need about 1.7 GiB; with 1.5 GiB free the preflight must say no."""
+    from types import SimpleNamespace
+    from scripts.api_background_isolation import (
+        BackgroundIsolationProcessRequest,
+        _background_isolation_preflight,
+    )
+    import scripts.api_background_isolation as api
+    monkeypatch.setattr(api, "PROJECTS_DIR", tmp_path)
+    monkeypatch.setattr(api, "probe_sam2_runtime", lambda: {"sam2_runtime": True, "cuda": True})
+    monkeypatch.setattr(api, "resolve_checkpoint", lambda *args, **kwargs: tmp_path / "model.pt")
+    monkeypatch.setattr(api.importlib.util, "find_spec", lambda name: True)
+    monkeypatch.setattr(api.importlib, "import_module", lambda name: SimpleNamespace(
+        virtual_memory=lambda: SimpleNamespace(available=int(1.5 * 1024**3))))
+    monkeypatch.setattr(api.shutil, "disk_usage", lambda path: SimpleNamespace(free=10 * 1024**3))
+
+    req = BackgroundIsolationProcessRequest(
+        source_path="01_Raw/test.mp4",
+        config={"enabled": True, "mode": "cutout", "engine": "sam2",
+                "model": "sam2.1_hiera_tiny", "quality": "quality"},
+        start=0.0, duration=2.0, fps=30.0,
+    )
+    res = _background_isolation_preflight(req, Path("tests"))
+    assert res["ok"] is False
+    assert "memory_low" in [issue["code"] if isinstance(issue, dict) else issue for issue in res["issues"]]
+
+
+def test_psutil_is_a_declared_dependency():
+    """Without psutil the free-RAM guard above is silently skipped."""
+    requirements = (Path(__file__).resolve().parents[1] / "requirements.txt").read_text(encoding="utf-8")
+    assert any(line.startswith("psutil==") for line in requirements.splitlines())
+
+
 def test_sam2_process_background_isolation_video_gpu(tmp_path):
     """Verify SAM 2 GPU worker processes a real video clip into a valid cutout artifact."""
     if os.environ.get("OMNICUT_TEST_SAM2_GPU") != "1":
