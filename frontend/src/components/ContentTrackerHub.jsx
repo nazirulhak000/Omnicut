@@ -389,7 +389,7 @@ const KanbanCard = memo(function KanbanCard({
                 <button
                   type="button"
                   onClick={() => onInspectAngle(ang)}
-                  className="p-0.5 rounded text-slate-500 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+                  className="min-w-6 min-h-6 inline-flex items-center justify-center p-0.5 rounded text-slate-500 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
                   title="ดูรายละเอียดจริงเชิงลึก"
                 >
                   <Info className="w-3 h-3" />
@@ -541,7 +541,7 @@ const KanbanCard = memo(function KanbanCard({
         <div className="flex items-center gap-1 flex-shrink-0">
           <button
             onClick={() => onInspectAngle(ang)}
-            className="p-0.5 rounded text-slate-500 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+            className="min-w-6 min-h-6 inline-flex items-center justify-center p-0.5 rounded text-slate-500 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
             title="ดูรายละเอียดจริงเชิงลึก (Deep Dive)"
           >
             <Info className="w-3 h-3" />
@@ -550,7 +550,7 @@ const KanbanCard = memo(function KanbanCard({
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onUnpickScript(ang.angle_id || ang.id); }}
-              className="p-0.5 rounded text-slate-500 hover:text-rose-400 hover:bg-white/[0.08] transition-colors cursor-pointer"
+              className="min-w-6 min-h-6 inline-flex items-center justify-center p-0.5 rounded text-slate-500 hover:text-rose-400 hover:bg-white/[0.08] transition-colors cursor-pointer"
               title="ปลดออกจากคิววันนี้ (ส่งกลับเข้าคลังสคริปต์)"
             >
               <X className="w-3.5 h-3.5" />
@@ -3062,6 +3062,7 @@ export default function ContentTrackerHub({
           <select
             value={selectedProductFilter}
             onChange={(e) => setSelectedProductFilter(e.target.value)}
+            aria-label="กรองตามสินค้า"
             className="py-2 px-3 rounded-xl glass-input text-xs font-bold text-slate-200 cursor-pointer max-w-[170px] sm:max-w-[220px] truncate"
           >
             <option value="all">สินค้าทั้งหมด ({products.length})</option>

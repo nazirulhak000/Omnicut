@@ -257,7 +257,6 @@ export default function EditorHeader({
             onClick={() => onToggleImmersive?.()}
             data-testid="toggle-immersive-studio-btn"
             title={isImmersive ? "ออกจากโหมดตัดต่อเต็มจอ (Esc)" : "โหมดตัดต่อเต็มจอ (ซ่อนแถบนำทาง) (Shift+F)"}
-            aria-label={isImmersive ? "ออกจากโหมดตัดต่อเต็มจอ" : "โหมดตัดต่อเต็มจอ"}
             className={`flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border px-2 sm:px-2.5 text-xs font-bold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/70 ${
               isImmersive
                 ? 'border-[#25F4EE]/50 bg-[#25F4EE]/15 text-[#25F4EE] shadow-sm'
@@ -266,6 +265,7 @@ export default function EditorHeader({
           >
             {isImmersive ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
             <span className="hidden lg:inline">{isImmersive ? 'ย่อแถบ' : 'เต็มจอ'}</span>
+            <span className="sr-only lg:hidden">{isImmersive ? 'ออกจากโหมดตัดต่อเต็มจอ' : 'โหมดตัดต่อเต็มจอ'}</span>
           </button>
         )}
 
@@ -323,7 +323,7 @@ export default function EditorHeader({
 
       {/* ── Playbook Tips Modal (Pre-flight Reminders) ── */}
       {showPlaybookModal && (
-        <ModalLayer onClose={() => setShowPlaybookModal(false)}
+        <ModalLayer onClose={() => setShowPlaybookModal(false)} aria-label="เช็กลิสต์ก่อนเรนเดอร์"
           className="fixed inset-0 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
           onClick={() => setShowPlaybookModal(false)}
         >

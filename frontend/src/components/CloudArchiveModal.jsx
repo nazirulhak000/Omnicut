@@ -170,7 +170,7 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
   };
 
   return (
-    <ModalLayer onClose={onClose} className="fixed inset-0 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+    <ModalLayer onClose={onClose} aria-label="คลังสำรองบนคลาวด์" className="fixed inset-0 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
       <div className="w-full max-w-3xl rounded-3xl bg-[#0A0D14]/95 backdrop-blur-md border border-white/[0.08] shadow-2xl flex flex-col max-h-[92vh] overflow-hidden relative">
         {/* Modal Header */}
         <div className="px-5 py-4 border-b border-white/[0.08] flex items-center justify-between relative z-10">

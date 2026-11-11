@@ -74,7 +74,7 @@ export default function UniversalFilmingRecipeModal({
   };
 
   return (
-    <ModalLayer onClose={onClose}
+    <ModalLayer onClose={onClose} aria-label="สูตรถ่ายทำ"
       className="fixed inset-0 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
       onClick={onClose}
     >

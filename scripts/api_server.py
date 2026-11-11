@@ -17,6 +17,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
 from scripts.config import (
@@ -287,6 +288,15 @@ app.add_middleware(
     allow_headers=["*", CHANNEL_HEADER],
     expose_headers=[CHANNEL_HEADER],
 )
+
+# Outermost: compress text responses (JSON, JS, CSS, HTML, TTF). Without it
+# /api/products alone is ~4.7 MB on the wire and the built JS ~1.3 MB, which is
+# what kept the first screen waiting for seconds on a phone over Wi-Fi.
+# Starlette's GZipMiddleware already leaves alone everything that must not be
+# touched: video/*, audio/*, compressed images, text/event-stream (SSE job
+# progress) and any 206 partial response (media Range requests).
+# Level 5 is ~4x faster than the default 9 for a few percent more bytes.
+app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
 
 
 # Mount all domain-specific routers

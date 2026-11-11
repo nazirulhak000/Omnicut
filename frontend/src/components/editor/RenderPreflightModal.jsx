@@ -25,7 +25,7 @@ export default function RenderPreflightModal({ isOpen, onClose, report, onSeek }
   const hasErrors = report.errors?.length > 0;
 
   return (
-    <ModalLayer onClose={onClose}
+    <ModalLayer onClose={onClose} aria-label="ผลตรวจก่อนเรนเดอร์"
       className="fixed inset-0 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md animate-fadeIn"
       onClick={onClose}
     >

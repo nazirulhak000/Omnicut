@@ -147,7 +147,6 @@ export function ActivityIndicatorButton({ className = '' }) {
       aria-haspopup="dialog"
       aria-expanded={isActivityDrawerOpen}
       aria-controls="activity-drawer"
-      aria-label={`เปิดศูนย์ติดตามกิจกรรม${isStale ? ' ข้อมูลอาจไม่ใช่ข้อมูลล่าสุด' : ''}`}
       className={`p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-black/40 hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/[0.08] text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors ${className}`}
       title="ศูนย์ติดตามกิจกรรม (Activity Center)"
     >
@@ -160,12 +159,18 @@ export function ActivityIndicatorButton({ className = '' }) {
         <Layers className="w-3.5 h-3.5 text-[#25F4EE]" />
       )}
       <span className="hidden xl:inline">กิจกรรม</span>
+      <span className="sr-only xl:hidden">เปิดศูนย์ติดตามกิจกรรม</span>
       {tasks.length > 0 && (
         <span className="px-1.5 py-0.2 rounded-full bg-white/[0.08] text-[10px] font-mono text-slate-400">
           {tasks.length}
         </span>
       )}
-      {isStale && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" title="ข้อมูลกิจกรรมอาจไม่ใช่ข้อมูลล่าสุด" />}
+      {isStale && (
+        <>
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-400" title="ข้อมูลกิจกรรมอาจไม่ใช่ข้อมูลล่าสุด" />
+          <span className="sr-only">ข้อมูลอาจไม่ใช่ข้อมูลล่าสุด</span>
+        </>
+      )}
     </button>
   );
 }

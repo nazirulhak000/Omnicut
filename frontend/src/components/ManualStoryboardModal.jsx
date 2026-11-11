@@ -1481,7 +1481,7 @@ export default function ManualStoryboardModal({
 
         {/* ── SYNC ACROSS ALL ANGLES POPUP MODAL ── */}
         {syncModalOpen && (
-          <ModalLayer onClose={() => setSyncModalOpen(false)}
+          <ModalLayer onClose={() => setSyncModalOpen(false)} aria-label="ซิงก์สตอรีบอร์ดไปทุกมุม"
             className="fixed inset-0 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-sm animate-in fade-in duration-150"
             onClick={() => setSyncModalOpen(false)}
           >

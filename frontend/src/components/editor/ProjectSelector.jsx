@@ -163,9 +163,9 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label="โปรเจกต์ที่กำลังแก้"
         className="flex h-8 sm:h-9 w-full min-w-0 cursor-pointer items-center gap-1 truncate rounded-xl border border-transparent bg-transparent pl-1 pr-2 text-sm sm:text-base font-bold text-white hover:border-white/[0.12] hover:bg-black/40 focus:border-[#D97757] focus:outline-none"
       >
+        <span className="sr-only">โปรเจกต์ที่กำลังแก้:</span>
         <span className="truncate">{current ? current.project_name : '— เลือกโปรเจกต์ —'}</span>
         <ChevronDown className="h-4 w-4 flex-shrink-0 text-slate-500" />
       </button>

@@ -594,7 +594,7 @@ export default function NewClipPanel({
             </div>
           </div>
           <div className="flex items-center gap-2 self-start sm:self-center">
-            <span className="text-xs text-slate-500 font-semibold">ชื่อโปรเจกต์:</span>
+            <span className="text-xs text-slate-400 font-semibold">ชื่อโปรเจกต์:</span>
             <span className="px-2.5 py-1 rounded-lg bg-cyan-950/50 border border-cyan-800/40 text-cyan-300 font-mono text-xs font-bold shadow-inner truncate max-w-[320px]">
               {projectName}
             </span>
@@ -680,7 +680,7 @@ export default function NewClipPanel({
                         <span>เลือกเสียงต่างจากแผนถ่าย: จะสังเคราะห์เสียงใหม่</span>
                       </div>
                     ) : (
-                      <p className="mt-1 text-[10px] text-slate-500">โทน: {AD_TONES.find(t => t.id === (form.adTone || DEFAULT_AD_TONE))?.label || '—'}</p>
+                      <p className="mt-1 text-[10px] text-slate-400">โทน: {AD_TONES.find(t => t.id === (form.adTone || DEFAULT_AD_TONE))?.label || '—'}</p>
                     )}
                   </label>
 

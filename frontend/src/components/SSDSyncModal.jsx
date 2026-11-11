@@ -230,7 +230,7 @@ export default function SSDSyncModal({ isOpen, onClose, onRefreshData }) {
   if (!isOpen) return null;
 
   return (
-    <ModalLayer onClose={onClose} className="fixed inset-0 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+    <ModalLayer onClose={onClose} aria-label="ซิงก์ข้อมูลกับ SSD" className="fixed inset-0 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
       <div className="w-full max-w-3xl rounded-3xl bg-[#070b14] border border-white/[0.12] shadow-2xl flex flex-col max-h-[92vh] overflow-hidden relative">
         {/* Ambient Top Glow */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-emerald-500/10 via-[#25F4EE]/10 to-transparent rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />

@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ModalLayer } from './ui/ModalLayer';
 import {
   Rocket, Sparkles, FolderDown, Settings, Layers,
@@ -69,6 +69,19 @@ export default function Sidebar({
   const closeMobileModal = useCallback(() => setShowMobileModal(false), []);
   // Phone back gesture closes the sheet / QR dialog instead of leaving the app.
   useBackToClose(showMoreDrawer, closeMoreDrawer);
+
+  // The "อื่นๆ" sheet belongs to the phone tab bar, which disappears at md.
+  // It is a modal dialog now, so it must not stay open (and keep the page
+  // inert) when the viewport grows past that -- e.g. an iPhone rotated to
+  // landscape.
+  useEffect(() => {
+    if (!showMoreDrawer || typeof window.matchMedia !== 'function') return undefined;
+    const desktop = window.matchMedia('(min-width: 768px)');
+    if (desktop.matches) { setShowMoreDrawer(false); return undefined; }
+    const onChange = (event) => { if (event.matches) setShowMoreDrawer(false); };
+    desktop.addEventListener('change', onChange);
+    return () => desktop.removeEventListener('change', onChange);
+  }, [showMoreDrawer]);
   useBackToClose(showMobileModal, closeMobileModal);
 
   const handleLogout = async () => {
@@ -226,14 +239,11 @@ export default function Sidebar({
 
       {/* ── Mobile More Bottom Sheet / Drawer ── */}
       {showMoreDrawer && (
-        <div
-          className="md:hidden fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex flex-col justify-end animate-fadeIn"
+        <ModalLayer onClose={closeMoreDrawer} aria-labelledby="more-sheet-title"
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm flex flex-col justify-end animate-fadeIn"
           onClick={() => setShowMoreDrawer(false)}
         >
           <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="more-sheet-title"
             onTouchStart={handleMoreSheetTouchStart}
             onTouchEnd={handleMoreSheetTouchEnd}
             className="glass-panel rounded-t-3xl px-4 pt-2.5 pb-[max(1.25rem,env(safe-area-inset-bottom))] space-y-4 max-h-[85dvh] overflow-y-auto overscroll-contain"
@@ -385,7 +395,7 @@ export default function Sidebar({
               )}
             </div>
           </div>
-        </div>
+        </ModalLayer>
       )}
 
       {/* ── Mobile Upload QR Modal ── */}

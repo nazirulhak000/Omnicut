@@ -4,6 +4,9 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round CLAUDE-MODERN-WEB-POLISH-20261111 · รอบเก็บงาน Modern Web Guidance: ทดสอบ overlay บน WebKit (เอนจิน Safari, จำลอง iPhone) + Chromium + Firefox, แก้บั๊กที่การทดสอบจับได้ 6 จุด, Lighthouse Accessibility 100 ใน 6/7 หน้า, เพิ่ม gzip ที่ server → ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
+  - [ ] ค้างให้เจ้าของ: รีสตาร์ต backend เพื่อให้ gzip มีผล · ตัดสินสีปุ่มแดง `#FE2C55` (contrast 3.68) · ลองบน iPhone เครื่องจริง
+
 - [x] Round CLAUDE-MODERN-WEB-GUIDANCE-20261111 · ปรับ frontend ตาม Modern Web Guidance ครบ 6 เฟส: modal 24 จุด → native `<dialog>` (ui/ModalLayer), dropdown 5 ตัว → Popover API (ui/PopoverPanel), เลิก `alert`/`confirm` 20 จุด (ui/dialogService), Toast เป็น popover, IME-safe Enter 2 จุด, reduced-motion เฉพาะจุด + วงโฟกัสกลาง, lazy-load รูป 16 จุด → แผน: [_Docs/Plans/MODERN_WEB_GUIDANCE_PLAN_20261111.md](_Docs/Plans/MODERN_WEB_GUIDANCE_PLAN_20261111.md) · ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
 
 - [x] Round ANTIGRAVITY-SWARM-DEEP-PROGRAM-AUDIT-20261111 · ปฏิบัติการ Swarm Deep Audit ทั่วทั้งระบบ OmniCut Pro Studio (Backend, Frontend, Pipeline Parity, Test Suite) ค้นหาจุดบกพร่อง บั๊กแฝง และจุดปรับปรุงเชิงสถาปัตยกรรมอย่างละเอียด (ดูรายงาน [_Docs/Reports/SWARM_DEEP_SYSTEM_AUDIT_REPORT_20261111.md](_Docs/Reports/SWARM_DEEP_SYSTEM_AUDIT_REPORT_20261111.md)) → ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Swarm Multi-Agent Orchestration (Coordinator: Antigravity / Gemini 3.8 Flash High)

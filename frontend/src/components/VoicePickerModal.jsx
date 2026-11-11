@@ -134,7 +134,7 @@ export default function VoicePickerModal({ isOpen, onClose, selectedVoice, selec
   const selectedToneLabel  = manifest?.combos?.find((c) => c.tone_id  === localTone)?.tone_label;
 
   return (
-    <ModalLayer onClose={onClose}
+    <ModalLayer onClose={onClose} aria-label="เลือกเสียงพากย์"
       className="fixed inset-0 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(14px)' }}
       onClick={(e) => e.target === e.currentTarget && onClose?.()}

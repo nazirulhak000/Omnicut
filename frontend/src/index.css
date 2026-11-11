@@ -1,4 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Anuphan:wght@300;400;500;600;700&display=swap');
+/* Anuphan (UI font) is requested from the HTML <head> of every page, not
+   @import-ed here: an @import inside this file is only discovered after the
+   stylesheet itself has downloaded, which chained a second render-blocking
+   request behind the first. Same family, same weights (300-700). */
 @import "tailwindcss";
 
 /* Preview and FFmpeg must shape the exact same physical font files.  These
@@ -889,10 +892,19 @@ dialog.modal-layer:not([open]) {
   display: none !important;
 }
 
-/* Keyboard focus must stay visible. 245 controls drop the outline with
-   `outline-none`; this rule is unlayered so it wins over that utility, and it
-   skips any control that already declares its own focus style. */
-:where(button, a[href], summary, select, [role="button"], [role="tab"], [role="menuitem"], [role="option"], [role="switch"], [role="checkbox"], [tabindex="0"]):focus-visible:not([class*="focus-visible:"]):not([class*="focus:"]) {
+/* Keyboard focus must stay visible. Many controls drop the outline with
+   `outline-none` / `focus:outline-none`; this rule is unlayered so it wins
+   over those utilities. It steps aside only for a control that declares a
+   real replacement (ring, border, background, shadow or its own outline) --
+   merely removing the outline does not count. */
+:where(button, a[href], summary, select, input, textarea, [role="button"], [role="tab"], [role="menuitem"], [role="option"], [role="switch"], [role="checkbox"], [role="slider"], [tabindex="0"]):focus-visible:not(
+  [class*="focus-visible:ring"], [class*="focus:ring"],
+  [class*="focus-visible:border"], [class*="focus:border"],
+  [class*="focus-visible:bg"], [class*="focus:bg"],
+  [class*="focus-visible:shadow"], [class*="focus:shadow"],
+  [class*="focus-visible:outline-1"], [class*="focus-visible:outline-2"], [class*="focus-visible:outline-["],
+  .glass-input, .claude-input, .claude-btn-primary
+) {
   outline: 2px solid #25F4EE;
   outline-offset: 2px;
 }

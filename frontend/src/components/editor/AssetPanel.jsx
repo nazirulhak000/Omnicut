@@ -2932,7 +2932,7 @@ export default function AssetPanel({
 
       {/* Quick Video Preview Modal */}
       {previewVideo && (
-        <ModalLayer onClose={() => setPreviewVideo(null)} className="fixed inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
+        <ModalLayer onClose={() => setPreviewVideo(null)} aria-label="ดูตัวอย่างคลิป" className="fixed inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
           <div className="relative w-full max-w-lg rounded-2xl border border-white/10 bg-[#0D111A] p-4 shadow-2xl space-y-3">
             <div className="flex items-center justify-between border-b border-white/[0.08] pb-2.5">
               <div className="flex items-center gap-2 min-w-0">

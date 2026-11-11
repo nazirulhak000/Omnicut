@@ -458,7 +458,7 @@ function AngleSidebarItem({
                   e.stopPropagation();
                   onOpenShotList ? onOpenShotList(index) : (onGenerateShotList && onGenerateShotList(index));
                 }}
-                className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border transition-all cursor-pointer ${
+                className={`inline-flex items-center gap-1 min-h-6 text-[10px] font-bold px-2 py-0.5 rounded-md border transition-all cursor-pointer ${
                   isEdgeTtsShotList
                     ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-400/40 ring-1 ring-amber-400/30 shadow-xs'
                     : isStaleShotList
@@ -497,7 +497,7 @@ function AngleSidebarItem({
                     onGenerateShotList && onGenerateShotList(index);
                   }}
                   disabled={isGeneratingShotList}
-                  className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-white/[0.04] hover:bg-amber-500/15 text-slate-400 hover:text-amber-200 border border-white/[0.08] hover:border-amber-500/30 transition-all cursor-pointer disabled:opacity-50"
+                  className="inline-flex items-center gap-1 min-h-6 text-[10px] font-bold px-2 py-0.5 rounded-md bg-white/[0.04] hover:bg-amber-500/15 text-slate-400 hover:text-amber-200 border border-white/[0.08] hover:border-amber-500/30 transition-all cursor-pointer disabled:opacity-50"
                   title="ยังไม่มีแผนถ่าย — คลิกเพื่อสร้างแผนถ่ายสำหรับมุมนี้"
                 >
                   {isGeneratingShotList ? (

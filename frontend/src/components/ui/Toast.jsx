@@ -1,4 +1,5 @@
-import React, { useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { CheckCircle2, AlertTriangle, AlertCircle, Info, X } from 'lucide-react';
 
 export function Toast({
@@ -20,7 +21,20 @@ export function Toast({
   // popover="manual" puts the toast in the top layer, above any modal <dialog>
   // that is already open (a fixed z-index cannot beat the top layer). Engines
   // without the Popover API ignore the attribute and keep the fixed position.
+  //
+  // A modal dialog makes everything outside it inert -- not clickable, not
+  // reachable by assistive tech. So while one is open the toast is portalled
+  // into the topmost modal dialog: it stays on top AND its close button works.
   const layerRef = useRef(null);
+  const [modalHost, setModalHost] = useState(null);
+  useLayoutEffect(() => {
+    if (!message || typeof document === 'undefined') { setModalHost(null); return; }
+    const open = [...document.querySelectorAll('dialog[open]')].filter((d) => {
+      try { return d.matches(':modal'); } catch { return false; }
+    });
+    setModalHost(open.length ? open[open.length - 1] : null);
+  }, [message]);
+
   useLayoutEffect(() => {
     const el = layerRef.current;
     if (!el || !message || typeof el.showPopover !== 'function') return undefined;
@@ -28,7 +42,17 @@ export function Toast({
     return () => {
       try { el.hidePopover(); } catch { /* already hidden or detached */ }
     };
-  }, [message]);
+  }, [message, modalHost]);
+
+  // Announce through ariaNotify() where it exists; the live-region role below
+  // is the fallback for engines without it (never both, or it is read twice).
+  const canNotify = typeof document !== 'undefined' && typeof document.ariaNotify === 'function';
+  useEffect(() => {
+    if (!message || !canNotify) return;
+    try {
+      document.ariaNotify(String(message), { priority: type === 'error' ? 'high' : 'normal' });
+    } catch { /* announcement is best-effort */ }
+  }, [message, type, canNotify]);
 
   if (!message) return null;
 
@@ -58,12 +82,12 @@ export function Toast({
   const config = typeConfig[type] || typeConfig.info;
   const Icon = config.icon;
 
-  return (
+  const node = (
     <div
       ref={layerRef}
       popover="manual"
-      role={type === 'error' ? 'alert' : 'status'}
-      aria-live={type === 'error' ? 'assertive' : 'polite'}
+      role={canNotify ? undefined : (type === 'error' ? 'alert' : 'status')}
+      aria-live={canNotify ? undefined : (type === 'error' ? 'assertive' : 'polite')}
       aria-atomic="true"
       className="toast-layer fixed inset-x-3 top-[calc(env(safe-area-inset-top,0px)+8px)] md:top-auto md:inset-x-auto md:bottom-6 md:right-6 z-[9999] flex justify-center md:block animate-slideDown select-none pointer-events-none"
     >
@@ -85,6 +109,7 @@ export function Toast({
       </div>
     </div>
   );
+  return modalHost ? createPortal(node, modalHost) : node;
 }
 
 export default Toast;

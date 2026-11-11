@@ -300,9 +300,9 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-cyan-400" />
-                <h3 className="text-sm font-black text-white">
+                <h2 className="text-sm font-black text-white">
                   {trendMode === 'daily' ? 'ยอดวิวรวมรายวัน (Daily Views Trend)' : 'ยอดวิวต่อคลิป (เรียงตามลำดับเวลาที่โพสต์)'}
-                </h3>
+                </h2>
               </div>
               <p className="text-xs text-slate-400">
                 {trendMode === 'daily'
@@ -357,7 +357,7 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
         <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/5 border border-amber-500/30 rounded-2xl p-4 sm:p-5 shadow-lg">
           <div className="flex items-center gap-2.5 mb-2">
             <Trophy className="w-5 h-5 text-amber-400" />
-            <h3 className="text-sm font-black text-amber-200">ยินดีด้วย! มีคลิปปังทะลุเป้า 10,000 วิว</h3>
+            <h2 className="text-sm font-black text-amber-200">ยินดีด้วย! มีคลิปปังทะลุเป้า 10,000 วิว</h2>
           </div>
           <div className="text-xs text-slate-300 leading-relaxed">
             พบคลิปที่ทำยอดวิวเกิน 10,000 วิว จำนวน {richPosts.filter(p => p.views >= 10000).length} คลิป — แนะนำให้ถอดรหัส Hook และโครงสร้างคลิปเหล่านี้เพื่อนำไปต่อยอดเป็นซีรีส์คลิปใหม่
@@ -370,7 +370,7 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
         <div className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-lg">
           <div className="flex items-center gap-2.5 mb-3">
             <Sparkles className="w-4 h-4 text-amber-400" />
-            <h3 className="text-sm font-black text-white">บทเรียนและแนวทางต่อยอด</h3>
+            <h2 className="text-sm font-black text-white">บทเรียนและแนวทางต่อยอด</h2>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {winner && (
@@ -400,7 +400,7 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
             <div className="flex items-center gap-2.5">
               <Link2 className="w-4 h-4 text-amber-400" />
-              <h3 className="text-sm font-black text-white">แถวที่ยังไม่ได้จับคู่ ({pendingRows.length})</h3>
+              <h2 className="text-sm font-black text-white">แถวที่ยังไม่ได้จับคู่ ({pendingRows.length})</h2>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               {ignoredRows.length > 0 && (
@@ -586,7 +586,7 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
       <div className="bg-[#0B0F19] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-lg">
         <div className="flex items-center gap-2.5 mb-3">
           <Eye className="w-4 h-4 text-cyan-400" />
-          <h3 className="text-sm font-black text-white">ผลงานแต่ละคลิป</h3>
+          <h2 className="text-sm font-black text-white">ผลงานแต่ละคลิป</h2>
           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-cyan-500/10 text-cyan-300 border-cyan-500/30">
             {richPosts.length} คลิป
           </span>

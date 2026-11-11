@@ -23,7 +23,7 @@ export default function StylePresetPicker({
           <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#25F4EE]" />
           <div className="min-w-0">
             <p className="text-xs font-bold text-slate-200">สไตล์การตัดต่อ</p>
-            <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500">{helpText}</p>
+            <p className="mt-0.5 text-[11px] leading-relaxed text-slate-400">{helpText}</p>
           </div>
         </div>
       </div>

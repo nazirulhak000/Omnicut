@@ -328,9 +328,9 @@ export default function SystemSettings({
                     <Palette className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-sm sm:text-base font-bold text-white">
+                    <h2 className="text-sm sm:text-base font-bold text-white">
                       ชุดธีมสีของระบบ (UI Theme Presets)
-                    </h3>
+                    </h2>
                     <p className="text-xs text-slate-400">
                       เลือกรูปแบบความงาม แสงสะท้อน และบรรยากาศหน้าจอที่คุณต้องการใช้งาน
                     </p>
@@ -424,9 +424,9 @@ export default function SystemSettings({
                     <Sparkles className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-sm sm:text-base font-bold text-white">
+                    <h2 className="text-sm sm:text-base font-bold text-white">
                       ปรับแต่งคุณสมบัติกระจกใสสมจริง (Pulse Hub Glass Finetuner)
-                    </h3>
+                    </h2>
                     <p className="text-xs text-slate-400">
                       ปรับความใส แสงหักเห และความสว่างลูกแก้วเบื้องหลังให้โปร่งใสทะลุเหมือนกระจกจริง 100%
                     </p>
@@ -487,6 +487,7 @@ export default function SystemSettings({
                   </div>
                   <input
                     type="range"
+                    aria-label="ความใสของกระจก"
                     min="5"
                     max="50"
                     step="1"
@@ -512,6 +513,7 @@ export default function SystemSettings({
                   </div>
                   <input
                     type="range"
+                    aria-label="ความเบลอของแสง"
                     min="4"
                     max="30"
                     step="1"
@@ -537,6 +539,7 @@ export default function SystemSettings({
                   </div>
                   <input
                     type="range"
+                    aria-label="ความสว่างแสงนีออนเบื้องหลัง"
                     min="20"
                     max="100"
                     step="5"
@@ -562,6 +565,7 @@ export default function SystemSettings({
                   </div>
                   <input
                     type="range"
+                    aria-label="ความคมของเส้นแสงสะท้อนขอบ"
                     min="20"
                     max="100"
                     step="5"
@@ -606,9 +610,9 @@ export default function SystemSettings({
                   <Sliders className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm sm:text-base font-bold text-white">
+                  <h2 className="text-sm sm:text-base font-bold text-white">
                     ขนาดการแสดงผล (UI Scale)
-                  </h3>
+                  </h2>
                   <p className="text-xs text-slate-400">
                     ปรับอัตราส่วนตัวหนังสือและปุ่มให้พอดีสายตา เหมาะกับขนาดหน้าจอของคุณ
                   </p>
@@ -654,9 +658,9 @@ export default function SystemSettings({
                   <Type className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm sm:text-base font-bold text-white">
+                  <h2 className="text-sm sm:text-base font-bold text-white">
                     ฟอนต์ระบบ (Global UI Font)
-                  </h3>
+                  </h2>
                   <p className="text-xs text-slate-400">
                     เลือกฟอนต์ภาษาไทยสำหรับเมนู หัวข้อ และปุ่มต่างๆ ทั้งระบบ
                   </p>
@@ -726,10 +730,10 @@ export default function SystemSettings({
         return (
           <div className="space-y-4 animate-fadeIn">
             <div className="glass-panel bg-[#0A0D14] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-sm space-y-3.5">
-              <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2 pb-2.5 border-b border-white/[0.08]">
+              <h2 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2 pb-2.5 border-b border-white/[0.08]">
                 <Folder className="w-4 h-4 text-[#25F4EE]" />
                 ไดเรกทอรีโปรเจกต์มาตรฐาน (Project Workspace Directories)
-              </h3>
+              </h2>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
                 {projectFolders.map((pf) => {
@@ -780,7 +784,7 @@ export default function SystemSettings({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <ShieldCheck className="w-5 h-5 text-[#25F4EE]" />
-                    <h4 className="font-bold text-white text-xs sm:text-sm">Antigravity Pro Engine</h4>
+                    <h3 className="font-bold text-white text-xs sm:text-sm">Antigravity Pro Engine</h3>
                   </div>
                   {(() => {
                     const pill = antigravityPill(aiStatus, aiStatusLoading);
@@ -801,7 +805,7 @@ export default function SystemSettings({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <Cpu className="w-5 h-5 text-violet-400" />
-                    <h4 className="font-bold text-white text-xs sm:text-sm">Jev Decision Layer</h4>
+                    <h3 className="font-bold text-white text-xs sm:text-sm">Jev Decision Layer</h3>
                   </div>
                   <span className={`px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold border ${typeSafeStatus?.available ? 'bg-violet-500/10 text-violet-300 border-violet-500/30' : 'bg-slate-500/10 text-slate-400 border-slate-500/30'}`}>
                     {typeSafeLoading ? 'กำลังตรวจสอบ' : typeSafeStatus?.available ? 'พร้อมใช้งาน' : 'ยังไม่พร้อม'}
@@ -821,7 +825,7 @@ export default function SystemSettings({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <Sparkles className="w-5 h-5 text-slate-300" />
-                    <h4 className="font-bold text-white text-xs sm:text-sm">Gemini 2.5 Flash Vision</h4>
+                    <h3 className="font-bold text-white text-xs sm:text-sm">Gemini 2.5 Flash Vision</h3>
                   </div>
                   {(() => {
                     const pill = geminiPill(aiStatus, aiStatusLoading);
@@ -841,10 +845,10 @@ export default function SystemSettings({
 
             {/* System Environment Info */}
             <div className="p-4 sm:p-5 space-y-3.5 bg-[#0A0D14] border border-white/[0.08] rounded-2xl shadow-sm">
-              <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2 pb-2 border-b border-white/[0.08]">
+              <h2 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2 pb-2 border-b border-white/[0.08]">
                 <Settings className="w-4 h-4 text-[#25F4EE]" />
                 สถานะการเรนเดอร์และ CapCut PC Integration
-              </h3>
+              </h2>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
                 <div className="p-3 rounded-xl bg-black/40 border border-white/[0.06] text-slate-200 flex flex-col justify-between space-y-1">
@@ -898,10 +902,10 @@ export default function SystemSettings({
             {/* Round POST-2: TikTok Auto-Post Extension (experimental, risky) */}
             <div className="p-4 sm:p-5 space-y-3.5 bg-[#0A0D14] rounded-2xl border border-amber-500/25 shadow-sm">
               <div className="flex items-center justify-between gap-3 pb-2 border-b border-white/[0.08]">
-                <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
+                <h2 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
                   <Bug className="w-4 h-4 text-amber-400" />
                   TikTok Auto-Post Extension (ทดลอง — มีความเสี่ยง)
-                </h3>
+                </h2>
                 <button
                   type="button"
                   onClick={toggleAutopost}
@@ -958,10 +962,10 @@ export default function SystemSettings({
             <div className="glass-panel bg-[#0A0D14] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/[0.08]">
                 <div>
-                  <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
+                  <h2 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
                     <Database className="w-4 h-4 text-cyan-400" />
                     สำรองข้อมูลทั้งระบบ (One-Click System Backup)
-                  </h3>
+                  </h2>
                   <p className="text-xs text-slate-400 mt-1">
                     สำรองข้อมูลโปรเจกต์ 03_Projects ทั้งหมด และฐานข้อมูล JSON / SQLite ใน _Docs เป็นไฟล์ Zip พร้อมกู้คืน
                   </p>
@@ -1055,10 +1059,10 @@ export default function SystemSettings({
             <div className="glass-panel bg-[#0A0D14] border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/[0.08]">
                 <div>
-                  <h3 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
+                  <h2 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
                     <Copy className="w-4 h-4 text-amber-400" />
                     สแกนและคืนพื้นที่ดิสก์จากไฟล์ซ้ำ (Asset Deduplication)
-                  </h3>
+                  </h2>
                   <p className="text-xs text-slate-400 mt-1">
                     ตรวจหาไฟล์วิดีโอ/ภาพที่ซ้ำกันใน 00_Inbox และ 01_Raw ด้วย SHA-256 เพื่อคืนพื้นที่ดิสก์อย่างปลอดภัย
                   </p>

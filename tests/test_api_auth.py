@@ -653,6 +653,58 @@ def test_hashed_assets_get_immutable_cache(tmp_path):
     assert res.headers["cache-control"] == "public, max-age=31536000, immutable"
     assert "cache-control" not in c.get("/assets/missing.js").headers
 
+
+def test_text_responses_are_gzipped_but_media_and_sse_are_not(tmp_path):
+    """The server compresses JSON/JS/CSS/HTML and leaves media, SSE and Range responses untouched."""
+    from starlette.applications import Starlette
+    from starlette.middleware import Middleware
+    from starlette.responses import JSONResponse, Response, StreamingResponse
+    from starlette.routing import Route
+
+    # The real app must register the middleware (outermost) ...
+    registered = [m for m in api_server_module.app.user_middleware if m.cls.__name__ == "GZipMiddleware"]
+    assert len(registered) == 1
+    assert api_server_module.app.user_middleware[0] is registered[0], "gzip must be the outermost middleware"
+    options = registered[0].kwargs
+
+    # ... and with those exact options behave like this on a throwaway app
+    # (no real routes, no project data touched).
+    big = "x" * 20_000
+
+    async def as_json(_request):
+        return JSONResponse({"payload": big})
+
+    async def as_video(_request):
+        return Response(big.encode(), media_type="video/mp4")
+
+    async def as_sse(_request):
+        return StreamingResponse(iter([b"data: " + big.encode() + b"\n\n"]), media_type="text/event-stream")
+
+    async def as_partial(_request):
+        return Response(big.encode(), status_code=206, media_type="application/json")
+
+    async def as_small(_request):
+        return JSONResponse({"ok": True})
+
+    probe = Starlette(
+        routes=[Route("/json", as_json), Route("/video", as_video), Route("/sse", as_sse),
+                Route("/partial", as_partial), Route("/small", as_small)],
+        middleware=[Middleware(registered[0].cls, **options)],
+    )
+    c = TestClient(probe)
+    gz = {"Accept-Encoding": "gzip"}
+
+    res = c.get("/json", headers=gz)
+    assert res.headers.get("content-encoding") == "gzip"
+    assert res.json()["payload"] == big
+    assert int(res.headers["content-length"]) < 2_000
+
+    assert "content-encoding" not in c.get("/video", headers=gz).headers
+    assert "content-encoding" not in c.get("/sse", headers=gz).headers
+    assert "content-encoding" not in c.get("/partial", headers=gz).headers
+    assert "content-encoding" not in c.get("/small", headers=gz).headers
+    assert "content-encoding" not in c.get("/json", headers={"Accept-Encoding": "identity"}).headers
+
 def test_auth_disabled_overrides_configured_key_and_password(monkeypatch):
     """When OMNICUT_AUTH_DISABLED=true, auth enforcement and password requirements are bypassed."""
     monkeypatch.setenv("OMNICUT_API_KEY", "configured-secret-key")

@@ -1,5 +1,19 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
 
+// The browser returns focus to the invoker when a modal dialog closes, but
+// WebKit loses it in two cases: Safari does not focus a <button> on click or
+// tap (so there is no invoker to return to), and focus is dropped to <body>
+// when the dialog node is removed right after close(). Remember the invoker
+// and put focus back only when it ended up on <body>; whenever the native
+// return worked, this does nothing.
+const PRESSABLE = 'button, a[href], summary, [role="button"], [role="menuitem"], [role="tab"], [tabindex]';
+let lastPressed = null;
+if (typeof document !== 'undefined') {
+  document.addEventListener('pointerdown', (event) => {
+    lastPressed = event.target instanceof Element ? event.target.closest(PRESSABLE) : null;
+  }, true);
+}
+
 /**
  * ModalLayer -- the one place the app opens a blocking overlay.
  *
@@ -28,6 +42,8 @@ export function ModalLayer({ onClose, className = '', children, ...rest }) {
     const el = ref.current;
     if (!el) return undefined;
     unmountingRef.current = false;
+    const active = document.activeElement;
+    const invoker = active && active !== document.body ? active : lastPressed;
     if (!el.open) {
       try {
         el.showModal();
@@ -40,6 +56,15 @@ export function ModalLayer({ onClose, className = '', children, ...rest }) {
     return () => {
       unmountingRef.current = true;
       try { if (el.open) el.close(); } catch { /* already detached */ }
+      const restoreFocus = () => {
+        const now = document.activeElement;
+        if (!invoker || !invoker.isConnected) return;
+        if (now && now !== document.body && now.isConnected) return;
+        try { invoker.focus({ preventScroll: true }); } catch { /* not focusable any more */ }
+      };
+      restoreFocus();
+      // Again once React has removed the dialog node (WebKit drops focus then).
+      setTimeout(restoreFocus, 0);
     };
   }, []);
 

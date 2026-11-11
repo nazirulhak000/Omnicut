@@ -185,6 +185,9 @@ const ExportCard = memo(function ExportCard({
         {/* Select Checkbox (Top Left) */}
         <button
           onClick={() => onToggleSelect(item.path)}
+          type="button"
+          aria-pressed={Boolean(isSelected)}
+          aria-label="เลือกคลิปนี้"
           className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 z-20 w-8 h-8 sm:w-7 sm:h-7 rounded-lg bg-black/75 backdrop-blur-md flex items-center justify-center border border-white/20 text-white cursor-pointer hover:border-[#25F4EE] shadow-sm transition-transform active:scale-95 touch-manipulation"
         >
           {isSelected ? <Check className="w-4 h-4 sm:w-4 sm:h-4 text-[#25F4EE]" /> : <Square className="w-3.5 h-3.5 sm:w-3.5 sm:h-3.5 text-slate-400" />}
@@ -319,13 +322,13 @@ const ExportCard = memo(function ExportCard({
 
         {/* Video Metadata */}
         <div className="p-2.5 sm:p-4 space-y-1 sm:space-y-1.5 text-left">
-          <h4
+          <h2
             onClick={() => onOpenDetail(item)}
             className="text-xs sm:text-sm font-bold text-white truncate cursor-pointer hover:text-[#25F4EE] transition-colors"
             title={item.hook_title || item.name}
           >
             {item.hook_title || item.name}
-          </h4>
+          </h2>
 
           <div className="h-[16px] flex items-center">
             {item.product_name ? (
@@ -1933,6 +1936,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                   <select
                     value={selectedProductFilter}
                     onChange={(e) => setSelectedProductFilter(e.target.value)}
+                    aria-label="กรองตามสินค้า"
                     className="w-full py-2 px-3 min-h-11 sm:min-h-0 rounded-xl bg-black/50 border border-white/[0.1] text-white text-base sm:text-xs font-bold focus:outline-none focus:border-[#FE2C55] transition-colors cursor-pointer truncate"
                   >
                     <option value="all" className="bg-[#080B11]">สินค้าทั้งหมด ({exportsList?.length || 0})</option>
@@ -1946,6 +1950,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
+                    aria-label="เรียงลำดับคลิป"
                     className="w-full py-2 px-3 min-h-11 sm:min-h-0 rounded-xl bg-black/50 border border-white/[0.1] text-white text-base sm:text-xs font-bold focus:outline-none focus:border-[#FE2C55] transition-colors cursor-pointer"
                   >
                     <option value="newest" className="bg-[#080B11]">ใหม่ล่าสุด</option>
@@ -1980,7 +1985,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                     {chip.id === 'unlinked' && <FileQuestion className="w-3.5 h-3.5 text-slate-400" />}
                     {chip.id === 'qc_rejected' && <ShieldAlert className="w-3.5 h-3.5 text-red-400" />}
                     <span>{chip.label}</span>
-                    <span className="font-mono text-[11px] opacity-75">({chip.count})</span>
+                    <span className="font-mono text-[11px] opacity-90">({chip.count})</span>
                   </button>
                 ))}
               </div>

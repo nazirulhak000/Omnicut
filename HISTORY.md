@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round CLAUDE-MODERN-WEB-POLISH-20261111 | รอบเก็บงาน Modern Web Guidance: ทดสอบ overlay บน WebKit (เอนจิน Safari, จำลอง iPhone) + Chromium + Firefox, แก้บั๊กที่การทดสอบจับได้ 6 จุด, Lighthouse Accessibility 100 ใน 6/7 หน้า, เพิ่ม gzip ที่ server — `npm test` 1282/1282, pytest 389 ผ่าน, overlay ผ่าน 6 เครื่องจำลอง | 2026-11-11 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-MODERN-WEB-GUIDANCE-20261111 | ปรับ frontend ตาม Modern Web Guidance ครบ 6 เฟส: modal 24 จุด → native `<dialog>` (ui/ModalLayer), dropdown 5 ตัว → Popover API (ui/PopoverPanel), เลิก `alert`/`confirm` 20 จุด (ui/dialogService), Toast เป็น popover, IME-safe Enter 2 จุด, reduced-motion เฉพาะจุด + วงโฟกัสกลาง, lazy-load รูป 16 จุด — `npm test` 1280/1280, pytest parity 298 ผ่าน, ลองเบราว์เซอร์จริง (Chromium) | 2026-11-11 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round ANTIGRAVITY-FLOW-STUDIO-10-ROUNDS-AUDIT-20261110 | ปฏิบัติการ 10-Round Autonomous UI/UX, Logic & Edge-Case Audit สำหรับหน้า "สินค้า ➔ สคริปต์ ➔ วิดีโอ" (FlowStudio / AI Script Lab) ครบ 10 รอบ 1,000 คะแนนเต็ม: ปรับปรุง MediaPickerModal 9:16 aspect ratio & tabular-nums, ยกระดับ Hook & Header Studio สู่ Obsidian Dark, ปรับ Action Buttons ไร้สัญลักษณ์ลูกศร/บวกตกค้าง, ติดตั้ง Graceful Offline Fallback ใน AI Co-Pilot, เสริม tabular-nums ทั่วทั้งระบบ, ผ่านชุดทดสอบ Vitest 1,264/1,264 tests (100%), Vite Build 1.86s (ดูรายงาน _Docs/Reports/FLOW_STUDIO_10_ROUNDS_AUDIT_REPORT.md) | 2026-11-10 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-OVERNIGHT-AUDIT-CYCLE2-TEST-PURITY-AND-IMPORT-SIDE-EFFECTS-20261110 | ปฏิบัติการกะดึก Cycle 2: ปราบปราม Side Effects ตอน Import ใน Test Suite (Rule 11 & testing_standard.md Rule 4): แก้ไข test_voice_pacing.py ขจัด ModuleNotFoundError: edge_tts, ครอบ if __name__ == '__main__': ใน test_translator_script.py, test_gemini_vision_match.py, test_script_lab_ai.py, test_bilingual_subtitles.py ขจัด live network/API calls ตอน import 100%, แก้ไข raw string escape syntax warnings ใน test_ghost_reveal_ass.py, ผ่าน Pytest Voice Tests 222/222 passed, Vitest 1,260/1,260 tests (100%), Vite Build 1.28s | 2026-11-10 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
@@ -193,6 +194,48 @@
 | Round CODEX-NVENC-QA-GATES-20261003 | ปิด NVENC/export contract และ QA guards; failures เดิมแก้และ gate รวมผ่าน | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 
 ---
+
+### Round CLAUDE-MODERN-WEB-POLISH-20261111 (2026-11-11)
+**ดำเนินการโดย:** Claude Code (Claude Fable 5.2)
+
+**เป้าหมาย:** ผู้ใช้สั่ง "ลูปเช็คใหม่อีกรอบ อยากได้ 10 ทุกข้อ" ต่อจากรอบ CLAUDE-MODERN-WEB-GUIDANCE-20261111 · กิ่ง `feat/modern-web-polish`
+
+**เครื่องมือตรวจที่เพิ่ม:**
+- `frontend/overlay_primitives.html` + `src/overlayPrimitivesFixture.jsx`: หน้า fixture ของ ModalLayer / Modal / confirmDialog / Toast / PopoverPanel (ไม่เรียก API ไม่เก็บข้อมูล)
+- `tools/overlay_browser_check.py`: ขับ fixture ใน Chromium, Firefox, WebKit เดสก์ท็อป + iPhone 15 แนวตั้ง/แนวนอน + Pixel 7 (28–32 ข้อต่อเครื่อง) และ reduced-motion
+- `src/lib/modalLayerContract.test.js`: ทุก `<ModalLayer>` ต้องมีชื่อ · ห้าม `aria-modal` / `alert` / `confirm` / ล็อก `body.overflow` กลับมา
+- ติดตั้ง WebKit ของ Playwright ลง cache ผู้ใช้ (`ms-playwright/webkit-2248`) — ไม่ใช่ Python package
+
+**บั๊กที่การทดสอบจับได้ และแก้แล้ว:**
+1. `DialogHost`: `ConfirmModal` กับ `Toast` ใช้ key `idle` ซ้ำกัน (React เตือน duplicate key)
+2. Toast ขณะ modal เปิด: มองเห็นแต่กดปุ่มปิดไม่ได้ เพราะของนอก modal dialog เป็น inert → portal เข้า dialog ตัวบนสุด + ประกาศผ่าน `ariaNotify()` (ไม่มีก็ใช้ live region เดิม)
+3. WebKit: ปิด modal แล้วโฟกัสตกที่ `<body>` (Safari ไม่โฟกัสปุ่มตอนคลิก และทิ้งโฟกัสเมื่อ node ถูกถอด) → `ModalLayer` จำ invoker แล้วคืนโฟกัสเฉพาะกรณีนั้น
+4. sheet "อื่นๆ" (`Sidebar.jsx`) ที่รอบก่อนเว้นไว้ → ModalLayer + ปิดเองเมื่อจอ ≥768px (หมุน iPhone แนวนอน)
+5. dialog 9 ตัวไม่มีชื่อให้ screen reader → ใส่ `aria-label` ครบ
+6. กฎ `:focus-visible` กลาง: `focus:outline-none` อย่างเดียวเคยถูกนับว่า "มี focus style แล้ว" → ยกเว้นเฉพาะ control ที่มี ring/border/bg/shadow/outline จริง และครอบ `input`/`textarea` ด้วย
+
+**Accessibility จาก Lighthouse (7 หน้า):** ชื่อปุ่ม 6 จุดให้มาจากเนื้อหา (แก้ label-content-name-mismatch) · ป้าย `<select>` 3 · ป้าย slider 4 · ปุ่มไอคอน 2 · เป้ากด ≥24px 5 จุด · contrast `slate-500` → `slate-400` 4 จุด · ลำดับหัวข้อ (`SystemSettings`, แท็บ analytics 4 ไฟล์, การ์ด gallery)
+
+**ความเร็ว:**
+- `scripts/api_server.py`: `GZipMiddleware` (ชั้นนอกสุด, level 5) — Starlette ข้าม video/audio/รูปบีบอัด/SSE/206 เองอยู่แล้ว · เทสต์ใหม่ใน `tests/test_api_auth.py` · ขนาดวัด offline: `/api/products` 4,594 KB → 499 KB, JS+CSS ใน dist 2,882 KB → 689 KB
+- ฟอนต์ Anuphan: ย้ายจาก `@import` ใน `index.css` ไป `<link>` ใน `<head>` ทุกหน้า (ตระกูล/น้ำหนักเดิม 300–700) — render-blocking request ลดจาก 2 เหลือ 1
+
+**ผลตรวจ:**
+- `npm test` 1282/1282 · `vite build` ผ่าน · pytest (`test_api_auth` + parity 3 ไฟล์) 389 ผ่าน 1 ข้าม
+- `overlay_browser_check.py`: ผ่านครบทั้ง 6 เครื่องจำลอง + reduced-motion
+- แอปจริง port 8000 (อ่านอย่างเดียว): modal 5 ตัวเปิด/มีชื่อ/Escape ปิด · วงโฟกัสด้วย Tab จริง 486 จุด 7 หน้า ผ่าน · WebKit iPhone: sheet "อื่นๆ", หมุนจอ, เมนู editor ผ่าน · smoke 7 แท็บ × 3 เอนจิน 0 error
+- Lighthouse (desktop): Accessibility 100 ใน flow/tracker/editor/gallery/analytics/settings, assets 96 · Best Practices 100 · Performance 74–85 (ยังเท่าเดิม เพราะ server ที่รันอยู่ยังไม่ได้รีสตาร์ต gzip จึงยังไม่ทำงาน)
+
+**พลาดระหว่างทำ (แก้แล้ว):** ลองถอด `manualChunks` ของ `editor-player` / `editor-timeline` ใน `vite.config.js` เพื่อไม่ให้ทุกหน้าโหลดโค้ด editor ~570 KB → build ออกมา `e is not a function` แอปที่ port 8000 ใช้ไม่ได้ราว 4 นาที → ย้อนไฟล์กลับ rebuild แล้ว smoke ผ่าน · บทเรียน: หลัง `vite build` ต้องเปิดเบราว์เซอร์ดูทุกครั้ง เทสต์ + build ผ่านไม่พอ
+
+**ยังไม่ได้ทำ / ยังไม่ได้ตรวจ:**
+- gzip ยังไม่ได้วัดผลจริง — ต้องรีสตาร์ต backend ก่อน (ไม่ได้รีสตาร์ต server ของผู้ใช้เอง)
+- ปุ่มแดง `#FE2C55` ตัวหนังสือขาว contrast 3.68 (ต้อง 4.5) — เป็นสีแบรนด์ รอเจ้าของตัดสิน (`#e0244a` ที่ใช้ตอน hover ได้ 4.65)
+- ทุกหน้ายังโหลด chunk editor (~570 KB ก่อนบีบอัด) — ต้องแก้ด้วยวิธีอื่นที่ไม่ทำ runtime พัง
+- "iPhone" = WebKit ของ Playwright จำลองบน Windows ไม่ใช่ Safari บนเครื่องจริง (คีย์บอร์ดจอ, safe area, back-gesture ยังไม่ได้ลอง)
+- modal ที่เปิดดูในแอปจริง 5 + sheet 1 จาก 25 ที่เหลือพึ่ง fixture + contract test
+- `EditorShell` chunk เกิน 600 KB ยังเป็น build warning เดิม
+- Jev: SDK ไม่ได้ติดตั้ง — degrade ตามกฎข้อ 19
 
 ### Round CLAUDE-MODERN-WEB-GUIDANCE-20261111 (2026-11-11)
 **ดำเนินการโดย:** Claude Code (Claude Fable 5.2)

@@ -103,7 +103,7 @@ export default function AnalyticsHub({
                     <span className={`text-[10px] font-mono font-medium px-1.5 py-0.5 rounded border ml-1 ${
                       isActive
                         ? 'bg-white/10 text-white border-white/20'
-                        : 'bg-white/[0.03] text-slate-500 border-white/[0.06]'
+                        : 'bg-white/[0.03] text-slate-400 border-white/[0.06]'
                     }`}>
                       {tab.badge}
                     </span>

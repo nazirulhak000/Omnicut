@@ -66,7 +66,7 @@ export function DialogHost() {
   return (
     <>
       <ConfirmModal
-        key={current?.id ?? 'idle'}
+        key={current ? `confirm-${current.id}` : 'confirm-idle'}
         isOpen={Boolean(current)}
         onClose={() => settle(false)}
         onConfirm={() => settle(true)}
@@ -78,7 +78,7 @@ export function DialogHost() {
         variant={options.variant || 'warning'}
       />
       <Toast
-        key={toast?.id ?? 'idle'}
+        key={toast ? `toast-${toast.id}` : 'toast-idle'}
         message={toast?.message || ''}
         type={toast?.type || 'error'}
         duration={toast?.duration}

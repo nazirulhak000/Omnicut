@@ -172,13 +172,13 @@ export default memo(function Topbar({
           <button
             type="button"
             onClick={handleRefreshWithPing}
-            aria-label="รีเฟรชข้อมูลทั้งระบบ"
             disabled={isRefreshing}
             className="h-8 sm:h-9 p-1.5 sm:px-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] active:bg-white/[0.12] active:scale-95 border border-white/[0.08] text-slate-300 hover:text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70"
             title="รีเฟรชข้อมูลทั้งระบบ"
           >
             <RefreshCw className={`w-3.5 h-3.5 text-slate-400 ${isRefreshing ? 'animate-spin text-cyan-400' : ''}`} />
             <span className="hidden sm:inline">รีเฟรชข้อมูล</span>
+            <span className="sr-only sm:hidden">รีเฟรชข้อมูลทั้งระบบ</span>
           </button>
         )}
 
@@ -186,13 +186,13 @@ export default memo(function Topbar({
         <button
           type="button"
           onClick={onOpenShortcuts}
-          aria-label="เปิดหน้าต่างคีย์ลัดด่วน"
           className="hidden md:flex items-center gap-1.5 h-8 sm:h-9 bg-white/[0.04] hover:bg-white/[0.08] px-2.5 rounded-xl border border-white/[0.08] text-xs font-semibold text-slate-300 hover:text-white cursor-pointer transition-colors shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70"
           title="คีย์ลัดด่วน (กด ? เพื่อเปิดดู)"
         >
           <Keyboard className="w-3.5 h-3.5 text-slate-400" />
           <span className="hidden lg:inline text-slate-300">คีย์ลัด</span>
-          <kbd className="hidden lg:inline px-1.5 py-0.2 rounded bg-white/[0.08] border border-white/[0.1] text-xs text-slate-400 font-mono">?</kbd>
+          <span className="sr-only lg:hidden">เปิดหน้าต่างคีย์ลัดด่วน</span>
+          <kbd aria-hidden="true" className="hidden lg:inline px-1.5 py-0.2 rounded bg-white/[0.08] border border-white/[0.1] text-xs text-slate-400 font-mono">?</kbd>
         </button>
 
         {/* Server Connection Status Badge */}
@@ -200,8 +200,7 @@ export default memo(function Topbar({
           onClick={handleRefreshWithPing}
           onKeyDown={handleStatusKeyDown}
           role="button"
-          tabIndex={0}
-          aria-label={isOnline ? `สถานะเซิร์ฟเวอร์ออนไลน์ ${latencyMs ? `ความหน่วง ${latencyMs} มิลลิวินาที` : ''} แตะเพื่อรีเฟรช` : 'ขาดการเชื่อมต่อเซิร์ฟเวอร์ แตะเพื่อเชื่อมต่อใหม่'}
+          tabIndex={0}
           title={isOnline ? `ระบบออนไลน์พร้อมใช้งาน ${latencyMs ? `(${latencyMs}ms)` : ''} (แตะเพื่อรีเฟรช)` : "ขาดการเชื่อมต่อ (แตะเพื่อรีเฟรชเชื่อมต่อใหม่)"}
           className={`flex items-center justify-center gap-1.5 min-h-11 sm:min-h-0 sm:h-9 px-2.5 sm:px-3 rounded-xl text-xs font-semibold border cursor-pointer active:scale-95 transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70 ${
             isOnline
@@ -209,6 +208,8 @@ export default memo(function Topbar({
               : 'bg-rose-500/10 text-rose-300 border-rose-500/25'
           }`}
         >
+          {/* Name comes from the content, so it always contains the visible text. */}
+          <span className="sr-only">{isOnline ? `สถานะเซิร์ฟเวอร์ออนไลน์ ${latencyMs ? `ความหน่วง ${latencyMs} มิลลิวินาที` : ''} แตะเพื่อรีเฟรช` : 'ขาดการเชื่อมต่อเซิร์ฟเวอร์ แตะเพื่อเชื่อมต่อใหม่'}</span>
           {isOnline ? (
             <>
               <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0 shadow-[0_0_8px_rgba(52,211,153,0.6)]" />

@@ -123,6 +123,9 @@
    - **dropdown / เมนู** ใช้ `ui/PopoverPanel` — ห้ามดัก `document` mousedown เพื่อปิดเอง
    - **ห้าม `window.alert()` / `window.confirm()`** — ใช้ `confirmDialog()` / `notify()` จาก `ui/dialogService`
    - Enter-เพื่อบันทึกใน `<input>`/`<textarea>` ต้องเช็ก `isComposing` + `keyCode === 229`
+   - ทุก `<ModalLayer>` ต้องมี `aria-label` หรือ `aria-labelledby` (เทสต์ `modalLayerContract.test.js` บังคับ)
+   - แก้ overlay กลาง (`ui/ModalLayer`, `Modal`, `Toast`, `PopoverPanel`, `dialogService`) ต้องรัน `tools/overlay_browser_check.py` (Chromium + Firefox + WebKit) ให้ผ่าน
+   - หลัง `vite build` ทุกครั้งต้องเปิดเบราว์เซอร์ดูว่าแอปขึ้นจริง — เทสต์ + build ผ่านไม่ได้แปลว่า bundle รันได้ (เคยพังจากการแก้ `manualChunks` 2026-11-11)
 
 ---
 
