@@ -6,6 +6,7 @@ headless twin of the same worker is `tools/autopost_conductor/`.
 
 ## What a run does (side panel → "เริ่มรันอัปโหลด")
 Before a manual handoff, **เตรียมคลิปนี้** opens an editable dialog for caption, hashtags and an explicit schedule or draft intent. Missing dates and unresolved placeholders can be fixed there. Confirmation freezes that job's data; it does not bulk-rewrite the queue. Posted, missing and QC-rejected exports remain blocked.
+The dialog auto-saves incomplete edits in `chrome.storage.local`, isolated by channel, export and queue row. **บันทึกข้อมูล** saves without preparing or posting; closing/reloading restores those edits. This is local extension storage, not a rewrite of the central queue. A known product name fills `{product_name}`; unknown placeholders and missing date/time are identified together before Prepare can proceed.
 1. **Readiness check** ("ตรวจความพร้อม", also runs automatically before every start): backend + protocol, TikTok login, upload page,
    logged-in account = the channel's handle, window size, quota. A failed item stops the run; a warning is shown in the confirm box.
 2. Tick the clips you want (checkbox). Ticked clips are posted **exactly** — if none of them is usable nothing runs (it never falls

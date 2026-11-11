@@ -4,6 +4,8 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round CODEX-AUTOPOST-PREPARE-SAVE-FEEDBACK-20261112 · 0.10.4 บันทึกฟอร์มอัตโนมัติ/ปุ่มบันทึก แยกคลิปและช่อง, restore หลัง reload, แจ้ง placeholder/slot ครบ; Node 270/270, sidebar 33/33, read-only backend 27/27 compatibility → [_Docs/Reports/AUTOPOST_PREPARE_SAVE_20261112.md](_Docs/Reports/AUTOPOST_PREPARE_SAVE_20261112.md), HISTORY.md · ดำเนินการโดย: Codex (GPT-6)
+
 - [x] Round CODEX-AUTOPOST-PREPARE-AND-HARDENING-20261112 · เสร็จ 0.10.3; Node 266/266, sidebar 28/28, backend 27/27; ผู้ใช้ยืนยัน commit/merge หลัง Jev gate แล้ว → [_Docs/Reports/AUTOPOST_PREPARE_HARDENING_20261112.md](_Docs/Reports/AUTOPOST_PREPARE_HARDENING_20261112.md), HISTORY.md · ดำเนินการโดย: Codex (GPT-6)
 
 - [ ] Round CODEX-AUTOPOST-P0-IMPLEMENTATION-20261111 · ดำเนินการโดย: Codex (GPT-6)

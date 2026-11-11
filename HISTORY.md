@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round CODEX-AUTOPOST-PREPARE-SAVE-FEEDBACK-20261112 | 0.10.4 ฟอร์ม autosave/บันทึกข้อมูลใน extension แยกคลิป/ช่อง, restore หลัง reload, แจ้ง placeholder และวันที่/เวลา; Node 270/270, sidebar 33/33, backend read-only 27/27 compatibility | 2026-11-12 | ดำเนินการโดย: Codex (GPT-6) |
 | Round CODEX-AUTOPOST-PREPARE-AND-HARDENING-20261112 | เตรียมคลิปเปิดแก้ caption/slot ได้ก่อน claim; Smart quota, complete Drafts scan, atomic run lock, frozen context และ recovery ตามจริง; 0.10.3, Node 266/266, docked sidebar 28/28, real backend 27/27 compatibility; ไม่โพสต์จริง | 2026-11-12 | ดำเนินการโดย: Codex (GPT-6) |
 | Round CODEX-AUTOPOST-HELPER-AUDIT-PLAN-20261111 | ตรวจ extension v0.10.1 และจัดแผน 8 ประเด็น / 4 รอบ; Node 211/211, isolated probes พบช่องว่าง 4 กรณี; ไม่แก้โค้ดหรือโพสต์จริง | 2026-11-11 | ดำเนินการโดย: Codex (GPT-6) |
 | Round CLAUDE-DRAFT-TO-RENDER-SPEED-AUDIT-20261111 | วัดเวลาจริงเส้นทาง "สร้างคลิป → ร่างแรก → editor → เรนเดอร์ mp4" หาคอขวดจากตัวเลข (ช่วงที่ 1 = วัดอย่างเดียว): ซับสองภาษา 125.6s (43 requests), Hook shadow 19–21s, ห่วงโซ่คลิป 12.2s, วางแผนช่วงที่ 2 (ก1–ก3, ข1–ข6) — ดูรายงาน _Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md และ tools/speed_audit/ | 2026-11-11 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
@@ -18767,3 +18768,14 @@ Plan before code:
 - [x] รายงาน `_Docs/Reports/AUTOPOST_PREPARE_HARDENING_20261112.md`; bump 0.10.3; ลบภาพทดสอบหลังตรวจ
 - [x] Jev เอกสาร confidence 0.99; commit path gate confidence 0.08 จึงถามผู้ใช้และได้รับคำยืนยัน “Commit และรวมกลับ main” (2026-11-12)
 - Notes: คิว/exports/pending ก่อนหลัง real-backend check hash เท่ากัน; ไม่โพสต์บนบัญชีจริง; debug profile เดิมยังติด policy จากรอบ P0 ไม่ได้ลองข้าม; รักษา runtime dirty ของผู้อื่นทั้งหมด
+
+## Round CODEX-AUTOPOST-PREPARE-SAVE-FEEDBACK-20261112
+ดำเนินการโดย: Codex (GPT-6) · วันที่: 2026-11-12
+
+- [x] แก้ฟอร์มเดิมไม่มี persistence และ native required validation หยุด submit ก่อนแจ้งเหตุผล
+- [x] เพิ่ม autosave/ปุ่มบันทึกข้อมูลใน chrome.storage.local แยก channel/export/queue; ข้อมูลไม่ครบยังบันทึกได้โดยไม่ prepare; ปิด/เปิด/reload คืนค่าเดิม
+- [x] แทน product_name เฉพาะ metadata จริง; custom validation ระบุ placeholder + วันที่/เวลาที่ขาดพร้อม aria-invalid/focus; ยังคง publish guards
+- [x] Node extension+conductor 270/270; docked sidebar fixtures 33/33 รวม persistence/known product/axe dark-light; backend read-only 27/27 compatibility ภาพปก; compile/diff check ผ่าน
+- [x] Jev ก่อนเริ่ม/ก่อน commit confidence 1.00; report disclosure 2.98/3 confidence 0.98 จากข้อความ ไม่ใช่หลักฐานโค้ด
+- [x] รายงาน `_Docs/Reports/AUTOPOST_PREPARE_SAVE_20261112.md`; รุ่น 0.10.4; ลบภาพทดสอบ/download/state หลังตรวจ
+- Notes: เก็บเฉพาะข้อมูลฟอร์มในเครื่อง ไม่เขียนทับคิวส่วนกลางหรือ runtime dirty เดิม; ไม่โพสต์ TikTok จริง; เจ้าของต้อง reload extension

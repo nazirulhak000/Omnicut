@@ -1812,7 +1812,7 @@ async function handlePrepareClick(item) {
   const record = exportRecordIndex?.get(item.export_id);
   const hardCode = globalThis.OmniPostGuard.clipSkipReason(item, record, Date.now(), {exportsKnown:Boolean(exportRecordIndex),ignoreSlot:true});
   if (['export_missing','export_already_posted','export_qc_rejected'].includes(hardCode)) {setStatus(BLOCK_REASON_TH[hardCode] || hardCode,'error');return;}
-  const edited = await globalThis.OmniPrepareForm.open(item,{guard:globalThis.OmniPostGuard,record,exportsKnown:Boolean(exportRecordIndex),reasons:BLOCK_REASON_TH});
+  const edited = await globalThis.OmniPrepareForm.open(item,{guard:globalThis.OmniPostGuard,record,exportsKnown:Boolean(exportRecordIndex),reasons:BLOCK_REASON_TH,channelId:channel});
   if (!edited) return;
   if (channel !== activeChannelId || epoch !== channelEpoch) throw new Error('ช่องเปลี่ยนแล้ว กรุณาเตรียมคลิปใหม่');
   await prepareClip(edited);
