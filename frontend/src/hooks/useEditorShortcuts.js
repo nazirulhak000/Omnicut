@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { classifyShortcut, isEditableTarget, shouldIgnoreShortcutTarget } from '../lib/editorShortcutKeys.js';
 import { editNavigationTarget } from '../lib/timelineTrimOps.js';
 import { keyframeSeekTarget, toggleKeyframePatch } from '../lib/clipKeyframeOps.js';
@@ -17,6 +17,9 @@ export function useEditorShortcuts({
   togglePlayer,
   seekPlayer,
   playhead,
+  // Returns the playhead "now". The editor passes it so the handlers below do
+  // not depend on a `playhead` value that only changes when playback settles.
+  getPlayhead = null,
   totalDuration,
   audioDuration,
   // Continuous zoom: (dir) => void hops to the next preset. setZoomIndex is
@@ -60,6 +63,13 @@ export function useEditorShortcuts({
   onToggleImmersive,
   onExitImmersive,
 } = {}) {
+  // Event-time read of the playhead (see getPlayhead above).
+  const playheadFallbackRef = useRef(playhead);
+  playheadFallbackRef.current = playhead;
+  const readPlayhead = useCallback(
+    () => (getPlayhead ? getPlayhead() : playheadFallbackRef.current),
+    [getPlayhead],
+  );
   const keyHandlerRef = useRef(null);
 
   // Stashed rather than subscribed in this effect: no dependency array ensures
@@ -96,7 +106,7 @@ export function useEditorShortcuts({
 
       const jump = (d) => {
         const maxTime = Math.max(totalDuration || 0, audioDuration || 0);
-        const next = Math.max(0, Math.min(maxTime, (playhead || 0) + d));
+        const next = Math.max(0, Math.min(maxTime, (readPlayhead() || 0) + d));
         seekPlayer?.(next);
       };
 
@@ -116,7 +126,7 @@ export function useEditorShortcuts({
         case 'nextEdit':
         case 'seekStart':
         case 'seekEnd': {
-          const target = editNavigationTarget(action, { segments, cues, playhead: playhead || 0, totalDuration });
+          const target = editNavigationTarget(action, { segments, cues, playhead: readPlayhead() || 0, totalDuration });
           if (target !== null) seekPlayer?.(target);
           break;
         }
@@ -153,7 +163,7 @@ export function useEditorShortcuts({
         case 'cycleCutout': onCycleCutoutMode?.(); break;
         case 'toggleKeyframe': {
           if (!selectedSeg?.clip) { onKeyframeToggled?.('noClip'); break; }
-          const patch = toggleKeyframePatch(selectedSeg, playhead || 0);
+          const patch = toggleKeyframePatch(selectedSeg, readPlayhead() || 0);
           if (!patch) { onKeyframeToggled?.('outside'); break; }
           patchClip?.(selectedSeg.clip.id, patch);
           const before = Array.isArray(selectedSeg.clip.keyframes) ? selectedSeg.clip.keyframes.length : 0;
@@ -164,7 +174,7 @@ export function useEditorShortcuts({
         case 'prevKeyframe':
         case 'nextKeyframe': {
           if (!selectedSeg?.clip) break;
-          const target = keyframeSeekTarget(selectedSeg, playhead || 0, action === 'prevKeyframe' ? -1 : 1);
+          const target = keyframeSeekTarget(selectedSeg, readPlayhead() || 0, action === 'prevKeyframe' ? -1 : 1);
           if (target !== null) seekPlayer?.(target);
           break;
         }

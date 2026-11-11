@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useRef, useCallback, useMemo, useState } from 'react';
 import { resolveSelectedItem } from '../lib/selectionResolver.js';
 import {
   EMPTY_CLIP_SELECTION,
@@ -18,8 +18,18 @@ export function useEditorSelection({
   overlays = [],
   hookOverlay = null,
   playhead = 0,
+  // Returns the playhead "now". The editor passes it so the handlers below do
+  // not depend on a `playhead` value that only changes when playback settles.
+  getPlayhead = null,
   seekPlayer = () => {},
 } = {}) {
+  // Event-time read of the playhead (see getPlayhead above).
+  const playheadFallbackRef = useRef(playhead);
+  playheadFallbackRef.current = playhead;
+  const readPlayhead = useCallback(
+    () => (getPlayhead ? getPlayhead() : playheadFallbackRef.current),
+    [getPlayhead],
+  );
   const [selection, setSelection] = useState(null);
   // Extra clips selected beside the primary `selection` (Ctrl/Shift+click).
   // Only meaningful while `selection` is still the clip it was built around.
@@ -70,7 +80,7 @@ export function useEditorSelection({
       });
       if (cue && typeof cue.start === 'number') {
         const cueEnd = typeof cue.end === 'number' ? cue.end : cue.start + 2.0;
-        if (playhead < cue.start - 0.05 || playhead > cueEnd + 0.05) {
+        if (readPlayhead() < cue.start - 0.05 || readPlayhead() > cueEnd + 0.05) {
           seekPlayer(cue.start);
         }
       }
@@ -80,7 +90,7 @@ export function useEditorSelection({
       });
       if (seg && typeof seg.segStart === 'number') {
         const segEnd = typeof seg.segEnd === 'number' ? seg.segEnd : seg.segStart + 2.0;
-        if (playhead < seg.segStart - 0.05 || playhead > segEnd + 0.05) {
+        if (readPlayhead() < seg.segStart - 0.05 || readPlayhead() > segEnd + 0.05) {
           seekPlayer(seg.segStart);
         }
       }
@@ -90,12 +100,12 @@ export function useEditorSelection({
       });
       if (item && typeof item.start === 'number') {
         const itemEnd = typeof item.end === 'number' ? item.end : item.start + 2.0;
-        if (playhead < item.start - 0.05 || playhead > itemEnd + 0.05) {
+        if (readPlayhead() < item.start - 0.05 || readPlayhead() > itemEnd + 0.05) {
           seekPlayer(item.start);
         }
       }
     }
-  }, [cuesList, segments, overlays, hookOverlay, playhead, seekPlayer]);
+  }, [cuesList, segments, overlays, hookOverlay, readPlayhead, seekPlayer]);
 
   // Ctrl/Cmd+click ('toggle'), Shift+click ('range') and right-click ('focus')
   // on a clip. The clicked clip becomes the primary selection (the Inspector,
@@ -108,10 +118,10 @@ export function useEditorSelection({
       const seg = segments.find((item) => item.clip?.id === id);
       if (seg && typeof seg.segStart === 'number') {
         const segEnd = typeof seg.segEnd === 'number' ? seg.segEnd : seg.segStart + 2.0;
-        if (playhead < seg.segStart - 0.05 || playhead > segEnd + 0.05) seekPlayer(seg.segStart);
+        if (readPlayhead() < seg.segStart - 0.05 || readPlayhead() > segEnd + 0.05) seekPlayer(seg.segStart);
       }
     }
-  }, [clipMulti, primaryClipId, clipOrder, segments, playhead, seekPlayer]);
+  }, [clipMulti, primaryClipId, clipOrder, segments, readPlayhead, seekPlayer]);
 
   const clearSelection = useCallback(() => {
     setSelection(null);

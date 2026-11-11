@@ -22,10 +22,9 @@ import {
   markRangePoint, rangeMarkToRanges, resolveRippleScope, silenceSpansToProgramRanges, voiceCutSignature,
 } from '../../lib/rippleUi.js';
 import {
-  FADE_DURATION, buildSegments, clipCutTimes, formatTimecode, resolveSplitTarget, snapSeekTime, splitClipAt, snapCandidates, snapTime,
+  FADE_DURATION, buildSegments, clipCutTimes, formatTimecode, snapSeekTime, splitClipAt, snapCandidates, snapTime,
   totalDuration as totalDurationOf,
 } from '../../lib/timelineMath';
-import { resolveTrimHead, resolveTrimTail } from '../../lib/timelineTrimOps.js';
 import {
   DEFAULT_PX_PER_SEC, ZOOM_PRESETS, clampPxPerSec, fitPxPerSec, stepZoomPreset, zoomPresetIndex,
 } from '../../lib/timelineZoom.js';
@@ -58,6 +57,8 @@ import {
   nextPreviewMode,
 } from '../../lib/panelLayoutPreview.js';
 import { useEditorSelection } from '../../hooks/useEditorSelection';
+import { PlayheadContext } from '../../hooks/usePlayhead';
+import { createPlayheadStore } from '../../lib/playheadStore';
 import { useEditorCommands } from '../../hooks/useEditorCommands';
 import { useEditorShortcuts } from '../../hooks/useEditorShortcuts';
 import { toMediaUrl } from '../../lib/mediaUrl';
@@ -116,7 +117,7 @@ import {
   withTierLook,
   withTierText,
 } from '../../lib/overlayModel';
-import Toolbar from './Toolbar';
+import LiveToolbar from './LiveToolbar';
 import NewClipPanel from './NewClipPanel';
 import CoverStudioModal from '../CoverStudioModal';
 import { ActivityIndicatorButton } from '../ActivityCenter';
@@ -283,7 +284,27 @@ export default function EditorShell({
       ? effectiveVoiceDuration(activeVoiceEdit.cuts, activeVoiceEdit.source?.duration)
       : loadedAudioDuration
   ), [activeVoiceEdit, loadedAudioDuration]);
-  const [playhead, setPlayhead] = useState(0);
+  // `playhead` is the *settled* time: it changes on a seek, on play, on pause
+  // and at the end, but not while the clip is playing. The ~20 reports a
+  // second during playback go to `playheadStore` only, so they no longer
+  // re-render this whole component and everything under it. The few things
+  // that follow the moving playhead subscribe to the store (PlayheadContext);
+  // handlers that need "where is it now" call getPlayhead().
+  const playheadStore = useMemo(() => createPlayheadStore(0), []);
+  const getPlayhead = playheadStore.get;
+  const [playhead, setPlayheadState] = useState(0);
+  const setPlayhead = useCallback((time) => {
+    playheadStore.set(time);
+    setPlayheadState(time);
+  }, [playheadStore]);
+  const handlePlayheadTick = useCallback((time) => {
+    playheadStore.set(time);
+  }, [playheadStore]);
+  // Playback stopped (pause, subject-pick mode): settle on the last reported
+  // time, which is what this state held before the ticks left it.
+  const handlePlayingChange = useCallback((playing) => {
+    if (!playing) setPlayheadState(playheadStore.get());
+  }, [playheadStore]);
   // Timeline zoom is continuous px/s (Ctrl+wheel, fit); buttons and +/- hop
   // between ZOOM_PRESETS. zoomIndex only feeds the toolbar's "N/count".
   const [pxPerSec, setPxPerSec] = useState(DEFAULT_PX_PER_SEC);
@@ -742,7 +763,7 @@ export default function EditorShell({
   }, [handleAddOverlay]);
 
   const handleAddTextOverlay = useCallback(() => {
-    const startSec = Math.round(playhead * 100) / 100;
+    const startSec = Math.round(getPlayhead() * 100) / 100;
     handleAddOverlay(newTextOverlay({
       id: `ovl_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       text: 'ข้อความใหม่',
@@ -750,7 +771,7 @@ export default function EditorShell({
       end: startSec + 2.5,
       look: { color: '#FFE600' },
     }));
-  }, [playhead, handleAddOverlay]);
+  }, [getPlayhead, handleAddOverlay]);
 
   /**
    * The banner, made on demand. It is an ordinary overlay, so "there isn't
@@ -1217,6 +1238,7 @@ export default function EditorShell({
     overlays,
     hookOverlay,
     playhead,
+    getPlayhead,
     seekPlayer,
   });
 
@@ -1269,6 +1291,7 @@ export default function EditorShell({
     newId,
     durations,
     playhead,
+    getPlayhead,
     segments,
     selectedSeg,
     selection,
@@ -1325,6 +1348,7 @@ export default function EditorShell({
     togglePlayer,
     seekPlayer,
     playhead,
+    getPlayhead,
     totalDuration,
     audioDuration, trackLinkageEnabled,
     onZoomStep: zoomStep,
@@ -1370,19 +1394,8 @@ export default function EditorShell({
   });
 
 
-  // Split button state comes from the same resolver the Split command runs.
-  const splitTarget = useMemo(
-    () => resolveSplitTarget(segments, selectedSeg, playhead),
-    [segments, selectedSeg, playhead],
-  );
-  const trimHeadTarget = useMemo(
-    () => resolveTrimHead(segments, selectedSeg, playhead),
-    [segments, selectedSeg, playhead],
-  );
-  const trimTailTarget = useMemo(
-    () => resolveTrimTail(segments, selectedSeg, playhead),
-    [segments, selectedSeg, playhead],
-  );
+  // Split / Trim-head / Trim-tail availability depends on the live playhead;
+  // LiveToolbar derives it from the same resolvers the commands run.
 
   const hasTransformOverride = !!selectedSeg?.clip && (
     (selectedSeg.clip.zoom !== undefined && selectedSeg.clip.zoom !== 1) ||
@@ -1501,7 +1514,7 @@ export default function EditorShell({
 
   const handleAddTextTemplate = useCallback((tpl) => {
     const isHook = tpl?.category === 'hook';
-    const startSec = isHook ? 0.0 : Math.round(playhead * 100) / 100;
+    const startSec = isHook ? 0.0 : Math.round(getPlayhead() * 100) / 100;
     const defaultDur = isHook ? Math.min(3.5, totalDuration || 3.5) : 2.5;
     const endSec = Math.round((startSec + defaultDur) * 100) / 100;
     const overlay = overlayFromTextTemplate(tpl, {
@@ -1520,7 +1533,7 @@ export default function EditorShell({
     setPreviewTextTemplate(null);
     cuesDirty.current = true;
     setSaveStatus('dirty');
-  }, [playhead, totalDuration, set]);
+  }, [getPlayhead, totalDuration, set]);
 
   const handleSelectTextTemplate = useCallback((tpl) => {
     if (!tpl) return;
@@ -1548,7 +1561,7 @@ export default function EditorShell({
 
   const handleAddSticker = useCallback((badgeName, asset = null) => {
     const dur = 3.0; // DEFAULT 3 SECONDS
-    const start = Math.round(playhead * 10) / 10;
+    const start = Math.round(getPlayhead() * 10) / 10;
     const maxEnd = totalDuration > 0 ? totalDuration : (start + dur);
     const end = Math.round(Math.min(maxEnd, start + dur) * 10) / 10;
     const recolorMeta = asset?.recolorable
@@ -1579,7 +1592,7 @@ export default function EditorShell({
       },
     }));
     setSelection({ type: 'sticker', id: newSticker.id });
-  }, [playhead, totalDuration, set]);
+  }, [getPlayhead, totalDuration, set]);
 
   // `options` as in handleUpdateOverlay: { silent: true } inside a canvas drag.
   const handleUpdateSticker = useCallback((idOrPatch, maybePatch, options) => {
@@ -1657,7 +1670,7 @@ export default function EditorShell({
   // since this is a new feature with nothing to stay back-compatible with.
   const handleAddEffect = useCallback((effectId, asset = null) => {
     const dur = 3.0;
-    const start = Math.round(playhead * 10) / 10;
+    const start = Math.round(getPlayhead() * 10) / 10;
     const maxEnd = totalDuration > 0 ? totalDuration : (start + dur);
     const end = Math.round(Math.min(maxEnd, start + dur) * 10) / 10;
     const newId = `effect-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
@@ -1692,7 +1705,7 @@ export default function EditorShell({
       return { ...prev, effects: [...existing, newEffect] };
     });
     setSelection({ type: 'effect', id: newId });
-  }, [playhead, totalDuration, set]);
+  }, [getPlayhead, totalDuration, set]);
 
   const handleUpdateEffect = useCallback((idOrPatch, maybePatch, options) => {
     let id = null;
@@ -2153,7 +2166,7 @@ export default function EditorShell({
           const item = buildCoverGateItem(matchAngle, matchProduct);
           item.timeline_snapshot = {
             data_url: snapshot,
-            seconds: Number(playhead.toFixed(2)),
+            seconds: Number(getPlayhead().toFixed(2)),
           };
           setCoverGateItem(item);
         }
@@ -2166,7 +2179,7 @@ export default function EditorShell({
       setApplyError('ตรวจสอบข้อมูลปกไม่สำเร็จ: ' + (e.response?.data?.detail || e.message));
     }
     setCoverGateChecking(false);
-  }, [projectName, findMatchingAngle, buildCoverGateItem, isMobileView, playhead]);
+  }, [projectName, findMatchingAngle, buildCoverGateItem, isMobileView, getPlayhead]);
 
   // Refreshed whenever the loaded project changes so the header's cover
   // badge reflects this project's actual state instead of staying stuck on
@@ -2571,6 +2584,7 @@ export default function EditorShell({
   }, [style.bgmName, assets.music, assets.default_bgm]);
 
   return (
+    <PlayheadContext.Provider value={playheadStore}>
     <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl glass-panel">
       {/* ── HEADER / TOPBAR (Hidden in Immersive Studio mode) ── */}
       {!isImmersive && (
@@ -3084,6 +3098,8 @@ export default function EditorShell({
                   onUpdateEffect={handleUpdateEffect}
                   compact
                   onPlayhead={setPlayhead}
+                  onPlayheadTick={handlePlayheadTick}
+                  onPlayingChange={handlePlayingChange}
                   onDurations={setDurations}
                   selection={selection}
                   onSelect={handleSelect}
@@ -3287,19 +3303,15 @@ export default function EditorShell({
                 style={mobileStyles.panel}
                 aria-hidden={isMobileFullPreview || undefined}
               >
-                <Toolbar
+                <LiveToolbar
+                  segments={segments}
+                  selectedSeg={selectedSeg}
                   playhead={playhead}
                   totalDuration={totalDuration}
                   hasClipSelected={!!selectedSeg}
                   hasSelection={!!selection}
                   selectedClip={selectedSeg?.clip}
-                  canSplit={!!splitTarget.seg}
-                  splitBlockedReason={splitTarget.message}
-                  canTrimHead={Boolean(trimHeadTarget.seg)}
-                  trimHeadBlockedReason={trimHeadTarget.message}
                   onTrimHead={trimHeadAtPlayhead}
-                  canTrimTail={Boolean(trimTailTarget.seg)}
-                  trimTailBlockedReason={trimTailTarget.message}
                   onTrimTail={trimTailAtPlayhead}
                   canUndo={canUndo}
                   canRedo={canRedo}
@@ -3835,6 +3847,8 @@ export default function EditorShell({
                     onUpdateEffect={handleUpdateEffect}
                     compact
                     onPlayhead={setPlayhead}
+                    onPlayheadTick={handlePlayheadTick}
+                    onPlayingChange={handlePlayingChange}
                     onDurations={setDurations}
                     selection={selection}
                     onSelect={handleSelect}
@@ -4200,19 +4214,15 @@ export default function EditorShell({
                     </button>
                   )}
                 </div>
-                <Toolbar
+                <LiveToolbar
+                  segments={segments}
+                  selectedSeg={selectedSeg}
                   playhead={playhead}
                   totalDuration={totalDuration}
                   hasClipSelected={!!selectedSeg}
                   hasSelection={!!selection}
                   selectedClip={selectedSeg?.clip}
-                  canSplit={!!splitTarget.seg}
-                  splitBlockedReason={splitTarget.message}
-                  canTrimHead={Boolean(trimHeadTarget.seg)}
-                  trimHeadBlockedReason={trimHeadTarget.message}
                   onTrimHead={trimHeadAtPlayhead}
-                  canTrimTail={Boolean(trimTailTarget.seg)}
-                  trimTailBlockedReason={trimTailTarget.message}
                   onTrimTail={trimTailAtPlayhead}
                   canUndo={canUndo}
                   canRedo={canRedo}
@@ -4450,5 +4460,6 @@ export default function EditorShell({
         }}
       />
     </div>
+    </PlayheadContext.Provider>
   );
 }

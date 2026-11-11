@@ -4,6 +4,7 @@ import { MIN_CLIP_DURATION, resolveSnapCandidateLabel, snapToFrame } from '../..
 import { freezePlayheadCandidate, trimDragSeekTime } from '../../lib/timelineTrimOps';
 import { clickMode } from '../../lib/clipMultiSelect';
 import ClipFilmstrip from './timeline/ClipFilmstrip';
+import { usePlayheadGetter } from '../../hooks/usePlayhead';
 
 const CLIP_RADIUS = 6;
 // Two 10px handles plus some body to still click/drag: narrower clips only show
@@ -40,6 +41,8 @@ export default function TimelineClip({
   audioDuration = 0,
   onSnapGuide,
 }) {
+  // Live playhead for handlers; the `playhead` prop is the settled value.
+  const getPlayhead = usePlayheadGetter(playhead);
   const dragRef = useRef(null);
   const bodyRef = useRef(null);
   const [dragging, setDragging] = useState(false);
@@ -106,7 +109,7 @@ export default function TimelineClip({
       // The drag moves the playhead to the dragged edge (onSeek below); the
       // snap target "playhead" must stay where it was when the drag began, or
       // the edge would snap to the very frame it is showing.
-      startPlayhead: playhead,
+      startPlayhead: getPlayhead(),
     };
     setTrimHud({ edge, dur: seg.dur, delta: 0 });
     onTrimBegin?.();
@@ -124,7 +127,7 @@ export default function TimelineClip({
       onSnapGuide?.(null);
       return rawNext;
     }
-    const dragPlayhead = dragRef.current?.startPlayhead ?? playhead;
+    const dragPlayhead = dragRef.current?.startPlayhead ?? getPlayhead();
     const candidates = freezePlayheadCandidate(snapCandidates, playhead, dragPlayhead);
     // rawNext/sourceOtherBound are source-domain trim values; the edge that
     // actually moves on screen is measured in sequence seconds, `speed` times

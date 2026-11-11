@@ -3115,6 +3115,12 @@ function SequencePlayer({
   trackMix = null,
   compact = false,
   onPlayhead,
+  // Optional: receives the ~20/s reports while playing instead of onPlayhead,
+  // so an owner can keep them out of its React state. Seeks, play and the end
+  // of the clip still go to onPlayhead.
+  onPlayheadTick,
+  // Optional: called with true/false when playback starts or stops.
+  onPlayingChange,
   onDurations,
   captionStyle = {},
   stickerStyle = {},
@@ -3313,6 +3319,11 @@ function SequencePlayer({
   const clipSourcesRef = useRef(clipSources);
   useEffect(() => { clipSourcesRef.current = clipSources; }, [clipSources]);
   const [isPlaying, setIsPlaying] = useState(false);
+  const onPlayingChangeRef = useRef(onPlayingChange);
+  onPlayingChangeRef.current = onPlayingChange;
+  useEffect(() => {
+    onPlayingChangeRef.current?.(isPlaying);
+  }, [isPlaying]);
   const [playhead, setPlayhead] = useState(0);
   const playheadRef = useRef(0);
   const lastPlayheadUiUpdateRef = useRef(null);
@@ -5280,7 +5291,7 @@ function SequencePlayer({
       publishPlayhead(t, false, now);
       if (!lastNotifyRef.current || now - lastNotifyRef.current > 50) {
         lastNotifyRef.current = now;
-        onPlayhead?.(t);
+        (onPlayheadTick || onPlayhead)?.(t);
       }
       rafRef.current = requestAnimationFrame(tick);
     };

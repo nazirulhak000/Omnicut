@@ -1,11 +1,15 @@
 import React, { memo } from 'react';
+import { useLivePlayhead } from '../../../hooks/usePlayhead';
 
 function TimelinePlayhead({
   playhead = 0,
   pxPerSec = 50,
   topOffset = -28,
 }) {
-  const x = Math.round(playhead * pxPerSec);
+  // Subscribes to the live playhead so only this needle re-renders while a
+  // clip plays; the `playhead` prop is the fallback outside the editor.
+  const livePlayhead = useLivePlayhead(playhead);
+  const x = Math.round(livePlayhead * pxPerSec);
   return (
     <div
       className="pointer-events-none absolute left-0 z-30"

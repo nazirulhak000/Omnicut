@@ -12,8 +12,11 @@ test('ClipInspector contract: diamond keyframe button and navigation controls ex
   assert.match(src, /prevKf/);
   assert.match(src, /nextKf/);
   assert.match(src, /hasKeyframeAtPlayhead/);
-  assert.match(src, /keyframeStateAt\(selectedSeg, playhead\)/);
-  assert.match(src, /toggleKeyframePatch\(selectedSeg, playhead\)/);
+  // The state is read at the live playhead (getter), and the panel re-renders
+  // through a selector only when that state changes.
+  assert.match(src, /keyframeStateAt\(selectedSeg, getPlayhead\(\)\)/);
+  assert.match(src, /useLivePlayheadSelector\(/);
+  assert.match(src, /toggleKeyframePatch\(selectedSeg, getPlayhead\(\)\)/);
   assert.match(src, /keyframes\.length > 0/);
 });
 

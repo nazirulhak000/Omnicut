@@ -37,13 +37,25 @@ export function ModalLayer({ onClose, className = '', children, ...rest }) {
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   const unmountingRef = useRef(false);
+  // close() dispatches its `close` event asynchronously. React StrictMode (dev)
+  // runs this effect, its cleanup, and the effect again on mount, so the event
+  // from that cleanup arrives when the dialog is open again -- and used to be
+  // taken for the user closing it, which closed every modal the moment it
+  // opened. Count the closes we issue ourselves and ignore their events.
+  const selfClosesRef = useRef(0);
+  const invokerRef = useRef(null);
 
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return undefined;
     unmountingRef.current = false;
+    // The element to hand focus back to. Never this dialog or something in it:
+    // under StrictMode the effect runs twice, and the second time the focused
+    // element is the dialog the first run just opened.
     const active = document.activeElement;
-    const invoker = active && active !== document.body ? active : lastPressed;
+    const outside = active && active !== document.body && !el.contains(active);
+    if (outside) invokerRef.current = active;
+    else if (!invokerRef.current || !invokerRef.current.isConnected) invokerRef.current = lastPressed;
     if (!el.open) {
       try {
         el.showModal();
@@ -55,10 +67,16 @@ export function ModalLayer({ onClose, className = '', children, ...rest }) {
     setReady(true);
     return () => {
       unmountingRef.current = true;
-      try { if (el.open) el.close(); } catch { /* already detached */ }
+      try {
+        if (el.open) {
+          selfClosesRef.current += 1;
+          el.close();
+        }
+      } catch { /* already detached */ }
       const restoreFocus = () => {
         const now = document.activeElement;
-        if (!invoker || !invoker.isConnected) return;
+        const invoker = invokerRef.current;
+        if (!invoker || !invoker.isConnected || el.contains(invoker)) return;
         if (now && now !== document.body && now.isConnected) return;
         try { invoker.focus({ preventScroll: true }); } catch { /* not focusable any more */ }
       };
@@ -80,7 +98,12 @@ export function ModalLayer({ onClose, className = '', children, ...rest }) {
   // (unsaved-changes guard) put the dialog back in the top layer.
   const handleNativeClose = (event) => {
     const el = ref.current;
-    if (event.target !== el || unmountingRef.current) return;
+    if (event.target !== el) return;
+    if (selfClosesRef.current > 0) {
+      selfClosesRef.current -= 1;
+      return;
+    }
+    if (unmountingRef.current) return;
     onCloseRef.current?.();
     setTimeout(() => {
       if (unmountingRef.current || !el.isConnected || el.open) return;

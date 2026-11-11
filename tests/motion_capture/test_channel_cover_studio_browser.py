@@ -102,13 +102,14 @@ def test_cover_studio_draft_blocks_switch_without_rendering(motion_fixture_url, 
             expect(selector).to_have_value("second")
             assert len(writes) == writes_before_reload
             # A real close-click must disclose discarded work; declining preserves text.
-            confirmations = []
-            def decline(dialog):
-                confirmations.append(dialog.message)
-                dialog.dismiss()
-            page.on("dialog", decline)
+            # The disclosure is the app's own confirm dialog now (ui/dialogService),
+            # not window.confirm; declining must still preserve the text.
             page.get_by_role("dialog", name="สตูดิโอสร้างปก").get_by_role("button", name="เสร็จสิ้น" if outcome == "saved_with_newer_edit" else "ยกเลิก", exact=True).click()
-            assert confirmations and "ทิ้งการแก้ไข" in confirmations[-1]
+            discard = page.get_by_role("dialog", name="ยืนยันการดำเนินการ")
+            expect(discard).to_be_visible()
+            expect(discard).to_contain_text("ทิ้งการแก้ไข")
+            discard.get_by_role("button", name="ยกเลิก", exact=True).click()
+            expect(discard).to_have_count(0)
             expect(note).to_have_value(expected_note)
             # Programmatic selection uses the actual rendered selector despite modal overlay.
             selector.select_option("main", force=True)

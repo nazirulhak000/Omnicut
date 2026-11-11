@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { FADE_DURATION, resolveSplitTarget, splitClipAt } from '../lib/timelineMath.js';
 import { resolveTrimHead, resolveTrimTail } from '../lib/timelineTrimOps.js';
 import { copyClipSettings, pasteClipSettingsInState, pasteClipSettingsToClips } from '../lib/clipSettingsClipboard.js';
@@ -28,6 +28,9 @@ export function useEditorCommands({
   newId = () => `clip-${Date.now().toString(36)}`,
   durations = {},
   playhead = 0,
+  // Returns the playhead "now". The editor passes it so the handlers below do
+  // not depend on a `playhead` value that only changes when playback settles.
+  getPlayhead = null,
   segments = [],
   selectedSeg = null,
   selection = null,
@@ -47,6 +50,13 @@ export function useEditorCommands({
   audioDuration = 0,
   trackLinkageEnabled = false,
 }) {
+  // Event-time read of the playhead (see getPlayhead above).
+  const playheadFallbackRef = useRef(playhead);
+  playheadFallbackRef.current = playhead;
+  const readPlayhead = useCallback(
+    () => (getPlayhead ? getPlayhead() : playheadFallbackRef.current),
+    [getPlayhead],
+  );
   const markCuesDirty = useCallback(() => {
     if (cuesDirtyRef) cuesDirtyRef.current = true;
   }, [cuesDirtyRef]);
@@ -108,7 +118,7 @@ export function useEditorCommands({
     // Same resolver the toolbar's Split button uses for `canSplit`. The cut
     // time is the frame-snapped playhead; a refusal always says why instead of
     // doing nothing.
-    const target = resolveSplitTarget(segments, selectedSeg, playhead);
+    const target = resolveSplitTarget(segments, selectedSeg, readPlayhead());
     if (!target.seg) {
       onNotify?.(target.message);
       return;
@@ -128,14 +138,14 @@ export function useEditorCommands({
       return { ...prev, clipList: next };
     });
     setSelection({ type: 'clip', id: right.id });
-  }, [newId, onNotify, playhead, segments, selectedSeg, set, setSelection]);
+  }, [newId, onNotify, readPlayhead, segments, selectedSeg, set, setSelection]);
 
   // Q / W: cut the clip's head or tail off at the frame-snapped playhead. One
   // set() call = one undo step; a refusal says why (like splitAtPlayhead).
   // A head trim slides the kept part back to the clip's own start, so the
   // playhead follows it and the preview keeps showing the frame it was on.
   const trimEdgeAtPlayhead = useCallback((edge) => {
-    const target = (edge === 'tail' ? resolveTrimTail : resolveTrimHead)(segments, selectedSeg, playhead);
+    const target = (edge === 'tail' ? resolveTrimTail : resolveTrimHead)(segments, selectedSeg, readPlayhead());
     if (!target.seg) {
       onNotify?.(target.message);
       return;
@@ -157,7 +167,7 @@ export function useEditorCommands({
     });
     setSelection({ type: 'clip', id: clipId });
     if (target.seekTo !== null && target.seekTo !== undefined) onSeek?.(target.seekTo);
-  }, [markCuesDirty, onNotify, onSeek, playhead, segments, selectedSeg, set, setSelection, trackLinkageEnabled]);
+  }, [markCuesDirty, onNotify, onSeek, readPlayhead, segments, selectedSeg, set, setSelection, trackLinkageEnabled]);
   const trimHeadAtPlayhead = useCallback(() => trimEdgeAtPlayhead('head'), [trimEdgeAtPlayhead]);
   const trimTailAtPlayhead = useCallback(() => trimEdgeAtPlayhead('tail'), [trimEdgeAtPlayhead]);
 
@@ -331,7 +341,7 @@ export function useEditorCommands({
   // ──────────────── Caption Commands ────────────────
 
   const addTextAtPlayhead = useCallback(() => {
-    const curTime = Number(playhead.toFixed(2));
+    const curTime = Number(readPlayhead().toFixed(2));
     const dur = 2.5;
     const newCue = {
       start: curTime,
@@ -347,7 +357,7 @@ export function useEditorCommands({
     });
     setSelection({ type: 'caption', id: newCue._uid });
     markCuesDirty();
-  }, [markCuesDirty, playhead, set, setSelection]);
+  }, [markCuesDirty, readPlayhead, set, setSelection]);
 
   // Typing one caption field coalesces into one undo step (L3-10); a text or
   // time change keeps the cue's word_reveal track in step (L3-02).

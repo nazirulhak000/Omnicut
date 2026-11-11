@@ -107,7 +107,11 @@ def test_channel_switch_preserves_unsaved_owner_and_mobile_context(motion_fixtur
             expect_channel("main")
             dialog.get_by_role("button", name="อยู่ช่องเดิม").focus()
             page.keyboard.press("Tab")
-            assert page.evaluate("document.activeElement.closest('[role=dialog]') !== null")
+            # The switch prompt is a native modal <dialog> (ui/ModalLayer). Tab past its
+            # last control hands focus to the browser's own UI (activeElement is then
+            # <body>), never to page content behind the dialog, which is inert.
+            assert page.evaluate("(() => { const a = document.activeElement; return a === document.body || a.closest('dialog, [role=dialog]') !== null; })()")
+            assert page.evaluate("document.querySelector('dialog[open]').matches(':modal')")
             dialog.get_by_role("button", name="ทิ้งการแก้ไขและสลับ").click()
             expect_channel("second")
             expect(dialog).not_to_be_visible()

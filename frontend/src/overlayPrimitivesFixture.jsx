@@ -2,7 +2,7 @@
 // ui/dialogService, ui/Toast, ui/PopoverPanel). Open /overlay_primitives.html
 // on the Vite dev server; tools/ and browser checks drive it by data-testid.
 // It talks to no API and stores nothing.
-import React, { useRef, useState } from 'react';
+import React, { StrictMode, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import { Modal } from './components/ui/Modal.jsx';
@@ -123,4 +123,6 @@ function Fixture() {
   );
 }
 
-createRoot(document.getElementById('root')).render(<Fixture />);
+// StrictMode on purpose: the app runs under it in development, and its
+// double-invoked effects are exactly what once made every modal close itself.
+createRoot(document.getElementById('root')).render(<StrictMode><Fixture /></StrictMode>);

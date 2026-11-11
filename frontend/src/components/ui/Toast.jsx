@@ -27,13 +27,21 @@ export function Toast({
   // into the topmost modal dialog: it stays on top AND its close button works.
   const layerRef = useRef(null);
   const [modalHost, setModalHost] = useState(null);
+  // No dependency list on purpose: the answer changes when a dialog opens or
+  // closes, not only when the message does. A toast that kept the dialog it
+  // was first shown in would render into a closed, detached dialog (invisible)
+  // the next time the same message is shown.
   useLayoutEffect(() => {
-    if (!message || typeof document === 'undefined') { setModalHost(null); return; }
+    if (!message || typeof document === 'undefined') {
+      setModalHost((prev) => (prev === null ? prev : null));
+      return;
+    }
     const open = [...document.querySelectorAll('dialog[open]')].filter((d) => {
-      try { return d.matches(':modal'); } catch { return false; }
+      try { return d.isConnected && d.matches(':modal'); } catch { return false; }
     });
-    setModalHost(open.length ? open[open.length - 1] : null);
-  }, [message]);
+    const next = open.length ? open[open.length - 1] : null;
+    setModalHost((prev) => (prev === next ? prev : next));
+  });
 
   useLayoutEffect(() => {
     const el = layerRef.current;
@@ -109,7 +117,7 @@ export function Toast({
       </div>
     </div>
   );
-  return modalHost ? createPortal(node, modalHost) : node;
+  return modalHost && modalHost.isConnected ? createPortal(node, modalHost) : node;
 }
 
 export default Toast;

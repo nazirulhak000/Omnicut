@@ -127,6 +127,8 @@
    - ทุก `<ModalLayer>` ต้องมี `aria-label` หรือ `aria-labelledby` (เทสต์ `modalLayerContract.test.js` บังคับ)
    - แก้ overlay กลาง (`ui/ModalLayer`, `Modal`, `Toast`, `PopoverPanel`, `dialogService`) ต้องรัน `tools/overlay_browser_check.py` (Chromium + Firefox + WebKit) ให้ผ่าน
    - หลัง `vite build` ทุกครั้งต้องเปิดเบราว์เซอร์ดูว่าแอปขึ้นจริง — เทสต์ + build ผ่านไม่ได้แปลว่า bundle รันได้ (เคยพังจากการแก้ `manualChunks` 2026-11-11)
+   - **งานที่แตะ UI ต้องรัน `pytest tests/motion_capture` (ชุดเบราว์เซอร์ ~13 นาที) และลองบน dev server `https://localhost:5173` ด้วย** — dev ใช้ React StrictMode ซึ่ง build จริงไม่มี (2026-11-11: modal ทุกตัวปิดเองบน dev อยู่ 3 รอบเพราะทดสอบแค่ build จริง + parity) · `test_cutout_video_preview[master1080-*]` แกว่งอยู่เดิม 2–3 ตัว
+   - เวลา playhead ระหว่างเล่นอยู่ใน `lib/playheadStore.js` ไม่ใช่ state ของ `EditorShell` — ของที่ต้องตามเข็มใช้ `useLivePlayhead` / `useLivePlayheadSelector` / `usePlayheadEffect`, handler ใช้ getter (`hooks/usePlayhead.js`) ห้ามส่งเวลาสดลงเป็น prop
    - รูปในรายการ (ปก, thumbnail) ใช้ `toThumbUrl(path, 96|160|320)` จาก `lib/mediaUrl.js` — ห้ามโหลดไฟล์เต็มขนาดมาแสดงเล็ก · ห้ามใส่ `manualChunks` กลับใน `vite.config.js`
    - วัดความเร็วด้วย Lighthouse อย่างน้อย 3 รอบแล้วใช้ค่ากลาง (รอบเดียวแกว่ง ±3–5 คะแนน)
 

@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
+import { usePlayheadGetter } from '../../hooks/usePlayhead';
 import { confirmDialog } from '../ui/dialogService';
 import { ModalLayer } from '../ui/ModalLayer';
 import {
@@ -1216,6 +1217,8 @@ export default function AssetPanel({
   playhead = 0,
   totalDuration = 0,
 }) {
+  // Live playhead for handlers; the `playhead` prop is the settled value.
+  const getPlayhead = usePlayheadGetter(playhead);
   const [tab, setTab] = useState('clips');
   const [query, setQuery] = useState('');
   const [assetPages, setAssetPages] = useState({});
@@ -2778,11 +2781,12 @@ export default function AssetPanel({
                           if (onAddSticker) {
                             onAddSticker(s.name, s);
                           } else {
-                            onStyleChange?.({ stickerBadge: s.name, stickerStartTime: playhead, stickerEndTime: playhead + 3.0 });
+                            onStyleChange?.({ stickerBadge: s.name, stickerStartTime: getPlayhead(), stickerEndTime: getPlayhead() + 3.0 });
                           }
                         }}
                         className="absolute top-1.5 right-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-white/[0.12] text-slate-200 hover:bg-[#25F4EE] hover:text-black hover:scale-110 active:scale-95 transition-all cursor-pointer shadow-md"
                         title={`เพิ่ม ${displayName} ลงไทม์ไลน์ที่ ${playhead.toFixed(1)}s (ยาว 3.0s)`}
+                        onPointerEnter={(e) => { e.currentTarget.title = `เพิ่ม ${displayName} ลงไทม์ไลน์ที่ ${getPlayhead().toFixed(1)}s (ยาว 3.0s)`; }}
                       >
                         <Plus className="h-3.5 w-3.5" />
                       </button>
@@ -2813,7 +2817,7 @@ export default function AssetPanel({
                       if (onAddSticker) {
                         onAddSticker(previewSticker, filtered.stickers.find((s) => s.name === previewSticker || s.id === previewSticker));
                       } else {
-                        onStyleChange?.({ stickerBadge: previewSticker, stickerStartTime: playhead, stickerEndTime: playhead + 3.0 });
+                        onStyleChange?.({ stickerBadge: previewSticker, stickerStartTime: getPlayhead(), stickerEndTime: getPlayhead() + 3.0 });
                       }
                     }}
                     className="w-full py-2.5 px-3 rounded-lg bg-[#25F4EE] hover:bg-[#1de0da] text-slate-950 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
@@ -2847,6 +2851,7 @@ export default function AssetPanel({
                     key={fx.id}
                     onClick={() => onAddEffect?.(fx.id, fx)}
                     title={`เพิ่ม ${displayName} ลงไทม์ไลน์ที่ ${playhead.toFixed(1)}s (ยาว 3.0s)`}
+                    onPointerEnter={(e) => { e.currentTarget.title = `เพิ่ม ${displayName} ลงไทม์ไลน์ที่ ${getPlayhead().toFixed(1)}s (ยาว 3.0s)`; }}
                     className="group relative rounded-2xl border border-white/[0.08] bg-black/40 p-1.5 flex flex-col items-center gap-1 transition-all cursor-pointer overflow-hidden select-none hover:border-fuchsia-400/50"
                   >
                     <button

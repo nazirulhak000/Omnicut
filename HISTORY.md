@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round CLAUDE-EDITOR-REACT-PERF-20261111 | editor: เวลา playhead ระหว่างเล่นออกจาก state ของ `EditorShell` (render 24 → 2 ครั้ง/6 วิ, เวลา React 1,452 → 585 ms) + **แก้บั๊กที่ผมทำไว้ตั้งแต่รอบ 1: modal ทุกตัวปิดเองทันทีบน dev server (StrictMode)** — `npm test` 1288/1288, `tests/motion_capture` 162 ผ่าน (3 ตัวที่พังแกว่งอยู่เดิม) | 2026-11-11 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-PERF-AND-LIGHTHOUSE-20261111 | รอบความเร็ว: Lighthouse (desktop, ค่ากลาง 3 รอบ) Accessibility 100 + Best Practices 100 ครบ 7 หน้า, Performance 90–98 · thumbnail ย่อฝั่ง server (`?w=`), แบ่ง chunk อัตโนมัติ (โค้ดทุกหน้า ~1,060 → ~490 KB), preload ฟอนต์ UI, ฟอนต์ Google ไม่บล็อกการวาด, ปุ่มแดงผ่าน contrast | 2026-11-11 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-MODERN-WEB-POLISH-20261111 | รอบเก็บงาน Modern Web Guidance: ทดสอบ overlay บน WebKit (เอนจิน Safari, จำลอง iPhone) + Chromium + Firefox, แก้บั๊กที่การทดสอบจับได้ 6 จุด, Lighthouse Accessibility 100 ใน 6/7 หน้า, เพิ่ม gzip ที่ server — `npm test` 1282/1282, pytest 389 ผ่าน, overlay ผ่าน 6 เครื่องจำลอง | 2026-11-11 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-MODERN-WEB-GUIDANCE-20261111 | ปรับ frontend ตาม Modern Web Guidance ครบ 6 เฟส: modal 24 จุด → native `<dialog>` (ui/ModalLayer), dropdown 5 ตัว → Popover API (ui/PopoverPanel), เลิก `alert`/`confirm` 20 จุด (ui/dialogService), Toast เป็น popover, IME-safe Enter 2 จุด, reduced-motion เฉพาะจุด + วงโฟกัสกลาง, lazy-load รูป 16 จุด — `npm test` 1280/1280, pytest parity 298 ผ่าน, ลองเบราว์เซอร์จริง (Chromium) | 2026-11-11 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
@@ -195,6 +196,51 @@
 | Round CODEX-NVENC-QA-GATES-20261003 | ปิด NVENC/export contract และ QA guards; failures เดิมแก้และ gate รวมผ่าน | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 
 ---
+
+### Round CLAUDE-EDITOR-REACT-PERF-20261111 (2026-11-11)
+**ดำเนินการโดย:** Claude Code (Claude Fable 5.2)
+
+**เป้าหมาย:** ผู้ใช้สั่งผ่าน `/react-best-practices` ให้ audit + refactor โฟลเดอร์ editor (ช่องโฟลเดอร์ในคำสั่งเว้นว่าง ใช้ตัวอย่างที่ให้มา = `frontend/src/components/editor`) · กิ่ง `feat/editor-react-perf`
+
+**บั๊กของรอบก่อนที่เจอและแก้ในรอบนี้ (สำคัญ):**
+- ตั้งแต่รอบ CLAUDE-MODERN-WEB-GUIDANCE-20261111 (commit `9348537`) **modal ทุกตัวที่ใช้ `ui/ModalLayer` เปิดแล้วปิดเองทันทีบน dev server** (`https://localhost:5173` ที่ `start_app.bat` เปิดให้) · build จริงที่ port 8000 ไม่เป็น
+- สาเหตุ: React StrictMode (dev) รัน effect → cleanup → effect ซ้ำตอน mount · `close()` ใน cleanup ส่ง event `close` แบบ async มาถึงตอน dialog เปิดอีกรอบ แล้วถูกนับเป็น "ผู้ใช้ปิด" → เรียก `onClose`
+- ทำไมหลุด: รอบก่อนผมทดสอบ overlay บน build จริงกับหน้า fixture ที่ไม่มี StrictMode และ **ไม่ได้รัน `tests/motion_capture`** (รันแค่ parity) — ชุดนั้นพัง 41 ตัว (bisect: ผ่านที่ `8807616` ก่อนเซสชัน, พังที่ `3b03856`)
+- แก้: `ModalLayer` นับ `close()` ที่ตัวเองสั่งแล้วข้าม event นั้น · จำ invoker ไม่ให้เป็น dialog ตัวเอง (StrictMode รอบสอง) · หน้า fixture ใช้ `<StrictMode>` แล้ว · contract test กันถอยหลัง
+- บั๊กตามมาอีก 2 จุดที่ชุดเบราว์เซอร์จับได้: Toast portal ค้างอยู่ใน dialog ที่ปิดไปแล้ว (ข้อความเดิมครั้งที่สองมองไม่เห็น) → คำนวณ host ใหม่ทุก render · กล่องยืนยันของ `dialogService` ไม่มีชื่อ → `Modal` รับ `ariaLabel`
+- เทสต์เบราว์เซอร์ที่ปรับตามสัญญาใหม่ (invariant เดิม): `test_channel_workspace_browser.py` (โฟกัสอยู่ใน `<dialog>` หรือที่ UI ของเบราว์เซอร์ ไม่ใช่เนื้อหาหลัง dialog), `test_channel_cover_studio_browser.py` (กล่องทิ้งการแก้ไขเป็น dialog ในแอป ไม่ใช่ `window.confirm`)
+
+**งาน React performance (กฎ `rerender-defer-reads`, `rerender-derived-state`, `rerender-use-ref-transient-values`):**
+- ปัญหา (วัดด้วย React commit hook บน dev server, เล่น 6 วิ): player รายงานเวลา ~20 ครั้ง/วินาที → `setPlayhead` ใน `EditorShell` → ทั้ง editor render ใหม่ทุกครั้ง (`playhead` เป็น prop ของ Toolbar/AssetPanel/Inspector/EditorHeader/TimelineClip)
+- แก้: `lib/playheadStore.js` + `hooks/usePlayhead.js` (`PlayheadContext`) · `SequencePlayer` มี prop ใหม่ `onPlayheadTick` / `onPlayingChange` (ไม่แตะโค้ดวาดเฟรม) · `playhead` ใน `EditorShell` เป็นค่า "settled" (เปลี่ยนเมื่อ seek / เล่น / หยุด / จบ)
+  - ค่าสดแบบ subscribe: `TimelinePlayhead` (เข็ม), `LiveToolbar` (แยก/ตัดหัว/ตัดท้าย — render เมื่อคำตอบเปลี่ยน), `CuesTranscriptInspector` (ไฮไลต์บรรทัด), `ClipInspector` (สถานะ keyframe)
+  - ค่าสดแบบไม่ render: `usePlayheadEffect` สำหรับ auto-scroll ของ Timeline และรายการซับ
+  - อ่านตอนผู้ใช้กด: `useEditorSelection` / `useEditorCommands` / `useEditorShortcuts` รับ `getPlayhead`, handler ใน `EditorShell`, `Timeline`, `TimelineClip`, `EffectTrack`, `AssetPanel`
+  - ไม่มี provider (fixture/เทสต์) → hook ตกกลับใช้ prop `playhead` เหมือนเดิม
+
+| วัด (เล่น 6 วิ, dev build, headless) | ก่อน | หลัง |
+|---|---|---|
+| `EditorShell` render | 24 | 2 |
+| `Timeline` | 50 | 6 |
+| `AssetPanel` / `Inspector` | 25 / 25 | 3 / 3 |
+| `LazyVideoThumb` | 500 | 20 |
+| เวลา render รวมของ React | 1,452 ms | 585 ms |
+| เฟรมเรต | 8.5 | 16.8 |
+
+- Audit ที่ไม่ต้องแก้: `await` ที่ต่อกันในโฟลเดอร์ editor พึ่งกันจริงทุกจุด (ไม่มี waterfall) · ไม่มี component ประกาศซ้อน (`const Icon = item.icon` เป็น alias) · โฟลเดอร์ editor ไม่ได้ import ผ่าน barrel
+
+**ผลตรวจ:**
+- `npm test` 1288/1288 · oxlint 0 error · pytest parity 298 ผ่าน 1 ข้าม
+- `tests/motion_capture` ทั้งชุด: **162 ผ่าน, 3 ไม่ผ่าน, 13 ข้าม** — 3 ตัวคือ `test_cutout_video_preview[master1080-*]` ซึ่งรันบนโค้ดก่อนเซสชัน (`8807616`) ก็พัง 2–3 ตัวทุกรอบ (เทสต์จับเวลาเฟรม)
+- `tools/overlay_browser_check.py` (fixture ใต้ StrictMode) ผ่านครบ 6 เครื่องจำลอง
+- dev server: QR / คีย์ลัด / กิจกรรม เปิดค้างได้ · build จริง: smoke 7 แท็บ × 3 เอนจิน 0 error, real-app check 0 fail
+- พฤติกรรม playhead บน editor จริง (อ่านอย่างเดียว) 11 ข้อผ่าน รวมกดคีย์ลัดระหว่างเล่น
+
+**ยังไม่ได้ทำ:**
+- `SequencePlayer` ยัง render ตัวเอง ~17 ครั้ง/วินาทีเพื่ออัปเดตตัวเลขเวลา (ตัวใหญ่สุดที่เหลือ) — ไม่แตะเพราะผูกกับกฎ Preview = Render
+- callback จำนวนมากที่ `EditorShell` ส่งลงไปยังไม่ stable → เมื่อ `EditorShell` render เพราะการแก้ไข ลูกทุกตัวยัง render ตาม (ไม่กระทบตอนเล่นแล้ว)
+- เฟรมเรตวัดใน headless ไม่มี GPU: ใช้เทียบสัดส่วนได้ ไม่ใช่ค่าบนเครื่องจริง
+- Jev: SDK ไม่ได้ติดตั้ง — degrade ตามกฎข้อ 19
 
 ### Round CLAUDE-PERF-AND-LIGHTHOUSE-20261111 (2026-11-11)
 **ดำเนินการโดย:** Claude Code (Claude Fable 5.2)

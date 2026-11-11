@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, ClipboardCopy, ClipboardPaste, RotateCw, Vol
 import { TransitionIcon } from '../../../lib/transitionIcons';
 import TransitionDurationControl from '../timeline/TransitionDurationControl';
 import { TRANSITIONS, FADE_DURATION, CAPCUT_HIGH_SPEED_TRANSITIONS, applyCapcutHighSpeedTransition } from '../../../lib/timelineMath';
+import { useLivePlayheadSelector, usePlayheadGetter } from '../../../hooks/usePlayhead';
 import { keyframeStateAt, toggleKeyframePatch } from '../../../lib/clipKeyframeOps.js';
 import {
   MIN_CLIP_SPEED,
@@ -103,6 +104,14 @@ export default function ClipInspector({
   onSeek = null,
 }) {
   const [applyNote, setApplyNote] = useState(null);
+  // Keyframe state follows the live playhead, but this panel re-renders only
+  // when the answer changes (the playhead enters/leaves the clip or crosses a
+  // keyframe), not on every playback tick. Hooks stay above the early return.
+  const getPlayhead = usePlayheadGetter(playhead);
+  useLivePlayheadSelector((time) => {
+    const state = keyframeStateAt(selectedSeg, time);
+    return `${state.inside}|${state.activeIndex}|${state.prev?.time ?? ''}|${state.next?.time ?? ''}`;
+  }, playhead);
 
   if (!selectedSeg?.clip) return null;
 
@@ -123,7 +132,7 @@ export default function ClipInspector({
 
   // Live played local time for camera keyframes at current playhead position.
   // Shared with the D / , / . shortcuts (clipKeyframeOps.js).
-  const kfState = keyframeStateAt(selectedSeg, playhead);
+  const kfState = keyframeStateAt(selectedSeg, getPlayhead());
   const keyframes = kfState.keyframes;
   const activeKfIndex = kfState.activeIndex;
   const hasKeyframeAtPlayhead = activeKfIndex !== -1;
@@ -132,7 +141,7 @@ export default function ClipInspector({
   const nextKf = kfState.next;
 
   const handleToggleKeyframe = () => {
-    const patch = toggleKeyframePatch(selectedSeg, playhead);
+    const patch = toggleKeyframePatch(selectedSeg, getPlayhead());
     if (patch) onClipChange?.(patch);
   };
 

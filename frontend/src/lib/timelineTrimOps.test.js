@@ -273,7 +273,9 @@ test('TimelineClip: trim drag shows the edge frame without adding undo entries o
   const src = read('../components/editor/TimelineClip.jsx');
   assert.match(src, /onSeek\?\.\(trimDragSeekTime\('start'/);
   assert.match(src, /onSeek\?\.\(trimDragSeekTime\('end'/);
-  assert.match(src, /startPlayhead: playhead/);
+  // The drag remembers where the playhead is *now* (live getter), not the
+  // settled prop, which does not move while a clip plays.
+  assert.match(src, /startPlayhead: getPlayhead\(\)/);
   assert.match(src, /freezePlayheadCandidate\(snapCandidates, playhead, dragPlayhead\)/);
   // Up/Down no longer reorder (they are the editor-wide edit-point keys now); [ and ] still do.
   assert.doesNotMatch(src, /e\.key === 'ArrowUp'|e\.key === 'ArrowDown'/);
@@ -310,8 +312,12 @@ test('Toolbar and EditorShell wire trim head (Q) and trim tail (W) buttons', () 
   assert.match(toolbar, /label="ตัดท้าย"/);
 
   const shell = read('../components/editor/EditorShell.jsx');
-  assert.match(shell, /trimHeadTarget = useMemo/);
-  assert.match(shell, /trimTailTarget = useMemo/);
+  // Availability is derived from the live playhead in LiveToolbar, with the
+  // same resolvers the commands run.
+  const liveToolbar = read('../components/editor/LiveToolbar.jsx');
+  assert.match(liveToolbar, /resolveTrimHead\(segments, selectedSeg, time\)/);
+  assert.match(liveToolbar, /resolveTrimTail\(segments, selectedSeg, time\)/);
+  assert.match(shell, /<LiveToolbar/);
   assert.match(shell, /onTrimHead=\{trimHeadAtPlayhead\}/);
   assert.match(shell, /onTrimTail=\{trimTailAtPlayhead\}/);
 });

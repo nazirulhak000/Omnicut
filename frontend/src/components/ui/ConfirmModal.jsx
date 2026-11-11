@@ -44,6 +44,7 @@ export function ConfirmModal({
       isOpen={isOpen}
       onClose={onClose}
       maxWidth="max-w-md"
+      ariaLabel={typeof title === 'string' ? title : 'ยืนยันการดำเนินการ'}
       showCloseButton={!loading}
     >
       <div className="space-y-4 pt-1">

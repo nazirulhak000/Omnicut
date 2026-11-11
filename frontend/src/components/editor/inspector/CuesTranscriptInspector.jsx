@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Search,
   Replace,
@@ -14,6 +14,7 @@ import {
   ChevronUp,
   ChevronDown,
 } from 'lucide-react';
+import { useLivePlayheadSelector, usePlayheadEffect } from '../../../hooks/usePlayhead';
 import { formatShortTime } from '../../../lib/inspectorModel';
 
 export default function CuesTranscriptInspector({
@@ -62,16 +63,24 @@ export default function CuesTranscriptInspector({
   });
 
   // Karaoke playhead auto-scroll sync
-  useEffect(() => {
+  usePlayheadEffect((livePlayhead) => {
     if (isTypingRef.current) return;
-    const activeCue = cuesList.find((c) => playhead >= c.start && playhead < c.end);
+    const activeCue = cuesList.find((c) => livePlayhead >= c.start && livePlayhead < c.end);
     if (activeCue && rowRefs.current[activeCue._uid]) {
       rowRefs.current[activeCue._uid].scrollIntoView({
         behavior: 'smooth',
         block: 'nearest',
       });
     }
-  }, [playhead, cuesList]);
+  }, playhead, [cuesList]);
+
+  // Which rows are being spoken right now. The list re-renders when this set
+  // changes, not on every playback tick.
+  const playingCueKey = useLivePlayheadSelector(
+    (time) => cuesList.filter((c) => time >= c.start && time < c.end).map((c) => c._uid).join('\u0001'),
+    playhead,
+  );
+  const playingCueUids = new Set(playingCueKey ? playingCueKey.split('\u0001') : []);
 
   // Word Processor keyboard ergonomics
   const handleCursorSplit = (cue, forcedCursorIdx) => {
@@ -291,7 +300,7 @@ export default function CuesTranscriptInspector({
       <div className="space-y-1">
         {filteredCues.map((cue, idx) => {
           const isSelected = selectedCaption?._uid === cue._uid;
-          const isPlaying = playhead >= cue.start && playhead < cue.end;
+          const isPlaying = playingCueUids.has(String(cue._uid));
           const isLast = idx === cuesList.length - 1;
           const isFirst = idx === 0;
 

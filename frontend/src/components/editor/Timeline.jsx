@@ -18,6 +18,7 @@ import { previewOnlyLaneLabel, previewOnlyEyeTitle } from '../../lib/laneVisibil
 import { useTimelineKeyboard } from '../../hooks/useTimelineKeyboard';
 import { clampPxPerSec, scrollLeftForAnchor } from '../../lib/timelineZoom.js';
 import { useTimelineDrag } from '../../hooks/useTimelineDrag';
+import { usePlayheadEffect, usePlayheadGetter } from '../../hooks/usePlayhead';
 import {
   overlayLabel,
   packTextOverlays,
@@ -259,6 +260,8 @@ export default function Timeline({
   // Viral Lint heatmap: [{ code, severity: 'warn'|'block', start, end, message }].
   lintSpans = null,
 }) {
+  // Live playhead for handlers; the `playhead` prop is the settled value.
+  const getPlayhead = usePlayheadGetter(playhead);
   // The banner and the text overlays are one array; the two lanes are a view
   // of it, so a trim on either takes the same clamp and the same handler.
   // The banner's own slider used to allow 1.5-5.0s while this lane's handle
@@ -321,7 +324,8 @@ export default function Timeline({
     const seg = segments.find((sg) => sg.clip?.id === id);
     if (seg && typeof seg.segStart === 'number') {
       const segEnd = typeof seg.segEnd === 'number' ? seg.segEnd : seg.segStart + 2.0;
-      if (playhead < seg.segStart - 0.05 || playhead > segEnd + 0.05) {
+      const now = getPlayhead();
+      if (now < seg.segStart - 0.05 || now > segEnd + 0.05) {
         onSeek?.(seg.segStart);
       }
     }
@@ -606,20 +610,20 @@ export default function Timeline({
   // alive at once. An offscreen one has clientWidth 0, and letting it claim
   // the shared ref would make "fit to screen" measure nothing and quietly do
   // nothing at all.
-  useEffect(() => {
+  usePlayheadEffect(() => {
     const el = scrollRef.current;
     if (viewportRef && el && el.offsetParent !== null) viewportRef.current = el;
-  }, [viewportRef, playhead]);
+  }, playhead, [viewportRef]);
 
   // Keep the playhead on screen while playing. Past ~12 clips the content is
   // wider than the track, and nothing in here ever touched scrollLeft, so the
   // playhead just walked off the right edge and stayed there.
-  useEffect(() => {
+  usePlayheadEffect((livePlayhead) => {
     const el = scrollRef.current;
     if (!el || el.offsetParent === null) return;
     // A cursor-anchored wheel zoom just placed the view on purpose.
     if (skipFollowOnceRef.current) { skipFollowOnceRef.current = false; return; }
-    const x = gutterW + playhead * pxPerSec;
+    const x = gutterW + livePlayhead * pxPerSec;
     const left = el.scrollLeft;
     const right = left + el.clientWidth;
     const margin = 80;
@@ -628,7 +632,7 @@ export default function Timeline({
     } else if (x > right - margin) {
       el.scrollLeft = x - el.clientWidth + margin;
     }
-  }, [playhead, pxPerSec]);
+  }, playhead, [pxPerSec]);
 
   // Peaks per stem, from the stem's own file. The old single waveform decoded
   // the mixed file, which 1-Click no longer writes -- the lane just went blank
@@ -1272,7 +1276,7 @@ export default function Timeline({
                         else onSelect?.({ type: 'hook' });
                         if (typeof t === 'number' && t >= start && t <= start + dur) {
                           onSeek?.(t);
-                        } else if (playhead < start || playhead > start + dur + 0.05) {
+                        } else if (getPlayhead() < start || getPlayhead() > start + dur + 0.05) {
                           onSeek?.(start);
                         }
                       }}
@@ -1397,7 +1401,7 @@ export default function Timeline({
                           else onSelect?.({ type: 'sticker', id: item.id });
                           if (typeof t === 'number' && t >= start && t <= end) {
                             onSeek?.(t);
-                          } else if (playhead < start || playhead > end + 0.05) {
+                          } else if (getPlayhead() < start || getPlayhead() > end + 0.05) {
                             onSeek?.(start);
                           }
                         }}

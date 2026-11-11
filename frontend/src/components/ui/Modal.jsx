@@ -14,7 +14,10 @@ export function Modal({
   subtitle,
   children,
   maxWidth = 'max-w-2xl',
-  showCloseButton = true
+  showCloseButton = true,
+  // Accessible name when there is no string `title` (e.g. ConfirmModal draws
+  // its own heading inside the body).
+  ariaLabel
 }) {
   // Phone back gesture closes the modal instead of leaving the app.
   useBackToClose(isOpen, onClose);
@@ -48,7 +51,7 @@ export function Modal({
   return (
     <ModalLayer
       onClose={onClose}
-      aria-label={typeof title === 'string' ? title : undefined}
+      aria-label={ariaLabel ?? (typeof title === 'string' ? title : undefined)}
       className="fixed inset-0 flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6 w-screen h-dvh max-h-dvh overflow-hidden overscroll-none animate-fadeIn"
     >
       {/* Click outside to close backdrop */}

@@ -2,6 +2,7 @@ import React from 'react';
 import { Sparkles } from 'lucide-react';
 import TimelineIntervalItem from './TimelineIntervalItem';
 import TrackLabel from './TrackLabel';
+import { usePlayheadGetter } from '../../../hooks/usePlayhead';
 
 /**
  * Video overlay effects (checkmark/warning/arrow/etc, see 02_Assets/Effects)
@@ -50,6 +51,8 @@ export function EffectTrackLane({
   moveEffectBodyDrag,
   endEffectBodyDrag,
 }) {
+  // Live playhead for handlers; the `playhead` prop is the settled value.
+  const getPlayhead = usePlayheadGetter(playhead);
   return (
     <div className="relative rounded bg-[#181716] transition-all duration-150" style={rowStyleProp}>
       {packedEffects.map((item) => {
@@ -71,7 +74,7 @@ export function EffectTrackLane({
               onSelectEffect?.(item.id);
               if (typeof t === 'number' && t >= start && t <= end) {
                 onSeek?.(t);
-              } else if (playhead < start || playhead > end + 0.05) {
+              } else if (getPlayhead() < start || getPlayhead() > end + 0.05) {
                 onSeek?.(start);
               }
             }}

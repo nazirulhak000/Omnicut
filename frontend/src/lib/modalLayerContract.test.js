@@ -61,3 +61,13 @@ test('overlays go through the shared primitives, not hand-rolled ones', () => {
   }
   assert.deepEqual(offenders, []);
 });
+
+test('ModalLayer survives StrictMode: its own close() is not mistaken for the user closing', () => {
+  const layer = fs.readFileSync(path.join(srcDir, 'components/ui/ModalLayer.jsx'), 'utf8');
+  // every close() the component issues itself is counted, and that event is ignored
+  assert.match(layer, /selfClosesRef\.current \+= 1;\s*el\.close\(\);/);
+  assert.match(layer, /if \(selfClosesRef\.current > 0\) \{\s*selfClosesRef\.current -= 1;\s*return;/);
+  // the browser fixture runs under StrictMode like the real app does in development
+  const fixture = fs.readFileSync(path.join(srcDir, 'overlayPrimitivesFixture.jsx'), 'utf8');
+  assert.match(fixture, /<StrictMode><Fixture \/><\/StrictMode>/);
+});
