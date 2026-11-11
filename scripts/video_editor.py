@@ -2764,8 +2764,16 @@ class VideoEditor:
             src = f"grad_src_{len(filter_complex)}"
             alpha = f"grad_alpha_{len(filter_complex)}"
             out = f"[v_gradient_{len(filter_complex)}]"
+            # geq evaluates the alpha expression for every pixel of every
+            # frame, so the source stops shortly after the fade has reached
+            # zero instead of running for the whole clip. overlay keeps its
+            # default eof_action=repeat and holds the last (fully transparent)
+            # scrim frame, which leaves every output frame as it was: measured
+            # 1307/1307 identical framemd5 on a 43.6s clip, 40.1s -> 23.4s.
+            # (eof_action=pass was tried and changed 4 frames inside the fade.)
+            scrim_source_dur = min(total_duration + 0.5, span_end + fade_tail + 0.5)
             filter_complex.append(
-                f"color=c=black:s={VIDEO_WIDTH}x{grad_h}:d={total_duration + 0.5}[{src}];"
+                f"color=c=black:s={VIDEO_WIDTH}x{grad_h}:d={scrim_source_dur:.6f}[{src}];"
                 f"[{src}]format=yuva420p,geq=lum='0':cb='128':cr='128':a='{alpha_expr}'[{alpha}];"
                 f"{current_v}[{alpha}]overlay=x=0:y=0:format=auto{out};"
             )

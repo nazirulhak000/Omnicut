@@ -525,6 +525,12 @@ def apply_action(action: Dict[str, Any]) -> Dict[str, Any]:
                 clips=clips,
                 stickers=stickers,
             )
+            if content_file.is_file():
+                # AGENTS.md rule 3: never overwrite a CapCut draft without a backup.
+                backup_file = content_file.with_name(
+                    f"{content_file.name}.{time.strftime('%Y%m%d_%H%M%S')}.bak"
+                )
+                shutil.copy2(content_file, backup_file)
             content_file.write_text(json.dumps(draft_data, ensure_ascii=False, indent=2), encoding="utf-8")
             if mode == "import":
                 updated = import_capcut_draft_to_manifest(draft_data, base_manifest=manifest)

@@ -201,6 +201,35 @@ app = FastAPI(
 # or the first pytest collection).
 warn_if_permissive()
 
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Answer an unhandled error with JSON instead of Starlette's plain-text 500.
+
+    The frontend calls ``response.json()`` on every reply, so a plain-text
+    body turned any server bug into a second, misleading parse error. The
+    traceback goes to the server log only; the client gets the exception type
+    (enough to report the problem) but not its message, which can carry local
+    paths. HTTPException and validation errors keep FastAPI's own handlers.
+    """
+    import logging
+    import traceback
+
+    logging.getLogger("omnicut.api").error(
+        "Unhandled error on %s %s\n%s",
+        request.method,
+        request.url.path,
+        "".join(traceback.format_exception(type(exc), exc, exc.__traceback__)),
+    )
+    return JSONResponse(
+        status_code=500,
+        content={
+            "success": False,
+            "error": "internal_server_error",
+            "detail": f"เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์ ({type(exc).__name__}) ดูรายละเอียดใน log ของ backend",
+        },
+    )
+
 # ----------------------------------------------------------------------
 # CORS -- explicit allowlist, read from env. Vite's dev server proxies
 # /api/* requests from the frontend (see frontend/vite.config.js: target
