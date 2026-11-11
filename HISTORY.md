@@ -231,6 +231,8 @@
 
 **ผลตรวจ:** `node --test` 211/211 · `tools/extension_panel_check.py` 20/20 · axe 0 จุดทุกสถานะที่วัด · legacy-scan 0 · ไม่มี write request ระหว่างตรวจ · ไม่มี page error
 
+**ตรวจเพิ่มกับ extension ที่โหลดจริง (ผู้ใช้สั่ง "ตรวจให้เรียบร้อย ใช้งานได้จริงไหม"):** `tools/extension_real_check.py` โหลด extension ใน Chromium (`--load-extension`) โปรไฟล์ใหม่ที่ไม่มี login TikTok → **27/27 ผ่าน**: service worker (`background.js`) เริ่มได้, รายการคลิปโหลดจาก backend จริง, รูปย่อ 160px, axe 0 จุดทั้งธีมมืดและสว่าง, แท็บด้วยลูกศร, สลับธีม + บันทึกใน `chrome.storage` + อยู่รอดหลัง reload, พรีวิววิดีโอโหลดเฟรม 9:16 จริง / Escape / Enter / ปุ่มปิด, กล่องยืนยัน (modal, โฟกัสที่ "ยกเลิก", Enter = ไม่, Escape = ไม่, ปุ่มยืนยัน = ใช่), 0 console error, 0 write request, และ hash ของ `/api/schedule-queue` + `/api/exports` + pending job เหมือนเดิมก่อน-หลัง · **ยังไม่ได้ตรวจ:** flow โพสต์จริง (ปุ่ม "เริ่มรันอัปโหลด" / "เตรียมคลิปนี้") ไม่ได้กดเลย — กล่องยืนยันถูกเปิดด้วยการเรียก `askConfirm()` ตรง ๆ · Chromium ของ Playwright ไม่ใช่ Chrome ที่ผู้ใช้ติดตั้ง และเปิดหน้าแผงเป็นแท็บ ไม่ใช่ในช่อง side panel
+
 **ยังไม่ได้ตรวจ / ไม่ได้ทำ:**
 - **ยังไม่ได้ลองใน Chrome ที่โหลด extension จริง** — ตรวจด้วย `chrome` API จำลองเท่านั้น (ตั้งใจ: โหลดจริงจะรัน `background.js` ที่โพสต์ได้) ต้อง reload extension แล้วลองมือ โดยเฉพาะ: กล่องยืนยันก่อนโพสต์, พรีวิววิดีโอ, สลับธีม
 - `background.js` (5,820 บรรทัด), `automation.js`, `batch_orchestrator.js` ไม่ได้ audit เชิงประสิทธิภาพและไม่ได้แก้

@@ -5,7 +5,8 @@
 ## รอบปัจจุบัน
 
 - [x] Round CLAUDE-AUTOPOST-EXTENSION-WEB-QUALITY-20261111 · side panel ของ `tiktok_autopost_extension` v0.10.1: axe-core 389 → 0 จุด (ธีมมืด/สว่าง, 3 แท็บ, 320–400px), modal ยืนยัน + พรีวิวเป็น native `<dialog>`, แท็บมี keyboard pattern, รูปปก 540x960 → 160px lazy · ไม่แตะ logic โพสต์ → ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
-  - [ ] ค้างให้เจ้าของ: reload extension ที่ `chrome://extensions` แล้วลองใน Chrome จริง (รอบนี้ตรวจด้วย `chrome` API จำลอง ไม่ได้โหลด extension จริง)
+  - [x] ตรวจกับ extension ที่โหลดจริงแล้ว (ผู้ใช้สั่ง 2026-11-11): `tools/extension_real_check.py` 27/27 ในโปรไฟล์ Chromium แยกที่ไม่มี login TikTok · คิว/exports ฝั่ง server เหมือนเดิมทุกไบต์
+  - [ ] ค้างให้เจ้าของ: กด reload extension ใน Chrome ของตัวเองที่ `chrome://extensions` เพื่อรับ v0.10.1 · flow โพสต์จริง (preflight → ยืนยัน → อัปโหลด) ยังไม่ได้รันหลังแก้
 
 - [x] Round CLAUDE-EDITOR-REACT-PERF-20261111 · editor: เวลา playhead ระหว่างเล่นออกจาก state ของ `EditorShell` (render 24 → 2 ครั้ง/6 วิ, เวลา React 1,452 → 585 ms) + **แก้บั๊กที่ผมทำไว้ตั้งแต่รอบ 1: modal ทุกตัวปิดเองทันทีบน dev server (StrictMode)** → ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
 
