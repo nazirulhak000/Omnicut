@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round CLAUDE-AUTOPOST-EXTENSION-WEB-QUALITY-20261111 | side panel ของ `tiktok_autopost_extension` v0.10.1: axe-core 389 → 0 จุด (ธีมมืด/สว่าง, 3 แท็บ, 320–400px), modal ยืนยัน + พรีวิวเป็น native `<dialog>`, แท็บมี keyboard pattern, รูปปก 540x960 → 160px lazy · ไม่แตะ logic โพสต์ — `node --test` 211/211, panel check 20/20 | 2026-11-11 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-EDITOR-REACT-PERF-20261111 | editor: เวลา playhead ระหว่างเล่นออกจาก state ของ `EditorShell` (render 24 → 2 ครั้ง/6 วิ, เวลา React 1,452 → 585 ms) + **แก้บั๊กที่ผมทำไว้ตั้งแต่รอบ 1: modal ทุกตัวปิดเองทันทีบน dev server (StrictMode)** — `npm test` 1288/1288, `tests/motion_capture` 162 ผ่าน (3 ตัวที่พังแกว่งอยู่เดิม) | 2026-11-11 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-PERF-AND-LIGHTHOUSE-20261111 | รอบความเร็ว: Lighthouse (desktop, ค่ากลาง 3 รอบ) Accessibility 100 + Best Practices 100 ครบ 7 หน้า, Performance 90–98 · thumbnail ย่อฝั่ง server (`?w=`), แบ่ง chunk อัตโนมัติ (โค้ดทุกหน้า ~1,060 → ~490 KB), preload ฟอนต์ UI, ฟอนต์ Google ไม่บล็อกการวาด, ปุ่มแดงผ่าน contrast | 2026-11-11 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-MODERN-WEB-POLISH-20261111 | รอบเก็บงาน Modern Web Guidance: ทดสอบ overlay บน WebKit (เอนจิน Safari, จำลอง iPhone) + Chromium + Firefox, แก้บั๊กที่การทดสอบจับได้ 6 จุด, Lighthouse Accessibility 100 ใน 6/7 หน้า, เพิ่ม gzip ที่ server — `npm test` 1282/1282, pytest 389 ผ่าน, overlay ผ่าน 6 เครื่องจำลอง | 2026-11-11 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
@@ -196,6 +197,46 @@
 | Round CODEX-NVENC-QA-GATES-20261003 | ปิด NVENC/export contract และ QA guards; failures เดิมแก้และ gate รวมผ่าน | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 
 ---
+
+### Round CLAUDE-AUTOPOST-EXTENSION-WEB-QUALITY-20261111 (2026-11-11)
+**ดำเนินการโดย:** Claude Code (Claude Fable 5.2)
+
+**เป้าหมาย:** ผู้ใช้สั่ง "ทำส่วนของ extension autopost tiktok helper ด้วย วิเคราะห์ทุกจุดแล้วปรับให้ครบ 100" (ผ่าน `/react-best-practices` + `/modern-web-guidance`) · กิ่ง `feat/autopost-extension-quality`
+
+**ขอบเขต:** `sidepanel.html` + `sidepanel.js` (ชั้น UI) · **ไม่แตะ `background.js` / `automation.js` / `batch_orchestrator.js` / `post_guard.js`** — เป็น logic ที่กดโพสต์ TikTok จริง การ refactor เพื่อคะแนนเสี่ยงโพสต์ซ้ำ/โพสต์ผิด · extension เป็น vanilla JS ไม่มี React กฎ Vercel ที่ใช้ได้จึงมีแค่กลุ่ม async / JS
+
+**วิธีวัด (ปลอดภัย):** เสิร์ฟ `sidepanel.html` เป็นไฟล์ธรรมดา + `chrome.*` จำลองในหน่วยความจำ → `background.js` ไม่ถูกโหลด จึงโพสต์ไม่ได้ · GET ไป API จริงแบบอ่านอย่างเดียว (คิวจริง 42 คลิป) · method อื่นถูกกลืนและรายงาน (ตลอดการตรวจ = 0 ครั้ง) · axe-core 4.14
+
+| วัด | ก่อน | หลัง |
+|---|---|---|
+| axe violations (ธีมมืด, แท็บรายการ) | 389 จุด / 4 กฎ | 0 |
+| ธีมสว่าง + แท็บขั้นตอนโพสต์ + แท็บเครื่องมือ + กว้าง 320px | ไม่เคยวัด (หลังแก้ชุดแรกยังเหลือ 62) | 0 |
+| ปุ่มไอคอนไม่มีชื่อ | 2 | 0 |
+| เป้ากดเล็กกว่า 24px | 10 | 0 |
+| `role="tab"` | 0 | 3 (+ลูกศร/Home/End) |
+| native `<dialog>` | 0 | 2 |
+| รูปปกในรายการ | 540x960 โหลดทันที 42 รูป | 160x284 lazy |
+| legacy-scan (modern-web-guidance) | 3 | 0 |
+| `node --test` | 203 | 211 |
+
+**สิ่งที่ทำ:**
+- **Landmark / ชื่อ:** `<main>` ครอบเนื้อหา · select ผูกกับข้อความกำกับ · `aria-label` ให้ปุ่มไอคอน (ตั้งค่า API key, รีเฟรช, ปิดพรีวิว) และช่อง API key
+- **แท็บ:** `tablist/tab/tabpanel`, `aria-selected`, roving tabindex, ลูกศรซ้าย/ขวา + Home/End
+- **Dialog:** `#confirmOverlay` และ `#videoPreviewModal` เป็น `<dialog>` + `showModal()` — หน้าหลัง inert (กดปุ่ม "เริ่มรันอัปโหลด" ทะลุไม่ได้), Escape = "ไม่" / ปิด, โฟกัสเริ่มที่ "ยกเลิก" (Enter ไม่มีทางยืนยันโพสต์โดยพลาด), ปิดแล้วโฟกัสกลับที่เดิม · `askConfirm()` คงสัญญาเดิม (คำถามใหม่ตอบคำถามเก่าเป็น "ไม่")
+- **รูปย่อคลิป:** เป็นปุ่มจริง (`role="button"`, Enter/Space เปิดพรีวิว) · ใช้ `?w=160` + `loading="lazy"` (server รุ่นเก่าไม่รู้จัก `w` จะส่งไฟล์เดิม)
+- **Contrast:** token ต่อธีม (`--rose-ink`, `--danger-ink`, `--success-ink`, `--chip-ink` ฯลฯ) ท้ายสไตล์ชีต · การ์ดที่ถูกบล็อกไม่หรี่ทั้งใบด้วย `opacity .55` อีก (ทำให้ข้อความ "ใช้ไม่ได้เพราะ…" เหลือ 2.7:1) เปลี่ยนเป็นหรี่เฉพาะรูป + ขอบเส้นประ · พื้นแดงที่มีตัวหนังสือขาว `#fe2c55` (3.68:1) → `#e0244a` (4.65:1) ทั้ง `--rose-gradient`, ปุ่มเริ่มอัปโหลด, ปุ่ม "ทำ" ตอน hover · ปุ่มเขียว "ซิงก์สถิติ" ขาวบน `#34d399` (1.92:1) → ตัวหนังสือเข้มในธีมมืด / พื้น `#047857` ในธีมสว่าง · แก้สีพื้นอ่อนที่ hard-code ค้างในธีมมืด (`.monitor-chip-ratio`, empty state) · ธีมสว่าง: ข้อความ checkbox "ใช้ปกอัตโนมัติ" บนการ์ดเข้ม (axe ตัดสินไม่ได้เพราะพื้น gradient เจอจากภาพหน้าจอ)
+- **CSS มาตรฐาน:** `scrollbar-width` / `scrollbar-color` โดย `::-webkit-scrollbar` เหลือเป็น fallback ใน `@supports not` · reduced-motion เลิก `transition: none` ครอบทุก element: หยุดการเคลื่อนไหว/loop แต่คง feedback สี และ spinner "กำลังตรวจ" ยังหมุน (ช้าลง)
+- **async-parallel:** `loadExports()` ยิง `/api/schedule-queue` พร้อม `/api/exports` แทนการรอทีละตัว
+- เทสต์ใหม่ `sidepanel_a11y.test.cjs` (8 ข้อ) · tool ใหม่ `tools/extension_panel_check.py` (20 ข้อพฤติกรรม + axe ตอน dialog เปิด) · version 0.10.0 → 0.10.1
+
+**ผลตรวจ:** `node --test` 211/211 · `tools/extension_panel_check.py` 20/20 · axe 0 จุดทุกสถานะที่วัด · legacy-scan 0 · ไม่มี write request ระหว่างตรวจ · ไม่มี page error
+
+**ยังไม่ได้ตรวจ / ไม่ได้ทำ:**
+- **ยังไม่ได้ลองใน Chrome ที่โหลด extension จริง** — ตรวจด้วย `chrome` API จำลองเท่านั้น (ตั้งใจ: โหลดจริงจะรัน `background.js` ที่โพสต์ได้) ต้อง reload extension แล้วลองมือ โดยเฉพาะ: กล่องยืนยันก่อนโพสต์, พรีวิววิดีโอ, สลับธีม
+- `background.js` (5,820 บรรทัด), `automation.js`, `batch_orchestrator.js` ไม่ได้ audit เชิงประสิทธิภาพและไม่ได้แก้
+- สถานะระหว่างรัน batch (แถบความคืบหน้า, log) ไม่ได้ตรวจ axe เพราะต้องมี batch จริง
+- สีพื้นแดง/เขียวของปุ่มเปลี่ยนเล็กน้อยจากสีแบรนด์เดิมเพื่อให้ผ่าน contrast — ถ้าไม่ต้องการ ย้อนได้ที่บล็อก "Contrast tokens" ท้าย `<style>`
+- Jev: SDK ไม่ได้ติดตั้ง — degrade ตามกฎข้อ 19
 
 ### Round CLAUDE-EDITOR-REACT-PERF-20261111 (2026-11-11)
 **ดำเนินการโดย:** Claude Code (Claude Fable 5.2)

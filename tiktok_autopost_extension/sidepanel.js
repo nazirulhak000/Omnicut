@@ -852,7 +852,12 @@ function openVideoPreview(item) {
 
   previewVideoPlayer.play().catch(() => {});
 
-  videoPreviewModal.hidden = false;
+  // Native modal <dialog>: top layer, inert page behind, focus kept inside,
+  // focus returned to the thumbnail on close.
+  if (!videoPreviewModal.open) {
+    if (typeof videoPreviewModal.showModal === 'function') videoPreviewModal.showModal();
+    else videoPreviewModal.setAttribute('open', '');
+  }
 
   previewSelectBtn.onclick = () => {
 
@@ -874,13 +879,23 @@ function closeVideoPreview() {
 
   previewVideoPlayer.load();
 
-  videoPreviewModal.hidden = true;
+  if (videoPreviewModal.open) {
+    if (typeof videoPreviewModal.close === 'function') videoPreviewModal.close();
+    else videoPreviewModal.removeAttribute('open');
+  }
 
 }
 
 previewCloseBtn?.addEventListener('click', closeVideoPreview);
 
 previewBackdrop?.addEventListener('click', closeVideoPreview);
+
+// Escape (and any other platform close request) goes through the same
+// cleanup, so the video always stops when the preview closes.
+videoPreviewModal?.addEventListener('cancel', (e) => {
+  e.preventDefault();
+  closeVideoPreview();
+});
 
 const tabBtnList = document.getElementById('tabBtnList');
 
@@ -1108,6 +1123,12 @@ function showTab(name) {
 
   panelTools.classList.toggle('active', isTools);
 
+  // Tabs pattern: the selected tab is the only one in the Tab order.
+  [[tabBtnList, isList], [tabBtnChecklist, isChecklist], [tabBtnTools, isTools]].forEach(([btn, selected]) => {
+    btn.setAttribute('aria-selected', selected ? 'true' : 'false');
+    btn.tabIndex = selected ? 0 : -1;
+  });
+
   if (isList) {
 
     scrollToTop();
@@ -1121,6 +1142,24 @@ tabBtnList.addEventListener('click', () => showTab('list'));
 tabBtnChecklist.addEventListener('click', () => showTab('checklist'));
 
 tabBtnTools.addEventListener('click', () => showTab('tools'));
+
+// Arrow keys / Home / End move between tabs, like every native tab strip.
+(() => {
+  const order = [[tabBtnList, 'list'], [tabBtnChecklist, 'checklist'], [tabBtnTools, 'tools']];
+  order.forEach(([btn], index) => {
+    btn.addEventListener('keydown', (e) => {
+      let next = -1;
+      if (e.key === 'ArrowRight') next = (index + 1) % order.length;
+      else if (e.key === 'ArrowLeft') next = (index - 1 + order.length) % order.length;
+      else if (e.key === 'Home') next = 0;
+      else if (e.key === 'End') next = order.length - 1;
+      if (next === -1) return;
+      e.preventDefault();
+      showTab(order[next][1]);
+      order[next][0].focus();
+    });
+  });
+})();
 
 // ── Confirm dialog (only shown when switching clips mid-checklist) ────────
 
@@ -1137,11 +1176,23 @@ function askConfirm(message) {
   return new Promise((resolve) => {
     confirmText.textContent = message;
     confirmOverlay.classList.add('show');
+    // Native modal <dialog>: the page behind is inert while the question is
+    // open, and initial focus lands on the first button, which is "ยกเลิก"
+    // (the safe answer) -- Enter can never confirm a post by accident.
+    if (!confirmOverlay.open) {
+      if (typeof confirmOverlay.showModal === 'function') confirmOverlay.showModal();
+      else confirmOverlay.setAttribute('open', '');
+    }
     const cleanup = (result) => {
       settlePendingConfirm = null;
       confirmOverlay.classList.remove('show');
+      if (confirmOverlay.open) {
+        if (typeof confirmOverlay.close === 'function') confirmOverlay.close();
+        else confirmOverlay.removeAttribute('open');
+      }
       confirmOkBtn.removeEventListener('click', onOk);
       confirmCancelBtn.removeEventListener('click', onCancel);
+      confirmOverlay.removeEventListener('cancel', onEscape);
       resolve(result);
     };
     settlePendingConfirm = cleanup;
@@ -1150,9 +1201,14 @@ function askConfirm(message) {
 
     const onCancel = () => cleanup(false);
 
+    const onEscape = (e) => { e.preventDefault(); cleanup(false); };
+
     confirmOkBtn.addEventListener('click', onOk);
 
     confirmCancelBtn.addEventListener('click', onCancel);
+
+    // Escape / platform close request = "no".
+    confirmOverlay.addEventListener('cancel', onEscape);
 
   });
 
@@ -1305,10 +1361,16 @@ async function loadExports() {
   listEl.innerHTML = '<div class="empty">กำลังโหลดรายการคลิป...</div>';
 
   let items;
+  let queuePromise = null;
 
   try {
 
     await channelReady;
+
+    // The schedule queue does not depend on the export list: start it now so
+    // both requests are in flight together instead of one after the other.
+    // (A failure is swallowed here and handled where the result is read.)
+    queuePromise = scopedPanelFetch(`${BACKEND}/api/schedule-queue`).catch(() => null);
 
     const res = await scopedPanelFetch(`${BACKEND}/api/exports`);
 
@@ -1363,9 +1425,9 @@ async function loadExports() {
 
   try {
 
-    const queueRes = await scopedPanelFetch(`${BACKEND}/api/schedule-queue`);
+    const queueRes = await queuePromise;
 
-    if (queueRes.ok) {
+    if (queueRes && queueRes.ok) {
 
       const queueData = await queueRes.json();
 
@@ -1550,7 +1612,14 @@ function renderClipCards(ready) {
 
     const thumb = document.createElement('img');
 
-    thumb.src = item.thumbnail_url ? scopedPanelMedia(`${BACKEND}${item.thumbnail_url}`) : '';
+    // Drawn at 78x116: ask the server for a 160px preview (`w=`) instead of the
+    // full 540x960 / 1080x1920 cover; an older server ignores the parameter.
+    const thumbUrl = item.thumbnail_url ? scopedPanelMedia(`${BACKEND}${item.thumbnail_url}`) : '';
+    thumb.loading = 'lazy';
+    thumb.decoding = 'async';
+    thumb.width = 78;
+    thumb.height = 116;
+    thumb.src = thumbUrl ? `${thumbUrl}${thumbUrl.includes('?') ? '&' : '?'}w=160` : '';
 
     thumb.alt = '';
 
@@ -1578,6 +1647,17 @@ function renderClipCards(ready) {
 
       openVideoPreview(item);
 
+    });
+
+    // Same action from the keyboard: the thumbnail is the only way to preview.
+    thumbWrap.setAttribute('role', 'button');
+    thumbWrap.tabIndex = 0;
+    thumbWrap.setAttribute('aria-label', `พรีวิววิดีโอ ${item.hook_title || item.name || ''}`.trim());
+    thumbWrap.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      e.stopPropagation();
+      openVideoPreview(item);
     });
 
     const body = document.createElement('div');
@@ -3573,7 +3653,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     if (typeof closeVideoPreview === 'function') {
       const modal = document.getElementById('videoPreviewModal');
-      if (modal && !modal.hidden) {
+      if (modal && modal.open) {
         closeVideoPreview();
       }
     }

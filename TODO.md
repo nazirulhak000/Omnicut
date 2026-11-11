@@ -4,14 +4,8 @@
 
 ## รอบปัจจุบัน
 
-- [ ] Round CLAUDE-AUTOPOST-EXTENSION-WEB-QUALITY-20261111 · ยกระดับ side panel ของ `tiktok_autopost_extension` ตาม modern-web-guidance (ผู้ใช้สั่ง 2026-11-11 "วิเคราะห์ทุกจุดแล้วปรับให้ครบ 100") · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
-  - ขอบเขต: `sidepanel.html` + `sidepanel.js` (ชั้น UI) เท่านั้น · **ไม่แตะ logic โพสต์ใน `background.js` / `automation.js` / `batch_orchestrator.js`** (เสี่ยงโพสต์ซ้ำ/โพสต์ผิด)
-  - วัดด้วย: axe-core บนหน้า side panel ที่ใช้ `chrome` API จำลอง + ข้อมูลคิวจริงแบบอ่านอย่างเดียว (ไม่โหลด background จึงโพสต์ไม่ได้) · baseline: 389 จุด (contrast 124, region 262, select ไม่มี label 2, ไม่มี main 1), ปุ่มไอคอนไม่มีชื่อ 2, เป้ากด <24px 10, รูปปก 42 รูปโหลดเต็มขนาด 540x960 เพื่อแสดง 78x116
-  - [ ] landmark (`<header>`/`<main>`), label ของ select, ชื่อปุ่มไอคอน, เป้ากด ≥24px, contrast
-  - [ ] แท็บ: `role="tablist/tab/tabpanel"` + ลูกศรซ้าย/ขวา
-  - [ ] modal ยืนยัน / พรีวิว → native `<dialog>`
-  - [ ] reduced-motion เฉพาะจุด, scrollbar มาตรฐาน, รูปปกใช้ `?w=160` + lazy
-  - [ ] `node --test` ของ extension ต้องผ่าน 203/203 เท่าเดิม
+- [x] Round CLAUDE-AUTOPOST-EXTENSION-WEB-QUALITY-20261111 · side panel ของ `tiktok_autopost_extension` v0.10.1: axe-core 389 → 0 จุด (ธีมมืด/สว่าง, 3 แท็บ, 320–400px), modal ยืนยัน + พรีวิวเป็น native `<dialog>`, แท็บมี keyboard pattern, รูปปก 540x960 → 160px lazy · ไม่แตะ logic โพสต์ → ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
+  - [ ] ค้างให้เจ้าของ: reload extension ที่ `chrome://extensions` แล้วลองใน Chrome จริง (รอบนี้ตรวจด้วย `chrome` API จำลอง ไม่ได้โหลด extension จริง)
 
 - [x] Round CLAUDE-EDITOR-REACT-PERF-20261111 · editor: เวลา playhead ระหว่างเล่นออกจาก state ของ `EditorShell` (render 24 → 2 ครั้ง/6 วิ, เวลา React 1,452 → 585 ms) + **แก้บั๊กที่ผมทำไว้ตั้งแต่รอบ 1: modal ทุกตัวปิดเองทันทีบน dev server (StrictMode)** → ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
 

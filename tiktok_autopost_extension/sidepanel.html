@@ -238,7 +238,7 @@
 
     --rose-hover: #e01e47;
 
-    --rose-gradient: linear-gradient(135deg, #fe2c55 0%, #ff0050 50%, #e01e47 100%);
+    --rose-gradient: linear-gradient(135deg, #e0244a 0%, #d81e45 50%, #c81d40 100%);
 
     --rose-glow: 0 4px 14px rgba(254, 44, 85, 0.28);
 
@@ -384,19 +384,27 @@
 
   ::selection { background: var(--rose-tint); color: var(--rose); }
 
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-
-  ::-webkit-scrollbar-track { background: transparent; }
-
-  ::-webkit-scrollbar-thumb {
-
-    background: rgba(148, 163, 184, 0.35);
-
-    border-radius: var(--radius-pill);
-
+  /* Standard scrollbar styling; the WebKit pseudo-elements stay only as a
+     fallback for engines without scrollbar-color. */
+  :root {
+    --scrollbar-thumb: rgba(148, 163, 184, 0.45);
+    --scrollbar-track: transparent;
   }
 
-  ::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.55); }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+
+  @supports not (scrollbar-color: auto) {
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+    ::-webkit-scrollbar-thumb {
+      background: var(--scrollbar-thumb);
+      border-radius: var(--radius-pill);
+    }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.55); }
+  }
 
   html, body {
 
@@ -3843,17 +3851,74 @@
 
   #confirmOkBtn:hover { filter: brightness(1.05); }
 
+  /* Reduced motion: entrances and decorative loops are switched off and
+     transitions no longer move or scale anything, but colour / opacity
+     feedback on buttons stays, and the "working" spinners keep turning
+     (slower) because they are the only sign that a check is still running. */
   @media (prefers-reduced-motion: reduce) {
-
     *, *::before, *::after {
-
       animation: none !important;
-
-      transition: none !important;
-
+      transition-property: color, background-color, border-color, opacity, box-shadow !important;
+      scroll-behavior: auto !important;
     }
-
+    .loading svg,
+    .is-loading svg,
+    .spin,
+    .spinner {
+      animation: quota-spin 2.4s linear infinite !important;
+    }
   }
+
+  /* ── Accessibility pass ─────────────────────────────────────────────
+     Contrast (WCAG AA 4.5:1 for small text), 24px minimum targets and
+     visible keyboard focus. Kept in one block so the reasons stay together. */
+
+  /* A blocked clip used to be dimmed with opacity on the whole card, which
+     also dimmed the text that says WHY it is blocked (2.7:1). Dim the picture
+     instead and mark the card with a dashed border. */
+  .card.blocked .card-thumb-wrap { opacity: 0.5; }
+  .card.blocked .card-hook { color: var(--muted); }
+
+  [data-theme="dark"] .card-status.scheduled { color: #fbbf24; }
+  [data-theme="dark"] .card-meta { color: #94a3b8; }
+  .card-product { color: var(--card-product-ink, var(--cyan-dark)); }
+  [data-theme="light"] .card-product { --card-product-ink: #0f766e; }
+
+  /* White on #fe2c55 is 3.68:1. --rose-gradient (primary buttons, the active
+     tab, the batch start button) now starts at #e0244a = 4.65:1. */
+
+  /* Pointer targets: at least 24x24 CSS px (WCAG 2.5.8). */
+  .btn-check-quota,
+  .btn-log-action,
+  .filter-chip {
+    min-height: 24px;
+  }
+
+  /* The thumbnail is a real control now (role="button"). */
+  .card-thumb-wrap:focus-visible,
+  [role="tab"]:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+  }
+
+  /* Native <dialog> overlays (confirm, video preview). */
+  dialog.app-dialog {
+    position: fixed;
+    inset: 0;
+    width: auto;
+    height: auto;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    overflow: hidden;
+  }
+  dialog.app-dialog:not([open]) { display: none !important; }
+  dialog.app-dialog::backdrop { background: transparent; overflow: hidden; overscroll-behavior: contain; }
+  dialog.app-dialog:modal { overscroll-behavior: contain; }
 
   /* A side panel needs separate brand/action rows at narrow widths. */
 
@@ -3921,7 +3986,9 @@
     background: rgba(0, 0, 0, 0.55);
     cursor: pointer;
   }
-  .card.blocked { opacity: 0.55; }
+  /* Not dimmed with opacity: that also dimmed the reason text below 4.5:1.
+     See "Accessibility pass" above for the replacement treatment. */
+  .card.blocked { opacity: 1; border-style: dashed; }
   .card.blocked .card-check { cursor: not-allowed; }
   .card-blocked-note {
     font-size: 11px;
@@ -4013,6 +4080,58 @@
     .card-episode { font-size: 11px; font-weight: 700; letter-spacing: .04em; opacity: .8; margin: 2px 0; }
     .draft-sync-note.unknown { color: #f5a524; }
     .reschedule-overdue { width: 100%; min-height: 40px; margin: 6px 0 10px; }
+
+  /* ── Contrast tokens (WCAG AA) ───────────────────────────────────────
+     Text colours for small labels on tinted surfaces, one value per theme.
+     This block is last in the sheet so it wins over the per-component rules
+     above, several of which hard-coded a light background or a mid-tone ink
+     that fell below 4.5:1 in one of the two themes. */
+  :root {
+    --rose-ink: #c8102e;
+    --danger-ink: #b91c1c;
+    --success-ink: #047857;
+    --chip-ink: #475569;
+    --chip-surface: #f1f5f9;
+    --empty-surface: #f8fafc;
+    --on-success: #ffffff;
+    --success-fill: #047857;
+  }
+  :root[data-theme="dark"], body[data-theme="dark"] {
+    --rose-ink: #ff8fa3;
+    --danger-ink: #fca5a5;
+    --success-ink: #34d399;
+    --chip-ink: #cbd5e1;
+    --chip-surface: rgba(255, 255, 255, 0.08);
+    --empty-surface: rgba(255, 255, 255, 0.04);
+    --on-success: #052e1b;
+    --success-fill: #34d399;
+  }
+  .clip-count-badge,
+  .monitor-chip-live,
+  .field-tag-badge,
+  .filter-chip.active { color: var(--rose-ink); }
+  .card-blocked-note { color: var(--danger-ink); }
+  .step-row.danger .step-label strong,
+  .step-row.danger .btn-step { color: var(--danger-ink); }
+  .step-row.danger .btn-step:hover:not(:disabled) { color: #ffffff; background: #b91c1c; border-color: #b91c1c; }
+  .filter-chip { color: var(--chip-ink); }
+  .monitor-chip-ratio { color: var(--chip-ink); background: var(--chip-surface); }
+  #activeClipBanner.empty-state { background: var(--empty-surface); color: var(--chip-ink); }
+  .step-row.danger .step-label small { color: var(--chip-ink); }
+  .btn-mark-posted { background: var(--success-fill); color: var(--on-success); }
+  /* Filled rose surfaces that carry white text: #e0244a (4.65:1), not the
+     brand #fe2c55 (3.68:1). Decorative rose (progress bar, pulse dot, tints,
+     borders) keeps the brand colour. */
+  .btn-batch-primary,
+  .btn-step:hover:not(:disabled) { background: #e0244a; border-color: #e0244a; }
+  .step-row.danger .btn-step:hover:not(:disabled) { background: #b91c1c; border-color: #b91c1c; }
+  .btn-mark-posted:hover:not(:disabled) { background: var(--success-fill); filter: brightness(1.08); }
+  .caption-count-badge.is-safe { color: var(--success-ink); font-weight: 700; }
+  #buildTag { margin: 6px 0 0; font-size: 11px; color: var(--chip-ink); }
+  /* The batch card is dark in both themes; its toggle label took the theme
+     ink and was dark-on-dark in the light theme. */
+  .batch-mode-container .switch-row span { color: #cbd5e1; }
+
 </style>
 
 </head>
@@ -4065,7 +4184,7 @@
 
         </button>
 
-        <button id="apiKeySettingsBtn" type="button" class="btn-gear-settings" title="ตั้งค่า API Key ของ OmniCut backend">
+        <button id="apiKeySettingsBtn" type="button" class="btn-gear-settings" title="ตั้งค่า API Key ของ OmniCut backend" aria-label="ตั้งค่า API Key ของ OmniCut backend" aria-expanded="false" aria-controls="apiKeySettingsRow">
 
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
 
@@ -4077,11 +4196,13 @@
 
   </header>
 
+  <main id="appMain">
+
   <!-- API Key settings row -- toggled by apiKeySettingsBtn -->
 
   <div id="apiKeySettingsRow">
 
-    <input type="password" id="apiKeyInput" placeholder="OMNICUT_API_KEY (ว่างไว้ถ้า backend ไม่ได้ตั้งรหัส)" />
+    <input type="password" id="apiKeyInput" aria-label="API Key ของ OmniCut backend" autocomplete="off" placeholder="OMNICUT_API_KEY (ว่างไว้ถ้า backend ไม่ได้ตั้งรหัส)" />
 
     <button id="apiKeySaveBtn" type="button" class="btn-header-tiktok">บันทึก</button>
 
@@ -4089,9 +4210,9 @@
 
   <!-- Segmented Switch (Pill Navigation Tabs) -->
 
-  <div class="segmented-switch">
+  <div class="segmented-switch" role="tablist" aria-label="ส่วนของแผงควบคุม">
 
-    <button type="button" id="tabBtnList" class="switch-btn active">
+    <button type="button" id="tabBtnList" class="switch-btn active" role="tab" aria-selected="true" aria-controls="panelList">
 
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 3v18"/><path d="M3 7.5h4"/><path d="M3 12h18"/><path d="M3 16.5h4"/><path d="M17 3v18"/><path d="M17 7.5h4"/><path d="M17 16.5h4"/></svg>
 
@@ -4099,7 +4220,7 @@
 
     </button>
 
-    <button type="button" id="tabBtnChecklist" class="switch-btn">
+    <button type="button" id="tabBtnChecklist" class="switch-btn" role="tab" aria-selected="false" aria-controls="panelChecklist" tabindex="-1">
 
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
 
@@ -4107,7 +4228,7 @@
 
     </button>
 
-    <button type="button" id="tabBtnTools" class="switch-btn">
+    <button type="button" id="tabBtnTools" class="switch-btn" role="tab" aria-selected="false" aria-controls="panelTools" tabindex="-1">
 
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
 
@@ -4119,7 +4240,7 @@
 
   <!-- Tab 1: Clip List -->
 
-  <div id="panelList" class="tab-panel active">
+  <div id="panelList" class="tab-panel active" role="tabpanel" aria-labelledby="tabBtnList">
 
     <!-- 🚀 1-Click Batch Auto-Post Section -->
 
@@ -4141,7 +4262,7 @@
 
         </div>
 
-        <span class="batch-engine-tag">Engine v0.10.0</span>
+        <span class="batch-engine-tag">Engine v0.10.1</span>
 
       </div>
 
@@ -4209,13 +4330,13 @@
 
         <div class="batch-mode-label-row">
 
-          <span>เลือกรูปแบบการรัน:</span>
+          <span id="batchModeLabel">เลือกรูปแบบการรัน:</span>
 
         </div>
 
         <div class="batch-select-wrap">
 
-          <select id="batchModeSelect" class="batch-mode-select" title="เลือกรูปแบบการโพสต์">
+          <select id="batchModeSelect" class="batch-mode-select" aria-labelledby="batchModeLabel" title="เลือกรูปแบบการโพสต์">
 
             <option value="schedule_only">Schedule Only (ตั้งเวลาตามตารางทุกคลิป)</option>
 
@@ -4245,7 +4366,7 @@
 
         <div class="batch-select-wrap">
 
-          <select id="batchLimitSelect" class="batch-mode-select" title="จำกัดจำนวนคลิปที่จะอัปโหลดในรอบนี้ ป้องกันการล้นโควตา TikTok Studio">
+          <select id="batchLimitSelect" class="batch-mode-select" aria-label="จำกัดจำนวนคลิปต่อรอบ" title="จำกัดจำนวนคลิปที่จะอัปโหลดในรอบนี้ ป้องกันการล้นโควตา TikTok Studio">
 
             <option value="auto_quota" selected>อัตโนมัติตามโควตาที่เหลือ (แนะนำ - ป้องกันล้น)</option>
 
@@ -4353,7 +4474,7 @@
 
       </div>
 
-      <button id="refreshBtn" type="button" class="btn-icon-refresh" title="รีเฟรชรายการคลิป">
+      <button id="refreshBtn" type="button" class="btn-icon-refresh" title="รีเฟรชรายการคลิป" aria-label="รีเฟรชรายการคลิป">
 
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
 
@@ -4384,7 +4505,7 @@
 
   <!-- Tab 2: Checklist & Post Helper -->
 
-  <div id="panelChecklist" class="tab-panel">
+  <div id="panelChecklist" class="tab-panel" role="tabpanel" aria-labelledby="tabBtnChecklist">
 
     <!-- Active Clip Studio Monitor -->
 
@@ -4460,7 +4581,7 @@
 
           <span id="captionCharCount" class="caption-count-badge">0 / 2,200</span>
 
-          <span id="captionPolicyBadge" class="caption-count-badge" style="color:var(--success);font-weight:700">TikTok Safe ✓</span>
+          <span id="captionPolicyBadge" class="caption-count-badge is-safe">TikTok Safe ✓</span>
 
         </div>
 
@@ -4798,7 +4919,7 @@
 
   <!-- Tab 3: Tools (เครื่องมือซิงก์ข้อมูล) -->
 
-  <div id="panelTools" class="tab-panel">
+  <div id="panelTools" class="tab-panel" role="tabpanel" aria-labelledby="tabBtnTools">
 
     <div class="studio-monitor">
 
@@ -4844,7 +4965,7 @@
 
       </button>
 
-      <p id="buildTag" style="margin:6px 0 0;opacity:.55;font-size:11px"></p>
+      <p id="buildTag"></p>
 
     </div>
 
@@ -4862,7 +4983,9 @@
 
   <!-- Video Preview Modal -->
 
-  <div id="videoPreviewModal" class="preview-modal" hidden>
+  </main>
+
+  <dialog id="videoPreviewModal" class="preview-modal app-dialog" aria-labelledby="previewModalTitle">
 
     <div class="preview-backdrop" id="previewBackdrop"></div>
 
@@ -4872,7 +4995,7 @@
 
         <span class="preview-title" id="previewModalTitle">พรีวิววิดีโอ 9:16</span>
 
-        <button type="button" class="preview-close-btn" id="previewCloseBtn" title="ปิด">✕</button>
+        <button type="button" class="preview-close-btn" id="previewCloseBtn" title="ปิด" aria-label="ปิดพรีวิววิดีโอ"><span aria-hidden="true">✕</span></button>
 
       </div>
 
@@ -4890,11 +5013,11 @@
 
     </div>
 
-  </div>
+  </dialog>
 
   <!-- Confirm Modal -->
 
-  <div id="confirmOverlay">
+  <dialog id="confirmOverlay" class="app-dialog" aria-labelledby="confirmText">
 
     <div id="confirmBox">
 
@@ -4916,7 +5039,7 @@
 
     </div>
 
-  </div>
+  </dialog>
 
   <script src="clip_state.js"></script>
 
