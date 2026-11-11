@@ -26,6 +26,11 @@ FAMILY_PACING = {
     "smooth": (1.5, 3.0),
     "minimal": (1.8, 3.5),    # premium
     "compare": (1.3, 2.5),    # rhythmic wipe/slide alternation (tech_compare)
+    "hardcut": (1.0, 2.0),    # raw_ugc: jump cuts only, no transitions
+    "flash": (1.0, 1.8),      # beat_drop: white flash on the beat
+    "vertical": (1.1, 2.2),   # swipe_stack: feed-style upward slide
+    "chapter": (1.1, 3.3),    # proof_test: dip to black before each result
+    "reveal": (1.2, 2.7),     # glow_up: curtain wipe, iris on the payoff
 }
 DEFAULT_FAMILY_PACING = FAMILY_PACING["adaptive"]
 
@@ -336,6 +341,125 @@ STYLE_MOTION_POLICIES = {
         status_color="#25F4EE",
         neutral_color="#FFFFFF",
     ),
+    "raw_ugc": StyleMotionPolicy(
+        key="raw_ugc",
+        # Looks shot by a real user: every join is a hard cut and every shot
+        # gets a small, fast punch-in. transition_stride is unused by the
+        # "hardcut" family; 1 keeps it inside the sane range.
+        transition_stride=1,
+        stylized_stride=0,
+        max_transition_duration=0.15,
+        transition_family="hardcut",
+        camera_motion_stride=1,
+        camera_zoom_delta=0.10,
+        camera_pan_extent=0.05,
+        camera_min_duration=0.5,
+        min_shot=1.5,
+        max_shot=2.3,
+        j_lead=0.17,
+        beat_snap_tolerance=0.08,
+        transition_easing="ease_out",
+        hook_max_shot=1.0,
+        max_static_sec=2.0,
+        camera_easing="ease_out",
+        accent_color="#FFB38A",
+        status_color="#25F4EE",
+        neutral_color="#FFFFFF",
+    ),
+    "beat_drop": StyleMotionPolicy(
+        key="beat_drop",
+        # Music-led: the firmest beat lock of any preset, a short white flash
+        # on every second boundary, and a push that accelerates into the cut.
+        transition_stride=2,
+        stylized_stride=0,
+        max_transition_duration=0.18,
+        transition_family="flash",
+        camera_motion_stride=1,
+        camera_zoom_delta=0.16,
+        camera_pan_extent=0.10,
+        camera_min_duration=0.6,
+        min_shot=1.5,
+        max_shot=2.1,
+        j_lead=0.17,
+        beat_snap_tolerance=0.16,
+        transition_easing="ease_out",
+        hook_max_shot=1.0,
+        max_static_sec=1.8,
+        camera_easing="ease_in",
+        accent_color="#E845FF",
+        status_color="#FFE600",
+        neutral_color="#FFFFFF",
+    ),
+    "swipe_stack": StyleMotionPolicy(
+        key="swipe_stack",
+        # Listicle: the picture scrolls up like the feed (slideup every second
+        # boundary, a wipeup on every sixth for a new item) while the camera
+        # stays almost still so each item can be read.
+        transition_stride=2,
+        stylized_stride=6,
+        max_transition_duration=0.22,
+        transition_family="vertical",
+        camera_motion_stride=3,
+        camera_zoom_delta=0.05,
+        camera_pan_extent=0.04,
+        camera_min_duration=1.1,
+        min_shot=1.6,
+        max_shot=2.2,
+        j_lead=0.18,
+        beat_snap_tolerance=0.13,
+        transition_easing="ease_out",
+        hook_max_shot=1.1,
+        max_static_sec=2.2,
+        camera_easing="ease_out",
+        accent_color="#22E55E",
+        status_color="#25F4EE",
+        neutral_color="#FFFFFF",
+    ),
+    "proof_test": StyleMotionPolicy(
+        key="proof_test",
+        # Test-and-reveal: long holds on the action, a constant-speed creep
+        # in, and a dip to black every fifth boundary before the next result.
+        transition_stride=5,
+        stylized_stride=0,
+        max_transition_duration=0.40,
+        transition_family="chapter",
+        camera_motion_stride=1,
+        camera_zoom_delta=0.12,
+        camera_pan_extent=0.04,
+        camera_min_duration=1.4,
+        min_shot=1.9,
+        max_shot=3.0,
+        j_lead=0.22,
+        beat_snap_tolerance=0.08,
+        hook_max_shot=1.1,
+        max_static_sec=3.3,
+        camera_easing="linear",
+        accent_color="#38BDF8",
+        status_color="#FFE600",
+        neutral_color="#FFFFFF",
+    ),
+    "glow_up": StyleMotionPolicy(
+        key="glow_up",
+        # Before/after: a curtain wipe down every fourth boundary and an iris
+        # on every eighth for the finished result, with a sweeping pan.
+        transition_stride=4,
+        stylized_stride=8,
+        max_transition_duration=0.36,
+        transition_family="reveal",
+        camera_motion_stride=1,
+        camera_zoom_delta=0.10,
+        camera_pan_extent=0.12,
+        camera_min_duration=1.0,
+        min_shot=1.7,
+        max_shot=2.7,
+        j_lead=0.20,
+        beat_snap_tolerance=0.12,
+        hook_max_shot=1.2,
+        max_static_sec=2.7,
+        accent_color="#7C7BFF",
+        status_color="#25F4EE",
+        neutral_color="#FFFFFF",
+    ),
 }
 
 DEFAULT_STYLE_MOTION_POLICY = STYLE_MOTION_POLICIES["clean_tech_review"]
@@ -405,6 +529,8 @@ def apply_transition_budget(
     if profile.key == "legacy":
         return candidate
 
+    if profile.transition_family == "hardcut":
+        return {"type": "cut", "duration": 0.0}
     if profile.transition_stride <= 0 or boundary_index % profile.transition_stride:
         return {"type": "cut", "duration": 0.0}
 
@@ -423,6 +549,18 @@ def apply_transition_budget(
             candidate["type"] = "wipeleft" if (slot // 2) % 2 == 0 else "wiperight"
         else:
             candidate["type"] = "slideleft"
+    elif profile.transition_family == "flash":
+        candidate["type"] = "fadewhite"
+    elif profile.transition_family == "chapter":
+        candidate["type"] = "fadeblack"
+    elif profile.transition_family in ("vertical", "reveal"):
+        # Like `compare`: a function of the boundary number only, so the
+        # render and the preview that plays its manifest get the same plan.
+        stylized = profile.stylized_stride > 0 and boundary_index % profile.stylized_stride == 0
+        if profile.transition_family == "vertical":
+            candidate["type"] = "wipeup" if stylized else "slideup"
+        else:
+            candidate["type"] = "circleopen" if stylized else "wipedown"
     elif profile.transition_family == "energetic":
         if profile.stylized_stride > 0 and boundary_index % profile.stylized_stride == 0:
             candidate["type"] = "circleopen"

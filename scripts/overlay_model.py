@@ -191,6 +191,11 @@ STYLE_PRESET_TO_TEMPLATE: Dict[str, str] = {
     "tech_compare": "b2_compare_blue",
     "smart_hack": "b1_hack_lime",
     "niche_focus": "b2_niche_purple",
+    "raw_ugc": "t2_ugc_peach",
+    "beat_drop": "t2_beat_magenta",
+    "swipe_stack": "t2_swipe_green",
+    "proof_test": "t2_proof_sky",
+    "glow_up": "t2_glow_indigo",
 }
 
 

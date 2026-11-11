@@ -40,6 +40,12 @@ def test_family_values_match_the_roadmap():
         "smooth": (1.5, 3.0),
         "minimal": (1.8, 3.5),
         "compare": (1.3, 2.5),  # M5: tech_compare's own family
+        # viral presets (VIRAL_STYLE_EXPANSION_PLAN_20261111)
+        "hardcut": (1.0, 2.0),
+        "flash": (1.0, 1.8),
+        "vertical": (1.1, 2.2),
+        "chapter": (1.1, 3.3),
+        "reveal": (1.2, 2.7),
     }
     for key, policy in STYLE_MOTION_POLICIES.items():
         assert policy.hook_window_sec == 3.0, key

@@ -42,6 +42,12 @@ EXPECTED_KINDS = {
     "tech_compare": {"wipeleft", "slideleft", "wiperight"},
     "pain_punch": {"slideleft", "slideright", "circleopen"},
     "niche_focus": {"circleopen"},
+    # viral presets (VIRAL_STYLE_EXPANSION_PLAN_20261111)
+    "raw_ugc": set(),  # hard cuts only
+    "beat_drop": {"fadewhite"},
+    "swipe_stack": {"slideup", "wipeup"},
+    "proof_test": {"fadeblack"},
+    "glow_up": {"wipedown", "circleopen"},
 }
 
 
@@ -93,7 +99,7 @@ def test_new_preset_plan_renders_through_the_real_ffmpeg_path(tmp_path, monkeypa
 
     # the plan the planner produced is the style's own recipe
     kinds = {t["type"] for t in transitions} - {"cut"}
-    assert kinds and kinds <= EXPECTED_KINDS[style], (style, kinds)
+    assert (kinds or style == "raw_ugc") and kinds <= EXPECTED_KINDS[style], (style, kinds)
     policy = resolve_style_motion_policy(style)
     moved = [c for c in clips if c.get("keyframes")]
     assert moved, style

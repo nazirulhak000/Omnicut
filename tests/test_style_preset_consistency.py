@@ -86,7 +86,7 @@ def test_auto_or_unknown_choice_falls_back_to_angle_then_default(no_choice):
 
 def test_catalog_ids_match_renderer_policies():
     assert set(_js_presets()) == set(STYLE_MOTION_POLICIES)
-    assert len(STYLE_MOTION_POLICIES) == 10
+    assert len(STYLE_MOTION_POLICIES) == 15
 
 
 @pytest.mark.parametrize("preset_id", sorted(STYLE_MOTION_POLICIES))
@@ -126,7 +126,8 @@ def test_hook_color_is_the_colour_the_hook_actually_renders(preset_id):
 _TYPE_KEYWORD = {
     "dissolve": "Dissolve", "fade": "Fade", "circleopen": "Circle",
     "slideleft": "Slide", "slideright": "Slide",
-    "wipeleft": "Wipe", "wiperight": "Wipe",
+    "wipeleft": "Wipe", "wiperight": "Wipe", "wipeup": "Wipe", "wipedown": "Wipe",
+    "slideup": "Slide", "fadewhite": "Flash", "fadeblack": "Dip",
 }
 
 
@@ -149,6 +150,11 @@ def test_transition_label_names_the_transition_the_policy_renders(preset_id):
         for i in range(1, 25)
     } - {"cut"}
     label = _js_presets()[preset_id]["transitions"]
+    if family == "hardcut":
+        # raw_ugc plays no transition at all: the label must promise none.
+        assert not emitted
+        assert not {kw for kw in set(_TYPE_KEYWORD.values()) if kw in label}, label
+        return
     assert emitted
     for kind in emitted:
         assert _TYPE_KEYWORD[kind] in label, (preset_id, kind, label)

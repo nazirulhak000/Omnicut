@@ -16,11 +16,11 @@
   - ยังไม่ทำ: ยังไม่ได้ลองเรนเดอร์จริง/ดูป้ายเตือนใน editor บนเบราว์เซอร์ · `video_semantic_indexer.py` ยังไม่ต่อ/ไม่ลบ รอเจ้าของตัดสิน
   - แก้คำวินิจฉัยเดิม: catalog สำรอง**ไม่**เข้า pipeline ตัดต่อ (ไม่ถูก cache; `match_script_to_video` ใช้เฉพาะ catalog ที่ cache) ปัญหาจริงคือ API สแกนสารบัญฉากรายงานผลปลอมให้ UI
 
-- [ ] Round CLAUDE-VIRAL-STYLE-EXPANSION-PLAN-20261111 · ออกแบบ Style Preset ไวรัลใหม่ 5 แบบ (`raw_ugc`, `beat_drop`, `swipe_stack`, `proof_test`, `glow_up`) + แผนลงโค้ด → [_Docs/Plans/VIRAL_STYLE_EXPANSION_PLAN_20261111.md](_Docs/Plans/VIRAL_STYLE_EXPANSION_PLAN_20261111.md) · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
-  - [x] อ่านโค้ดจริง (policy, เทส distinctness/consistency, hook template, แคตตาล็อก) + Jev `choice` แนวทาง = เพิ่มตระกูล transition จาก type ที่ renderer รองรับแล้ว conf 0.96
-  - [x] วัดด้วยตัววัดของเทสจริง: 15 preset 105 คู่ ไม่มีคู่ต่ำกว่า 0.90 (สไตล์ใหม่ใกล้สุด 1.040), ลายนิ้วมือ transition ไม่ซ้ำ, เงื่อนไข "ที่สุด" ของ 10 ตัวเดิมยังจริง
-  - [x] เขียนแผน (แผนเท่านั้น ยังไม่แตะโค้ด)
-  - [ ] รอเจ้าของโปรเจกต์ตอบ D1–D5 (หัวข้อ 8 ของแผน) ก่อนเริ่ม P1–P5
+- [x] Round CLAUDE-VIRAL-STYLE-EXPANSION-PLAN-20261111 · เพิ่ม Style Preset ไวรัล 5 แบบ (`raw_ugc`, `beat_drop`, `swipe_stack`, `proof_test`, `glow_up`) รวม 15 แบบ → แผน/เหตุผล: [_Docs/Plans/VIRAL_STYLE_EXPANSION_PLAN_20261111.md](_Docs/Plans/VIRAL_STYLE_EXPANSION_PLAN_20261111.md) · ดำเนินการโดย: Claude Code (Claude Fable 5.2 + Claude Sonnet 5.5)
+  - [x] ผู้ใช้มอบอำนาจตัดสินใจ 2026-11-11: D1 รับทั้ง 5 · D2 เสียง/โทนเป็นคำแนะนำ ไม่ผูกอัตโนมัติ · D3 ไม่เปลี่ยน `ANGLE_TO_DEFAULT_STYLE` · D4 prefix `t2_` · D5 BGM ผู้ใช้เลือกเอง
+  - [x] Python: 5 policy + 5 ตระกูล transition (`hardcut/flash/vertical/chapter/reveal`) ใน `style_motion_policy.py` (10 ตัวเดิมไม่ถูกแก้) · hook template `t2_*` 5 ตัวทั้ง `hook_styles.py`/`hookStyles.js` · map `overlay_model.py`/`overlayModel.js` · แคตตาล็อก UI + Toolbar · dist rebuild
+  - [x] ผลทดสอบ: style 4 ไฟล์ + parity 397 ผ่าน · real ffmpeg render ทั้ง 5 สไตล์ผ่าน (9 ผ่าน) · เทสที่แตะ preset/hook/overlay/batch 52 ไฟล์ 1452 ผ่าน (เทส pacing family อัปเดตแล้ว) · frontend `npm test` 1280/1280 · vite build ผ่าน · distinctness 105 คู่ ≥ 0.90
+  - [ ] ยังไม่ทำ: ยังไม่ได้ดูเฟรมรอยต่อจริงของแต่ละสไตล์ด้วยตา และไม่ได้ลองเลือกสไตล์ใหม่ใน UI บนเบราว์เซอร์ · ยังไม่วัดผลไวรัลจริง (แผนข้อ 9: A/B 5 คู่ต่อสไตล์) · ยังไม่ push
 
 - [x] Round CLAUDE-EDITING-STYLES-REFERENCE-DOC-20261111 · เอกสารสรุปสไตล์การตัดต่อทั้งหมด (preset 10 แบบ, จังหวะตัด, transition, กล้อง, Hook, ซับ, เสียง, ปก) → [_Docs/Reports/EDITING_STYLES_REFERENCE_20261111.md](_Docs/Reports/EDITING_STYLES_REFERENCE_20261111.md) · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5)
 

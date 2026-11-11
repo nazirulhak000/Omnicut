@@ -189,6 +189,56 @@ export const HOOK_TEMPLATES = {
     },
     motion: { in: 'slide_up', loop: 'wave', out: 'fade', accent: 'none', stagger: true },
   },
+  t2_ugc_peach: {
+    label_th: 'T1 (พีช+นิ่ง)',
+    font: 'Kanit',
+    tiers: {
+      brand: { size_pct: 170, color: '#FFB38A', outline_color: '#0B0A0A', outline_px: 3.0, upper: true, pill: null },
+      model: { size_pct: 140, color: '#F7F7F7', outline_color: '#0A0A0A', outline_px: 3.0, upper: false, pill: null },
+      label: { size_pct: 80, color: '#D0D0D0', outline_color: '#101010', outline_px: 3.0, upper: false, pill: null },
+    },
+    motion: { in: 'quick_fade', loop: 'none', out: 'fade', accent: 'none', stagger: false },
+  },
+  t2_beat_magenta: {
+    label_th: 'T1 (ม่วงแดง+เต้น)',
+    font: 'Kanit',
+    tiers: {
+      brand: { size_pct: 170, color: '#E845FF', outline_color: '#0B0A0A', outline_px: 3.0, upper: true, pill: null },
+      model: { size_pct: 140, color: '#F7F7F7', outline_color: '#0A0A0A', outline_px: 3.0, upper: false, pill: null },
+      label: { size_pct: 80, color: '#D0D0D0', outline_color: '#101010', outline_px: 3.0, upper: false, pill: null },
+    },
+    motion: { in: 'pop_zoom', loop: 'pulse', out: 'glitch', accent: 'none', stagger: true },
+  },
+  t2_swipe_green: {
+    label_th: 'T1 (เขียว+เลื่อน)',
+    font: 'Kanit',
+    tiers: {
+      brand: { size_pct: 170, color: '#22E55E', outline_color: '#0B0A0A', outline_px: 3.0, upper: true, pill: null },
+      model: { size_pct: 140, color: '#F7F7F7', outline_color: '#0A0A0A', outline_px: 3.0, upper: false, pill: null },
+      label: { size_pct: 80, color: '#D0D0D0', outline_color: '#101010', outline_px: 3.0, upper: false, pill: null },
+    },
+    motion: { in: 'slide_up', loop: 'none', out: 'slide', accent: 'none', stagger: true },
+  },
+  t2_proof_sky: {
+    label_th: 'T1 (ฟ้า+ชีพจร)',
+    font: 'Kanit',
+    tiers: {
+      brand: { size_pct: 170, color: '#38BDF8', outline_color: '#0B0A0A', outline_px: 3.0, upper: true, pill: null },
+      model: { size_pct: 140, color: '#F7F7F7', outline_color: '#0A0A0A', outline_px: 3.0, upper: false, pill: null },
+      label: { size_pct: 80, color: '#D0D0D0', outline_color: '#101010', outline_px: 3.0, upper: false, pill: null },
+    },
+    motion: { in: 'fade', loop: 'pulse', out: 'fade', accent: 'none', stagger: true },
+  },
+  t2_glow_indigo: {
+    label_th: 'T1 (ม่วงคราม+กวาดแสง)',
+    font: 'Kanit',
+    tiers: {
+      brand: { size_pct: 170, color: '#7C7BFF', outline_color: '#0B0A0A', outline_px: 3.0, upper: true, pill: null },
+      model: { size_pct: 140, color: '#F7F7F7', outline_color: '#0A0A0A', outline_px: 3.0, upper: false, pill: null },
+      label: { size_pct: 80, color: '#D0D0D0', outline_color: '#101010', outline_px: 3.0, upper: false, pill: null },
+    },
+    motion: { in: 'pop', loop: 'lightsweep', out: 'zoom', accent: 'none', stagger: true },
+  },
 };
 
 export const DEFAULT_HOOK_TEMPLATE = 'tech';

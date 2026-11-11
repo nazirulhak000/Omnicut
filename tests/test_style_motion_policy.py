@@ -87,14 +87,19 @@ def test_unknown_style_falls_back_to_golden_master_and_catalog_is_json_safe():
         "tech_compare",
         "smart_hack",
         "niche_focus",
+        "raw_ugc",
+        "beat_drop",
+        "swipe_stack",
+        "proof_test",
+        "glow_up",
     }
     assert catalog["clean_tech_review"]["transition_stride"] == 5
     assert catalog["clean_tech_review"]["camera_motion_stride"] == 2
 
 
-def test_catalog_has_exactly_10_styles():
-    """Guard against accidental additions or deletions."""
-    assert len(style_motion_catalog()) == 10
+def test_catalog_has_exactly_15_styles():
+    """Guard against accidental additions or deletions (10 originals + 5 viral)."""
+    assert len(style_motion_catalog()) == 15
 
 
 # ---------------------------------------------------------------------------
@@ -345,6 +350,7 @@ def test_all_10_styles_resolve_without_fallback():
         "clean_tech_review", "viral_punch", "tech_product_showcase",
         "smooth_showcase", "premium_minimal",
         "flash_deal", "pain_punch", "tech_compare", "smart_hack", "niche_focus",
+        "raw_ugc", "beat_drop", "swipe_stack", "proof_test", "glow_up",
     ]
     for style in known_styles:
         policy = resolve_style_motion_policy(style)
@@ -386,7 +392,7 @@ def test_every_style_cut_rhythm_stays_inside_the_gadget_and_j_cut_rules():
         # a beat snap can never pull the picture in front of the voice
         assert 0 < entry["beat_snap_tolerance"] <= entry["j_lead"], key
         rhythms.add((entry["min_shot"], entry["max_shot"], entry["j_lead"], entry["beat_snap_tolerance"]))
-    assert len(rhythms) == 10, "each style should have its own cut rhythm"
+    assert len(rhythms) == 15, "each style should have its own cut rhythm"
 
 
 # ---------------------------------------------------------------------------
@@ -445,6 +451,11 @@ STYLE_EASING = {
     "flash_deal": "ease_out",
     "pain_punch": "ease_out",
     "smart_hack": "ease_out",
+    "raw_ugc": "ease_out",
+    "beat_drop": "ease_out",
+    "swipe_stack": "ease_out",
+    "proof_test": "ease_in_out",
+    "glow_up": "ease_in_out",
 }
 HONOURS_EASING = {
     "fade", "wipeleft", "wiperight", "wipeup", "wipedown",
@@ -502,7 +513,9 @@ def test_generated_transitions_carry_the_style_easing_only_on_supported_types():
     # smart_hack a slide preset).
     # niche_focus is circleopen-only since M5 (an iris reveal ignores easing).
     for style, count in eased_per_style.items():
-        if style in ("smooth_showcase", "niche_focus"):
+        # raw_ugc is hard cuts only; beat_drop (fadewhite) and proof_test
+        # (fadeblack) use the two types the policy deliberately never eases.
+        if style in ("smooth_showcase", "niche_focus", "raw_ugc", "beat_drop", "proof_test"):
             assert count == 0, style
         else:
             assert count > 0, style

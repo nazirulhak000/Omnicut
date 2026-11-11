@@ -20,7 +20,9 @@ The distance is Euclidean. ``MIN_PAIRWISE_DISTANCE`` is 0.90.
 Before M5 the closest pairs were viral_punch/flash_deal 0.17,
 viral_punch/pain_punch 0.26, flash_deal/pain_punch 0.35, tech_product_showcase/
 niche_focus 0.68 and clean_tech_review/tech_compare 0.88 (all below 0.90);
-after M5 the minimum over all 45 pairs is about 0.97.
+after M5 the minimum over all 45 pairs is about 0.97; with the five viral
+presets (raw_ugc, beat_drop, swipe_stack, proof_test, glow_up) the 105 pairs
+stay at or above 0.967.
 """
 
 import itertools
@@ -120,10 +122,10 @@ def test_the_metric_catches_the_pre_m5_near_duplicates():
     assert rows[0][0] < MIN_PAIRWISE_DISTANCE  # the old catalog fails the gate
 
 
-def test_every_pair_of_the_ten_presets_is_far_enough_apart():
-    assert len(STYLE_MOTION_POLICIES) == 10
+def test_every_pair_of_the_fifteen_presets_is_far_enough_apart():
+    assert len(STYLE_MOTION_POLICIES) == 15
     rows = _pairs(STYLE_MOTION_POLICIES)
-    assert len(rows) == 45
+    assert len(rows) == 105
     too_close = [(a, b, round(d, 3)) for d, a, b in rows if d < MIN_PAIRWISE_DISTANCE]
     assert not too_close, too_close
 
@@ -145,7 +147,7 @@ def test_no_two_presets_share_a_motion_recipe():
         )
         assert recipe not in recipes, (key, recipes.get(recipe))
         recipes[recipe] = key
-    assert len(recipes) == 10
+    assert len(recipes) == 15
 
 
 def _fingerprint(key):
@@ -357,7 +359,7 @@ def test_planner_honours_each_presets_own_hook_and_static_bounds(key):
 
 
 def test_planner_output_differs_between_presets():
-    """Same script and footage: the ten plans are not interchangeable."""
+    """Same script and footage: the fifteen plans are not interchangeable."""
     from tests.test_shot_matching_cut_quality import _context, _cue, _run
 
     cues = [_cue(2.0 * i, 2.0 * (i + 1), "cue ครับ") for i in range(8)]
@@ -372,7 +374,80 @@ def test_planner_output_differs_between_presets():
             tuple(bool(c.get("keyframes")) for c in clips),
             tuple(round(float(c.get("keyframes", [{}])[-1].get("zoom", 0)), 2) if c.get("keyframes") else 0 for c in clips),
         )
-    assert len(set(signatures.values())) == 10, {
+    assert len(set(signatures.values())) == 15, {
         sig: [k for k, v in signatures.items() if v == sig] for sig in set(signatures.values())
         if list(signatures.values()).count(sig) > 1
     }
+
+
+# -- the five viral presets (VIRAL_STYLE_EXPANSION_PLAN_20261111) -------------
+
+
+def _kinds(key, n=24):
+    return list(_fingerprint(key)[:n])
+
+
+def test_viral_presets_leave_the_original_ten_untouched():
+    """The new presets are opt-in: the pinned superlatives of the old ten hold."""
+    every = list(STYLE_MOTION_POLICIES.values())
+    assert _p("flash_deal").max_shot == min(p.max_shot for p in every)
+    assert _p("flash_deal").hook_max_shot == min(p.hook_max_shot for p in every)
+    assert _p("pain_punch").camera_zoom_delta == max(p.camera_zoom_delta for p in every)
+    assert _p("tech_product_showcase").camera_pan_extent == max(p.camera_pan_extent for p in every)
+    assert _p("premium_minimal").transition_stride == max(p.transition_stride for p in every)
+    assert _p("premium_minimal").camera_motion_stride == max(p.camera_motion_stride for p in every)
+    assert _p("premium_minimal").camera_zoom_delta == min(p.camera_zoom_delta for p in every)
+
+
+def test_raw_ugc_is_hard_cuts_only_with_a_punch_on_every_shot():
+    p = _p("raw_ugc")
+    assert set(_kinds("raw_ugc")) == {"cut"}
+    assert p.camera_motion_stride == 1 and p.camera_easing == "ease_out"
+
+
+def test_beat_drop_flashes_white_every_second_boundary_and_locks_to_the_beat():
+    p = _p("beat_drop")
+    kinds = _kinds("beat_drop")
+    assert set(kinds) == {"cut", "fadewhite"}
+    assert [i + 1 for i, k in enumerate(kinds) if k == "fadewhite"][:3] == [2, 4, 6]
+    assert p.beat_snap_tolerance == max(x.beat_snap_tolerance for x in STYLE_MOTION_POLICIES.values())
+    assert p.camera_easing == "ease_in"
+    # flash rate stays well under the 3 Hz photosensitivity guideline
+    assert p.min_shot * p.transition_stride >= 3.0
+
+
+def test_swipe_stack_scrolls_up_and_never_sideways():
+    assert set(_kinds("swipe_stack")) == {"cut", "slideup", "wipeup"}
+    assert _p("swipe_stack").camera_motion_stride == 3
+
+
+def test_proof_test_dips_to_black_every_fifth_boundary_with_a_constant_speed_push():
+    p = _p("proof_test")
+    kinds = _kinds("proof_test")
+    assert [i + 1 for i, k in enumerate(kinds) if k == "fadeblack"] == [5, 10, 15, 20]
+    assert set(kinds) == {"cut", "fadeblack"}
+    assert p.camera_easing == "linear"
+    assert p.max_shot == max(x.max_shot for x in STYLE_MOTION_POLICIES.values())
+
+
+def test_glow_up_opens_a_curtain_then_an_iris_on_the_payoff():
+    kinds = _kinds("glow_up")
+    assert set(kinds) == {"cut", "wipedown", "circleopen"}
+    assert [i + 1 for i, k in enumerate(kinds) if k == "circleopen"] == [8, 16, 24]
+    assert [i + 1 for i, k in enumerate(kinds) if k == "wipedown"][:2] == [4, 12]
+
+
+@pytest.mark.parametrize("key", ["beat_drop", "swipe_stack", "proof_test", "glow_up"])
+def test_new_transitions_are_ones_the_renderer_and_preview_know(key):
+    from scripts.video_editor import XFADE_TRANSITIONS
+
+    assert set(_kinds(key)) - {"cut"} <= set(XFADE_TRANSITIONS)
+
+
+@pytest.mark.parametrize("key", ["raw_ugc", "beat_drop", "swipe_stack", "proof_test", "glow_up"])
+def test_every_viral_preset_has_a_hook_template_with_its_accent_colour(key):
+    from scripts.hook_styles import HOOK_TEMPLATES
+    from scripts.overlay_model import STYLE_PRESET_TO_TEMPLATE
+
+    template = HOOK_TEMPLATES[STYLE_PRESET_TO_TEMPLATE[key]]
+    assert template["tiers"]["brand"]["color"].lower() == _p(key).accent_color.lower()

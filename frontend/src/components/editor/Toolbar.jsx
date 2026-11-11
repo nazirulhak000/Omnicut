@@ -231,6 +231,11 @@ export default function Toolbar({
             <option value="b2_compare_blue" className="bg-[#232220] text-[#EDE9E3]">T1 (น้ำเงิน+คลื่น)</option>
             <option value="b1_hack_lime" className="bg-[#232220] text-[#EDE9E3]">T1 (เขียวมะนาว+กวาดแสง)</option>
             <option value="b2_niche_purple" className="bg-[#232220] text-[#EDE9E3]">T1 (ม่วง+คลื่น)</option>
+            <option value="t2_ugc_peach" className="bg-[#232220] text-[#EDE9E3]">T1 (พีช+นิ่ง)</option>
+            <option value="t2_beat_magenta" className="bg-[#232220] text-[#EDE9E3]">T1 (ม่วงแดง+เต้น)</option>
+            <option value="t2_swipe_green" className="bg-[#232220] text-[#EDE9E3]">T1 (เขียว+เลื่อน)</option>
+            <option value="t2_proof_sky" className="bg-[#232220] text-[#EDE9E3]">T1 (ฟ้า+ชีพจร)</option>
+            <option value="t2_glow_indigo" className="bg-[#232220] text-[#EDE9E3]">T1 (ม่วงคราม+กวาดแสง)</option>
           </optgroup>
         </select>
       </div>

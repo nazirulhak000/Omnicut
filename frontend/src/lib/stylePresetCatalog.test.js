@@ -17,7 +17,7 @@ import {
 import { DEFAULT_STUDIO_FORM, STYLE_PRESET_STORAGE_VERSION, migrateSavedStudioForm } from './studioDefaults.js';
 
 test('catalog has a unique renderer-supported default', () => {
-  assert.equal(STYLE_PRESET_CATALOG.length, 10);
+  assert.equal(STYLE_PRESET_CATALOG.length, 15);
   assert.equal(normalizeStylePreset(DEFAULT_STYLE_PRESET), DEFAULT_STYLE_PRESET);
   assert.equal(new Set(STYLE_PRESET_CATALOG.map((preset) => preset.id)).size, STYLE_PRESET_CATALOG.length);
   assert.deepEqual(STYLE_PRESET_CATALOG.map((preset) => preset.id), [
@@ -31,6 +31,11 @@ test('catalog has a unique renderer-supported default', () => {
     'tech_compare',
     'smart_hack',
     'niche_focus',
+    'raw_ugc',
+    'beat_drop',
+    'swipe_stack',
+    'proof_test',
+    'glow_up',
   ]);
   assert.equal(STYLE_PRESET_CATALOG.filter((preset) => preset.recommended).length, 1);
 });
@@ -124,6 +129,12 @@ test('M5: every preset describes its own motion and transitions (no copy-paste l
   assert.match(byId.tech_compare.transitions, /Wipe/);
   assert.match(byId.niche_focus.transitions, /Circle/);
   assert.match(byId.premium_minimal.transitions, /Fade/);
+  assert.match(byId.beat_drop.transitions, /Flash/);
+  assert.match(byId.swipe_stack.transitions, /Slide/);
+  assert.match(byId.proof_test.transitions, /Dip/);
+  assert.doesNotMatch(byId.proof_test.transitions, /Fade/);
+  assert.match(byId.glow_up.transitions, /Circle/);
+  assert.doesNotMatch(byId.raw_ugc.transitions, /Slide|Wipe|Fade|Circle|Flash|Dip/);
 });
 
 test('batch auto choice is not a preset id, so it never masks an angle default', () => {
