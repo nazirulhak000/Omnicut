@@ -6,15 +6,7 @@
 
 - [x] Round CLAUDE-SPEED-PHASE3-RTX4060-20261112 · วัดซ้ำบน i7-14700 / RTX 4060 (เรนเดอร์ 43 วิ ใช้ ~18–19 วิ, batch 4 งาน 1.7–1.9 เท่า) · `shot_matching` ข้าม beat/ความดัง/motion เมื่อมีรายการคลิปแล้ว · แก้เทส SAM2 preflight ที่อ่าน RAM จริง · ข4/ข6 วัดแล้วรอเจ้าของ · pytest 5409 ผ่าน → [_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md](_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md) หัวข้อ 8, HISTORY.md · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
 
-- [ ] Round CLAUDE-SPEED-OVERNIGHT-20261112 · งานข้ามคืน (ผู้ใช้สั่ง 2026-11-12 02:21 "ไป" ตามแผนที่เสนอ: อนุญาต commit + merge เข้า `main` ข้อ 1, 3, 5 เมื่อเทสผ่าน, ติดตั้ง `psutil` ใน `.venv`, ไม่ push, ไม่ลบไฟล์) · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
-  - [x] 1 · เงา Hook: คำนวณบนแถบกว้าง 2 px แล้วขยาย + ปิดการ blend นอกช่วงที่เงามองเห็น → เรนเดอร์ผ่าน pipeline 18.0 → 16.5 วิ (−1.5 วิ ไม่ถึงเป้า −4 ถึง −5 วิ) · md5 ของ 1,274 เฟรมเหมือนเดิม · เทสเรนเดอร์จริงเทียบ md5 ใน `tests/test_speed_phase3.py`
-  - [x] 2 · TTS reuse หลังย้ายเครื่อง: **ตรวจแล้วไม่ทำ** — 46/60 โปรเจกต์ fingerprint ชี้ `D:\Winona\Programmer\Capcut` แต่ไฟล์ `voiceover.wav` ทั้ง 46 ถูกเขียนใหม่พร้อมกันเมื่อ 2026-11-08 23:07 ขนาดและ sha256 ไม่ตรงกับที่บันทึก → fingerprint แบบไม่ผูก path ก็ยังไม่ตรง · ต้องให้เจ้าของตัดสิน (ดูรายงานเช้า)
-  - [x] 3 · `psutil==7.0.0` เข้า `requirements.txt` + ติดตั้งใน `.venv` + เทส `memory_low`
-  - [x] 4 · ข6 ต้นแบบ `scripts/subtitle_second_pass.py` (ยังไม่ต่อเข้า renderer) + `tools/speed_audit/second_pass.py` + เทส 11 ข้อ: แก้ซับ 14.9 → 5.1 วิ, เรนเดอร์แรก 14.9 → 16.8 วิ — กิ่งแยก `feat/subtitle-second-pass` ไม่ merge รอเจ้าของ
-  - [x] 5 · AGENTS.md ข้อ 24: เพิ่มตัวเลขวัดจริงของงานเข้ารหัส ffmpeg (ตัวเลข 3–4 เท่าเดิมเป็นของ HyperFrames render จึงไม่แก้ทับ)
-  - [x] 6 · Gate: pytest เต็มชุด (ไม่รวม `tests/motion_capture`) 5414 ผ่าน 22 ข้าม หลังแก้ข้อ 1 + 3 · ดูเฟรมจริง 3 จุด (ค้าง / กลาง fade / หลัง fade)
-  - [ ] 7 · รายงานเช้า `_Docs/Reports/SPEED_OVERNIGHT_20261112.md`
-  - **ยังไม่ merge เข้า `main`:** Jev ก่อน commit ให้ `commit_and_merge` แต่ confidence 0.74 (รอบช่วงที่ 3) และ 0.53 (รอบเงา Hook) ต่ำกว่า 0.80 ทั้งสองครั้ง · ความเสี่ยง 0.46 / 0.31 → ตามกติกาที่ตกลงไว้ commit บนกิ่ง `feat/speed-phase3` รอเจ้าของสั่ง merge
+- [x] Round CLAUDE-SPEED-OVERNIGHT-20261112 · เงา Hook เร็วขึ้น (เรนเดอร์ 18.0 → 16.5 วิ, md5 เฟรมเหมือนเดิม), `psutil` เข้า requirements, ต้นแบบเผาซับรอบสองบนกิ่ง `feat/subtitle-second-pass` (แก้ซับ 14.9 → 5.1 วิ), พบ 46/60 โปรเจกต์จะยิง TTS ใหม่เมื่อเรนเดอร์ซ้ำ; pytest 5414 ผ่าน · **ยังไม่ merge เข้า `main`** (Jev confidence 0.74 / 0.53 < 0.80) รอเจ้าของสั่ง merge กิ่ง `feat/speed-phase3` → [_Docs/Reports/SPEED_OVERNIGHT_20261112.md](_Docs/Reports/SPEED_OVERNIGHT_20261112.md), HISTORY.md · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
 
 - [x] Round CODEX-AUTOPOST-PREPARE-ACK-20261112 · 0.10.5 รอ prepare/claim ยืนยันก่อนปิด modal, inline error/retry, guarded old-job handoff; Node 272/272, sidebar mouse-click 38/38, read-only backend 27/27 compatibility → [_Docs/Reports/AUTOPOST_PREPARE_ACK_20261112.md](_Docs/Reports/AUTOPOST_PREPARE_ACK_20261112.md), HISTORY.md · ดำเนินการโดย: Codex (GPT-6)
 

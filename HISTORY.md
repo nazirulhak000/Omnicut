@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round CLAUDE-SPEED-OVERNIGHT-20261112 | งานความเร็วข้ามคืน: เงา Hook คำนวณบนแถบ 2 px + blend เฉพาะช่วงที่มองเห็น (เรนเดอร์ 18.0 → 16.5 วิ, md5 ของ 1,274 เฟรมเหมือนเดิม), `psutil` เข้า requirements + เทส `memory_low`, ต้นแบบเผาซับรอบสอง (กิ่งแยก ไม่ต่อเข้า renderer), พบ 46/60 โปรเจกต์เสียงพากย์ไม่ตรง fingerprint; pytest 5414 ผ่าน; ยังไม่ merge เข้า main (Jev < 0.80) | 2026-11-12 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-SPEED-PHASE3-RTX4060-20261112 | ความเร็วช่วงที่ 3 บน i7-14700 / RTX 4060: เรนเดอร์คลิป 43 วิ ใช้ ~18–19 วิ, batch 4 งานได้ 1.7–1.9 เท่า (RAM เป็นตัวจำกัด), `shot_matching` ข้ามวิเคราะห์ beat/ความดัง/motion เมื่อมีรายการคลิปแล้ว (−2.2 ถึง −12.5 วิ เฉพาะเรนเดอร์แรกของ process), แก้เทส SAM2 preflight ที่อ่าน RAM จริง, ข5 ไม่คุ้ม, ข4/ข6 วัดแล้วรอเจ้าของ; pytest 5409 ผ่าน | 2026-11-12 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CODEX-AUTOPOST-PREPARE-ACK-20261112 | 0.10.5 รอ backend prepare/claim ก่อนปิด dialog, inline errors/retry และ old-job handoff; Node 272/272, real sidebar mouse tests 38/38, backend read-only 27/27 compatibility | 2026-11-12 | ดำเนินการโดย: Codex (GPT-6) |
 | Round CODEX-AUTOPOST-PREPARE-SAVE-FEEDBACK-20261112 | 0.10.4 ฟอร์ม autosave/บันทึกข้อมูลใน extension แยกคลิป/ช่อง, restore หลัง reload, แจ้ง placeholder และวันที่/เวลา; Node 270/270, sidebar 33/33, backend read-only 27/27 compatibility | 2026-11-12 | ดำเนินการโดย: Codex (GPT-6) |
@@ -532,6 +533,17 @@
 
 ---
 ---
+
+## Round CLAUDE-SPEED-OVERNIGHT-20261112 · งานความเร็วข้ามคืน · ผู้ใช้สั่ง 2026-11-12 02:21 "ไป" ตามแผนที่เสนอ (อนุญาต commit + merge ข้อ 1, 3, 5 เมื่อเทสผ่าน, ติดตั้ง `psutil` ใน `.venv`, ไม่ push, ไม่ลบไฟล์) · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
+
+- **1 เงา Hook:** `scripts/video_editor.py` — `geq` รันบนแถบกว้าง 2 px แล้ว `scale flags=neighbor` ขยายเต็มเฟรม (alpha ขึ้นกับแถวและเวลาเท่านั้น) + overlay มี `enable='between(t, span_start, span_end + fade + 0.1)'` (0.1 วิ กันแหล่งเงา 25 fps ใต้เฟรม 30 fps) · เรนเดอร์ผ่าน pipeline 18.0 → 16.5 วิ (เป้าที่เสนอ −4 ถึง −5 วิ ได้จริง −1.5 วิ ที่เหลือ ~1.4 วิ เป็นต้นทุน overlay) · md5 ของ 1,274 เฟรมเท่าเดิมทั้งเล่นคำสั่งซ้ำและผ่าน pipeline · เทส `test_hook_scrim_strip_matches_the_full_width_scrim` เรนเดอร์ ffmpeg จริงเทียบ md5 · ดูเฟรม 3 จุดด้วยตา
+- **2 TTS reuse หลังย้ายเครื่อง:** ไม่ทำ — 46/60 โปรเจกต์ fingerprint ชี้ `D:\Winona\Programmer\Capcut` และ `voiceover.wav` ทั้ง 46 ถูกเขียนใหม่พร้อมกัน 2026-11-08 23:07 (ขนาด −1%, sha256 ไม่ตรง) → `should_run("voice")` จะคืน True เมื่อเรนเดอร์ซ้ำ · fingerprint ไม่ผูก path ไม่ช่วย · รอเจ้าของตัดสิน
+- **3 `psutil`:** `requirements.txt` + ติดตั้ง 7.0.0 ใน `.venv` (ก่อนหน้านี้ตัวกัน RAM ของ SAM2/rembg ถูกข้ามเงียบ ๆ) + เทส `memory_low` และเทสว่า requirements ประกาศไว้
+- **4 ข6 ต้นแบบ:** `scripts/subtitle_second_pass.py` (สร้างคำสั่งอย่างเดียว ไม่ต่อเข้า renderer), `tests/test_subtitle_second_pass.py` 11 ข้อ, `tools/speed_audit/second_pass.py` · รอบเดียว 14.9 วิ / ครั้งแรก 16.8 วิ / แก้ซับ 5.1 วิ / SSIM Y 0.9918 · commit `85142e3` บนกิ่ง `feat/subtitle-second-pass` ไม่ merge
+- **5 AGENTS.md ข้อ 24:** เพิ่มหมายเหตุตัวเลข ffmpeg (อยู่ใน commit ของรอบช่วงที่ 3)
+- **Gate:** pytest เต็มชุดไม่รวม `tests/motion_capture` 5414 ผ่าน 22 ข้าม
+- **Jev ก่อน commit:** `commit_and_merge` confidence 0.74 (risk 0.46) และ 0.53 (risk 0.31) ต่ำกว่า 0.80 → commit `bd3cb71`, `2ea9d8f` บนกิ่ง `feat/speed-phase3` **ไม่ merge เข้า main** รอเจ้าของ
+- **รายงาน:** `_Docs/Reports/SPEED_OVERNIGHT_20261112.md`
 
 ## Round CLAUDE-SPEED-PHASE3-RTX4060-20261112 · ต่องานความเร็วช่วงที่ 2 บนเครื่อง i7-14700 / RTX 4060 · ผู้ใช้สั่ง 2026-11-12 "ทำข้อ 1-2 ต่อได้เลย" · กิ่ง `feat/speed-phase3` · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
 
