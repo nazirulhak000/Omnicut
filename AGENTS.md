@@ -100,6 +100,7 @@
    - ✔️ **ต้องเปิด Concurrent Workers 3–4 Threads เสมอ (Default Concurrency = 4):**
      - ต้องใช้ `concurrent.futures.ThreadPoolExecutor(max_workers=4)` หรือเทียบเท่าเป็นค่าเริ่มต้นทันทีทุกงาน Batch
      - เครื่องนี้รองรับ 4 Workers ได้อย่างปลอดภัย 100% (ใช้ RAM รวม ~4.5 GB จากที่ว่าง 12 GB, ใช้ VRAM รวม ~2 GB จากที่ว่าง 7.4 GB) ช่วยบีบเวลาลง 3–4 เท่า (เฉลี่ยเหลือเพียง ~50–70 วินาทีต่อคลิป)
+     - **ตัวเลขข้างบนเป็นของงาน HyperFrames render** — งานเข้ารหัส ffmpeg ของ pipeline OmniCut (`VideoEditor`, `h264_nvenc`) วัดจริง 2026-11-12: 4 งานพร้อมกันได้ **1.7–1.9 เท่า** ของงานเดียว (4.3 → 7.3–8.3 คลิป/นาที) ตัวเข้ารหัส NVENC เต็มตั้งแต่ 2 งาน และตัวจำกัดคือ **RAM ไม่ใช่ VRAM** (6 งานเคยล้มด้วย ENOMEM, 8 งาน RAM แตะ 31.7 GB) → **ห้ามตั้งเกิน 4 งาน** (ดู `_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md` หัวข้อ 8.3)
    - ✔️ **ระบบ Crash-Resilient & Instant Resume Gate (`is_valid_mp4`):**
      - ทุกสคริปต์ Batch ต้องมีฟังก์ชันตรวจความสมบูรณ์ของไฟล์จริงผ่าน `ffprobe` (เช็กขนาด > 1MB และตรวจสอบ moov atom / stream decode สมบูรณ์)
      - หากไฟล์ถูกเรนเดอร์สำเร็จแล้วในรอบวัน ให้สแกนข้าม (Skip) ทันทีในเสี้ยววินาที ไม่เรนเดอร์ซ้ำซ้อน

@@ -158,11 +158,23 @@ def summarize(label, stage_timings, total, extra=None):
     print(f"[harness] wrote {path}")
 
 
-def run_pipeline(label, kwargs):
+def block_tts():
+    """A re-render must reuse the voiceover on disk; fail loudly instead of paying for a new one."""
+    from scripts import gemini_tts_engine
+
+    def refuse(*a, **kw):
+        raise RuntimeError("speed_audit: TTS call blocked (voiceover was not reused); pass --allow-tts to permit it")
+
+    gemini_tts_engine.GeminiFlashTTSEngine.generate_speech = refuse
+
+
+def run_pipeline(label, kwargs, allow_tts=True):
     import_started = time.perf_counter()
     from scripts.pipeline import TikTokAutoCutterPipeline
     from scripts import pipeline_context
     import_s = time.perf_counter() - import_started
+    if not allow_tts:
+        block_tts()
     load_wraps()
 
     captured = {}
@@ -217,6 +229,8 @@ def main():
     ap.add_argument("--no-vision", action="store_true")
     ap.add_argument("--no-bilingual", action="store_true")
     ap.add_argument("--resume-from")
+    ap.add_argument("--allow-tts", action="store_true",
+                    help="rerender only: let the voice stage call the TTS API (blocked by default)")
     ap.add_argument("--target-duration", type=int, default=60)
     args = ap.parse_args()
 
@@ -226,7 +240,7 @@ def main():
         kwargs["export_mp4"] = not args.no_export
         if args.resume_from:
             kwargs["resume_from"] = args.resume_from
-        run_pipeline(label, kwargs)
+        run_pipeline(label, kwargs, allow_tts=args.allow_tts)
     else:
         label = args.a
         kwargs = dict(

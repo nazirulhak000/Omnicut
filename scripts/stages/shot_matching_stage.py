@@ -1062,9 +1062,15 @@ class ShotMatchingStage:
 
         shot_scales = LOOK_PRESETS.get(ctx.angle_meta.get("angle_key", "")) if ctx.angle_meta else None
 
+        # Beat, loudness and motion analysis feed only the automatic shot plan
+        # below. A render that already has its clip list (every re-render from
+        # the editor) used to run all three and discard the results, and paid
+        # the librosa import (2-12 s) on the first render of a process.
+        plans_shots = bool(not actual_clip_list and raw_video)
+
         beat_times: List[float] = []
         try:
-            resolved_bgm_path = SFXManager.resolve_bgm_path(ctx.effective_bgm_name)
+            resolved_bgm_path = SFXManager.resolve_bgm_path(ctx.effective_bgm_name) if plans_shots else None
             if resolved_bgm_path:
                 beat_times = BeatSync.get_beat_times(resolved_bgm_path)
                 # The mixer plays the BGM through atempo=<ratio>, so a beat
@@ -1082,7 +1088,8 @@ class ShotMatchingStage:
         energy_std: Optional[float] = None
         try:
             energy_times, energy_rms = (
-                BeatSync.get_rms_energy(ctx.mixed_audio_path) if ctx.mixed_audio_path else ([], [])
+                BeatSync.get_rms_energy(ctx.mixed_audio_path)
+                if plans_shots and ctx.mixed_audio_path else ([], [])
             )
             if energy_rms:
                 energy_mean = sum(energy_rms) / len(energy_rms)
@@ -1095,7 +1102,7 @@ class ShotMatchingStage:
         motion_times: List[float] = []
         motion_scores: List[float] = []
         try:
-            if raw_video:
+            if plans_shots:
                 motion_times, motion_scores = MotionAnalyzer.get_motion_scores(raw_video)
         except Exception:
             motion_times, motion_scores = [], []

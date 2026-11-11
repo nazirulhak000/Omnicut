@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round CLAUDE-SPEED-PHASE3-RTX4060-20261112 | ความเร็วช่วงที่ 3 บน i7-14700 / RTX 4060: เรนเดอร์คลิป 43 วิ ใช้ ~18–19 วิ, batch 4 งานได้ 1.7–1.9 เท่า (RAM เป็นตัวจำกัด), `shot_matching` ข้ามวิเคราะห์ beat/ความดัง/motion เมื่อมีรายการคลิปแล้ว (−2.2 ถึง −12.5 วิ เฉพาะเรนเดอร์แรกของ process), แก้เทส SAM2 preflight ที่อ่าน RAM จริง, ข5 ไม่คุ้ม, ข4/ข6 วัดแล้วรอเจ้าของ; pytest 5409 ผ่าน | 2026-11-12 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CODEX-AUTOPOST-PREPARE-ACK-20261112 | 0.10.5 รอ backend prepare/claim ก่อนปิด dialog, inline errors/retry และ old-job handoff; Node 272/272, real sidebar mouse tests 38/38, backend read-only 27/27 compatibility | 2026-11-12 | ดำเนินการโดย: Codex (GPT-6) |
 | Round CODEX-AUTOPOST-PREPARE-SAVE-FEEDBACK-20261112 | 0.10.4 ฟอร์ม autosave/บันทึกข้อมูลใน extension แยกคลิป/ช่อง, restore หลัง reload, แจ้ง placeholder และวันที่/เวลา; Node 270/270, sidebar 33/33, backend read-only 27/27 compatibility | 2026-11-12 | ดำเนินการโดย: Codex (GPT-6) |
 | Round CODEX-AUTOPOST-PREPARE-AND-HARDENING-20261112 | เตรียมคลิปเปิดแก้ caption/slot ได้ก่อน claim; Smart quota, complete Drafts scan, atomic run lock, frozen context และ recovery ตามจริง; 0.10.3, Node 266/266, docked sidebar 28/28, real backend 27/27 compatibility; ไม่โพสต์จริง | 2026-11-12 | ดำเนินการโดย: Codex (GPT-6) |
@@ -531,6 +532,20 @@
 
 ---
 ---
+
+## Round CLAUDE-SPEED-PHASE3-RTX4060-20261112 · ต่องานความเร็วช่วงที่ 2 บนเครื่อง i7-14700 / RTX 4060 · ผู้ใช้สั่ง 2026-11-12 "ทำข้อ 1-2 ต่อได้เลย" · กิ่ง `feat/speed-phase3` · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
+
+- **ตัวอย่างที่วัด:** `GOC01-รีวิวสเปก_1` 42.46 วิ 18 คลิป `h264_nvenc` · ทุกอย่างรันใน `.tmp/speed_audit/` ไม่แตะ `01_Raw` `02_Assets` `04_Exports`
+- **1ก วัดซ้ำ:** `ffmpeg_assembly` ค่ากลาง 18.89 วิ · เงา Hook ที่เหลือ ~3.9–5.0 วิ, libass ~4.3–5.4 วิ, ซูมรายเฟรม ~4–6 วิ, NVENC แทบ 0 · ข2 ของช่วงที่ 2 ช่วยเครื่องนี้ ~8.8 วิ · batch: 1 งาน 4.33 คลิป/นาที, 4 งาน 7.26–8.31 (1.7–1.9 เท่า), RAM เป็นตัวจำกัด (6 งานเคยล้ม ENOMEM)
+- **1ข เทสล้มเฉพาะรันทั้งชุด:** `test_sam2_preflight_check` อ่าน RAM/ดิสก์จริง ล้มเมื่อ RAM ว่าง < 1.70 GiB (จำลอง 1.5 GiB → `memory_low`) → stub ในเทส
+- **ข3:** ทำตามที่เขียนไม่ได้ — ข้อความที่ส่งวิเคราะห์โทนเกิดหลังจัดกลุ่มช็อตใน `shot_matching` เอง และรันเฉพาะร่างแรก · แก้แทน: `scripts/stages/shot_matching_stage.py` ข้าม beat / ความดัง / motion เมื่อมีรายการคลิปแล้ว (−2.2 ถึง −12.5 วิ ในเรนเดอร์แรกของ process เพราะไม่ต้อง import librosa, เรนเดอร์ถัดไป −0.04 วิ) · คำสั่ง ffmpeg หลังแก้เหมือนเดิม 150/150 argument · เทสใหม่ `tests/test_speed_phase3.py`
+- **ข5:** ไม่ทำ — ได้สุทธิ 0.2–1.0 วิ อยู่ในช่วงแกว่ง และตัวตรวจจะเห็นเฟรมก่อนเข้ารหัส
+- **ข4 (วัดอย่างเดียว):** scale ชั้นแรกเป็นทางผ่านเปล่าเมื่อต้นฉบับเป็น 1080x1920 (42/44 ไฟล์) ถอดแล้วเหมือนทุกบิตและไม่ได้เวลา · `bilinear` −1–2 วิ SSIM Y 0.9992 · `zoompan` −3 วิ SSIM Y 0.975 (ตำแหน่งภาพเลื่อน) → เจ้าของยังไม่อนุมัติ ไม่ใส่
+- **ข6 (วัดอย่างเดียว):** แก้เฉพาะซับ 17.4 → 5.1 วิ · เรนเดอร์แรก +1.3 วิ · ไฟล์กลาง ~59 MB · SSIM Y −0.0018 → ต้นแบบทำต่อในรอบ OVERNIGHT บนกิ่งแยก
+- **พบระหว่างวัด:** โปรเจกต์ย้ายเครื่องเรนเดอร์ซ้ำแล้วยิง TTS ใหม่ (fingerprint เก็บ path เต็ม + mtime) · `psutil` ไม่มีใน `.venv` → ตัวกัน RAM ของ SAM2/rembg ไม่ทำงาน
+- **Jev:** ตอนเริ่มรอบ `b4_b6_handling` = `measure_then_ask` (confidence 1.0) · `round_risk` 0.43 (confidence 0.66 < 0.80 = escalate) ทำต่อเพราะผู้ใช้สั่งชัด
+- **ทดสอบ:** pytest เต็มชุดไม่รวม `tests/motion_capture` (ไม่แตะ UI) 5409 ผ่าน 22 ข้าม · รายงาน: `_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md` หัวข้อ 8
+- **AGENTS.md ข้อ 24:** เพิ่มหมายเหตุตัวเลขวัดจริงของงานเข้ารหัส ffmpeg (ตัวเลข 3–4 เท่าเดิมเป็นของ HyperFrames render)
 
 ## Round CLAUDE-CAPTION-REVEAL-MODE-AND-AUTO-COVER-20261110 · เลือกโหมดซับ + สีซับตาม Hook + ปกแนะนำ · ผู้ใช้อนุมัติแผน 2026-11-10 · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5)
 

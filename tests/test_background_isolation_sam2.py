@@ -92,6 +92,13 @@ def test_sam2_preflight_check(monkeypatch, tmp_path):
     monkeypatch.setattr(api, "PROJECTS_DIR", tmp_path)
     monkeypatch.setattr(api, "probe_sam2_runtime", lambda: {"sam2_runtime": True, "cuda": True})
     monkeypatch.setattr(api, "resolve_checkpoint", lambda *args, **kwargs: tmp_path / "model.pt")
+    # The verdict also depends on free RAM and free disk. Left unstubbed, this test read the
+    # real machine and failed whenever the full suite left less than 1.7 GiB of RAM free.
+    from types import SimpleNamespace
+    monkeypatch.setattr(api.importlib.util, "find_spec", lambda name: True)
+    monkeypatch.setattr(api.importlib, "import_module", lambda name: SimpleNamespace(
+        virtual_memory=lambda: SimpleNamespace(available=8 * 1024**3)))
+    monkeypatch.setattr(api.shutil, "disk_usage", lambda path: SimpleNamespace(free=10 * 1024**3))
 
     req = BackgroundIsolationProcessRequest(
         source_path="01_Raw/test.mp4",
@@ -108,7 +115,8 @@ def test_sam2_preflight_check(monkeypatch, tmp_path):
     )
     dummy_source = Path("tests")
     res = _background_isolation_preflight(req, dummy_source)
-    assert res["ok"] is True
+    assert res["ok"] is True, res["issues"]
+    assert res["available_memory_bytes"] == 8 * 1024**3
     assert res["model"] == "sam2.1_hiera_tiny"
     assert res["model_cached"] is True
     assert res["runtime"]["sam2_runtime"] is True

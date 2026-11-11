@@ -4,6 +4,18 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round CLAUDE-SPEED-PHASE3-RTX4060-20261112 · วัดซ้ำบน i7-14700 / RTX 4060 (เรนเดอร์ 43 วิ ใช้ ~18–19 วิ, batch 4 งาน 1.7–1.9 เท่า) · `shot_matching` ข้าม beat/ความดัง/motion เมื่อมีรายการคลิปแล้ว · แก้เทส SAM2 preflight ที่อ่าน RAM จริง · ข4/ข6 วัดแล้วรอเจ้าของ · pytest 5409 ผ่าน → [_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md](_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md) หัวข้อ 8, HISTORY.md · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
+
+- [ ] Round CLAUDE-SPEED-OVERNIGHT-20261112 · งานข้ามคืน (ผู้ใช้สั่ง 2026-11-12 02:21 "ไป" ตามแผนที่เสนอ: อนุญาต commit + merge เข้า `main` ข้อ 1, 3, 5 เมื่อเทสผ่าน, ติดตั้ง `psutil` ใน `.venv`, ไม่ push, ไม่ลบไฟล์) · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
+  - [ ] 1 · เงา Hook: แทน `geq` รายเฟรมด้วยภาพ gradient สำเร็จรูป (เป้า −4 ถึง −5 วิ/คลิป) — merge เฉพาะถ้า framemd5 เหมือนทุกเฟรม
+  - [ ] 2 · TTS reuse หลังย้ายเครื่อง: fingerprint ไม่ผูก path เต็ม — กิ่งแยก `feat/reuse-portable-fingerprint` ไม่ merge รอเจ้าของ
+  - [ ] 3 · `psutil` เข้า `requirements.txt` + ติดตั้งใน `.venv` + เทสตัวกัน RAM
+  - [ ] 4 · ข6 ต้นแบบเผาซับรอบสอง + ตัวตรวจไฟล์กลาง — กิ่งแยก `feat/subtitle-second-pass` ไม่ merge รอเจ้าของ
+  - [ ] 5 · AGENTS.md ข้อ 24: แก้ "3–4 เท่า" เป็นตัวเลขที่วัดได้
+  - [ ] 6 · Gate ทุกข้อที่ merge: pytest เต็มชุด (ไม่รวม `tests/motion_capture`), parity, เรนเดอร์จริงดูเฟรม
+  - [ ] 7 · รายงานเช้า `_Docs/Reports/SPEED_OVERNIGHT_20261112.md`
+  - กติกา: เทสไม่ผ่าน หรือ Jev confidence < 0.80 → หยุดข้อนั้น ไม่ merge จดเหตุผล ไปข้อถัดไป
+
 - [x] Round CODEX-AUTOPOST-PREPARE-ACK-20261112 · 0.10.5 รอ prepare/claim ยืนยันก่อนปิด modal, inline error/retry, guarded old-job handoff; Node 272/272, sidebar mouse-click 38/38, read-only backend 27/27 compatibility → [_Docs/Reports/AUTOPOST_PREPARE_ACK_20261112.md](_Docs/Reports/AUTOPOST_PREPARE_ACK_20261112.md), HISTORY.md · ดำเนินการโดย: Codex (GPT-6)
 
 - [x] Round CODEX-AUTOPOST-PREPARE-SAVE-FEEDBACK-20261112 · 0.10.4 บันทึกฟอร์มอัตโนมัติ/ปุ่มบันทึก แยกคลิปและช่อง, restore หลัง reload, แจ้ง placeholder/slot ครบ; Node 270/270, sidebar 33/33, read-only backend 27/27 compatibility → [_Docs/Reports/AUTOPOST_PREPARE_SAVE_20261112.md](_Docs/Reports/AUTOPOST_PREPARE_SAVE_20261112.md), HISTORY.md · ดำเนินการโดย: Codex (GPT-6)

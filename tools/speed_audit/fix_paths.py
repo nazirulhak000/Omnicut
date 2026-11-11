@@ -25,6 +25,11 @@ def fix(v):
 
 
 d = fix(d)
+# Strict reuse fingerprints store the artifact's absolute path and mtime, so they can never
+# match inside a copied data root. Without them the manifest takes the legacy reuse path;
+# with them the voice stage re-synthesizes (a paid TTS call) on every "re-render".
+if d.pop("incremental_render", None) is not None:
+    print("dropped incremental_render (temp copy only)")
 pj.write_text(json.dumps(d, ensure_ascii=False, indent=2), encoding="utf-8")
 print("fixed", count[0])
 for c in d["render_params"]["clip_list"]:
