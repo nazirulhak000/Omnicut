@@ -4,6 +4,26 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round ANTIGRAVITY-SWARM-DEEP-PROGRAM-AUDIT-20261111 · ปฏิบัติการ Swarm Deep Audit ทั่วทั้งระบบ OmniCut Pro Studio (Backend, Frontend, Pipeline Parity, Test Suite) ค้นหาจุดบกพร่อง บั๊กแฝง และจุดปรับปรุงเชิงสถาปัตยกรรมอย่างละเอียด (ดูรายงาน [_Docs/Reports/SWARM_DEEP_SYSTEM_AUDIT_REPORT_20261111.md](_Docs/Reports/SWARM_DEEP_SYSTEM_AUDIT_REPORT_20261111.md)) → ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Swarm Multi-Agent Orchestration (Coordinator: Antigravity / Gemini 3.8 Flash High)
+
+- [x] Round CLAUDE-SCRIPT-FOOTAGE-MATCH-HONESTY-20261111 · ทำให้การจับคู่บท-ภาพ "บอกความจริง" (ผู้ใช้สั่ง 2026-11-11 "จัดการแบบละเอียดได้เลย") · กิ่ง `fix/match-honesty` · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
+  - แผน (ไม่เปลี่ยนจุดตัด/ภาพที่เรนเดอร์ — เพิ่มเฉพาะ metadata + คำเตือน จึงไม่กระทบ Golden Master / Preview=Render):
+    - [x] A · `scripts/stages/shot_matching_stage.py`: ช็อตที่ใช้ภาพจาก match ความมั่นใจ < 0.5 (ไม่ใช่ hero pick ช่วง Hook) เขียน `match_review` ลง clip (confidence, เหตุผล, trim_start ที่ตัดสิน)
+    - [x] B · `scripts/viral_lint.py`: กฎใหม่ `VISUAL_MATCH` (warn) จาก `match_review` — หายเองเมื่อผู้ใช้เลื่อนช่วงภาพ/เปลี่ยนคลิป (editor เก็บ field เดิมผ่าน `...clip` อยู่แล้ว ไม่ต้องแก้ UI)
+    - [x] C · `scripts/gemini_vision_matcher.py` + `api_products.py` + `api_videos.py`: catalog สำรอง (แบ่งทุก 5 วิ ติดป้ายวนเอง ไม่ได้ดูภาพ) ห้ามรายงานว่า "สแกนสำเร็จ / is_indexed" — แจ้งว่าวิเคราะห์ไม่ได้พร้อมเหตุผล
+    - [x] D · `scripts/video_semantic_indexer.py`: ไม่มีโค้ด production เรียก (มีแต่เทส) — ใส่หมายเหตุหัวไฟล์ชี้ไปตัวที่ใช้จริง ไม่ลบ (ลบ/ต่อเข้า pipeline รอเจ้าของตัดสิน)
+    - [x] เทส: `tests/test_match_honesty.py` ใหม่ 22 ข้อ · เทสที่เกี่ยว 252 ผ่าน · compileall ผ่าน · pytest เต็มชุด 5496 ผ่าน / 3 ล้ม (`test_unconfigured_lan_bind_is_rejected`, `test_cutout_video_preview`, `test_subject_points_browser`) — ล้มเหมือนกันบน baseline ที่ถอดโค้ดรอบนี้ออก จึงไม่เกี่ยวกับรอบนี้ (playwright ผลสุ่มต่อรอบ)
+  - ยังไม่ทำ: ยังไม่ได้ลองเรนเดอร์จริง/ดูป้ายเตือนใน editor บนเบราว์เซอร์ · `video_semantic_indexer.py` ยังไม่ต่อ/ไม่ลบ รอเจ้าของตัดสิน
+  - แก้คำวินิจฉัยเดิม: catalog สำรอง**ไม่**เข้า pipeline ตัดต่อ (ไม่ถูก cache; `match_script_to_video` ใช้เฉพาะ catalog ที่ cache) ปัญหาจริงคือ API สแกนสารบัญฉากรายงานผลปลอมให้ UI
+
+- [ ] Round CLAUDE-VIRAL-STYLE-EXPANSION-PLAN-20261111 · ออกแบบ Style Preset ไวรัลใหม่ 5 แบบ (`raw_ugc`, `beat_drop`, `swipe_stack`, `proof_test`, `glow_up`) + แผนลงโค้ด → [_Docs/Plans/VIRAL_STYLE_EXPANSION_PLAN_20261111.md](_Docs/Plans/VIRAL_STYLE_EXPANSION_PLAN_20261111.md) · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
+  - [x] อ่านโค้ดจริง (policy, เทส distinctness/consistency, hook template, แคตตาล็อก) + Jev `choice` แนวทาง = เพิ่มตระกูล transition จาก type ที่ renderer รองรับแล้ว conf 0.96
+  - [x] วัดด้วยตัววัดของเทสจริง: 15 preset 105 คู่ ไม่มีคู่ต่ำกว่า 0.90 (สไตล์ใหม่ใกล้สุด 1.040), ลายนิ้วมือ transition ไม่ซ้ำ, เงื่อนไข "ที่สุด" ของ 10 ตัวเดิมยังจริง
+  - [x] เขียนแผน (แผนเท่านั้น ยังไม่แตะโค้ด)
+  - [ ] รอเจ้าของโปรเจกต์ตอบ D1–D5 (หัวข้อ 8 ของแผน) ก่อนเริ่ม P1–P5
+
+- [x] Round CLAUDE-EDITING-STYLES-REFERENCE-DOC-20261111 · เอกสารสรุปสไตล์การตัดต่อทั้งหมด (preset 10 แบบ, จังหวะตัด, transition, กล้อง, Hook, ซับ, เสียง, ปก) → [_Docs/Reports/EDITING_STYLES_REFERENCE_20261111.md](_Docs/Reports/EDITING_STYLES_REFERENCE_20261111.md) · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5)
+
 - [x] Round ANTIGRAVITY-FLOW-STUDIO-10-ROUNDS-AUDIT-20261110 · ปฏิบัติการ 10-Round Autonomous UI/UX, Logic & Edge-Case Audit สำหรับหน้า "สินค้า ➔ สคริปต์ ➔ วิดีโอ" (FlowStudio / AI Script Lab) ครบ 10 รอบ 1,000 คะแนนเต็ม: ปรับปรุง MediaPickerModal 9:16 aspect ratio & tabular-nums, ยกระดับ Hook & Header Studio สู่ Obsidian Dark, ปรับ Action Buttons ไร้สัญลักษณ์ลูกศร/บวกตกค้าง, ติดตั้ง Graceful Offline Fallback ใน AI Co-Pilot, เสริม tabular-nums ทั่วทั้งระบบ, ผ่านชุดทดสอบ Vitest 1,264/1,264 tests (100%), Vite Build 1.86s (ดูรายงาน [_Docs/Reports/FLOW_STUDIO_10_ROUNDS_AUDIT_REPORT.md](_Docs/Reports/FLOW_STUDIO_10_ROUNDS_AUDIT_REPORT.md)) → ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
 
 - [x] Round ANTIGRAVITY-OVERNIGHT-AUDIT-CYCLE2-TEST-PURITY-AND-IMPORT-SIDE-EFFECTS-20261110 · ปฏิบัติการกะดึก Cycle 2: ปราบปราม Side Effects ตอน Import ใน Test Suite (Rule 11 & testing_standard.md Rule 4): แก้ไข test_voice_pacing.py ขจัด ModuleNotFoundError: edge_tts, ครอบ if __name__ == '__main__': ใน test_translator_script.py, test_gemini_vision_match.py, test_script_lab_ai.py, test_bilingual_subtitles.py ขจัด live network/API calls ตอน import 100%, แก้ไข raw string escape syntax warnings ใน test_ghost_reveal_ass.py, ผ่าน Pytest Voice Tests 222/222 passed, Vitest 1,260/1,260 tests (100%), Vite Build 1.28s → ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)

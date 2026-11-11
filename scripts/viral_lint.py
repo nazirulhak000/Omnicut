@@ -25,6 +25,9 @@ LONG_SHOT      warn      clip longer than ``max_shot`` x 1.25 and no
 HOLD           info      clip carries ``hold_reason`` (allowed hold)
 HOOK_PACING    warn      clip starting inside ``hook_window_sec`` is longer
                          than ``hook_max_shot`` (hold clips exempt)
+VISUAL_MATCH   warn      clip carries the shot planner's ``match_review`` (the
+                         AI matched this picture to the line with confidence
+                         below 0.5) and still plays that footage
 STATIC_SPAN    warn      a span inside one clip longer than ``max_static_sec``
                          with no cut, transition or moving camera keyframe
 DEAD_AIR       warn      gap between voice cues longer than 0.4 s
@@ -299,6 +302,31 @@ def _shot_rules(segments, policy: StyleMotionPolicy) -> List[Issue]:
     return issues
 
 
+def _visual_match(segments) -> List[Issue]:
+    """Shots whose picture the matcher itself called a guess.
+
+    ``match_review`` is written by ShotMatchingStage with the ``trim_start``
+    it judged. A clip the user has since moved onto other footage no longer
+    carries that judgement, so the warning clears without a dismiss button.
+    """
+    issues: List[Issue] = []
+    for seg in segments:
+        clip = seg["clip"]
+        review = clip.get("match_review")
+        if not isinstance(review, Mapping) or review.get("reason") != "low_confidence":
+            continue
+        judged, current = _num(review.get("trim_start")), _num(clip.get("trim_start"))
+        if judged is None or current is None or abs(judged - current) > TIME_TOLERANCE:
+            continue
+        confidence = _num(review.get("confidence"))
+        level = f" (ความมั่นใจ {round(confidence * 100)}%)" if confidence is not None else ""
+        issues.append(Issue("VISUAL_MATCH", SEVERITY_WARN, _r(seg["start"]), _r(seg["end"]),
+                            f"AI ไม่มั่นใจว่าภาพช็อตนี้ตรงกับบทพูด{level} "
+                            "ตรวจภาพ แล้วเลื่อนช่วงภาพหรือเปลี่ยนคลิปถ้าไม่ตรง",
+                            clip_index=seg["index"], detail=str(review.get("note") or "") or None))
+    return issues
+
+
 def _moving_intervals(keyframes: Any) -> List[Tuple[float, float]]:
     points = []
     for point in keyframes if isinstance(keyframes, list) else []:
@@ -530,6 +558,7 @@ def lint_manifest(manifest: Any, policy: Any = None) -> List[Issue]:
     issues: List[Issue] = []
     issues += _hook_slow(manifest, cues, segments)
     issues += _shot_rules(segments, style)
+    issues += _visual_match(segments)
     issues += _static_spans(segments, style)
     issues += _dead_air(cues)
     issues += _sfx_dense(manifest, cues, segments, duration)

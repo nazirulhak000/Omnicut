@@ -4,6 +4,13 @@ Indexes raw footage from 01_Raw into structured semantic scenes stored
 in SQLite (raw_video_scenes in _Docs/store.db). Uses Gemini Multimodal
 Vision (Gemini 2.5 Flash) to generate action summaries and tags, and
 matches marketing review script cues to exact visual B-roll moments.
+
+STATUS (checked 2026-11-11): nothing in the pipeline or the API imports this
+module; only tests/test_video_semantic_indexer.py does. The scene catalog and
+script-to-footage matching that renders actually use live in
+scripts/gemini_vision_matcher.py (catalog cache) and
+scripts/stages/shot_matching_stage.py. Change those when fixing how clips are
+matched; wire this module in, or remove it, only as a deliberate decision.
 """
 
 from __future__ import annotations

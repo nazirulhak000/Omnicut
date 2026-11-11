@@ -55,6 +55,36 @@ VISION_GENERATE_TIMEOUT_SECONDS = 180
 # buy nothing here -- see _vision_proxy for the measurements.
 PROXY_WIDTH = 640
 
+# Why a scene-catalog scan fell back to the placeholder catalog (Thai, shown
+# to the user by the scan endpoints in api_products.py / api_videos.py).
+FALLBACK_REASON_TH = {
+    "no_api_key": "ยังไม่ได้ตั้งค่า Gemini API key",
+    "no_response": "Gemini ไม่ตอบกลับ (โควต้าเต็ม ถูกจำกัดความถี่ หรือเครือข่ายขัดข้อง)",
+    "empty_scenes": "Gemini ตอบกลับมาแต่ไม่มีรายการฉาก",
+    "bad_response": "อ่านคำตอบจาก Gemini ไม่ได้",
+    "unavailable": "วิเคราะห์ภาพไม่ได้ในขณะนี้",
+}
+
+
+def summarize_catalog_scan(indexed: Dict[str, Any], not_analyzed: Dict[str, str]) -> Dict[str, Any]:
+    """Outcome of a scene-catalog scan task, shared by both scan endpoints.
+
+    ``indexed`` holds the clips Gemini really catalogued; ``not_analyzed``
+    maps the clips that only got the placeholder catalog to the Thai reason.
+    A scan that analysed nothing is a failure, not "0 scenes scanned".
+    """
+    total_scenes = sum(int(c.get("scenes_count", 0) or 0) for c in indexed.values())
+    if not_analyzed and not indexed:
+        reason = next(iter(not_analyzed.values()))
+        return {"ok": False, "total_scenes": 0,
+                "error": f"AI ไม่ได้วิเคราะห์ภาพ {len(not_analyzed)} คลิป: {reason}",
+                "step_label": "สแกนสารบัญฉากไม่สำเร็จ"}
+    step_label = f"สแกนสำเร็จ {len(indexed)} คลิป รวม {total_scenes} ฉาก"
+    if not_analyzed:
+        step_label += f" · วิเคราะห์ไม่ได้ {len(not_analyzed)} คลิป"
+    return {"ok": True, "total_scenes": total_scenes, "error": "", "step_label": step_label}
+
+
 # Matching confidence (roadmap M6). Catalog matches backed by a specific
 # keyword/description hit are trusted; ones chosen on priors alone are not.
 CATALOG_MATCH_CONFIDENCE = 0.85
@@ -785,7 +815,7 @@ class GeminiVisionMatcher:
         from scripts.config import get_gemini_api_keys
         api_keys = get_gemini_api_keys()
         if not api_keys:
-            return cls._generate_heuristic_catalog(raw_duration)
+            return cls._generate_heuristic_catalog(raw_duration, reason="no_api_key")
 
         from scripts.quota import check_budget
         check_budget(task="vision_catalog")
@@ -904,7 +934,7 @@ class GeminiVisionMatcher:
                 break
 
         if not response or not response.text:
-            return cls._generate_heuristic_catalog(raw_duration)
+            return cls._generate_heuristic_catalog(raw_duration, reason="no_response")
 
         resp_text = response.text or ""
         import re
@@ -915,7 +945,7 @@ class GeminiVisionMatcher:
             cat_data = json.loads(clean_json)
             scenes = cat_data.get("scenes")
             if not isinstance(scenes, list) or len(scenes) == 0:
-                return cls._generate_heuristic_catalog(raw_duration)
+                return cls._generate_heuristic_catalog(raw_duration, reason="empty_scenes")
 
             catalog = {
                 "raw_file": str(video_file),
@@ -946,11 +976,33 @@ class GeminiVisionMatcher:
 
             return catalog
         except Exception:
-            return cls._generate_heuristic_catalog(raw_duration)
+            return cls._generate_heuristic_catalog(raw_duration, reason="bad_response")
+
+    @staticmethod
+    def is_fallback_catalog(catalog: Any) -> bool:
+        """True for the placeholder catalog made without looking at the video.
+
+        Its scenes are fixed 5 s slices with labels that cycle by position
+        (``_generate_heuristic_catalog``), so it must never be shown as a
+        real scan result. It is not cached either: the next scan retries.
+        """
+        return isinstance(catalog, dict) and catalog.get("indexed_by") == "heuristic_fallback"
+
+    @staticmethod
+    def fallback_reason_th(catalog: Any) -> str:
+        """Thai reason a scan produced no real catalog ('' for a real one)."""
+        if not GeminiVisionMatcher.is_fallback_catalog(catalog):
+            return ""
+        return FALLBACK_REASON_TH.get(str(catalog.get("fallback_reason") or ""), FALLBACK_REASON_TH["unavailable"])
 
     @classmethod
-    def _generate_heuristic_catalog(cls, raw_duration: float = 60.0) -> Dict[str, Any]:
-        """Fallback smart heuristic scene catalog if offline or API unavailable."""
+    def _generate_heuristic_catalog(cls, raw_duration: float = 60.0, reason: str = "unavailable") -> Dict[str, Any]:
+        """Placeholder catalog when the video could not be analysed.
+
+        Position-based slices, NOT what the footage shows; see
+        ``is_fallback_catalog``. ``reason`` says why the real scan did not
+        happen (a key of FALLBACK_REASON_TH).
+        """
         scene_dur = 5.0
         num_scenes = max(3, int(raw_duration / scene_dur))
         scenes = []
@@ -980,6 +1032,7 @@ class GeminiVisionMatcher:
             "scenes": scenes,
             "indexed_at": time.time(),
             "indexed_by": "heuristic_fallback",
+            "fallback_reason": reason,
         }
 
     @staticmethod

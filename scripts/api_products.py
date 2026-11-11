@@ -911,7 +911,7 @@ def index_scenes_endpoint(
     product_id: str, payload: Dict[str, Any], scope: ChannelScope = Depends(get_channel_scope)
 ):
     """Indexes raw video(s) into Scene Catalog using Gemini Vision."""
-    from scripts.gemini_vision_matcher import GeminiVisionMatcher
+    from scripts.gemini_vision_matcher import GeminiVisionMatcher, summarize_catalog_scan
     _guard_writable(scope)
     _guard_body_channel(payload, scope)
     prod = ProductStore.get(product_id, channel_id=scope.channel_id)
@@ -990,6 +990,7 @@ def index_scenes_endpoint(
         try:
             TaskManager.update_progress(task_id, 0.05, f"เริ่มสแกนสารบัญฉาก {num_clips} คลิป...")
             indexed_results = {}
+            not_analyzed = {}
             from scripts.video_editor import VideoEditor
             total = len(videos_to_index)
             for idx, v_rel in enumerate(videos_to_index):
@@ -1014,7 +1015,11 @@ def index_scenes_endpoint(
                     raw_duration=dur,
                     force=force
                 )
-                if catalog:
+                if GeminiVisionMatcher.is_fallback_catalog(catalog):
+                    # Placeholder slices, not a scan of this video: never
+                    # report them as indexed scenes.
+                    not_analyzed[v_rel] = GeminiVisionMatcher.fallback_reason_th(catalog)
+                elif catalog:
                     indexed_results[v_rel] = {
                         "is_indexed": True,
                         "scenes_count": len(catalog.get("scenes", [])),
@@ -1023,11 +1028,15 @@ def index_scenes_endpoint(
                         "scenes": catalog.get("scenes", []),
                     }
 
-            total_scenes = sum(c.get("scenes_count", 0) for c in indexed_results.values())
+            outcome = summarize_catalog_scan(indexed_results, not_analyzed)
+            if not outcome["ok"]:
+                TaskManager.fail_task(task_id, outcome["error"], step_label=outcome["step_label"])
+                return
             TaskManager.complete_task(
                 task_id,
-                result={"indexed": indexed_results, "total_scenes": total_scenes},
-                step_label=f"สแกนสำเร็จ {len(indexed_results)} คลิป รวม {total_scenes} ฉาก"
+                result={"indexed": indexed_results, "total_scenes": outcome["total_scenes"],
+                        "not_analyzed": not_analyzed},
+                step_label=outcome["step_label"],
             )
         except Exception as e:
             TaskManager.fail_task(task_id, str(e), step_label="สแกนสารบัญฉากล้มเหลว")

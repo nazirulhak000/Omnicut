@@ -185,6 +185,26 @@ def _match_confidence(match: Any) -> Optional[float]:
     return min(1.0, max(0.0, value)) if value == value else None
 
 
+def _match_review(match: Any) -> Optional[Dict[str, Any]]:
+    """Why a shot's picture needs a human look, or None when it does not.
+
+    A match whose own confidence is below LOW_MATCH_CONFIDENCE was a guess:
+    the matcher did not see what the line talks about. Outside the hook the
+    planner still plays it (no better footage is known), so the clip carries
+    this record and Viral Lint (VISUAL_MATCH) lists it for the user. A
+    catalog hero fallback is a deliberate pick, not a guess, and a match
+    without a confidence says nothing either way.
+    """
+    confidence = _match_confidence(match)
+    if confidence is None or confidence >= LOW_MATCH_CONFIDENCE or match.get("hero_fallback"):
+        return None
+    review: Dict[str, Any] = {"reason": "low_confidence", "confidence": round(confidence, 3)}
+    note = str(match.get("visual_reason") or "").strip()
+    if note:
+        review["note"] = note[:120]
+    return review
+
+
 def _best_motion_window(
     motion_times: List[float],
     motion_scores: List[float],
@@ -1545,6 +1565,12 @@ class ShotMatchingStage:
                                         )
                                     ai_shot = None
 
+                        # The picture of a continued piece is the previous
+                        # piece's footage, so it inherits that piece's review.
+                        match_review = (
+                            shots[-1].get("match_review") if continue_from_previous and shots
+                            else _match_review(ai_shot)
+                        )
                         if ai_shot:
                             ai_start = float(ai_shot.get("start_time", 0.0))
                             shot_key = id(ai_shot)
@@ -1698,6 +1724,7 @@ class ShotMatchingStage:
                             "raw_offset": raw_offset,
                             **(allocation or {}),
                             "source_reuse_key": scene_window_key(reuse_match) if allocation else None,
+                            "match_review": match_review,
                             "hook_hero": hook_hero is not None or bool(
                                 continue_from_previous and shots and shots[-1].get("hook_hero")
                             ),
@@ -1801,6 +1828,11 @@ class ShotMatchingStage:
                     if isinstance(boundary, dict) and boundary.get("easing"):
                         clip_entry["transition_easing"] = boundary["easing"]
                     freeze_tail = float(shot.get("freeze_tail", 0))
+                    if shot.get("match_review"):
+                        # trim_start pins the judgement to this footage: once
+                        # the user moves or swaps the picture the record no
+                        # longer applies (viral_lint._visual_match).
+                        clip_entry["match_review"] = {**shot["match_review"], "trim_start": clip_entry["trim_start"]}
                     if "source_window" in shot:
                         clip_entry["source_window"] = shot["source_window"]
                     if freeze_tail > 1e-6:
