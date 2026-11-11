@@ -3,6 +3,28 @@ const assert = require('node:assert/strict');
 const sync = require('./draft_sync.js');
 
 const DAY = sync.DAY_MS;
+test('a partial Drafts scan cannot prove a missing or externally posted draft',()=>{
+  for(const match of [true,false])assert.equal(sync.classifyDraft({present:false,match,complete:true,draftComplete:false}).state,'unknown');
+  assert.equal(sync.classifyDraft({present:false,match:false,complete:true,draftComplete:true}).state,'deleted');
+});
+
+test('sync response must contain one known verdict for every requested id', () => {
+  const drafts = [{id:'a'},{id:'b'}];
+  const good = {success:true,results:[{id:'a',state:'ok'},{id:'b',state:'ok'}]};
+  assert.equal(sync.validateResults(drafts,good).ok,true);
+  for (const bad of [undefined, {}, {success:false,results:good.results}, {success:true,results:[]},
+    {success:true,results:[{id:'a',state:'ok'}]},
+    {success:true,results:[{id:'a',state:'ok'},{id:'a',state:'ok'}]},
+    {success:true,results:[{id:'a',state:'ok'},{id:'x',state:'ok'}]},
+    {success:true,results:[{id:'a',state:'ok'},{id:'b',state:'unexpected'}]}]) {
+    const verdict=sync.validateResults(drafts,bad);
+    assert.equal(verdict.ok,false);
+    assert.deepEqual(verdict.results.map(r=>r.state),['unknown','unknown']);
+  }
+  for (const state of ['unknown','deleted','posted_outside','duplicate_risk']) {
+    assert.equal(sync.validateResults(drafts,{success:true,results:[{id:'a',state:'ok'},{id:'b',state}]}).ok,false);
+  }
+});
 
 test('look-back: from the oldest draft save time (minus one day), never beyond a draft lifetime, whole window when unknown', () => {
   const now = Date.UTC(2026, 10, 10, 12, 0, 0);

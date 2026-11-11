@@ -12,6 +12,15 @@ function memoryStorage() {
   };
 }
 const nosleep = async () => {};
+test('delayed storage reads cannot grant two owners',async()=>{
+  const storage=memoryStorage();let resume;
+  const pause=new Promise(r=>resume=r);let first=true;
+  const delayed={...storage,get:async key=>{const snapshot=JSON.parse(JSON.stringify(await storage.get(key)));if(first){first=false;await pause;}return snapshot;}};
+  const options={now:()=>1000,sleep:nosleep};
+  const b=lock.acquire(delayed,'B',options); const a=lock.acquire(storage,'A',options);
+  resume();const results=await Promise.all([a,b]);
+  assert.equal(results.filter(r=>r.ok).length,1);
+});
 
 test('a second panel cannot start while a fresh lock is held', async () => {
   const storage = memoryStorage();
@@ -48,7 +57,7 @@ test('release only removes your own lock; takeOrphan returns only a stale lock',
   t += lock.TTL_MS + 1;
   const orphan = await lock.takeOrphan(storage, opts);
   assert.equal(orphan.owner, 'A');
-  assert.equal(storage.data[lock.KEY], undefined);
+  assert.equal(storage.data[lock.KEY].owner, 'A'); // retained until recovery succeeds
   await lock.acquire(storage, 'A', opts);
   await lock.release(storage, 'A');
   assert.equal(storage.data[lock.KEY], undefined);

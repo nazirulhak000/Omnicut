@@ -66,7 +66,12 @@
       const remD = typeof q.remainingDraft === 'number' ? q.remainingDraft : null;
       const needsSchedule = mode !== 'draft_only';
       const needsDraft = mode === 'draft_only';
-      if (needsSchedule && remS === 0) add('quota', 'โควตา', 'fail', 'โควตาตั้งเวลาเต็ม — รอคลิปเผยแพร่หรือลบรายการเดิมก่อน');
+      if (mode === 'smart') {
+        if (remS === 0 && remD === 0) add('quota','โควตา','fail','โควตาตั้งเวลาและแบบร่างเต็ม');
+        else if (remS == null || remD == null) add('quota','โควตา','warn','ยังอ่านโควตาได้ไม่ครบ — จะนับสดก่อนเริ่ม');
+        else add('quota','โควตา',clipCount > remS + remD ? 'warn' : 'ok',`ตั้งเวลาได้ ${remS} คลิป แล้วบันทึกแบบร่างได้ ${remD} คลิป`);
+      }
+      else if (needsSchedule && remS === 0) add('quota', 'โควตา', 'fail', 'โควตาตั้งเวลาเต็ม — รอคลิปเผยแพร่หรือลบรายการเดิมก่อน');
       else if (needsDraft && remD === 0) add('quota', 'โควตา', 'fail', 'โควตาแบบร่างเต็ม — ลบแบบร่างเก่าก่อน');
       else if ((needsSchedule && remS == null) || (needsDraft && remD == null)) add('quota', 'โควตา', 'warn', 'ยังอ่านโควตาไม่ได้ — ระบบจะนับสดอีกครั้งตอนเริ่มรอบ');
       else {

@@ -4262,7 +4262,7 @@
 
         </div>
 
-        <span class="batch-engine-tag">Engine v0.10.1</span>
+        <span class="batch-engine-tag">Engine v0.10.3</span>
 
       </div>
 
@@ -5057,6 +5057,17 @@
   <script src="run_lock.js"></script>
   <script src="batch_orchestrator.js"></script>
 
+  <style>
+    dialog.app-dialog.clip-setup-dialog { position: fixed; inset: 0; margin: auto; width: min(440px, calc(100vw - 24px)); height: fit-content; max-height: calc(100vh - 32px); overflow: auto; padding: 20px; box-sizing: border-box; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+    dialog.app-dialog.clip-setup-dialog::backdrop { background: rgb(0 0 0 / 60%); }
+    .clip-setup-dialog form { display: grid; gap: 12px; }
+    .clip-setup-dialog h2, .clip-setup-dialog p { margin: 0; }
+    .clip-setup-dialog p { color: var(--ink-secondary); }
+    .clip-setup-dialog input, .clip-setup-dialog textarea, .clip-setup-dialog select { width: 100%; box-sizing: border-box; }
+    .clip-setup-dialog [hidden] { display: none; }
+    #clipSetupSlot { display: grid; gap: 8px; }
+  </style>
+  <script src="prepare_form.js"></script>
   <script src="sidepanel.js"></script>
 
 </body>

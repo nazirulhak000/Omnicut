@@ -22,7 +22,8 @@
 
   // present: the caption is still listed on TikTok's Drafts tab; match: a Content row (scheduled or posted) carries the same caption;
   // complete: the Content scan reached the cutoff / the end (not stopped by its row cap), so "no match" really means none.
-  function classifyDraft({ present, match, complete }) {
+  function classifyDraft({ present, match, complete, draftComplete = true }) {
+    if (!present && !draftComplete) return {state:'unknown',label:'อ่านรายการ Drafts ไม่ครบ — ยังสรุปว่าแบบร่างหายไม่ได้'};
     if (present && !match) return { state: 'ok', label: 'แบบร่างยังอยู่บน TikTok' };
     if (present && match) return { state: 'duplicate_risk', label: 'มีแถวคำบรรยายเดียวกันใน Content แล้ว — เสี่ยงโพสต์ซ้ำ' };
     if (!present && match) return { state: 'posted_outside', label: 'แบบร่างหายไปและมีโพสต์เดียวกันใน Content — โพสต์เองบน TikTok?' };
@@ -32,6 +33,21 @@
 
   const isBlocking = (state) => BLOCKING_STATES.has(state);
 
+  // A successful transport is not a successful scan: every requested id needs exactly one known verdict.
+  function validateResults(drafts, reply) {
+    const ids = new Set(drafts.map((d) => d.id));
+    const rows = reply?.results;
+    const valid = reply?.success === true && Array.isArray(rows) && rows.length === ids.size
+      && ids.size === drafts.length && rows.every((r) => r && ids.has(r.id)
+        && ['ok', 'deleted', 'posted_outside', 'duplicate_risk', 'unknown'].includes(r.state))
+      && new Set(rows.map((r) => r.id)).size === ids.size;
+    if (!valid) {
+      const results = drafts.map((d) => ({ id: d.id, state: 'unknown', label: 'ตรวจแบบร่างไม่ครบ — กรุณาตรวจใหม่ก่อนเริ่มรัน' }));
+      return { ok: false, error: 'draft_sync_incomplete', results, problems: results };
+    }
+    return { ...summarize(rows), results: rows };
+  }
+
   function summarize(results) {
     const counts = {};
     for (const r of results || []) counts[r.state] = (counts[r.state] || 0) + 1;
@@ -39,5 +55,5 @@
     return { counts, problems, ok: problems.length === 0 };
   }
 
-  return { DAY_MS, DRAFT_LIFETIME_DAYS, OLDER_ROWS_TO_STOP, lookbackCutoff, classifyDraft, isBlocking, summarize };
+  return { DAY_MS, DRAFT_LIFETIME_DAYS, OLDER_ROWS_TO_STOP, lookbackCutoff, classifyDraft, isBlocking, summarize, validateResults };
 });

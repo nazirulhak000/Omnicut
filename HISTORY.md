@@ -7,6 +7,8 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round CODEX-AUTOPOST-PREPARE-AND-HARDENING-20261112 | เตรียมคลิปเปิดแก้ caption/slot ได้ก่อน claim; Smart quota, complete Drafts scan, atomic run lock, frozen context และ recovery ตามจริง; 0.10.3, Node 266/266, docked sidebar 28/28, real backend 27/27 compatibility; ไม่โพสต์จริง | 2026-11-12 | ดำเนินการโดย: Codex (GPT-6) |
+| Round CODEX-AUTOPOST-HELPER-AUDIT-PLAN-20261111 | ตรวจ extension v0.10.1 และจัดแผน 8 ประเด็น / 4 รอบ; Node 211/211, isolated probes พบช่องว่าง 4 กรณี; ไม่แก้โค้ดหรือโพสต์จริง | 2026-11-11 | ดำเนินการโดย: Codex (GPT-6) |
 | Round CLAUDE-DRAFT-TO-RENDER-SPEED-AUDIT-20261111 | วัดเวลาจริงเส้นทาง "สร้างคลิป → ร่างแรก → editor → เรนเดอร์ mp4" หาคอขวดจากตัวเลข (ช่วงที่ 1 = วัดอย่างเดียว): ซับสองภาษา 125.6s (43 requests), Hook shadow 19–21s, ห่วงโซ่คลิป 12.2s, วางแผนช่วงที่ 2 (ก1–ก3, ข1–ข6) — ดูรายงาน _Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md และ tools/speed_audit/ | 2026-11-11 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-AUTOPOST-EXTENSION-WEB-QUALITY-20261111 | side panel ของ `tiktok_autopost_extension` v0.10.1: axe-core 389 → 0 จุด (ธีมมืด/สว่าง, 3 แท็บ, 320–400px), modal ยืนยัน + พรีวิวเป็น native `<dialog>`, แท็บมี keyboard pattern, รูปปก 540x960 → 160px lazy · ไม่แตะ logic โพสต์ — `node --test` 211/211, panel check 20/20 | 2026-11-11 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-EDITOR-REACT-PERF-20261111 | editor: เวลา playhead ระหว่างเล่นออกจาก state ของ `EditorShell` (render 24 → 2 ครั้ง/6 วิ, เวลา React 1,452 → 585 ms) + **แก้บั๊กที่ผมทำไว้ตั้งแต่รอบ 1: modal ทุกตัวปิดเองทันทีบน dev server (StrictMode)** — `npm test` 1288/1288, `tests/motion_capture` 162 ผ่าน (3 ตัวที่พังแกว่งอยู่เดิม) | 2026-11-11 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
@@ -18742,3 +18744,26 @@ Plan before code:
      - Pytest Parity `tests/test_preview_render_parity.py`: 212/212 tests ผ่าน 100% (22.98s)
      - Vite Build `npm run build`: สำเร็จใน 467ms ไร้ข้อผิดพลาดและไม่มี Chunk size warning
 
+
+
+## Round CODEX-AUTOPOST-HELPER-AUDIT-PLAN-20261111
+ดำเนินการโดย: Codex (GPT-6) · วันที่: 2026-11-11
+
+- [x] ตรวจ worker/panel/orchestrator/backend posting protocol และ tests แบบ read-only
+- [x] จัดทำ `_Docs/Plans/AUTOPOST_HELPER_IMPROVEMENT_PLAN_20261111.md`: 8 ประเด็น พร้อมตำแหน่ง สาเหตุ แนวแก้ เกณฑ์ตรวจรับ และลำดับ 4 รอบ
+- [x] Node extension tests ผ่าน 211/211, fail 0, skip 0
+- [x] จำลองโค้ดจริงแบบ isolated Node/VM: failed draft sync ไม่บล็อก caller, caption prefix เก่าทำให้ยืนยัน draft ใหม่, delayed-read ทำให้ acquire lock สำเร็จสองราย, Smart ถูกบล็อกเมื่อ schedule เต็มแต่ draft ว่าง
+- [x] Jev ก่อนเริ่มเลือก audit confidence 1.00; ตรวจข้อความแผน 3.94/4 confidence 0.96 (ไม่ได้ตรวจโค้ดเอง)
+- ข้อจำกัด: F5/F6 เป็น source-trace; ไม่รัน backend suite/production TikTok/โพสต์จริง; implementation ทั้งหมดยังเป็นแผน
+- Notes: ไฟล์ runtime ที่ dirty เดิม `_Docs/channel_artifacts.json`, `episodes.json`, `post_log.json`, `posting_jobs.json`, `schedule_queue.json` ไม่ได้แก้โดยรอบนี้
+
+## Round CODEX-AUTOPOST-PREPARE-AND-HARDENING-20261112
+ดำเนินการโดย: Codex (GPT-6) · วันที่: 2026-11-12
+
+- [x] เพิ่ม editable preparation dialog ให้แก้ caption/hashtags และเลือก schedule/draft ก่อน prepare/claim; guard ข้อมูลไม่ครบ/ไฟล์หาย/posted/QC ยังคงอยู่
+- [x] แก้ Smart quota, Drafts scan completeness/account stability, Web Locks ข้ามแผง + worker ownership, context snapshot และ recovery marker ตามผลจริง
+- [x] แยก prepare_form module และเพิ่ม scoped HTTP deadline; F8 การแยก DOM automation ทั้งก้อนยังเป็นงานโครงสร้างภายหลัง
+- [x] Node extension + conductor 266/266, fail 0; docked sidebar จริงกับ fixtures 28/28 รวม axe dark/light และภาพ dialog; backend จริง read-only 27/27 ในโหมด compatibility รูปปก; Python tools compile และ diff check ผ่าน
+- [x] รายงาน `_Docs/Reports/AUTOPOST_PREPARE_HARDENING_20261112.md`; bump 0.10.3; ลบภาพทดสอบหลังตรวจ
+- [x] Jev เอกสาร confidence 0.99; commit path gate confidence 0.08 จึงถามผู้ใช้และได้รับคำยืนยัน “Commit และรวมกลับ main” (2026-11-12)
+- Notes: คิว/exports/pending ก่อนหลัง real-backend check hash เท่ากัน; ไม่โพสต์บนบัญชีจริง; debug profile เดิมยังติด policy จากรอบ P0 ไม่ได้ลองข้าม; รักษา runtime dirty ของผู้อื่นทั้งหมด

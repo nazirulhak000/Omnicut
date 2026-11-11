@@ -34,7 +34,7 @@
 
 // its own tab and deleted -- one UI surface instead of two).
 
-importScripts('limits.js', 'automation.js', 'auth_key.js', 'post_guard.js', 'quota_detector.js', 'draft_sync.js');
+importScripts('limits.js', 'automation.js', 'auth_key.js', 'post_guard.js', 'quota_detector.js', 'draft_sync.js', 'draft_evidence.js', 'run_lock.js');
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((err) => {
 
@@ -736,8 +736,8 @@ async function reconcileFromListPages(send, tab, job) {
   if (intent === 'draft') {
     await navigateAcceptingLeave(tab.id, DRAFT_TAB_URL);
     await sleep(5000);
-    const evidence = await readDraftRowEvidence(send, job.caption || '');
-    if (evidence.onDrafts && evidence.rowVisible === true) {
+    const evidence = await readDraftRowEvidence(send, job, job.draft_baseline);
+    if (evidence.created === true) {
       return {confirmed: true, outcome: 'draft_saved', proof: {kind: 'drafts_page_confirmed', ...token}};
     }
     return {confirmed: false};
@@ -4783,31 +4783,61 @@ function isDraftsUrl(url) {
   return /\/tiktokstudio\/content/.test(String(url || '')) && /[?&]tab=draft/.test(String(url || ''));
 }
 
-// first characters of the description, comparable with the row title in the Drafts list
-function draftCaptionKey(caption) {
-  return String(caption || '').toLowerCase().replace(/[^a-z0-9฀-๿]/g, '').slice(0, 14);
-}
-
-// rowVisible: true = a draft row whose title starts like this caption exists; null = no caption to compare
-// (nothing typed), so only the URL can speak.
-async function readDraftRowEvidence(send, caption) {
-  const key = draftCaptionKey(caption);
+// Only actual draft rows count; page headings, counts and URL alone never identify a clip.
+async function readDraftRowEvidence(send, captionOrJob, baseline = null) {
+  const job = typeof captionOrJob === 'string' ? {caption: captionOrJob} : captionOrJob;
   const out = await send('Runtime.evaluate', {
-    expression: `(() => ({url: location.href, text: document.body ? document.body.innerText : ''}))()`,
+    expression: `(() => {
+      const text = document.body ? document.body.innerText : '';
+      const count = /Drafts\\s*\\(?([0-9]+)\\)?|แบบร่าง\\s*\\(?([0-9]+)\\)?/i.exec(text);
+      return {url: location.href, draftCount: count ? Number(count[1] || count[2] || 0) : null,
+        rows: Array.from(document.querySelectorAll('[data-tt="components_DraftRowLayout_FlexRow"]')).map(row => row.innerText || '').filter(text => /[0-9]{2}:[0-9]{2}/.test(text)),
+        empty: /no drafts|no draft videos|ยังไม่มีแบบร่าง|ไม่มีแบบร่าง/i.test(text),
+        loading: Boolean(document.querySelector('[aria-busy="true"], [role="progressbar"]'))};
+    })()`,
     returnByValue: true,
   });
-  const page = out?.result?.value || {url: '', text: ''};
-  const flat = String(page.text || '').toLowerCase().replace(/[^a-z0-9฀-๿]/g, '');
-  const countMatch = /Drafts\s+(\d+)|แบบร่าง\s+(\d+)/.exec(page.text || '');
-  return {
-    url: page.url,
-    onDrafts: isDraftsUrl(page.url),
-    draftCount: countMatch ? Number(countMatch[1] || countMatch[2]) : null,
-    rowVisible: key.length >= 6 ? flat.includes(key) : null,
-  };
+  if (out?.exceptionDetails) throw new Error('draft_evidence_unreadable: อ่านรายการแบบร่างไม่สำเร็จ');
+  const page = out?.result?.value || {};
+  return {...globalThis.OmniDraftEvidence.evaluate(page, job || {}, baseline), page};
 }
 
-async function waitForDraftConfirmation(send, tabId, caption, timeoutMs = 25000) {
+// Read a complete pre-click inventory in a separate tab, preserving the filled upload form.
+async function captureDraftBaseline(job) {
+  const tab = await chrome.tabs.create({url: 'about:blank', active: false});
+  let attached = false;
+  try {
+    await chrome.debugger.attach({tabId: tab.id}, '1.3');
+    attached = true;
+    const send = cdp(tab.id);
+    await send('Runtime.enable');
+    await send('Page.enable');
+    await send('Page.navigate', {url: DRAFT_TAB_URL});
+    let page = null;
+    const deadline = Date.now() + 30000;
+    while (Date.now() < deadline) {
+      await sleep(700);
+      page = (await readDraftRowEvidence(send, job)).page;
+      if (isDraftsUrl(page.url) && !page.loading && Number.isInteger(page.draftCount)
+        && (page.draftCount > 0 ? page.rows.length > 0 : page.empty === true)) break;
+    }
+    const account = checkPostingAccount(job, await readStudioAccount(send));
+    if (!account) throw new Error('draft_baseline_account_unknown: อ่านบัญชีแบบร่างไม่ได้');
+    const rows = await collectDraftRows(send);
+    const finalPage = (await readDraftRowEvidence(send, job)).page;
+    if (!page || finalPage.loading || !isDraftsUrl(finalPage.url) || !Number.isInteger(finalPage.draftCount)
+      || finalPage.draftCount !== page.draftCount || rows.length !== finalPage.draftCount
+      || (rows.length === 0 && finalPage.empty !== true)) {
+      throw new Error('draft_baseline_incomplete: อ่านแบบร่างก่อนบันทึกไม่ครบ จึงยังไม่กดบันทึก');
+    }
+    return {complete: true, rows, account, jobId: job.job_id, channelId: job.channel_id, capturedAt: Date.now()};
+  } finally {
+    if (attached) { try { await chrome.debugger.detach({tabId: tab.id}); } catch (_) {} }
+    await chrome.tabs.remove(tab.id);
+  }
+}
+
+async function waitForDraftConfirmation(send, tabId, job, timeoutMs = 25000) {
   const deadline = Date.now() + timeoutMs;
   let sawDraftsUrl = false;
   let last = null;
@@ -4817,8 +4847,8 @@ async function waitForDraftConfirmation(send, tabId, caption, timeoutMs = 25000)
     try { tab = await chrome.tabs.get(tabId); } catch (e) { return {confirmed: false, reason: 'tab-gone'}; }
     if (!isDraftsUrl(tab?.url)) continue;
     sawDraftsUrl = true;
-    try { last = await readDraftRowEvidence(send, caption); } catch (e) { continue; }
-    if (last.onDrafts && last.rowVisible !== false && (last.draftCount === null || last.draftCount > 0)) {
+    try { last = await readDraftRowEvidence(send, job, job.draft_baseline); } catch (e) { continue; }
+    if (last.created === true) {
       return {confirmed: true, evidence: last};
     }
   }
@@ -4851,6 +4881,10 @@ async function runSaveDraftOnly() {
     if (!ready?.result?.value) {
       throw new Error('หาปุ่ม "Save draft" ที่กดได้ไม่เจอ (อาจยังประมวลผลไม่เสร็จ หรือ TikTok เปลี่ยนหน้า) -- ยังไม่ได้กดอะไร');
     }
+    job.draft_baseline = await captureDraftBaseline(job);
+    if (globalThis.OmniDraftEvidence.hasPriorCandidate(job.draft_baseline.rows, job)) {
+      throw new Error('draft_already_exists: พบแบบร่างเดิมที่อาจเป็นคลิปนี้ จึงไม่กดบันทึกซ้ำ กรุณาตรวจแบบร่างเดิม');
+    }
     job.confirmation_token = `${job.job_id}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
     const state = await postingState();
     state.activeJob = job;
@@ -4858,6 +4892,9 @@ async function runSaveDraftOnly() {
     // Fence + identity check, then the one click. After this line the job counts as attempted.
     sourceAccount = await guardPostingAction(job, send, tab.id, {beginPublish: true, clickKind: 'draft'});
     attempted = true;
+    if (sourceAccount !== job.draft_baseline.account) {
+      throw new Error('draft_account_changed: บัญชีเปลี่ยนหลังตรวจรายการแบบร่าง จึงไม่กดบันทึก');
+    }
     const clicked = await send('Runtime.evaluate', {
       expression: `(() => {
         (${studioIdentityAtClick.toString()})(${JSON.stringify(job.target_handle)}, ${JSON.stringify(sourceAccount || null)});
@@ -4874,7 +4911,7 @@ async function runSaveDraftOnly() {
     if (clicked?.exceptionDetails) throw new Error(clicked.exceptionDetails.exception?.description || clicked.exceptionDetails.text || 'ตรวจบัญชีก่อนบันทึกแบบร่างไม่สำเร็จ');
     if (!clicked?.result?.value?.success) throw new Error('หาปุ่ม "Save draft" ที่กดได้ไม่เจอ (อาจยังประมวลผลไม่เสร็จ) -- ยังไม่ได้กดอะไร');
     await dismissLeaveConfirmDialogIfPresent(send, 200);
-    confirmation = await waitForDraftConfirmation(send, tab.id, job.caption);
+    confirmation = await waitForDraftConfirmation(send, tab.id, job);
     if (!confirmation.confirmed) {
       const why = {
         'no-navigation': 'กดแล้วแต่ TikTok ไม่พาไปหน้าแบบร่างภายในเวลาที่กำหนด',
@@ -5603,7 +5640,7 @@ async function collectDraftRows(send, {maxSteps = 20, settleMs = 700} = {}) {
 
 // Read-only. For every draft the queue believes is on TikTok: is its caption still on the Drafts tab, and does Studio > Content
 // already list a post with the same caption? Content is read back only as far as the oldest draft was saved (cutoffMs).
-async function runSyncDraftsWithTikTok({drafts = [], cutoffMs = 0} = {}) {
+async function runSyncDraftsWithTikTok({drafts = [], cutoffMs = 0, expectedHandle = ''} = {}) {
   const guard = globalThis.OmniPostGuard;
   const detector = globalThis.OmniCutQuotaDetector;
   const sync = globalThis.OmniDraftSync;
@@ -5620,6 +5657,8 @@ async function runSyncDraftsWithTikTok({drafts = [], cutoffMs = 0} = {}) {
 
   const alnum = (text) => String(text || '').toLowerCase().split('').filter((ch) => /[a-z0-9]/.test(ch) || (ch >= 'ก' && ch <= '๙')).join('');
   let draftRows = [];
+  let draftComplete = false;
+  let scanAccount = null;
   let contentScan = {rows: [], stoppedBy: 'cap'};
   try {
     await navigateAcceptingLeave(tab.id, DRAFT_TAB_URL);
@@ -5627,7 +5666,14 @@ async function runSyncDraftsWithTikTok({drafts = [], cutoffMs = 0} = {}) {
     await chrome.debugger.attach({tabId: tab.id}, '1.3');
     try {
       await send('Runtime.enable');
+      scanAccount = checkPostingAccount({channel_id:'main',target_handle:expectedHandle}, await readStudioAccount(send));
+      if (!scanAccount) throw new Error('draft_scan_account_unknown: อ่านบัญชีก่อนตรวจแบบร่างไม่ได้');
+      const before = (await readDraftRowEvidence(send, {})).page;
       draftRows = await collectDraftRows(send);
+      const after = (await readDraftRowEvidence(send, {})).page;
+      draftComplete = isDraftsUrl(after.url) && !after.loading && Number.isInteger(after.draftCount)
+        && before.draftCount === after.draftCount && draftRows.length === after.draftCount
+        && (draftRows.length > 0 || after.empty === true);
     } finally {
       try { await chrome.debugger.detach({tabId: tab.id}); } catch (e) {}
     }
@@ -5652,6 +5698,8 @@ async function runSyncDraftsWithTikTok({drafts = [], cutoffMs = 0} = {}) {
           return olderInARow >= sync.OLDER_ROWS_TO_STOP;
         },
       });
+      const finalAccount = await readStudioAccount(send);
+      if (!finalAccount || finalAccount !== scanAccount) throw new Error('draft_scan_account_changed: บัญชีเปลี่ยนระหว่างตรวจแบบร่าง');
     } finally {
       try { await chrome.debugger.detach({tabId: tab.id}); } catch (e) {}
     }
@@ -5673,11 +5721,11 @@ async function runSyncDraftsWithTikTok({drafts = [], cutoffMs = 0} = {}) {
     const key = keyOf(draft);
     const present = draftKeys.some((row) => sameClip(row, draft, key));
     const hit = contentKeys.find((row) => sameClip(row, draft, key));
-    const verdict = sync.classifyDraft({present, match: Boolean(hit), complete});
+    const verdict = sync.classifyDraft({present, match: Boolean(hit), complete, draftComplete});
     const badge = hit ? hit.raw.split('\n').slice(0, 4).join(' | ').slice(0, 160) : '';
     return {id: draft.id, ...verdict, present, matchRow: badge};
   });
-  return {success: true, results, scan: {draftRows: draftRows.length, contentRows: contentScan.rows.length, stoppedBy: contentScan.stoppedBy, cutoffMs}};
+  return {success: true, results, scan: {draftRows: draftRows.length, draftComplete, contentRows: contentScan.rows.length, stoppedBy: contentScan.stoppedBy, cutoffMs}};
 }
 
 let actionRunning = false;
@@ -5766,6 +5814,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     try {
 
+      const run = chrome.storage?.local ? (await postingStorageGet([globalThis.OmniRunLock.KEY]))[globalThis.OmniRunLock.KEY] : null;
+      if (globalThis.OmniRunLock.isFresh(run, Date.now()) && run.owner !== message.runOwner
+        && !['retry-posting-receipt','reconcile-posting-result','capture-evidence','notify-attention','clear-attention','broadcast-batch-signal'].includes(message.action)) {
+        throw new Error('posting_run_owned: อีกแผงกำลังควบคุมรอบอยู่ จึงไม่เปลี่ยนงานหรือหน้า TikTok');
+      }
       if (!['retry-posting-receipt', 'release-posting-job', 'select-posting-channel', 'claim-posting-job', 'reconcile-posting-result', 'detect-tiktok-quota', 'broadcast-batch-signal', 'verify-post-content', 'verify-draft-content', 'run-preflight', 'capture-evidence', 'notify-attention', 'clear-attention', 'sync-drafts-with-tiktok'].includes(message.action)) {
         // The click steps work on the already-filled form. If that tab has gone (a post sends it on to Content) bringing a
         // Studio tab back to a blank upload page would only destroy the page that proves what happened.

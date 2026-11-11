@@ -68,3 +68,10 @@ test('publishing a draft now needs no schedule slot, so a full schedule quota is
   assert.match(r.checks.find((c) => c.id === 'quota').detail, /ไม่ใช้ช่องตั้งเวลา/);
   assert.equal(evaluatePreflight({ ...full, mode: 'schedule_only' }).ok, false);   // a scheduled publication still needs a free slot
 });
+test('Smart uses draft capacity after schedule fills, but both full blocks',()=>{
+  for(const [s,d,ok] of [[0,10,true],[10,0,true],[0,0,false]]){
+    const result=evaluatePreflight({...good(),mode:'smart',worker:{...good().worker,quota:{remainingSchedule:s,remainingDraft:d}}});
+    assert.equal(result.ok,ok);
+  }
+  assert.equal(evaluatePreflight({...good(),mode:'smart',worker:{...good().worker,quota:{remainingSchedule:null,remainingDraft:10}}}).warnings.some(w=>w.id==='quota'),true);
+});

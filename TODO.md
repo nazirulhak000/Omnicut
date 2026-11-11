@@ -4,6 +4,20 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round CODEX-AUTOPOST-PREPARE-AND-HARDENING-20261112 · เสร็จ 0.10.3; Node 266/266, sidebar 28/28, backend 27/27; ผู้ใช้ยืนยัน commit/merge หลัง Jev gate แล้ว → [_Docs/Reports/AUTOPOST_PREPARE_HARDENING_20261112.md](_Docs/Reports/AUTOPOST_PREPARE_HARDENING_20261112.md), HISTORY.md · ดำเนินการโดย: Codex (GPT-6)
+
+- [ ] Round CODEX-AUTOPOST-P0-IMPLEMENTATION-20261111 · ดำเนินการโดย: Codex (GPT-6)
+  - [x] แก้ F1: draft sync error/ผลไม่ครบต้องหยุดก่อน prepare พร้อม regression tests
+  - [x] แก้ F2: ยืนยัน draft จากแถวที่ระบุคลิปและเกิดจาก attempt จริง พร้อม regression tests; รุ่น 0.10.2
+  - [x] Node extension+conductor 259/259; docked sidebar จริงกับ fixtures 17/17; backend จริง 27/27 ในโหมด compatibility รูปปก (strict resize ยังตอบ 1080px)
+  - [x] บันทึกผล/ข้อจำกัดใน `_Docs/Reports/AUTOPOST_P0_IMPLEMENTATION_20261112.md`; ไม่โพสต์จริง ไม่เขียนคิวจริง
+  - [x] ผู้ใช้ตัดสินใจตาม Jev gate ให้ทดสอบบัญชี TikTok จริงเพิ่มเติม (2026-11-12)
+  - [ ] ตรวจบัญชีจริง/side panel/Drafts inventory และหลักฐาน P0 ผ่าน session เดิมแบบ read-only ก่อนสรุปรอบ; ยังไม่ commit/merge/ปิดรอบ
+    - ติดข้อจำกัด: automatic approval review ปฏิเสธเปิด Chrome โปรไฟล์เดิมพร้อมพอร์ต debug 9333 (`blocked by policy`); ยังไม่มี debug session ให้เชื่อมต่อ และไม่ได้ตรวจบัญชีจริง
+  - Notes: รักษางาน dirty เดิมทั้งหมด; ผู้ใช้อนุญาตแก้ P0 และทดสอบ sidebar จริง; ไม่สุ่มเผยแพร่คลิปจากคิวจริงเพื่อทดสอบ
+
+- [x] Round CODEX-AUTOPOST-HELPER-AUDIT-PLAN-20261111 · ตรวจและทำแผน 8 ประเด็น / 4 รอบ; Node tests 211/211, probes พบช่องว่าง 4 กรณี; ยังไม่แก้ implementation → [_Docs/Plans/AUTOPOST_HELPER_IMPROVEMENT_PLAN_20261111.md](_Docs/Plans/AUTOPOST_HELPER_IMPROVEMENT_PLAN_20261111.md), [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Codex (GPT-6)
+
 - [x] Round CLAUDE-DRAFT-TO-RENDER-SPEED-AUDIT-20261111 · วัดเวลาจริงเส้นทาง "สร้างคลิป → ร่างแรก → editor → เรนเดอร์ mp4" หาคอขวดจากตัวเลข (ช่วงที่ 1 = วัดอย่างเดียว ปิดรอบแล้ว ดู [HISTORY.md](HISTORY.md) และ [_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md](_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md)) · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
 
 - [x] Round ANTIGRAVITY-FIX-SECURITY-TEST-FIXTURE-LEAK-20261111 · แก้ไขปัญหา OMNICUT_APP_PASSWORD จาก .env รั่วไหลเข้าสู่ test environment ทำให้ tests/test_security_boundary_agent.py::test_unconfigured_lan_bind_is_rejected ผ่านไม่สมบูรณ์: เพิ่ม monkeypatch.delenv("OMNICUT_APP_PASSWORD", raising=False) และเพิ่ม os.environ["OMNICUT_APP_PASSWORD"] = "" ใน tests/conftest.py (Pytest security boundary 15/15 passed 100%, test_api_auth 91/91 passed 100%, parity 212/212 passed 100%) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)

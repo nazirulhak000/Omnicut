@@ -5,6 +5,7 @@ Talks to the backend through the `posting_jobs` protocol v2 (prepare → claim �
 headless twin of the same worker is `tools/autopost_conductor/`.
 
 ## What a run does (side panel → "เริ่มรันอัปโหลด")
+Before a manual handoff, **เตรียมคลิปนี้** opens an editable dialog for caption, hashtags and an explicit schedule or draft intent. Missing dates and unresolved placeholders can be fixed there. Confirmation freezes that job's data; it does not bulk-rewrite the queue. Posted, missing and QC-rejected exports remain blocked.
 1. **Readiness check** ("ตรวจความพร้อม", also runs automatically before every start): backend + protocol, TikTok login, upload page,
    logged-in account = the channel's handle, window size, quota. A failed item stops the run; a warning is shown in the confirm box.
 2. Tick the clips you want (checkbox). Ticked clips are posted **exactly** — if none of them is usable nothing runs (it never falls
@@ -61,16 +62,22 @@ clips apart when it is visible in the list (Studio cuts long captions, so withou
 - The API only accepts posting requests from a loopback `Host` (set `OMNICUT_ALLOWED_HOSTS` for another local name).
 
 ## When something goes wrong
+- Draft checks fail closed: a disconnected worker, missing/duplicate result ids, changed channel or unknown verdict stops the run before confirmation or prepare.
+- Saving a draft first reads the complete Drafts inventory in a temporary background tab. A unique new row (EP when visible, otherwise exact caption) must be absent before the click. An existing or ambiguous draft stops the save; insufficient proof after a click remains `confirmation_unknown`. The temporary tab is closed on success and failure.
+- Older interrupted draft jobs without a pre-click inventory cannot be automatically confirmed from a list row alone. Check TikTok and use the existing manual confirmation flow.
 - **Run history**: "คัดลอกประวัติรอบ" copies the last runs (every log line with its job id, a redacted page snapshot for failed /
   unconfirmed clips). It survives closing the panel.
 - **Attention**: an unconfirmed / halted / failed run raises a browser notification and a red `!` badge until the panel is opened.
 - A run cut off by closing the panel or a crash is detected the next time the panel opens and its claimed job is parked.
+- Run-lock mutations use Web Locks across the extension origin. A second panel cannot change the active run's job/page. Recovery keeps the orphan marker until parking succeeds, and reports failure if it does not.
+- A missing draft is classified as deleted only when the Drafts inventory and Content scan are complete. An unreadable or changed account aborts that scan.
 - Deleted a draft on TikTok? Reset the queue row to "planned" (the draft-reset button in the app).
 
 ## Files
 `background.js` worker (CDP) · `sidepanel.html/js` panel · `batch_orchestrator.js` run loop · `post_guard.js` content + row rules ·
 `limits.js` shared numbers · `preflight.js` readiness verdict · `run_history.js` history/redaction · `run_lock.js` one-run lock ·
 `clip_state.js` selection · `quota_detector.js` / `stats_parser.js` readers. Tests: `*.test.cjs` (`node --test`).
+`draft_evidence.js` identifies unique draft rows and checks the pre-click inventory. `tools/extension_p0_check.py` exercises the actual docked sidebar and worker/CDP against isolated fixtures; it never publishes production clips.
 
 **After changing the extension, bump `manifest.json` version and reload it at `chrome://extensions`** — Chrome caches the service
 worker script per extension id + version, so an un-bumped reload can silently keep running old code.

@@ -215,7 +215,7 @@ test('final account capture and attempt happen after processing but before click
 
 function panelProtocolContext(authedFetch) {
   const code = fs.readFileSync(path.join(__dirname,'sidepanel.js'),'utf8');
-  const ctx = vm.createContext({URL, authedFetch, withApiKeyParam:(url,key) => `${url}?api_key=${key}`});
+  const ctx = vm.createContext({URL, AbortSignal, authedFetch, withApiKeyParam:(url,key) => `${url}?api_key=${key}`});
   vm.runInContext("let activeChannelId='main'; let channelEpoch=0; let apiKey='secret';" +
     code.slice(code.indexOf('function panelChannelId'),code.indexOf('// The very first loadExports()')),ctx);
   return ctx;
@@ -583,6 +583,7 @@ function draftHarness({ job = {}, buttonPresent = true, urlAfterClick = DRAFTS_U
   const log = { calls: [], expressions: [], receipts: [] };
   let clicked = false;
   ctx.fetchPendingJob = async () => ({ job_id: 'job-1', channel_id: 'main', caption: 'สุดยอดพัดลมตัวนี้ ลมแรงมาก', target_handle: '@mainuser', lease_expires_at: 9999999999, ...job });
+  ctx.captureDraftBaseline = async () => ({complete:true,rows:[],account:'@mainuser'});
   ctx.findUploadTab = async () => ({ id: 7, windowId: 3, url: UPLOAD_URL });
   ctx.waitForUploadComplete = async () => true;
   ctx.dismissLeaveConfirmDialogIfPresent = async () => false;
@@ -602,7 +603,7 @@ function draftHarness({ job = {}, buttonPresent = true, urlAfterClick = DRAFTS_U
       if (expression.includes('window.innerWidth')) return { result: { value: { w: 1440, h: 900, dpr: 1, focus: true } } };
       if (expression.startsWith('Boolean(document.querySelector(')) return { result: { value: buttonPresent } };
       if (expression.includes('save_draft_button')) { clicked = true; log.calls.push('clicked'); return { result: { value: { success: true } } }; }
-      if (expression.includes('location.href')) return { result: { value: { url: pageUrl, text: pageText } } };
+      if (expression.includes('location.href')) return { result: { value: { url: pageUrl, rows: [pageText.split('\n').slice(2).join('\n')], draftCount: 1 } } };
       return { result: { value: true } };
     },
   };
@@ -620,6 +621,24 @@ test('runSaveDraftOnly saves a draft: one Save draft click, evidence = Drafts pa
   assert.match(log.receipts[0].proof.confirmation_token, /^job-1:/);
   // it must never go near the Post button
   assert.ok(!log.expressions.some(e => e.includes('post_video_button')), 'Post button untouched');
+});
+
+test('draft inventory failure or pre-existing clip never burns an attempt or clicks Save draft', async () => {
+  const failed = draftHarness();
+  failed.ctx.captureDraftBaseline = async () => {throw Error('draft_baseline_incomplete');};
+  await assert.rejects(()=>failed.ctx.runSaveDraftOnly(),/draft_baseline_incomplete/);
+  assert.deepEqual(Array.from(failed.log.calls),[]);
+  const existing = draftHarness();
+  existing.ctx.captureDraftBaseline = async () => ({complete:true, rows:['สุดยอดพัดลมตัวนี้ ลมแรงมาก\n00:30']});
+  await assert.rejects(()=>existing.ctx.runSaveDraftOnly(),/draft_already_exists/);
+  assert.deepEqual(Array.from(existing.log.calls),[]);
+});
+
+test('account changed after inventory cannot click Save draft and preserves the consumed fence as unknown', async () => {
+  const {ctx,log}=draftHarness();
+  ctx.guardPostingAction=async()=>{log.calls.push('attempt');return '@otheruser';};
+  await assert.rejects(()=>ctx.runSaveDraftOnly(),/draft_account_changed/);
+  assert.deepEqual(Array.from(log.calls),['attempt','receipt:confirmation_unknown']);
 });
 
 test('runSaveDraftOnly refuses a job that carries a publish time (wrong mode) before touching the page', async () => {
@@ -659,14 +678,14 @@ test('draft evidence helpers: URL, caption key and count are read from the Draft
   assert.equal(ctx.isDraftsUrl('https://www.tiktok.com/tiktokstudio/content?tab=draft'), true);
   assert.equal(ctx.isDraftsUrl('https://www.tiktok.com/tiktokstudio/content'), false);
   assert.equal(ctx.isDraftsUrl('https://www.tiktok.com/tiktokstudio/upload?tab=draft'), false);
-  assert.equal(ctx.draftCaptionKey('Hello, World! สวัสดี 123'), 'helloworldสวัสดี123'.slice(0, 14));
-  const send = async () => ({ result: { value: { url: DRAFTS_URL, text: 'โพสต์ 219\nแบบร่าง 4\nแกะกล่องสุดคุ้ม ของแท้\nNov 10' } } });
+  const send = async () => ({ result: { value: { url: DRAFTS_URL, draftCount:4, rows:['แกะกล่องสุดคุ้ม ของแท้ ราคาดี\n00:30'] } } });
   const hit = await ctx.readDraftRowEvidence(send, 'แกะกล่องสุดคุ้ม ของแท้ ราคาดี');
-  assert.deepEqual(JSON.parse(JSON.stringify(hit)), { url: DRAFTS_URL, onDrafts: true, draftCount: 4, rowVisible: true });
+  assert.equal(hit.rowVisible, true);
+  assert.equal(hit.created, false);
   const miss = await ctx.readDraftRowEvidence(send, 'ข้อความอื่นที่ไม่มีในหน้า');
   assert.equal(miss.rowVisible, false);
   const noCaption = await ctx.readDraftRowEvidence(send, '');
-  assert.equal(noCaption.rowVisible, null);
+  assert.equal(noCaption.rowVisible, false);
 });
 
 // ---- account check: read from the page twice per clip, fence-validate at every step ----
@@ -866,8 +885,8 @@ test('R1 reconcileFromListPages: a draft job is confirmed only by a matching row
   const ctx = worker();
   ctx.navigateAcceptingLeave = async () => true;
   const caption = 'แกะกล่องสุดคุ้ม ของแท้ ราคาดี';
-  const draftsPage = (text) => async () => ({ result: { value: { url: 'https://www.tiktok.com/tiktokstudio/content?tab=draft', text } } });
-  const job = { job_id: 'j', intent: 'draft', caption, confirmation_token: 'tok' };
+  const draftsPage = (text) => async () => ({ result: { value: { url: 'https://www.tiktok.com/tiktokstudio/content?tab=draft', rows:[text.split(NLC).slice(1).join(NLC)] } } });
+  const job = { job_id: 'j', intent: 'draft', caption, confirmation_token: 'tok', draft_baseline:{complete:true,rows:[]} };
   const yes = await ctx.reconcileFromListPages(draftsPage(['Drafts 1', caption].join(NLC)), { id: 7 }, job);
   assert.equal(yes.outcome, 'draft_saved');
   assert.equal(yes.proof.kind, 'drafts_page_confirmed');
@@ -997,7 +1016,7 @@ test('stats sync accepts the real Studio posts page and stamps a visible build t
   // Build identity: chrome://extensions + the Tools tab both prove the fresh
   // code is running, so stale cached sidepanel.js (the ghost "จำกัดโดเมน"
   // banner that never existed in this repo) can be caught by the user's eyes.
-  assert.equal(manifest.version, '0.10.1');
+  assert.equal(manifest.version, '0.10.3');
   assert.equal(manifest.content_scripts, undefined, 'no legacy content script');
   for (const gone of ['batch_runner.js', 'batch_runner.test.cjs', 'content_script.js', 'popup.html', 'popup.js']) assert.ok(!fs.existsSync(path.join(__dirname, gone)), gone + ' must stay deleted');
   assert.match(sideHtml, /id="buildTag"/);
@@ -1856,8 +1875,9 @@ test('overdue clips: filter chip, one bulk button with a preview dialog, and the
 });
 
 // ---- check against TikTok ----
-function syncHarness({ draftTexts, contentRows, pageSize = 8 }) {
+function syncHarness({ draftTexts, contentRows, pageSize = 8, draftTotal = draftTexts.length }) {
   const ctx = worker();
+  ctx.readStudioAccount = async () => '@mainuser';
   const nl2 = String.fromCharCode(10);
   let url = '';
   let top = 0;
@@ -1872,6 +1892,7 @@ function syncHarness({ draftTexts, contentRows, pageSize = 8 }) {
       const expression = String(params.expression);
       const onDrafts = /tab=draft/.test(url);
       const list = onDrafts ? draftTexts : contentRows;
+      if (expression.includes('draftCount:')) return {result:{value:{url,rows:list.slice(top,top+pageSize),draftCount:draftTotal,empty:draftTotal===0,loading:false}}};
       if (/scrollTop/.test(expression)) {
         if (top >= Math.max(0, list.length - pageSize)) return {result: {value: 0}};
         top = Math.min(list.length - pageSize, top + 6);
@@ -1933,6 +1954,16 @@ test('sync-drafts: the Content read stops at the look-back cutoff (5 old rows in
   assert.equal(reply.scan.stoppedBy, 'cutoff');
   const refused = await ctx.runSyncDraftsWithTikTok({ drafts: [{ id: 's', caption: 'สั้น' }], cutoffMs: 0 });
   assert.equal(refused.success, false);
+});
+
+test('partial Drafts inventory stays unknown and an account change aborts the actual scan', async () => {
+  const absent='A missing draft caption for verification';
+  const partial=syncHarness({draftTexts:[draftRow('Another unrelated video')],draftTotal:2,contentRows:[contentRow('A totally different post','Nov 12, 9:00 AM')]});
+  const result=await partial.ctx.runSyncDraftsWithTikTok({drafts:[{id:'missing',caption:absent}],expectedHandle:'@mainuser'});
+  assert.equal(result.scan.draftComplete,false);assert.equal(result.results[0].state,'unknown');
+  const switched=syncHarness({draftTexts:[],contentRows:[contentRow('A totally different post','Nov 12, 9:00 AM')]});
+  let reads=0;switched.ctx.readStudioAccount=async()=>++reads===1?'@mainuser':'@other';
+  await assert.rejects(()=>switched.ctx.runSyncDraftsWithTikTok({drafts:[{id:'missing',caption:absent}],expectedHandle:'@mainuser'}),/draft_scan_account_changed/);
 });
 
 test('check-against-TikTok panel wiring: button, blocking verdicts, per-card fixes, automatic check before a run with drafts', () => {

@@ -13,6 +13,7 @@ background.js and the real chrome.* APIs. It is safe because:
 
 Run from the project root with the OmniCut API on port 8000.
 """
+import argparse
 import hashlib
 import json
 import shutil
@@ -24,8 +25,14 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 EXT = str(Path("tiktok_autopost_extension").resolve())
-AXE = Path(sys.argv[1]).read_text(encoding="utf-8")
-SHOT = sys.argv[2] if len(sys.argv) > 2 else ""
+EXPECTED_VERSION = json.loads((Path(EXT) / 'manifest.json').read_text(encoding='utf-8'))['version']
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('axe')
+parser.add_argument('screenshot_prefix', nargs='?', default='')
+parser.add_argument('--allow-original-thumbnails', action='store_true', help='Explicit compatibility check for an older running backend which ignores w=160')
+args = parser.parse_args()
+AXE = Path(args.axe).read_text(encoding="utf-8")
+SHOT = args.screenshot_prefix
 fails = 0
 
 
@@ -61,7 +68,7 @@ with sync_playwright() as p:
     ext_id = sw.url.split("/")[2]
     report("extension service worker started (background.js loads without error)", sw.url.endswith("/background.js"), sw.url)
     manifest = sw.evaluate("() => chrome.runtime.getManifest()")
-    report("manifest version is 0.10.1", manifest.get("version") == "0.10.1", manifest.get("version"))
+    report("manifest version matches local source", manifest.get("version") == EXPECTED_VERSION, manifest.get("version"))
 
     writes = []
     errors = []
@@ -72,6 +79,13 @@ with sync_playwright() as p:
     page.goto(f"chrome-extension://{ext_id}/sidepanel.html")
     page.wait_for_timeout(6000)
 
+    # Covers are lazy-loaded below the batch controls. Scroll them into view before
+    # asserting their decoded size; a lazy image off-screen is not a load failure.
+    for index in range(min(3, page.locator('.card-thumb-wrap img').count())):
+        thumb_image = page.locator('.card-thumb-wrap img').nth(index)
+        thumb_image.scroll_into_view_if_needed()
+        page.wait_for_function('(img) => img.complete && img.naturalWidth > 0', arg=thumb_image.element_handle(), timeout=15000)
+
     # ---- real load through the real chrome APIs
     info = page.evaluate("""() => ({ cards: document.querySelectorAll('.card').length, status: document.getElementById('headerStatusText').textContent.trim(),
         version: document.getElementById('brandVersionPill').textContent.trim(), build: document.getElementById('buildTag').textContent.trim(),
@@ -79,9 +93,12 @@ with sync_playwright() as p:
         theme: document.documentElement.getAttribute('data-theme') })""")
     report("clip list loads from the real backend", info["cards"] > 0, info)
     report("header shows the backend as reachable", info["status"].upper() in ("READY", "ONLINE", "พร้อม"), info["status"])
-    report("version pill and build tag read the real manifest", "0.10.1" in info["version"] and "0.10.1" in info["build"], (info["version"], info["build"]))
+    report("version pill and build tag read the real manifest", EXPECTED_VERSION in info["version"] and EXPECTED_VERSION in info["build"], (info["version"], info["build"]))
     loaded = [t for t in info["thumbs"] if t["ok"]]
-    report("visible thumbnails load as 160px previews", len(loaded) >= 3 and all(t["w"] == 160 and t["src"] for t in loaded), info["thumbs"])
+    resized = all(t['w'] == 160 and t['src'] for t in loaded)
+    report("visible thumbnails load (160px, or explicit older-backend compatibility)", len(loaded) >= 3 and (resized or (args.allow_original_thumbnails and all(t['src'] for t in loaded))), info["thumbs"])
+    if not resized:
+        print('  note running backend ignores w=160; original images still load. Resize optimization is not verified.')
 
     # The extension CSP forbids an injected <script>, so axe is evaluated instead.
     try:

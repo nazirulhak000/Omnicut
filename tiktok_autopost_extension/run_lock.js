@@ -12,36 +12,49 @@
 
   const isFresh = (lock, now, ttl = TTL_MS) => Boolean(lock && lock.owner && now - Number(lock.beat || 0) < ttl);
   const read = async (storage) => (await storage.get(KEY))[KEY] || null;
+  let pending = Promise.resolve();
+  function mutex(fn) {
+    if (globalThis.navigator?.locks?.request) return globalThis.navigator.locks.request('omnicut-run-lock-mutation', fn);
+    if (typeof chrome !== 'undefined') return Promise.reject(new Error('เบราว์เซอร์ไม่รองรับตัวล็อกรอบ กรุณาอัปเดต Chrome'));
+    const work = pending.then(fn); pending = work.catch(() => {}); return work;
+  }
 
   // {ok:true, recovered?} or {ok:false, reason:'held'|'lost', lock}
   async function acquire(storage, owner, { now = Date.now, sleep = (ms) => new Promise((r) => setTimeout(r, ms)) } = {}) {
+    return mutex(async () => {
     const current = await read(storage);
     if (isFresh(current, now()) && current.owner !== owner) return { ok: false, reason: 'held', lock: current };
     await storage.set({ [KEY]: { owner, beat: now(), startedAt: now() } });
-    await sleep(150);                       // two panels pressing Start together: the last writer wins, the other sees it
+    await sleep(150);                       // verify ownership even if an older extension version writes outside our mutex
     const after = await read(storage);
     if (!after || after.owner !== owner) return { ok: false, reason: 'lost', lock: after };
     return { ok: true, recovered: Boolean(current && current.owner !== owner) };
+    });
   }
 
   async function beat(storage, owner, { now = Date.now } = {}) {
+    return mutex(async () => {
     const current = await read(storage);
     if (!current || current.owner !== owner) return false;
     await storage.set({ [KEY]: { ...current, beat: now() } });
     return true;
+    });
   }
 
   async function release(storage, owner) {
+    return mutex(async () => {
     const current = await read(storage);
     if (current && current.owner === owner) await storage.remove(KEY);
+    });
   }
 
-  // A lock nobody refreshes any more = an interrupted run. Returns it (or null) and removes it.
+  // Read an interrupted run without removing its marker; recovery releases it only after parking succeeds.
   async function takeOrphan(storage, { now = Date.now } = {}) {
+    return mutex(async () => {
     const current = await read(storage);
     if (!current || isFresh(current, now())) return null;
-    await storage.remove(KEY);
     return current;
+    });
   }
 
   return { KEY, TTL_MS, BEAT_MS, isFresh, acquire, beat, release, takeOrphan, read };
