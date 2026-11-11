@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { ModalLayer } from './ui/ModalLayer';
 import {
   Cloud,
   CloudCheck,
@@ -169,7 +170,7 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+    <ModalLayer onClose={onClose} className="fixed inset-0 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
       <div className="w-full max-w-3xl rounded-3xl bg-[#0A0D14]/95 backdrop-blur-md border border-white/[0.08] shadow-2xl flex flex-col max-h-[92vh] overflow-hidden relative">
         {/* Modal Header */}
         <div className="px-5 py-4 border-b border-white/[0.08] flex items-center justify-between relative z-10">
@@ -369,7 +370,7 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
                       {/* 3:4 Cover Art Preview */}
                       <div className="w-9 h-12 rounded-lg bg-black/60 border border-white/[0.08] overflow-hidden flex-shrink-0 flex items-center justify-center">
                         {prod.cover_url ? (
-                          <img
+                          <img loading="lazy" decoding="async"
                             src={prod.cover_url}
                             alt={prod.product_name}
                             className="w-full h-full object-cover"
@@ -551,6 +552,6 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
           </div>
         </div>
       </div>
-    </div>
+    </ModalLayer>
   );
 }

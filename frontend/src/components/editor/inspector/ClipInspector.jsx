@@ -68,7 +68,8 @@ function SpeedInput({ speed, onCommit }) {
       onChange={(e) => setDraft(e.target.value)}
       onBlur={commit}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') commit();
+        // Enter that confirms an IME candidate is not a commit (229 covers Safari).
+        if (e.key === 'Enter') { if (!e.nativeEvent.isComposing && e.keyCode !== 229) commit(); }
         else if (e.key === 'Escape') setDraft(null);
       }}
       className="w-16 rounded bg-black/50 border border-white/[0.1] px-1.5 py-0.5 text-right font-mono text-xs text-white focus:outline-none focus:border-[#25F4EE]"

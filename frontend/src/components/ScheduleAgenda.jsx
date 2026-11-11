@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { confirmDialog } from './ui/dialogService';
 import { AlertTriangle, Archive, Calendar, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clock, Copy, GripVertical, Image as ImageIcon, Layers, List, MoreHorizontal, Plus, RefreshCw, Rocket, RotateCcw, Search, Settings2, Shuffle, Trash2 } from 'lucide-react';
 import { Modal, Badge } from './ui';
 import PaginationControls from './PaginationControls';
@@ -667,7 +668,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   // A saved draft is not a post. Resetting only makes sense after the draft was deleted on TikTok Studio,
   // otherwise the clip could be saved as a second draft.
   const resetDraft = async (item) => {
-    const ok = window.confirm('คลิปนี้ถูกบันทึกเป็นแบบร่างบน TikTok แล้ว\nรีเซ็ตเมื่อคุณลบแบบร่างนั้นบน TikTok Studio แล้วเท่านั้น (ไม่งั้นอาจได้แบบร่างซ้ำ)\n\nรีเซ็ตกลับเป็นรอจัดส่งเลยไหม?');
+    const ok = await confirmDialog('คลิปนี้ถูกบันทึกเป็นแบบร่างบน TikTok แล้ว\nรีเซ็ตเมื่อคุณลบแบบร่างนั้นบน TikTok Studio แล้วเท่านั้น (ไม่งั้นอาจได้แบบร่างซ้ำ)\n\nรีเซ็ตกลับเป็นรอจัดส่งเลยไหม?');
     if (!ok) return;
     if (await resetForMove(item)) showToast?.('รีเซ็ตแล้ว คลิปกลับมารอจัดส่ง');
   };
@@ -706,7 +707,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   const removeSelected = async () => {
     const ids = [...selectedIds].filter((id) => selectableQueue.some((item) => item.id === id));
     if (!ids.length || bulkRemoving) return;
-    if (!window.confirm(`นำ ${ids.length} คิวออกจากระบบหรือไม่? ไฟล์ MP4 จะไม่ถูกลบ`)) return;
+    if (!(await confirmDialog(`นำ ${ids.length} คิวออกจากระบบหรือไม่? ไฟล์ MP4 จะไม่ถูกลบ`))) return;
 
     setBulkRemoving(true);
     const results = await Promise.allSettled(ids.map((id) => removeScheduleQueue(id)));
@@ -975,7 +976,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   // Clips whose time already passed get new template slots. Preview first; the server re-checks every slot when it applies them.
   // The post click was made but its result never arrived. Only after the operator looked at TikTok Studio > Content and saw nothing.
   const resolveUnposted = async (item) => {
-    const ok = window.confirm('คลิปนี้กดโพสต์ไปแล้วแต่ไม่ได้รับผลยืนยัน\nยืนยันเมื่อคุณเปิด TikTok Studio > Content แล้วไม่เห็นโพสต์นี้ (รออย่างน้อย 10 นาทีหลังกดโพสต์) เท่านั้น\nถ้ายังมีโพสต์อยู่ การกดต่อจะโพสต์ซ้ำ');
+    const ok = await confirmDialog('คลิปนี้กดโพสต์ไปแล้วแต่ไม่ได้รับผลยืนยัน\nยืนยันเมื่อคุณเปิด TikTok Studio > Content แล้วไม่เห็นโพสต์นี้ (รออย่างน้อย 10 นาทีหลังกดโพสต์) เท่านั้น\nถ้ายังมีโพสต์อยู่ การกดต่อจะโพสต์ซ้ำ');
     if (!ok) return;
     try {
       const updated = await resolveUnpostedQueue(item.id, 'ผู้ใช้ตรวจ TikTok Studio > Content แล้วไม่พบโพสต์นี้');
@@ -1361,7 +1362,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                               className="w-10 h-14 rounded-lg overflow-hidden bg-black border border-white/[0.1] flex-shrink-0 relative group/thumb"
                             >
                               {coverSrc(coverPath) ? (
-                                <img src={coverSrc(coverPath)} alt="" className="w-full h-full object-cover" />
+                                <img loading="lazy" decoding="async" src={coverSrc(coverPath)} alt="" className="w-full h-full object-cover" />
                               ) : (
                               <video src={toMediaUrl(item.video_path)} muted className="w-full h-full object-cover" />
                               )}
@@ -1579,7 +1580,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                           )}
                           <div className="flex items-center gap-3 min-w-0 flex-1">
                             <button type="button" onClick={() => clip?.video_url && onPreviewVideo?.(clip.video_url, clip)} className="w-14 h-20 rounded-xl overflow-hidden bg-black border border-white/[0.12] flex-shrink-0 relative group">
-                              {coverSrc(coverPath) ? <img src={coverSrc(coverPath)} alt="" className="w-full h-full object-cover" /> : <video src={toMediaUrl(item.video_path)} muted className="w-full h-full object-cover" />}
+                              {coverSrc(coverPath) ? <img loading="lazy" decoding="async" src={coverSrc(coverPath)} alt="" className="w-full h-full object-cover" /> : <video src={toMediaUrl(item.video_path)} muted className="w-full h-full object-cover" />}
                               <span className="absolute inset-x-1 bottom-1 text-[9px] rounded bg-black/75 text-white py-0.5">พรีวิว</span>
                             </button>
                             <div className="min-w-0 flex-1">

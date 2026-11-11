@@ -5,6 +5,7 @@ import {
   LOGIN_REQUIRED_EVENT, AUTH_RESTORED_EVENT,
 } from '../api';
 import { readSafeNext, stripLoginParams } from '../lib/appNav.js';
+import { ModalLayer } from './ui/ModalLayer';
 
 // ── Auth state shared with the shell (Sidebar "ออกจากระบบ", mobile studio) ──
 const AuthContext = createContext({ authRequired: false, authenticated: true, logout: async () => {} });
@@ -33,12 +34,21 @@ function loginErrorMessage(error) {
 }
 
 function FullScreen({ children, overlay = false }) {
+  // Session expired on top of a live workspace: a modal <dialog> (no onClose,
+  // so Escape cannot dismiss it) lands above any dialog that is already open.
+  if (overlay) {
+    return (
+      <ModalLayer
+        aria-labelledby="login-title"
+        className="fixed inset-0 w-full overflow-y-auto bg-[#0A0D14] text-slate-100 font-prompt flex items-center justify-center px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]"
+      >
+        <div className="w-full max-w-sm">{children}</div>
+      </ModalLayer>
+    );
+  }
   return (
     <div
-      role={overlay ? 'dialog' : undefined}
-      aria-modal={overlay ? 'true' : undefined}
-      aria-labelledby={overlay ? 'login-title' : undefined}
-      className={`${overlay ? 'fixed inset-0 z-[10000]' : 'min-h-dvh'} w-full overflow-y-auto bg-[#0A0D14] text-slate-100 font-prompt flex items-center justify-center px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]`}
+      className={`min-h-dvh w-full overflow-y-auto bg-[#0A0D14] text-slate-100 font-prompt flex items-center justify-center px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]`}
     >
       <div className="w-full max-w-sm">{children}</div>
     </div>

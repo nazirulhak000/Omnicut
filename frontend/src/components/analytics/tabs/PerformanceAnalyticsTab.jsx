@@ -621,7 +621,7 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
                       <div className="flex items-center gap-2.5 min-w-0">
                         {idx === 0 && <Trophy className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />}
                         {p.thumbnail ? (
-                          <img src={p.thumbnail} alt="" className="w-9 h-14 object-cover rounded-md flex-shrink-0" />
+                          <img loading="lazy" decoding="async" src={p.thumbnail} alt="" className="w-9 h-14 object-cover rounded-md flex-shrink-0" />
                         ) : (
                           <div className="w-9 h-14 rounded-md bg-white/[0.04] border border-white/[0.08] flex-shrink-0" />
                         )}

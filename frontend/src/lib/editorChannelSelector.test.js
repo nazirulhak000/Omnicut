@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const selectorSource = read('../components/editor/EditorChannelSelector.jsx');
 const headerSource = read('../components/editor/EditorHeader.jsx');
+const popoverPanelSource = read('../components/ui/PopoverPanel.jsx');
 const appSource = read('../App.jsx');
 
 test('EditorChannelSelector exists, imports useChannel and renders accessible dropdown', () => {
@@ -16,7 +17,10 @@ test('EditorChannelSelector exists, imports useChannel and renders accessible dr
 });
 
 test('EditorChannelSelector handles keyboard navigation (Escape to close)', () => {
-  assert.ok(selectorSource.includes("e.key === 'Escape'"), 'Must handle Escape key to dismiss popover');
+  // Escape, outside press and focus return are owned by ui/PopoverPanel.
+  assert.ok(selectorSource.includes('<PopoverPanel'), 'Dropdown must render through PopoverPanel');
+  assert.ok(selectorSource.includes('onClose={() => setOpen(false)}'), 'PopoverPanel must be able to close the dropdown');
+  assert.ok(popoverPanelSource.includes("event.key !== 'Escape'"), 'PopoverPanel must handle Escape');
 });
 
 test('EditorChannelSelector does not display redundant handle in the button pill', () => {

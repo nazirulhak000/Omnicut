@@ -211,7 +211,7 @@ function ProductCard({ product, isSelected, onSelect, onDoubleClick, onToggleHid
       {/* Thumbnail or Placeholder */}
       <div className="w-full aspect-square rounded-lg overflow-hidden bg-black/70 border border-white/[0.06] flex items-center justify-center relative mb-2 flex-shrink-0">
         {thumbSrc ? (
-          <img src={thumbSrc} alt="" className="w-full h-full object-cover pointer-events-none" />
+          <img loading="lazy" decoding="async" src={thumbSrc} alt="" className="w-full h-full object-cover pointer-events-none" />
         ) : (
           <Package className={`w-7 h-7 ${isSelected ? 'text-[#25F4EE]' : 'text-slate-600'}`} />
         )}
@@ -6202,7 +6202,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       {/* Image Preview */}
                       <div className="w-full aspect-square rounded-lg overflow-hidden bg-black/70 border border-white/[0.06] flex items-center justify-center relative">
                         {thumbSrc ? (
-                          <img src={thumbSrc} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                          <img loading="lazy" decoding="async" src={thumbSrc} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                         ) : (
                           <Package className={`w-10 h-10 ${isSelected ? 'text-[#25F4EE]' : 'text-slate-600'}`} />
                         )}

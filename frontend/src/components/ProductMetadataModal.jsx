@@ -487,7 +487,7 @@ export default function ProductMetadataModal({
                     <div key={`${reference}-${index}`} className="group relative overflow-hidden rounded-xl border border-white/[0.08] bg-black/40">
                       <div className="aspect-square">
                         {reference ? (
-                          <img src={toMediaUrl(reference)} alt={getImageName(image, index)} className="w-full h-full object-cover" />
+                          <img loading="lazy" decoding="async" src={toMediaUrl(reference)} alt={getImageName(image, index)} className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-slate-600 text-xs">ไม่มี path</div>
                         )}

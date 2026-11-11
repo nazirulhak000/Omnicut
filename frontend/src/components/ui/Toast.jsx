@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useLayoutEffect, useRef } from 'react';
 import { CheckCircle2, AlertTriangle, AlertCircle, Info, X } from 'lucide-react';
 
 export function Toast({
@@ -16,6 +16,19 @@ export function Toast({
     }, managedDuration);
     return () => clearTimeout(timer);
   }, [message, managedDuration, onClose]);
+
+  // popover="manual" puts the toast in the top layer, above any modal <dialog>
+  // that is already open (a fixed z-index cannot beat the top layer). Engines
+  // without the Popover API ignore the attribute and keep the fixed position.
+  const layerRef = useRef(null);
+  useLayoutEffect(() => {
+    const el = layerRef.current;
+    if (!el || !message || typeof el.showPopover !== 'function') return undefined;
+    try { el.showPopover(); } catch { /* already shown */ }
+    return () => {
+      try { el.hidePopover(); } catch { /* already hidden or detached */ }
+    };
+  }, [message]);
 
   if (!message) return null;
 
@@ -47,10 +60,12 @@ export function Toast({
 
   return (
     <div
+      ref={layerRef}
+      popover="manual"
       role={type === 'error' ? 'alert' : 'status'}
       aria-live={type === 'error' ? 'assertive' : 'polite'}
       aria-atomic="true"
-      className="fixed inset-x-3 top-[calc(env(safe-area-inset-top,0px)+8px)] md:top-auto md:inset-x-auto md:bottom-6 md:right-6 z-[9999] flex justify-center md:block animate-slideDown select-none pointer-events-none"
+      className="toast-layer fixed inset-x-3 top-[calc(env(safe-area-inset-top,0px)+8px)] md:top-auto md:inset-x-auto md:bottom-6 md:right-6 z-[9999] flex justify-center md:block animate-slideDown select-none pointer-events-none"
     >
       <div
         className={`flex items-center gap-2.5 py-2.5 px-4 rounded-full border backdrop-blur-2xl shadow-2xl text-xs sm:text-sm font-semibold w-full md:w-auto max-w-md min-w-0 pointer-events-auto ${config.style}`}

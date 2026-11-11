@@ -63,7 +63,7 @@ test('RenderReadinessChip combines cover, preflight, and playbook into interacti
   assert.ok(readinessChipSource.includes('preflightReport'), 'Must inspect preflightReport');
   assert.ok(readinessChipSource.includes('playbookNotes'), 'Must inspect playbookNotes');
   assert.ok(readinessChipSource.includes('role="dialog"'), 'Popover must have role="dialog"');
-  assert.ok(readinessChipSource.includes("e.key === 'Escape'"), 'Popover must close on Escape key');
+  assert.ok(readinessChipSource.includes('<PopoverPanel'), 'Popover must render through PopoverPanel (Escape + outside press)');
   assert.ok(readinessChipSource.includes('ShieldCheck'), 'Must render ShieldCheck icon');
   assert.ok(readinessChipSource.includes('ShieldAlert'), 'Must render ShieldAlert icon');
 });
@@ -195,7 +195,7 @@ test('RenderReadinessChip JSX satisfies visual and accessibility contract for al
 
   // Popover accessibility & dialog role
   assert.ok(readinessChipSource.includes('role="dialog"'), 'Popover must have role="dialog"');
-  assert.ok(readinessChipSource.includes("e.key === 'Escape'"), 'Popover must close on Escape key');
+  assert.ok(readinessChipSource.includes('<PopoverPanel'), 'Popover must render through PopoverPanel (Escape + outside press)');
   assert.ok(readinessChipSource.includes('aria-haspopup="dialog"'), 'Trigger button must declare aria-haspopup="dialog"');
 });
 

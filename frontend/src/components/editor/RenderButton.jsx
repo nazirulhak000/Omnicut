@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
+import { PopoverPanel } from '../ui/PopoverPanel';
 import { Check, ChevronDown, Loader2, Rocket, ShieldCheck } from 'lucide-react';
 
 /**
@@ -25,26 +26,7 @@ export default function RenderButton({
   isPosted = false,
 }) {
   const [open, setOpen] = useState(false);
-  const wrapRef = useRef(null);
   const caretRef = useRef(null);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const onDown = (e) => { if (!wrapRef.current?.contains(e.target)) setOpen(false); };
-    const onKey = (e) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        setOpen(false);
-        caretRef.current?.focus();
-      }
-    };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey, true);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey, true);
-    };
-  }, [open]);
 
   if (isPosted) {
     return (
@@ -65,7 +47,7 @@ export default function RenderButton({
   const current = presets.find((p) => p.id === value) || presets[0];
 
   return (
-    <div ref={wrapRef} className="relative flex flex-shrink-0">
+    <div className="relative flex flex-shrink-0">
       <button
         type="button"
         onClick={() => onRender?.()}
@@ -95,9 +77,11 @@ export default function RenderButton({
       </button>
 
       {open && (
-        <div
+        <PopoverPanel
+          anchorRef={caretRef}
+          onClose={() => setOpen(false)}
           role="menu"
-          className="absolute right-0 top-full z-40 mt-1.5 w-64 space-y-0.5 rounded-xl border border-white/[0.1] bg-[#0F1420] p-1.5 shadow-2xl"
+          className="w-64 space-y-0.5 rounded-xl border border-white/[0.1] bg-[#0F1420] p-1.5 shadow-2xl"
         >
           <span className="block px-2.5 py-1 text-xs text-slate-500">คุณภาพที่จะเรนเดอร์</span>
           {presets.map((p) => (
@@ -118,7 +102,7 @@ export default function RenderButton({
               </span>
             </button>
           ))}
-        </div>
+        </PopoverPanel>
       )}
     </div>
   );

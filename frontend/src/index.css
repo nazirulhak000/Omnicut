@@ -59,6 +59,48 @@
 }
 
 @layer base {
+  /* ui/ModalLayer.jsx: a native modal <dialog> stretched over the viewport.
+     It stays transparent -- the caller's utilities draw scrim and panel -- so
+     these resets live in the base layer where any utility still wins. */
+  dialog.modal-layer {
+    position: fixed;
+    inset: 0;
+    width: auto;
+    height: auto;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    overflow: hidden;
+    outline: none;
+  }
+
+  /* ui/Toast.jsx: popover="manual" lifts the toast into the top layer; undo
+     the user-agent popover box (centered, bordered, Canvas background). */
+  [popover].toast-layer {
+    inset: auto;
+    width: auto;
+    height: auto;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    overflow: visible;
+  }
+
+  /* ui/PopoverMenu: dropdown panels in the top layer, placed by fixed
+     coordinates from the trigger rect (set inline). */
+  [popover].popover-menu {
+    inset: auto;
+    margin: 0;
+    color: inherit;
+    overflow: visible;
+  }
+
   html {
     /* 16px base gives the scale whole numbers: 12 / 14 / 16 / 18 / 24. */
     font-size: calc(16px * var(--ui-scale, 1));
@@ -793,11 +835,64 @@
 }
 
 /* ── Accessibility: Reduced Motion Support ── */
+/* Spatial and looping motion is switched off; colour / opacity transitions on
+   buttons and links stay, and loading spinners keep turning (slower) because
+   they are the only "still working" signal. Every rule below leaves the
+   element in its final, visible state. */
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+
+  /* One-shot entrances: show the end state immediately. */
+  .animate-fadeIn,
+  .animate-scaleUp,
+  .animate-slideDown,
+  .animate-slideUp,
+  .animate-in,
+  [class*="animate-fade"],
+  [class*="animate-slide"],
+  [class*="animate-scale"] {
+    animation: none !important;
+  }
+
+  /* Decorative loops: ambient glows, shimmer, bounce / ping / pulse and the
+     hover-driven template previews. */
+  .animate-shimmer,
+  .animate-pulse,
+  .animate-bounce,
+  .animate-ping,
+  [class*="anim-preview-"],
+  [class*="animate-sheen"],
+  [class*="float-"] {
+    animation: none !important;
+  }
+
+  .animate-spin {
+    animation-duration: 2.4s !important;
+  }
+}
+
+/* A modal <dialog> makes the page inert but does not stop scroll chaining;
+   contain it on the dialog and on the backdrop (which must be a scroll
+   container for overscroll-behavior to apply). */
+dialog.modal-layer:modal {
+  overscroll-behavior: contain;
+}
+dialog.modal-layer::backdrop {
+  background: transparent;
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+/* Callers pass display utilities (flex/grid); never let them show a closed dialog. */
+dialog.modal-layer:not([open]) {
+  display: none !important;
+}
+
+/* Keyboard focus must stay visible. 245 controls drop the outline with
+   `outline-none`; this rule is unlayered so it wins over that utility, and it
+   skips any control that already declares its own focus style. */
+:where(button, a[href], summary, select, [role="button"], [role="tab"], [role="menuitem"], [role="option"], [role="switch"], [role="checkbox"], [tabindex="0"]):focus-visible:not([class*="focus-visible:"]):not([class*="focus:"]) {
+  outline: 2px solid #25F4EE;
+  outline-offset: 2px;
 }

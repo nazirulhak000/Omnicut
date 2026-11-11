@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { notify } from '../../ui/dialogService';
 import {
   HardDrive, Folder, Trash2, RefreshCw, AlertTriangle,
   FolderOpen, CheckCircle2, ShieldCheck, Info,
@@ -99,7 +100,7 @@ export default function StorageAnalyticsTab() {
       fetchData(true);
     } catch (err) {
       console.error('Purge error:', err);
-      alert('เกิดข้อผิดพลาดในการล้างไฟล์แคช: ' + err.message);
+      notify('เกิดข้อผิดพลาดในการล้างไฟล์แคช: ' + err.message);
     } finally {
       setPurging(false);
     }

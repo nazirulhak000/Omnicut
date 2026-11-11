@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { ModalLayer } from './ui/ModalLayer';
 import {
   HardDrive,
   UploadCloud,
@@ -229,7 +230,7 @@ export default function SSDSyncModal({ isOpen, onClose, onRefreshData }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+    <ModalLayer onClose={onClose} className="fixed inset-0 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
       <div className="w-full max-w-3xl rounded-3xl bg-[#070b14] border border-white/[0.12] shadow-2xl flex flex-col max-h-[92vh] overflow-hidden relative">
         {/* Ambient Top Glow */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-emerald-500/10 via-[#25F4EE]/10 to-transparent rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
@@ -429,7 +430,7 @@ export default function SSDSyncModal({ isOpen, onClose, onRefreshData }) {
                             )}
                             <div className="w-8 h-12 rounded-lg bg-black border border-white/[0.1] overflow-hidden flex-shrink-0 relative">
                               {clip.cover_path || clip.cover_url ? (
-                                <img
+                                <img loading="lazy" decoding="async"
                                   src={toMediaUrl(clip.cover_url || clip.cover_path)}
                                   alt="Cover"
                                   className="w-full h-full object-cover"
@@ -788,6 +789,6 @@ export default function SSDSyncModal({ isOpen, onClose, onRefreshData }) {
           </Button>
         </div>
       </div>
-    </div>
+    </ModalLayer>
   );
 }

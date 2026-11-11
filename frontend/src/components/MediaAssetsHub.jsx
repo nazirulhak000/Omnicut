@@ -1533,7 +1533,7 @@ export default function MediaAssetsHub({ status }) {
               {visibleCurrentItems.map((sticker) => (
                 <div key={sticker.name} className="p-3 rounded-2xl border border-white/[0.06] glass-card flex flex-col items-center justify-center text-center group relative space-y-2">
                   <div className="w-20 h-20 flex items-center justify-center p-2 rounded-xl bg-black/40">
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={sticker.img_url || sticker.url || (sticker.rel_path ? `/api/media/${sticker.rel_path}` : '')}
                       alt={sticker.name}
                       className="max-w-full max-h-full object-contain drop-shadow-md"

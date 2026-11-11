@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { ModalLayer } from './ui/ModalLayer';
 import { Loader2, X, CheckCircle2, Play, Square, Mic2, Wand2, Info } from 'lucide-react';
 import { getVoicePresets, previewVoice } from '../api.js';
 import { normalizeAdTone, normalizeVoicePreset } from '../lib/angleToForm.js';
@@ -133,8 +134,8 @@ export default function VoicePickerModal({ isOpen, onClose, selectedVoice, selec
   const selectedToneLabel  = manifest?.combos?.find((c) => c.tone_id  === localTone)?.tone_label;
 
   return (
-    <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+    <ModalLayer onClose={onClose}
+      className="fixed inset-0 flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(14px)' }}
       onClick={(e) => e.target === e.currentTarget && onClose?.()}
     >
@@ -275,6 +276,6 @@ export default function VoicePickerModal({ isOpen, onClose, selectedVoice, selec
           </div>
         </div>
       </div>
-    </div>
+    </ModalLayer>
   );
 }

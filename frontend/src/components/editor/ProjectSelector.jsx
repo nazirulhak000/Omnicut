@@ -4,6 +4,7 @@ import { getProducts } from '../../api';
 import { filterActiveProjects, filterProjectsByTab, countProjectsByTab } from '../../lib/editorEntry';
 import { getRelativeTime, formatFullDateTime } from '../../lib/dateUtils';
 import PaginationControls from '../PaginationControls';
+import { PopoverPanel } from '../ui/PopoverPanel';
 
 const STATUS_LABEL = {
   scripted: 'ร่างสคริปต์',
@@ -109,20 +110,9 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
       searchInputRef.current?.focus();
     }, 50);
 
-    const onDown = (e) => { if (!wrapRef.current?.contains(e.target)) setOpen(false); };
-    const onKey = (e) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        setOpen(false);
-        buttonRef.current?.focus();
-      }
-    };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey, true);
+    // Outside press, Escape and focus return are handled by PopoverPanel.
     return () => {
       clearTimeout(timer);
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey, true);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -181,9 +171,13 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
       </button>
 
       {open && (
-        <div
+        <PopoverPanel
+          anchorRef={buttonRef}
+          onClose={() => setOpen(false)}
+          align="start"
+          matchAnchorWidth
           role="listbox"
-          className="absolute left-0 top-full z-40 mt-1.5 flex max-h-[460px] w-full min-w-[340px] flex-col rounded-xl border border-white/[0.1] bg-[#0F1420] p-1.5 shadow-2xl backdrop-blur-xl"
+          className="flex max-h-[460px] min-w-[340px] max-w-[calc(100vw-16px)] flex-col rounded-xl border border-white/[0.1] bg-[#0F1420] p-1.5 shadow-2xl backdrop-blur-xl"
         >
           {/* Quick New Clip Action */}
           {onNewProject && (
@@ -421,7 +415,7 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
               />
             </div>
           )}
-        </div>
+        </PopoverPanel>
       )}
     </div>
   );

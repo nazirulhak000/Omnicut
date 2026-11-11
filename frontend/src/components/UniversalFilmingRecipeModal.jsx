@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ModalLayer } from './ui/ModalLayer';
 import {
   X,
   Clapperboard,
@@ -73,8 +74,8 @@ export default function UniversalFilmingRecipeModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[80] flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
+    <ModalLayer onClose={onClose}
+      className="fixed inset-0 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
@@ -271,6 +272,6 @@ export default function UniversalFilmingRecipeModal({
           </button>
         </div>
       </div>
-    </div>
+    </ModalLayer>
   );
 }

@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round CLAUDE-MODERN-WEB-GUIDANCE-20261111 | ปรับ frontend ตาม Modern Web Guidance ครบ 6 เฟส: modal 24 จุด → native `<dialog>` (ui/ModalLayer), dropdown 5 ตัว → Popover API (ui/PopoverPanel), เลิก `alert`/`confirm` 20 จุด (ui/dialogService), Toast เป็น popover, IME-safe Enter 2 จุด, reduced-motion เฉพาะจุด + วงโฟกัสกลาง, lazy-load รูป 16 จุด — `npm test` 1280/1280, pytest parity 298 ผ่าน, ลองเบราว์เซอร์จริง (Chromium) | 2026-11-11 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round ANTIGRAVITY-FLOW-STUDIO-10-ROUNDS-AUDIT-20261110 | ปฏิบัติการ 10-Round Autonomous UI/UX, Logic & Edge-Case Audit สำหรับหน้า "สินค้า ➔ สคริปต์ ➔ วิดีโอ" (FlowStudio / AI Script Lab) ครบ 10 รอบ 1,000 คะแนนเต็ม: ปรับปรุง MediaPickerModal 9:16 aspect ratio & tabular-nums, ยกระดับ Hook & Header Studio สู่ Obsidian Dark, ปรับ Action Buttons ไร้สัญลักษณ์ลูกศร/บวกตกค้าง, ติดตั้ง Graceful Offline Fallback ใน AI Co-Pilot, เสริม tabular-nums ทั่วทั้งระบบ, ผ่านชุดทดสอบ Vitest 1,264/1,264 tests (100%), Vite Build 1.86s (ดูรายงาน _Docs/Reports/FLOW_STUDIO_10_ROUNDS_AUDIT_REPORT.md) | 2026-11-10 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-OVERNIGHT-AUDIT-CYCLE2-TEST-PURITY-AND-IMPORT-SIDE-EFFECTS-20261110 | ปฏิบัติการกะดึก Cycle 2: ปราบปราม Side Effects ตอน Import ใน Test Suite (Rule 11 & testing_standard.md Rule 4): แก้ไข test_voice_pacing.py ขจัด ModuleNotFoundError: edge_tts, ครอบ if __name__ == '__main__': ใน test_translator_script.py, test_gemini_vision_match.py, test_script_lab_ai.py, test_bilingual_subtitles.py ขจัด live network/API calls ตอน import 100%, แก้ไข raw string escape syntax warnings ใน test_ghost_reveal_ass.py, ผ่าน Pytest Voice Tests 222/222 passed, Vitest 1,260/1,260 tests (100%), Vite Build 1.28s | 2026-11-10 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-OVERNIGHT-AUTONOMOUS-DEEP-AUDIT-AND-HARDENING-20261110 | ปฏิบัติการกะดึกข้ามคืน Autonomous Deep Audit & Hardening Loop ครบ 6 มิติ (Pass 1–6): แก้ไข Playwright Channel Selector Regression, ล้าง Visual Slop และ animate-ping ทั่วทั้งระบบ, ปรับ QuickRef 9:16 aspect ratio, แปลง Blocking HEIC FFmpeg Subprocess สู่ Async Threadpool, ตรวจสอบ Preview Parity 212/212 tests (100%), แก้ไข React Rules of Hooks ใน LoginScreen สู่ 0 Oxlint Errors, ผ่าน Vitest 1,260/1,260 tests (100%), Vite Build 1.14s (ดูรายงาน _Docs/Reports/OVERNIGHT_DEEP_AUDIT_REPORT_20261110.md) | 2026-11-10 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
@@ -192,6 +193,38 @@
 | Round CODEX-NVENC-QA-GATES-20261003 | ปิด NVENC/export contract และ QA guards; failures เดิมแก้และ gate รวมผ่าน | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 
 ---
+
+### Round CLAUDE-MODERN-WEB-GUIDANCE-20261111 (2026-11-11)
+**ดำเนินการโดย:** Claude Code (Claude Fable 5.2)
+
+**เป้าหมาย:** ปรับ frontend ตามสกิล modern-web-guidance ทั้ง 6 เฟสในรอบเดียว (ผู้ใช้สั่ง 2026-11-11: รองรับ iPhone ด้วย · ทำทั้งหมดพร้อมกัน · ฟอนต์ตามความเหมาะสม) · กิ่ง `feat/modern-web-guidance` · แผน: [_Docs/Plans/MODERN_WEB_GUIDANCE_PLAN_20261111.md](_Docs/Plans/MODERN_WEB_GUIDANCE_PLAN_20261111.md)
+
+**สิ่งที่ทำ:**
+- **เฟส A — IME:** `ClipInspector.jsx`, `OverlayInspector.jsx` เช็ก `isComposing` + `keyCode === 229` (Safari) ก่อน Enter-เพื่อบันทึก
+- **เฟส B — Modal → `<dialog>`:** component ใหม่ `ui/ModalLayer.jsx` (`showModal()`, Escape ผ่าน `cancel`, เปิดซ้ำถ้าเบราว์เซอร์ปิดเองแต่เจ้าของไม่ยอมปิด) · `ui/Modal.jsx` เขียนบน ModalLayer (คง bottom sheet มือถือ + `useBackToClose` เพราะ Safari ไม่มี back-gesture close) · ย้าย overlay เขียนมือ 23 จุดใน 17 ไฟล์ · ลบ focus trap / Escape listener / ล็อก `body.overflow` / `createPortal` / `role="dialog"` ซ้ำ ที่เขียนมือ · หน้า session หมดอายุ (`LoginScreen`) เป็น dialog ที่ Escape ปิดไม่ได้
+- **เฟส C — Dropdown → Popover API:** `ui/PopoverPanel.jsx` (`popover="auto"`, วางตำแหน่ง fixed จาก rect ของปุ่ม, พลิกขึ้นบน/หนีบขอบจอ) ใช้ใน `HeaderMenu`, `RenderButton`, `EditorChannelSelector`, `ProjectSelector`, `RenderReadinessChip` · เบราว์เซอร์ไม่มี Popover API ตกกลับเป็น absolute + outside-press แบบเดิม
+- **เฟส D — เลิก `alert`/`confirm`:** `ui/dialogService.jsx` (`confirmDialog()` คืน Promise, `notify()`), `<DialogHost />` ใน `main.jsx` · แทน 20 จุดใน 8 ไฟล์ · ปุ่มยกเลิกได้โฟกัสเริ่มต้น · ไม่มี host (unit test) ตกกลับ `window.confirm/alert`
+- **Toast:** `popover="manual"` เพื่อขึ้นเหนือ dialog ใน top layer (z-index ชนะ top layer ไม่ได้)
+- **เฟส E:** reduced-motion เลิกกฎ `0.01ms` ครอบทุก element เปลี่ยนเป็นปิดเฉพาะ entrance / loop ตกแต่ง, spinner ช้าลง, transition สียังอยู่ · กฎ `:focus-visible` กลางแบบ unlayered ให้ control ที่ `outline-none` แล้วไม่มี focus style ของตัวเอง
+- **เฟส F:** `loading="lazy" decoding="async"` ให้ thumbnail ในรายการ 16 จุด 10 ไฟล์
+- `AGENTS.md` ข้อ 26: นโยบาย Browser Support
+
+**ตั้งใจไม่ทำ:**
+- ฟอนต์: ไม่แตะวิธีโหลดเลย — CSS ฟอนต์เป็นคำขอเดียว ไฟล์ฟอนต์โหลดเมื่อใช้อยู่แล้ว ได้ประโยชน์น้อย เสี่ยงชนกฎข้อ 10 / Preview = Render
+- `content-visibility` และการแยก chunk (`EditorShell` 425 KB): ต้องวัดในเบราว์เซอร์ก่อน ยังไม่ได้วัด
+- sheet "อื่นๆ" บนมือถือ (`Sidebar.jsx`): คง overlay เดิม เพราะมี `md:hidden` — ถ้าเป็น modal dialog แล้วหมุน iPhone เป็นแนวนอน (≥768px) หน้าจะ inert โดยมองไม่เห็น dialog
+- `SequencePlayer.jsx`, ฟอนต์ซับ, safe zone: ไม่แตะ
+
+**ผลทดสอบ:**
+- `npm test` 1280/1280 ผ่าน (แก้ contract test 5 ไฟล์ให้ตรงสัญญาใหม่) · `vite build` ผ่าน + rebuild `dist` · oxlint ไม่มี error
+- pytest `test_preview_render_parity.py` + `test_spotlight_preview_parity.py` + `test_style_preset_consistency.py`: 298 ผ่าน 1 ข้าม
+- เบราว์เซอร์จริง (Chromium ผ่าน Playwright, แอปที่ port 8000): QR modal เป็น `:modal` เต็มจอ / Escape ปิด / โฟกัสกลับปุ่มเดิม · modal คีย์ลัดเป็น bottom sheet ที่ 390x844 · เมนู ⋯ / เลือกโปรเจกต์ / เลือกช่อง: ตำแหน่งตรงปุ่ม, คลิกปุ่มซ้ำปิด (ไม่เด้งกลับ), คลิกนอกปิด, Escape ปิด + โฟกัสกลับ · toast ขึ้นใน top layer มุมขวาล่าง · console 0 error
+
+**ยังไม่ได้ตรวจ:**
+- ยังไม่ได้ลองบน iPhone / Safari จริง (ลองเฉพาะ Chromium) — `<dialog>` และ Popover API เป็น Baseline แต่พฤติกรรม bottom sheet + คีย์บอร์ด iOS ต้องลองมือ
+- `confirmDialog` ยังไม่ได้กดผ่าน UI จริง (ไม่มีข้อมูลให้ลบแบบปลอดภัย) — ตรวจแค่ชิ้นส่วนที่ใช้ (`ConfirmModal` บน `Modal`, `DialogHost` ผ่าน toast)
+- modal ที่ย้ายแล้วลองเปิดจริง 2 ตัวจาก 24 (ที่เหลือใช้ ModalLayer ตัวเดียวกันและ build ผ่าน แต่ไม่ได้เปิดดูทีละตัว)
+- Jev: SDK ไม่ได้ติดตั้ง (`typesafe_sdk: missing`) — degrade ตามกฎข้อ 19 ไม่ได้ถาม
 
 ### Round ANTIGRAVITY-FLOW-STUDIO-10-ROUNDS-AUDIT-20261110 (2026-11-10)
 **ดำเนินการโดย:** Antigravity (Gemini 3.8 Flash)

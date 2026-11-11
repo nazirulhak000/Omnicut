@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import { confirmDialog } from './ui/dialogService';
+import { ModalLayer } from './ui/ModalLayer';
 import {
   X,
   Sparkles,
@@ -176,7 +177,7 @@ export default function CoverStudioModal({
   });
   const handleClose = async () => {
     if (saving || generatingAi) return;
-    if (draft.isDirty() && !window.confirm('ปิดสตูดิโอและทิ้งการแก้ไขปกที่ยังไม่ได้บันทึก?')) return;
+    if (draft.isDirty() && !(await confirmDialog('ปิดสตูดิโอและทิ้งการแก้ไขปกที่ยังไม่ได้บันทึก?', { confirmText: 'ทิ้งการแก้ไข' }))) return;
     await draft.discard();
     onClose();
   };
@@ -603,8 +604,8 @@ export default function CoverStudioModal({
   // Distinguish that from a genuinely in-flight fetch.
   const noVideoSource = !loading && !previewImageSrc && !videoPath;
 
-  return createPortal(
-    <div role="dialog" aria-label="สตูดิโอสร้างปก" onChangeCapture={() => { userEditedRef.current = true; }} className="fixed inset-0 z-[10000] flex items-center justify-center p-3 bg-black/80 backdrop-blur-md animate-fadeIn">
+  return (
+    <ModalLayer onClose={handleClose} aria-label="สตูดิโอสร้างปก" onChangeCapture={() => { userEditedRef.current = true; }} className="fixed inset-0 flex items-center justify-center p-3 bg-black/80 backdrop-blur-md animate-fadeIn">
       <div className="bg-[#0A0D14] border border-white/[0.08] rounded-2xl w-full max-w-5xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-3.5 border-b border-white/[0.08] bg-[#0A0D14]/90">
@@ -2050,7 +2051,6 @@ export default function CoverStudioModal({
           </div>
         </div>
       </div>
-    </div>,
-    document.body,
+    </ModalLayer>
   );
 }

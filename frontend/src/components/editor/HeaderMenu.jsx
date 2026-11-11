@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { MoreHorizontal } from 'lucide-react';
+import { PopoverPanel } from '../ui/PopoverPanel';
 
 /**
  * The header's overflow menu.
@@ -12,30 +13,9 @@ import { MoreHorizontal } from 'lucide-react';
  */
 export default function HeaderMenu({ items = [], label = 'เมนูเพิ่มเติม' }) {
   const [open, setOpen] = useState(false);
-  const wrapRef = useRef(null);
   const buttonRef = useRef(null);
 
-  // Close on outside click and on Escape, and hand focus back to the button --
-  // a menu that cannot be dismissed by either is a trap.
-  useEffect(() => {
-    if (!open) return undefined;
-    const onDown = (e) => {
-      if (!wrapRef.current?.contains(e.target)) setOpen(false);
-    };
-    const onKey = (e) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();     // Esc in the editor also exits zen mode
-        setOpen(false);
-        buttonRef.current?.focus();
-      }
-    };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey, true);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey, true);
-    };
-  }, [open]);
+  // Outside press, Escape and focus return are handled by PopoverPanel.
 
   const hasExplicitStructure = items.some(
     (i) => i.divider || i.type === 'divider' || i.type === 'section'
@@ -132,7 +112,7 @@ export default function HeaderMenu({ items = [], label = 'เมนูเพิ�
   };
 
   return (
-    <div ref={wrapRef} className="relative flex-shrink-0">
+    <div className="relative flex-shrink-0">
       <button
         ref={buttonRef}
         type="button"
@@ -149,9 +129,11 @@ export default function HeaderMenu({ items = [], label = 'เมนูเพิ�
       </button>
 
       {open && (
-        <div
+        <PopoverPanel
+          anchorRef={buttonRef}
+          onClose={() => setOpen(false)}
           role="menu"
-          className="absolute right-0 top-full z-40 mt-1.5 w-64 space-y-0.5 rounded-xl border border-white/[0.1] bg-[#0F1420] p-1.5 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100"
+          className="w-64 space-y-0.5 rounded-xl border border-white/[0.1] bg-[#0F1420] p-1.5 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100"
         >
           {hasExplicitStructure ? (
             items.map(renderItem)
@@ -164,7 +146,7 @@ export default function HeaderMenu({ items = [], label = 'เมนูเพิ�
               {dangers.map(renderItem)}
             </>
           )}
-        </div>
+        </PopoverPanel>
       )}
     </div>
   );

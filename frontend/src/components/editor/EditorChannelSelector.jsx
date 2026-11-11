@@ -1,6 +1,7 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Radio, ChevronDown, Check, Loader2, RefreshCw, AlertCircle } from 'lucide-react';
 import { useChannel } from '../../context/ChannelContext.jsx';
+import { PopoverPanel } from '../ui/PopoverPanel';
 
 /**
  * EditorChannelSelector
@@ -11,30 +12,7 @@ import { useChannel } from '../../context/ChannelContext.jsx';
 export default function EditorChannelSelector() {
   const channelState = useChannel();
   const [open, setOpen] = useState(false);
-  const containerRef = useRef(null);
   const buttonRef = useRef(null);
-
-  // Close on outside click
-  useEffect(() => {
-    if (!open) return;
-    const handleOutsideClick = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setOpen(false);
-      }
-    };
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        setOpen(false);
-        buttonRef.current?.focus();
-      }
-    };
-    document.addEventListener('mousedown', handleOutsideClick);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', handleOutsideClick);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [open]);
 
   // Graceful fallback if ChannelProvider is absent or loading initial state
   if (!channelState) return null;
@@ -64,7 +42,7 @@ export default function EditorChannelSelector() {
   };
 
   return (
-    <div ref={containerRef} className="relative flex-shrink-0" data-testid="editor-channel-selector">
+    <div className="relative flex-shrink-0" data-testid="editor-channel-selector">
       {/* ── Accessible Native Select for automation and screen-reader accessibility ── */}
       <select
         aria-label="เลือกช่อง"
@@ -126,10 +104,13 @@ export default function EditorChannelSelector() {
 
       {/* ── Dropdown Popover ── */}
       {open && (
-        <div
+        <PopoverPanel
+          anchorRef={buttonRef}
+          onClose={() => setOpen(false)}
+          align="start"
           role="listbox"
           aria-label="รายชื่อช่องการทำงาน"
-          className="absolute left-0 top-full mt-1.5 z-50 w-72 max-w-[90vw] rounded-2xl border border-white/[0.12] bg-[#0A101E]/95 backdrop-blur-2xl p-2 shadow-2xl space-y-1.5 animate-in fade-in zoom-in-95 duration-150"
+          className="w-72 max-w-[90vw] rounded-2xl border border-white/[0.12] bg-[#0A101E]/95 backdrop-blur-2xl p-2 shadow-2xl space-y-1.5 animate-in fade-in zoom-in-95 duration-150"
         >
           {/* Header */}
           <div className="flex items-center justify-between px-2 py-1 border-b border-white/[0.08]">
@@ -226,7 +207,7 @@ export default function EditorChannelSelector() {
               </button>
             </div>
           )}
-        </div>
+        </PopoverPanel>
       )}
     </div>
   );

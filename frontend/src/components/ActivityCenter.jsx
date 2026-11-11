@@ -1,4 +1,5 @@
 import { channelLocalStorage } from '../lib/channelStorage.js';
+import { ModalLayer } from './ui/ModalLayer';
 import React, { useMemo, useState } from 'react';
 import {
   Zap, CheckCircle2, AlertCircle, Clock, X, Trash2, ArrowRight,
@@ -201,24 +202,6 @@ export function ActivityDrawer() {
     }
   }, [tabFilter, fetchViralMilestones]);
 
-  React.useEffect(() => {
-    if (!isActivityDrawerOpen) return undefined;
-    const previouslyFocused = document.activeElement;
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        setIsActivityDrawerOpen(false);
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    drawerRef.current?.focus();
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      previouslyFocused?.focus?.();
-    };
-  }, [isActivityDrawerOpen, setIsActivityDrawerOpen]);
-
   const viralCount = viralMilestones.length;
 
   const filteredTasks = tasks.filter(t => {
@@ -250,7 +233,7 @@ export function ActivityDrawer() {
   if (!isActivityDrawerOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] w-screen h-[100dvh] max-h-[100dvh] overflow-hidden flex justify-end animate-fadeIn overscroll-none" role="presentation">
+    <ModalLayer onClose={() => setIsActivityDrawerOpen(false)} className="fixed inset-0 w-screen h-[100dvh] max-h-[100dvh] overflow-hidden flex justify-end animate-fadeIn overscroll-none" aria-labelledby="activity-drawer-title">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/75 backdrop-blur-md transition-opacity"
@@ -262,10 +245,6 @@ export function ActivityDrawer() {
       <aside
         ref={drawerRef}
         id="activity-drawer"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="activity-drawer-title"
-        tabIndex={-1}
         className="relative w-full max-w-full sm:max-w-md bg-[#0A0D14] backdrop-blur-2xl border-l border-white/[0.08] shadow-2xl flex flex-col h-dvh max-h-dvh z-10 animate-slideLeft overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
       >
         {/* Header */}
@@ -749,7 +728,7 @@ export function ActivityDrawer() {
           )}
         </div>
       </aside>
-    </div>
+    </ModalLayer>
   );
 }
 

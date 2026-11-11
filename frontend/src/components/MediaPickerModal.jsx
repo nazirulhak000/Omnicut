@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import { ModalLayer } from './ui/ModalLayer';
 import { toMediaUrl } from '../lib/mediaUrl.js';
 import {
   Film, Search, Check, X, Upload, CheckSquare, Square,
@@ -69,23 +69,6 @@ export default function MediaPickerModal({
       loadVideos();
     }
 
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        onClose?.();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    const origBodyOverflow = document.body.style.overflow;
-    const origHtmlOverflow = document.documentElement.style.overflow;
-    document.body.style.overflow = 'hidden';
-    document.documentElement.style.overflow = 'hidden';
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = origBodyOverflow || 'unset';
-      document.documentElement.style.overflow = origHtmlOverflow || 'unset';
-    };
   }, [isOpen]);
 
   const loadVideos = async () => {
@@ -285,8 +268,8 @@ export default function MediaPickerModal({
 
   if (!isOpen) return null;
 
-  return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 md:p-6 w-screen h-[100dvh] max-h-[100dvh] overflow-hidden overscroll-none animate-fadeIn">
+  return (
+    <ModalLayer onClose={onClose} aria-label="เลือกคลิปวิดีโอ" className="fixed inset-0 flex items-center justify-center p-3 sm:p-4 md:p-6 w-screen h-[100dvh] max-h-[100dvh] overflow-hidden overscroll-none animate-fadeIn">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/80 backdrop-blur-md z-0 transition-opacity"
@@ -826,7 +809,6 @@ export default function MediaPickerModal({
         loading={isDeleting}
         variant="danger"
       />
-    </div>,
-    document.body
+    </ModalLayer>
   );
 }

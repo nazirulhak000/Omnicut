@@ -1,4 +1,5 @@
 import React from 'react';
+import { ModalLayer } from '../ui/ModalLayer';
 import { X, ShieldAlert, ShieldCheck, AlertCircle, Info, ExternalLink } from 'lucide-react';
 import { formatPreflightTime } from '../../lib/renderPreflight.js';
 
@@ -24,8 +25,8 @@ export default function RenderPreflightModal({ isOpen, onClose, report, onSeek }
   const hasErrors = report.errors?.length > 0;
 
   return (
-    <div
-      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md animate-fadeIn"
+    <ModalLayer onClose={onClose}
+      className="fixed inset-0 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md animate-fadeIn"
       onClick={onClose}
     >
       <div
@@ -164,6 +165,6 @@ export default function RenderPreflightModal({ isOpen, onClose, report, onSeek }
           </button>
         </div>
       </div>
-    </div>
+    </ModalLayer>
   );
 }

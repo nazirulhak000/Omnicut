@@ -1,11 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { useBackToClose } from '../../hooks/useBackToClose';
+import { ModalLayer } from './ModalLayer';
 
 // Phone (<640px): bottom sheet anchored to the bottom edge with safe-area
 // padding. sm and up: the centered dialog the desktop always had.
-// Layer: z-[9999] (top of the overlay scale documented in index.css).
+// Layer: native <dialog> top layer via ModalLayer (Escape, focus containment,
+// inert page and focus return come from the browser).
 export function Modal({
   isOpen,
   onClose,
@@ -15,48 +16,8 @@ export function Modal({
   maxWidth = 'max-w-2xl',
   showCloseButton = true
 }) {
-  const dialogRef = useRef(null);
-
   // Phone back gesture closes the modal instead of leaving the app.
   useBackToClose(isOpen, onClose);
-
-  // Listen for Escape key and lock background scroll
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const previouslyFocused = document.activeElement;
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        onClose?.();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    // Lock body and html scroll
-    const origBodyOverflow = document.body.style.overflow;
-    const origHtmlOverflow = document.documentElement.style.overflow;
-    document.body.style.overflow = 'hidden';
-    document.documentElement.style.overflow = 'hidden';
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = origBodyOverflow || 'unset';
-      document.documentElement.style.overflow = origHtmlOverflow || 'unset';
-      if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
-        try { previouslyFocused.focus({ preventScroll: true }); } catch { /* element gone */ }
-      }
-    };
-  }, [isOpen, onClose]);
-
-  // Initial focus goes to the dialog itself (not the first input) so iOS does
-  // not pop the keyboard the moment a sheet opens.
-  useEffect(() => {
-    if (!isOpen) return;
-    const node = dialogRef.current;
-    if (node && !node.contains(document.activeElement)) {
-      try { node.focus({ preventScroll: true }); } catch { /* ignore */ }
-    }
-  }, [isOpen]);
 
   const [dragY, setDragY] = useState(0);
   const touchStartY = useRef(null);
@@ -84,8 +45,12 @@ export function Modal({
 
   if (!isOpen) return null;
 
-  return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6 w-screen h-dvh max-h-dvh overflow-hidden overscroll-none animate-fadeIn">
+  return (
+    <ModalLayer
+      onClose={onClose}
+      aria-label={typeof title === 'string' ? title : undefined}
+      className="fixed inset-0 flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6 w-screen h-dvh max-h-dvh overflow-hidden overscroll-none animate-fadeIn"
+    >
       {/* Click outside to close backdrop */}
       <div
         className="fixed inset-0 bg-black/80 backdrop-blur-md z-0 transition-opacity"
@@ -94,11 +59,6 @@ export function Modal({
 
       {/* Modal Container - bottom sheet on phones, centered dialog from sm */}
       <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={typeof title === 'string' ? title : undefined}
-        tabIndex={-1}
         className={`relative w-full ${maxWidth} glass-panel border border-white/[0.18] shadow-2xl rounded-t-3xl rounded-b-none sm:rounded-3xl z-10 flex flex-col max-h-[90dvh] overflow-hidden animate-scaleUp mt-auto sm:my-auto pb-[env(safe-area-inset-bottom)] sm:pb-0 outline-none`}
         style={{
           transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
@@ -148,8 +108,7 @@ export function Modal({
           {children}
         </div>
       </div>
-    </div>,
-    document.body
+    </ModalLayer>
   );
 }
 

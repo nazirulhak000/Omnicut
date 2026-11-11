@@ -42,11 +42,13 @@ test('viral milestone polling is throttled and deduplicated while background tas
 });
 
 test('activity drawer and notifications expose basic dialog, tab, status, and keyboard semantics', () => {
-  assert.match(activityCenterSource, /role="dialog"/);
-  assert.match(activityCenterSource, /aria-modal="true"/);
+  // The drawer is a native modal <dialog> (ui/ModalLayer): the browser owns
+  // the dialog role, modality, focus containment and Escape.
+  assert.match(activityCenterSource, /<ModalLayer onClose=\{\(\) => setIsActivityDrawerOpen\(false\)\}/);
+  assert.match(activityCenterSource, /aria-labelledby="activity-drawer-title"/);
+  assert.doesNotMatch(activityCenterSource, /aria-modal/);
   assert.match(activityCenterSource, /role="tablist"/);
   assert.match(activityCenterSource, /role="tabpanel"/);
-  assert.match(activityCenterSource, /event\.key === 'Escape'/);
   assert.match(activityCenterSource, /role=\{isSuccess \? 'status' : 'alert'\}/);
   assert.match(toastSource, /aria-atomic="true"/);
 });

@@ -27,5 +27,5 @@ test('a post click that never confirmed can be closed from the scheduler only th
   assert.match(read('src/api.js'), /resolveUnpostedQueue[^\n]*api\.post\(`\/schedule-queue\/\$\{id\}\/resolve-unposted`, \{ evidence \}\)/);
   const source = read('src/components/ScheduleAgenda.jsx');
   assert.match(source, /\['publishing', 'confirmation_unknown'\]\.includes\(item\.posting_job_status\)/);
-  assert.match(source, /window\.confirm\('คลิปนี้กดโพสต์ไปแล้ว/);
+  assert.match(source, /await confirmDialog\('คลิปนี้กดโพสต์ไปแล้ว/);
 });

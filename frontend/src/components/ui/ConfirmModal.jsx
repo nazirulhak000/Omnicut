@@ -57,7 +57,7 @@ export function ConfirmModal({
               {title}
             </h3>
             {description && (
-              <p className="text-xs sm:text-sm text-slate-300 mt-1 leading-relaxed">
+              <p className="text-xs sm:text-sm text-slate-300 mt-1 leading-relaxed whitespace-pre-line">
                 {description}
               </p>
             )}
@@ -84,10 +84,12 @@ export function ConfirmModal({
 
         {/* Footer Buttons (Fixed Action Area) */}
         <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-white/[0.08]">
+          {/* Initial focus lands on the safe action, never on the destructive one. */}
           <Button
             variant="secondary"
             onClick={onClose}
             disabled={loading}
+            autoFocus
           >
             {cancelText}
           </Button>

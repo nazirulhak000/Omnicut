@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
+import { ModalLayer } from './ui/ModalLayer';
 import {
   Rocket, Sparkles, FolderDown, Settings, Layers,
   Smartphone, Maximize, Minimize, X, Copy, Check, Wifi, Scissors,
@@ -44,8 +45,6 @@ export default function Sidebar({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
-  const closeMobileModalRef = useRef(null);
-  const mobileModalPreviousFocusRef = useRef(null);
   const { authRequired, logout } = useAuth();
 
   // The page's own origin is what a phone can open (e.g. the public studio
@@ -92,24 +91,6 @@ export default function Sidebar({
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
-
-  useEffect(() => {
-    if (!showMobileModal) return undefined;
-    mobileModalPreviousFocusRef.current = document.activeElement;
-    closeMobileModalRef.current?.focus();
-    const onKeyDown = (event) => {
-      if (event.key !== 'Escape') return;
-      event.preventDefault();
-      setShowMobileModal(false);
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('keydown', onKeyDown);
-      const previous = mobileModalPreviousFocusRef.current;
-      if (previous && typeof previous.focus === 'function') previous.focus();
-      mobileModalPreviousFocusRef.current = null;
-    };
-  }, [showMobileModal]);
 
   const isMoreActive = activeTab === 'assets' || activeTab === 'analytics' || activeTab === 'settings' || activeTab === 'dashboard';
 
@@ -409,15 +390,13 @@ export default function Sidebar({
 
       {/* ── Mobile Upload QR Modal ── */}
       {showMobileModal && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 w-screen h-[100dvh] max-h-[100dvh] overflow-hidden overscroll-none bg-black/80 backdrop-blur-md animate-fadeIn"
-          role="dialog"
-          aria-modal="true"
+        <ModalLayer onClose={() => setShowMobileModal(false)}
+          className="fixed inset-0 flex items-center justify-center p-3 sm:p-4 w-screen h-[100dvh] max-h-[100dvh] overflow-hidden overscroll-none bg-black/80 backdrop-blur-md animate-fadeIn"
           aria-labelledby="mobile-qr-title"
         >
           <div className="relative w-full max-w-sm p-5 sm:p-6 glass-panel border border-white/[0.14] rounded-2xl sm:rounded-3xl text-center space-y-4 shadow-2xl max-h-[85dvh] overflow-y-auto no-scrollbar my-auto">
             <button
-              ref={closeMobileModalRef}
+              autoFocus
               onClick={() => setShowMobileModal(false)}
               aria-label="ปิด QR modal"
               className="absolute top-3 right-3 w-11 h-11 p-2 rounded-xl hover:bg-white/[0.1] text-slate-400 hover:text-white transition-colors cursor-pointer flex items-center justify-center border border-white/[0.06]"
@@ -458,7 +437,7 @@ export default function Sidebar({
               </div>
             </div>
           </div>
-        </div>
+        </ModalLayer>
       )}
     </>
   );

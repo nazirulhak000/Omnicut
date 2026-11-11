@@ -1,4 +1,5 @@
 import { useChannel } from '../../context/ChannelContext.jsx';
+import { ModalLayer } from '../ui/ModalLayer';
 import { projectWatermark } from '../../lib/channelIdentity.js';
 import { channelLocalStorage } from '../../lib/channelStorage.js';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -2755,14 +2756,11 @@ export default function EditorShell({
           shorter the result is -- rather than asking the user to trust a
           number they cannot check. Applying is one undo step. */}
       {silencePlan && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 w-screen h-[100dvh] bg-black/80 backdrop-blur-md animate-fadeIn"
+        <ModalLayer onClose={handleCancelSilencePlan} aria-label="ยืนยันการตัดช่วงเงียบ"
+          className="fixed inset-0 flex items-center justify-center p-3 sm:p-4 w-screen h-[100dvh] bg-black/80 backdrop-blur-md animate-fadeIn"
           onClick={handleCancelSilencePlan}
         >
           <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="ยืนยันการตัดช่วงเงียบ"
             onClick={(e) => e.stopPropagation()}
             className="relative w-full max-w-md space-y-4 rounded-2xl sm:rounded-3xl border border-white/[0.14] bg-[#0F1420]/95 backdrop-blur-2xl p-5 sm:p-6 shadow-2xl"
           >
@@ -2803,7 +2801,7 @@ export default function EditorShell({
               </button>
             </div>
           </div>
-        </div>
+        </ModalLayer>
       )}
 
       {/* Why a scan found nothing, or could not run. Dismissible and quiet --
@@ -2828,14 +2826,11 @@ export default function EditorShell({
       {pendingDelete && (() => {
         const meta = projectList.find((p) => p.project_name === pendingDelete);
         return (
-          <div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 w-screen h-[100dvh] max-h-[100dvh] overflow-hidden overscroll-none bg-black/80 backdrop-blur-md animate-fadeIn"
+          <ModalLayer onClose={() => !deleting && setPendingDelete(null)} aria-label="ยืนยันการลบโปรเจกต์"
+            className="fixed inset-0 flex items-center justify-center p-3 sm:p-4 w-screen h-[100dvh] max-h-[100dvh] overflow-hidden overscroll-none bg-black/80 backdrop-blur-md animate-fadeIn"
             onClick={() => !deleting && setPendingDelete(null)}
           >
             <div
-              role="dialog"
-              aria-modal="true"
-              aria-label="ยืนยันการลบโปรเจกต์"
               onClick={(e) => e.stopPropagation()}
               className="relative w-full max-w-md space-y-4 rounded-2xl sm:rounded-3xl border border-white/[0.14] bg-[#0F1420]/95 backdrop-blur-2xl p-5 sm:p-6 shadow-2xl max-h-[85dvh] overflow-y-auto no-scrollbar my-auto"
             >
@@ -2952,7 +2947,7 @@ export default function EditorShell({
                 </button>
               </div>
             </div>
-          </div>
+          </ModalLayer>
         );
       })()}
 
@@ -4361,8 +4356,8 @@ export default function EditorShell({
           [FULL RENDERED VIDEO PREVIEW MODAL]
          ══════════════════════════════════════════════════════════ */}
       {previewModalVideo && (
-        <div
-          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-fadeIn"
+        <ModalLayer onClose={() => setPreviewModalVideo(null)} aria-label="ดูตัวอย่างคลิปที่เรนเดอร์"
+          className="fixed inset-0 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-fadeIn"
           onClick={() => setPreviewModalVideo(null)}
         >
           <div
@@ -4409,7 +4404,7 @@ export default function EditorShell({
               </button>
             </div>
           </div>
-        </div>
+        </ModalLayer>
       )}
 
       {/* Toast Feedback Notification */}

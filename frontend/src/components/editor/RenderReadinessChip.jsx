@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
+import { PopoverPanel } from '../ui/PopoverPanel';
 import {
   Shield,
   ShieldCheck,
@@ -29,30 +30,7 @@ export default function RenderReadinessChip({
   className = '',
 }) {
   const [open, setOpen] = useState(false);
-  const containerRef = useRef(null);
   const buttonRef = useRef(null);
-
-  // Close on outside click and Escape
-  useEffect(() => {
-    if (!open) return;
-    const handleOutside = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setOpen(false);
-      }
-    };
-    const handleKey = (e) => {
-      if (e.key === 'Escape') {
-        setOpen(false);
-        buttonRef.current?.focus();
-      }
-    };
-    document.addEventListener('mousedown', handleOutside);
-    document.addEventListener('keydown', handleKey);
-    return () => {
-      document.removeEventListener('mousedown', handleOutside);
-      document.removeEventListener('keydown', handleKey);
-    };
-  }, [open]);
 
   const errors = preflightReport?.errors || [];
   const warnings = preflightReport?.warnings || [];
@@ -75,7 +53,7 @@ export default function RenderReadinessChip({
   const totalBlockers = errors.length + (isCoverMissing ? 1 : 0);
 
   return (
-    <div ref={containerRef} className={`relative flex-shrink-0 ${className}`}>
+    <div className={`relative flex-shrink-0 ${className}`}>
       {/* ── Main Readiness Trigger Chip ── */}
       <button
         ref={buttonRef}
@@ -175,10 +153,12 @@ export default function RenderReadinessChip({
 
       {/* ── Readiness Checklist Popover ── */}
       {open && (
-        <div
+        <PopoverPanel
+          anchorRef={buttonRef}
+          onClose={() => setOpen(false)}
           role="dialog"
           aria-label="รายการตรวจสอบความพร้อมก่อนเรนเดอร์"
-          className="absolute right-0 top-full mt-2 z-50 w-80 max-w-[92vw] rounded-2xl border border-white/[0.12] bg-[#0A101E]/95 backdrop-blur-2xl p-3 shadow-2xl space-y-2.5 animate-in fade-in zoom-in-95 duration-150"
+          className="w-80 max-w-[92vw] rounded-2xl border border-white/[0.12] bg-[#0A101E]/95 backdrop-blur-2xl p-3 shadow-2xl space-y-2.5 animate-in fade-in zoom-in-95 duration-150"
         >
           {/* Header */}
           <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
@@ -364,7 +344,7 @@ export default function RenderReadinessChip({
               )}
             </div>
           </div>
-        </div>
+        </PopoverPanel>
       )}
     </div>
   );

@@ -1,4 +1,6 @@
 import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
+import { confirmDialog } from '../ui/dialogService';
+import { ModalLayer } from '../ui/ModalLayer';
 import {
   Check, Film, Music, Palette, Plus, Search, Sticker, Type, Volume2, Play, Square,
   FileText, Sparkles, Loader2, Download, Copy, RefreshCw, Layers, Eye, X, Upload, Clock, Trash2, Ban, RotateCcw, ChevronLeft
@@ -2333,9 +2335,9 @@ export default function AssetPanel({
                                 <button
                                   type="button"
                                   title="ลบสไตล์นี้"
-                                  onClick={(e) => {
+                                  onClick={async (e) => {
                                     e.stopPropagation();
-                                    if (window.confirm(`ต้องการลบแม่แบบ "${tpl.label_th}" หรือไม่?`)) {
+                                    if (await confirmDialog(`ต้องการลบแม่แบบ "${tpl.label_th}" หรือไม่?`, { variant: 'danger', confirmText: 'ลบ' })) {
                                       onDeleteCustomHookTemplate(key);
                                     }
                                   }}
@@ -2930,7 +2932,7 @@ export default function AssetPanel({
 
       {/* Quick Video Preview Modal */}
       {previewVideo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
+        <ModalLayer onClose={() => setPreviewVideo(null)} className="fixed inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
           <div className="relative w-full max-w-lg rounded-2xl border border-white/10 bg-[#0D111A] p-4 shadow-2xl space-y-3">
             <div className="flex items-center justify-between border-b border-white/[0.08] pb-2.5">
               <div className="flex items-center gap-2 min-w-0">
@@ -2973,7 +2975,7 @@ export default function AssetPanel({
               </button>
             </div>
           </div>
-        </div>
+        </ModalLayer>
       )}
     </div>
   );

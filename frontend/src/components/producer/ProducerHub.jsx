@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { notify } from '../ui/dialogService';
+import { ModalLayer } from '../ui/ModalLayer';
 import { useChannelDraft } from '../../hooks/useChannelDraft.js';
 import { channelLocalStorage } from '../../lib/channelStorage.js';
 import { captureChannel } from '../../lib/channelRuntime.js';
@@ -62,41 +64,6 @@ export default function ProducerHub() {
     setLoading(false);
   }, [channelToken, storage]);
   useEffect(() => { fetchData(); }, [fetchData]);
-
-  useEffect(() => {
-    if (!aiProposal && !activeZoomImage && !editingNote) return undefined;
-    const dialog = document.querySelector('[role="dialog"]');
-    const previousFocus = document.activeElement;
-    const getFocusable = () => dialog
-      ? Array.from(dialog.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'))
-      : [];
-    getFocusable()[0]?.focus();
-    const handleModalKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        if (activeZoomImage) setActiveZoomImage(null);
-        else if (aiProposal) setAiProposal(null);
-        else if (editingNote) setEditingNote(null);
-        return;
-      }
-      if (event.key !== 'Tab' || !dialog) return;
-      const focusable = getFocusable();
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener('keydown', handleModalKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleModalKeyDown);
-      if (previousFocus instanceof HTMLElement && document.contains(previousFocus)) previousFocus.focus();
-    };
-  }, [activeZoomImage, aiProposal, editingNote]);
 
   const [pastedImageToast, setPastedImageToast] = useState(false);
 
@@ -408,7 +375,7 @@ export default function ProducerHub() {
       setToastMessage('คัดลอกสรุปไอเดียและรูปภาพทั้งหมดลงคลิปบอร์ดแล้ว พร้อมส่งต่อ!');
       setTimeout(() => setToastMessage(null), 3000);
     } else {
-      alert(text);
+      notify(text, 'info');
     }
   };
 
@@ -437,7 +404,7 @@ export default function ProducerHub() {
       }
     } catch (err) {
       console.error('Failed to synthesize idea with AI:', err);
-      alert('ไม่สามารถประมวลผลไอเดียด้วย AI ได้: ' + (err.response?.data?.detail || err.message));
+      notify('ไม่สามารถประมวลผลไอเดียด้วย AI ได้: ' + (err.response?.data?.detail || err.message));
     } finally {
       setAiSynthesizingId(null);
     }
@@ -448,7 +415,7 @@ export default function ProducerHub() {
     if (!aiProposal) return;
     const targetProdId = aiProposal.product_id;
     if (!targetProdId) {
-      alert('กรุณาเลือกสินค้าที่ต้องการผูกมุมมองนี้');
+      notify('กรุณาเลือกสินค้าที่ต้องการผูกมุมมองนี้');
       return;
     }
 
@@ -482,7 +449,7 @@ export default function ProducerHub() {
       });
     } catch (err) {
       console.error('Failed to add angle:', err);
-      alert('บันทึกมุมมองไม่สำเร็จ: ' + (err.response?.data?.detail || err.message));
+      notify('บันทึกมุมมองไม่สำเร็จ: ' + (err.response?.data?.detail || err.message));
     } finally {
       setAddingAngle(false);
     }
@@ -880,7 +847,7 @@ export default function ProducerHub() {
                         className="relative rounded-lg overflow-hidden border border-white/10 max-h-28 bg-black/40 cursor-zoom-in group/img focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80"
                         title="คลิกเพื่อดูรูปขยายใหญ่"
                       >
-                        <img
+                        <img loading="lazy" decoding="async"
                           src={itemImages[0]}
                           alt="Ref media"
                           className="w-full h-28 object-cover group-hover/img:scale-105 transition-transform"
@@ -915,7 +882,7 @@ export default function ProducerHub() {
                                 }}
                                 className="relative h-16 rounded-lg overflow-hidden border border-white/10 bg-black/40 cursor-pointer group/thumb hover:border-amber-500/40 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80"
                               >
-                                <img
+                                <img loading="lazy" decoding="async"
                                   src={imgUrl}
                                   alt={`Ref ${imgIdx + 1}`}
                                   className="w-full h-full object-cover group-hover/thumb:scale-110 transition-transform"
@@ -977,14 +944,11 @@ export default function ProducerHub() {
 
       {/* ── AI Angle Proposal Modal (AI Idea-to-Script) ── */}
       {aiProposal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn"
+        <ModalLayer onClose={() => setAiProposal(null)} aria-labelledby="producer-ai-proposal-title"
+          className="fixed inset-0 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn"
           onClick={() => setAiProposal(null)}
         >
           <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="producer-ai-proposal-title"
             className="w-full max-w-lg rounded-2xl bg-[#0F1420] border border-amber-500/30 p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
@@ -1109,19 +1073,16 @@ export default function ProducerHub() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalLayer>
       )}
 
       {/* ── Lightbox Image Modal ── */}
       {activeZoomImage && (
-        <div
+        <ModalLayer onClose={() => setActiveZoomImage(null)} aria-label="ดูภาพเรฟขนาดใหญ่"
           onClick={() => setActiveZoomImage(null)}
-          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 cursor-zoom-out animate-fadeIn"
+          className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 cursor-zoom-out animate-fadeIn"
         >
           <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="ดูภาพเรฟขนาดใหญ่"
             onClick={(e) => e.stopPropagation()}
             className="relative max-w-4xl max-h-[90vh] flex flex-col items-center gap-3 cursor-default"
           >
@@ -1165,19 +1126,16 @@ export default function ProducerHub() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalLayer>
       )}
 
       {/* ── Edit Note Modal ── */}
       {editingNote && (
-        <div
+        <ModalLayer onClose={() => setEditingNote(null)} aria-labelledby="edit-note-title"
           onClick={() => setEditingNote(null)}
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-fadeIn"
+          className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-fadeIn"
         >
           <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="edit-note-title"
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-lg rounded-2xl bg-slate-900 border border-white/10 p-5 sm:p-6 shadow-2xl space-y-4 my-auto"
           >
@@ -1265,7 +1223,7 @@ export default function ProducerHub() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalLayer>
       )}
 
       {/* ── Toast Notification ── */}

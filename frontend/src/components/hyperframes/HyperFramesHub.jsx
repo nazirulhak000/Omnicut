@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { ModalLayer } from '../ui/ModalLayer';
 import { useChannelDraft } from '../../hooks/useChannelDraft.js';
 import { channelLocalStorage } from '../../lib/channelStorage.js';
 import {
@@ -1260,7 +1261,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
         };
 
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
+          <ModalLayer onClose={() => setSelectedStyleDetail(null)} className="fixed inset-0 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
             <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl bg-[#0E131E] border border-white/[0.08] shadow-2xl p-6 flex flex-col md:flex-row gap-6">
               {/* Close Button */}
               <button
@@ -1378,7 +1379,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
                 </div>
               </div>
             </div>
-          </div>
+          </ModalLayer>
         );
       })()}
         </div>

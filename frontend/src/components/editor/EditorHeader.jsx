@@ -1,4 +1,5 @@
 import React from 'react';
+import { ModalLayer } from '../ui/ModalLayer';
 import {
   Sparkles,
   Minimize2,
@@ -322,8 +323,8 @@ export default function EditorHeader({
 
       {/* ── Playbook Tips Modal (Pre-flight Reminders) ── */}
       {showPlaybookModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
+        <ModalLayer onClose={() => setShowPlaybookModal(false)}
+          className="fixed inset-0 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
           onClick={() => setShowPlaybookModal(false)}
         >
           <div
@@ -389,7 +390,7 @@ export default function EditorHeader({
               </button>
             </div>
           </div>
-        </div>
+        </ModalLayer>
       )}
     </header>
   );

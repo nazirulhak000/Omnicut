@@ -305,7 +305,7 @@ const KanbanCard = memo(function KanbanCard({
           title={ang.cover_url ? "คลิกเพื่อพรีวิว (มีภาพปก 9:16 แล้ว)" : "คลิกเพื่อพรีวิวคลิปเต็ม"}
         >
           {ang.cover_url ? (
-            <img
+            <img loading="lazy" decoding="async"
               src={toMediaUrl(ang.cover_url)}
               alt="Cover 9:16"
               className="w-full h-full object-cover"

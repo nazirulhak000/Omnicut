@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { confirmDialog, notify } from './ui/dialogService';
 import {
   Settings, Folder, HardDrive, CheckCircle2, Sliders, Type, Palette,
   Sparkles, RefreshCw, Smartphone, ShieldCheck, Cpu, Layers,
@@ -210,12 +211,12 @@ export default function SystemSettings({
   };
 
   const handleDeleteBackup = async (filename) => {
-    if (!window.confirm(`ยืนยันการลบไฟล์สำรอง ${filename}?`)) return;
+    if (!await confirmDialog(`ยืนยันการลบไฟล์สำรอง ${filename}?`, { variant: 'danger', confirmText: 'ลบ' })) return;
     try {
       await deleteSystemBackup(filename);
       fetchBackups();
     } catch (err) {
-      alert(`ลบล้มเหลว: ${err?.response?.data?.detail || err.message}`);
+      notify(`ลบล้มเหลว: ${err?.response?.data?.detail || err.message}`);
     }
   };
 
@@ -238,7 +239,7 @@ export default function SystemSettings({
   const handleCleanDedup = async () => {
     if (!dedupResult || !dedupResult.groups?.length) return;
     const allDups = dedupResult.groups.flatMap(g => g.duplicates.map(d => d.full_path));
-    if (!window.confirm(`ยืนยันย้ายไฟล์ซ้ำ ${allDups.length} ไฟล์ เข้าถังขยะ (.trash) เพื่อคืนพื้นที่ ${dedupResult.reclaimable_mb} MB?`)) return;
+    if (!await confirmDialog(`ยืนยันย้ายไฟล์ซ้ำ ${allDups.length} ไฟล์ เข้าถังขยะ (.trash) เพื่อคืนพื้นที่ ${dedupResult.reclaimable_mb} MB?`)) return;
     setCleanLoading(true);
     try {
       const res = await cleanAssetDuplicates(allDups, true);

@@ -117,6 +117,13 @@
      `git branch -d feat/<task-name>`
    - **เป้าหมาย:** คงสภาพ Local Git Repository ให้มีเฉพาะกิ่ง `main` กิ่งเดียวสะอาดอยู่ตลอดเวลา 100% ป้องกันปัญหากิ่งค้างสะสมเกะกะ
 
+26. ✔️ **Browser Support + overlay กลาง (Modern Web Guidance — ยืนยันโดยผู้ใช้ 2026-11-11)**:
+   - **เบราว์เซอร์เป้าหมาย:** Chrome/Edge บนเดสก์ท็อป **และ Safari บน iPhone** (ผ่าน LAN) — ฟีเจอร์ที่ไม่ใช่ Baseline Widely available ต้องมี fallback เบา ๆ ที่เขียนเอง ห้ามเพิ่ม polyfill/dependency
+   - **หน้าต่างบล็อกหน้า** ใช้ `ui/Modal` หรือ `ui/ModalLayer` (native `<dialog>`) เท่านั้น — ห้ามเขียน `<div className="fixed inset-0 ...">` + ดัก Escape / focus trap / ล็อก `body.overflow` / `role="dialog"` เอง
+   - **dropdown / เมนู** ใช้ `ui/PopoverPanel` — ห้ามดัก `document` mousedown เพื่อปิดเอง
+   - **ห้าม `window.alert()` / `window.confirm()`** — ใช้ `confirmDialog()` / `notify()` จาก `ui/dialogService`
+   - Enter-เพื่อบันทึกใน `<input>`/`<textarea>` ต้องเช็ก `isComposing` + `keyCode === 229`
+
 ---
 
 ## 🧩 5. แผนผังโมดูลสำคัญ — ดู [ARCHITECTURE.md](file:///d:/Winona/Programmer/Capcut/ARCHITECTURE.md) (backend: `scripts/config.py`, `pipeline.py`, `stages/`, `subtitle_engine.py` / frontend: `SequencePlayer.jsx`, `editorProjectState.js`, `hooks/`)

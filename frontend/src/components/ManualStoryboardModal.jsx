@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { ModalLayer } from './ui/ModalLayer';
 import {
   Film, Sparkles, Clock, Lock, Unlock, Play, Pause, RotateCcw,
   AlertTriangle, ChevronRight, Video, Scissors, CheckCircle2, RotateCw,
@@ -1480,8 +1481,8 @@ export default function ManualStoryboardModal({
 
         {/* ── SYNC ACROSS ALL ANGLES POPUP MODAL ── */}
         {syncModalOpen && (
-          <div
-            className="fixed inset-0 z-[90] flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-sm animate-in fade-in duration-150"
+          <ModalLayer onClose={() => setSyncModalOpen(false)}
+            className="fixed inset-0 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-sm animate-in fade-in duration-150"
             onClick={() => setSyncModalOpen(false)}
           >
             <div
@@ -1661,7 +1662,7 @@ export default function ManualStoryboardModal({
                 </button>
               </div>
             </div>
-          </div>
+          </ModalLayer>
         )}
       </div>
     </Modal>

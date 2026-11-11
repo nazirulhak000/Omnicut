@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { notify } from '../ui/dialogService';
+import { ModalLayer } from '../ui/ModalLayer';
 import {
   Bookmark, Link as LinkIcon, Image as ImageIcon, Sparkles,
   ArrowLeft, Check, Trash2, ExternalLink, X, Smartphone, Tag,
@@ -73,41 +75,6 @@ export default function QuickRefPage({ onExit }) {
 
   const fileInputRef = useRef(null);
   const lastPasteTimeRef = useRef(0);
-
-  useEffect(() => {
-    if (!aiProposal && !activeZoomImage && !activeDetailsNote) return undefined;
-    const dialog = document.querySelector('[role="dialog"]');
-    const previousFocus = document.activeElement;
-    const getFocusable = () => dialog
-      ? Array.from(dialog.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'))
-      : [];
-    getFocusable()[0]?.focus();
-    const handleModalKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        if (activeZoomImage) setActiveZoomImage(null);
-        else if (activeDetailsNote) setActiveDetailsNote(null);
-        else setAiProposal(null);
-        return;
-      }
-      if (event.key !== 'Tab' || !dialog) return;
-      const focusable = getFocusable();
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener('keydown', handleModalKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleModalKeyDown);
-      if (previousFocus instanceof HTMLElement && document.contains(previousFocus)) previousFocus.focus();
-    };
-  }, [activeZoomImage, aiProposal, activeDetailsNote]);
 
   // Sync Notes with Server (Makes notes accessible on PC & Mobile simultaneously)
   const fetchNotes = useCallback(async () => {
@@ -195,7 +162,7 @@ export default function QuickRefPage({ onExit }) {
   const handlePasteClipboard = async () => {
     try {
       if (!navigator.clipboard?.readText) {
-        alert('เบราว์เซอร์ไม่อนุญาตให้อ่านคลิปบอร์ดอัตโนมัติ กรุณากดแปะในช่องด้วยตัวเอง');
+        notify('เบราว์เซอร์ไม่อนุญาตให้อ่านคลิปบอร์ดอัตโนมัติ กรุณากดแปะในช่องด้วยตัวเอง');
         return;
       }
       const text = await navigator.clipboard.readText();
@@ -638,7 +605,7 @@ export default function QuickRefPage({ onExit }) {
       setCopyShareToast(true);
       setTimeout(() => setCopyShareToast(false), 3000);
     } else {
-      alert(text);
+      notify(text, 'info');
     }
   };
 
@@ -666,7 +633,7 @@ export default function QuickRefPage({ onExit }) {
         });
       }
     } catch (err) {
-      alert('ไม่สามารถประมวลผลด้วย AI ได้: ' + (err.response?.data?.detail || err.message));
+      notify('ไม่สามารถประมวลผลด้วย AI ได้: ' + (err.response?.data?.detail || err.message));
     } finally {
       setAiSynthesizingId(null);
     }
@@ -679,7 +646,7 @@ export default function QuickRefPage({ onExit }) {
       setAddingAngle(true);
       const targetProdId = aiProposal.product_id || products[0]?.id;
       if (!targetProdId) {
-        alert('กรุณาเลือกสินค้าที่ต้องการเพิ่มมุมมอง');
+        notify('กรุณาเลือกสินค้าที่ต้องการเพิ่มมุมมอง');
         return;
       }
 
@@ -692,7 +659,7 @@ export default function QuickRefPage({ onExit }) {
         setAiProposal(null);
       }, 1500);
     } catch (err) {
-      alert('เพิ่มมุมมองไม่สำเร็จ: ' + (err.response?.data?.detail || err.message));
+      notify('เพิ่มมุมมองไม่สำเร็จ: ' + (err.response?.data?.detail || err.message));
     } finally {
       setAddingAngle(false);
     }
@@ -1001,7 +968,7 @@ export default function QuickRefPage({ onExit }) {
                             key={idx}
                             className="relative flex-shrink-0 w-16 h-16 rounded-xl overflow-hidden border border-white/15 bg-black/40 group"
                           >
-                            <img
+                            <img loading="lazy" decoding="async"
                               src={img}
                               alt={`Thumbnail ${idx + 1}`}
                               role="button"
@@ -1446,7 +1413,7 @@ export default function QuickRefPage({ onExit }) {
                               className="relative rounded-xl overflow-hidden border border-white/10 max-h-44 bg-black/40 cursor-zoom-in group/img focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80"
                               title="แตะเพื่อดูรูปขยายใหญ่"
                             >
-                              <img
+                              <img loading="lazy" decoding="async"
                                 src={itemImages[0]}
                                 alt="Ref attachment"
                                 className="w-full h-full max-h-44 object-cover group-hover/img:scale-105 transition-transform duration-300"
@@ -1493,7 +1460,7 @@ export default function QuickRefPage({ onExit }) {
                                       }}
                                       className="relative h-20 rounded-xl overflow-hidden border border-white/10 bg-black/40 cursor-pointer group/thumb hover:border-amber-500/40 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80"
                                     >
-                                      <img
+                                      <img loading="lazy" decoding="async"
                                         src={imgUrl}
                                         alt={`Ref ${imgIdx + 1}`}
                                         className="w-full h-full object-cover group-hover/thumb:scale-110 transition-transform duration-300"
@@ -1580,8 +1547,8 @@ export default function QuickRefPage({ onExit }) {
 
       {/* ── AI Idea-to-Script Modal ── */}
       {aiProposal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div role="dialog" aria-modal="true" aria-labelledby="quick-ref-ai-title" className="w-full max-w-lg rounded-3xl bg-slate-900 border border-amber-500/30 p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+        <ModalLayer onClose={() => setAiProposal(null)} aria-labelledby="quick-ref-ai-title" className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-3xl bg-slate-900 border border-amber-500/30 p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-white/10">
               <div className="flex items-center gap-2">
                 <span className="p-2 rounded-xl bg-amber-500/20 text-amber-400">
@@ -1699,7 +1666,7 @@ export default function QuickRefPage({ onExit }) {
               </button>
             </div>
           </div>
-        </div>
+        </ModalLayer>
       )}
       {/* ── 1-Click Copy Toast Notification ── */}
       {copyShareToast && (
@@ -1711,15 +1678,12 @@ export default function QuickRefPage({ onExit }) {
 
       {/* ── Lightbox Image Modal ── */}
       {activeZoomImage && (
-        <div
+        <ModalLayer onClose={() => setActiveZoomImage(null)} aria-label="ดูภาพเรฟขนาดใหญ่"
           onClick={() => setActiveZoomImage(null)}
-          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 cursor-zoom-out animate-fadeIn"
+          className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 cursor-zoom-out animate-fadeIn"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-label="ดูภาพเรฟขนาดใหญ่"
             className="relative max-w-4xl max-h-[90vh] flex flex-col items-center gap-3 cursor-default"
           >
             <button
@@ -1762,7 +1726,7 @@ export default function QuickRefPage({ onExit }) {
               </button>
             </div>
           </div>
-        </div>
+        </ModalLayer>
       )}
 
       {/* ── Note Details & Full Album Modal ── */}
@@ -1772,15 +1736,12 @@ export default function QuickRefPage({ onExit }) {
           : (activeDetailsNote.imageUrl ? [activeDetailsNote.imageUrl] : []);
 
         return (
-          <div
+          <ModalLayer onClose={() => setActiveDetailsNote(null)} aria-labelledby="quick-ref-details-title"
             onClick={() => setActiveDetailsNote(null)}
-            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-fadeIn"
+            className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-fadeIn"
           >
             <div
               onClick={(e) => e.stopPropagation()}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="quick-ref-details-title"
               className="w-full max-w-2xl rounded-3xl bg-slate-900 border border-white/10 p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto my-auto"
             >
               {/* Header */}
@@ -1919,7 +1880,7 @@ export default function QuickRefPage({ onExit }) {
                         }}
                         className="relative rounded-2xl overflow-hidden border border-white/10 bg-black/40 cursor-zoom-in group hover:border-amber-500/50 transition-all aspect-square focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80"
                       >
-                        <img
+                        <img loading="lazy" decoding="async"
                           src={img}
                           alt={`Album item ${i + 1}`}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -1975,7 +1936,7 @@ export default function QuickRefPage({ onExit }) {
                 </div>
               </div>
             </div>
-          </div>
+          </ModalLayer>
         );
       })()}
     </div>

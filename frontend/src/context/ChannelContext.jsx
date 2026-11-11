@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import React, { createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react';
+import { ModalLayer } from '../components/ui/ModalLayer';
 import { getChannels } from '../api.js';
 import { activeChannel, subscribeChannel, activateChannel, dirtyChannelParticipants, channelSelectionError, channelRuntimeRevision,
   saveBeforeChannelSwitch, discardBeforeChannelSwitch } from '../lib/channelRuntime.js';
@@ -14,23 +15,6 @@ export function ChannelProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(null);
   const [switching, setSwitching] = useState(false);
-  const dialogRef = useRef(null);
-  useEffect(() => {
-    if (!pending) return;
-    const previous = document.activeElement;
-    const dialog = dialogRef.current;
-    const onKey = event => {
-      if (event.key === 'Escape' && !switching) { event.preventDefault(); setPending(null); }
-      if (event.key !== 'Tab') return;
-      const buttons = [...dialog.querySelectorAll('button:not(:disabled)')];
-      if (!buttons.length) { event.preventDefault(); dialog.focus(); return; }
-      const first = buttons[0], last = buttons.at(-1);
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-      if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
-    };
-    dialog.addEventListener('keydown', onKey);
-    return () => { dialog.removeEventListener('keydown', onKey); previous?.focus(); };
-  }, [pending, switching]);
   async function refresh() {
     setLoading(true);
     try { const data = await getChannels(); setChannels(data.channels || []); setRegistryRevision(data.revision ?? null); setError(''); }
@@ -59,8 +43,8 @@ export function ChannelProvider({ children }) {
   return <ChannelContext.Provider value={{ channelId, channels, selected, error: channelSelectionError() || error, selectionInvalid: !!channelSelectionError(), loading, switching, registryRevision,
     switchChannel, refresh, writable: !channelSelectionError() && !loading && ['active', 'draft'].includes(selected?.status), canStart: !channelSelectionError() && !loading && selected?.status === 'active' }}>
     {children}
-    {pending && <div className="fixed inset-0 z-[100] bg-black/70 flex items-center justify-center p-4">
-      <section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="channel-switch-title" aria-describedby="channel-switch-description" aria-busy={switching}
+    {pending && <ModalLayer onClose={() => { if (!switching) setPending(null); }} aria-labelledby="channel-switch-title" aria-describedby="channel-switch-description" className="fixed inset-0 bg-black/70 flex items-center justify-center p-4">
+      <section aria-busy={switching}
         className="w-full max-w-md rounded-xl bg-slate-900 border border-slate-700 p-6 text-slate-100">
         <h2 id="channel-switch-title" className="text-lg font-semibold">บันทึกก่อนสลับช่อง</h2>
         <p id="channel-switch-description" className="mt-2 text-sm text-slate-300">โปรเจกต์ในช่อง {selected?.display_name || channelId} มีการแก้ไขที่ยังไม่ได้บันทึก จะสลับไป {channels.find(item => item.id === pending)?.display_name || pending}</p>
@@ -73,7 +57,7 @@ export function ChannelProvider({ children }) {
           <button disabled={switching} onClick={() => setPending(null)} className="min-h-11 rounded-lg px-4 py-2 focus-visible:outline-2 focus-visible:outline-cyan-200">อยู่ช่องเดิม</button>
         </div>
       </section>
-    </div>}
+    </ModalLayer>}
   </ChannelContext.Provider>;
 }
 

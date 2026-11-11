@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { confirmDialog, notify } from '../../ui/dialogService';
 import {
   Sparkles,
   Trash2,
@@ -330,7 +331,7 @@ export default function OverlayInspector({
         setNewTemplateName('');
         setTimeout(() => setSaveSuccess(false), 2500);
       } catch (err) {
-        alert(err?.message || 'บันทึกสไตล์ไม่สำเร็จ');
+        notify(err?.message || 'บันทึกสไตล์ไม่สำเร็จ');
       } finally {
         setIsSavingCustom(false);
       }
@@ -424,9 +425,9 @@ export default function OverlayInspector({
                         <span
                           role="button"
                           tabIndex={0}
-                          onClick={(e) => {
+                          onClick={async (e) => {
                             e.stopPropagation();
-                            if (window.confirm(`ต้องการลบแม่แบบ "${tpl.label_th || tpl.name || key}" ใช่หรือไม่?`)) {
+                            if (await confirmDialog(`ต้องการลบแม่แบบ "${tpl.label_th || tpl.name || key}" ใช่หรือไม่?`, { variant: 'danger', confirmText: 'ลบ' })) {
                               onDeleteCustomHookTemplate(key);
                             }
                           }}
@@ -517,7 +518,8 @@ export default function OverlayInspector({
                     placeholder="พิมพ์ชื่อสไตล์ (เช่น VIP Gold, สไตล์ประจำแบรนด์)..."
                     className="flex-1 min-w-0 rounded-lg border border-white/[0.12] bg-black/60 px-2 py-1 text-xs text-white placeholder-slate-500 focus:border-[#25F4EE] focus:outline-none"
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleSaveCustom();
+                      // Enter that confirms an IME candidate is not a save (229 covers Safari).
+                      if (e.key === 'Enter' && !e.nativeEvent.isComposing && e.keyCode !== 229) handleSaveCustom();
                     }}
                   />
                   <button
