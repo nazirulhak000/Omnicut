@@ -25,6 +25,7 @@ from scripts.it_angles import DEFAULT_BGM
 from scripts.product_store import ProductStore
 from scripts.export_registry import ExportRegistry
 from scripts.upload_storage import publish_upload, staging_path, store_upload
+from scripts import media_service
 from scripts.media_service import (
     scan_video_files, get_file_info, stream_media_file
 )
@@ -1414,4 +1415,12 @@ def stream_media(file_path: str, request: Request):
     if not shared:
         scope = scope or get_channel_scope(request)
         require_media_owner(scope, target, base_dir=BASE_DIR, legacy_roots=(CAPCUT_DRAFT_DIR,))
+    # Small preview for list views (`?w=160`). Runs only after the checks
+    # above, so it can never widen access; anything that is not a still image
+    # falls through to the original bytes.
+    width = media_service.parse_thumbnail_width(request.query_params.get("w"))
+    if width is not None:
+        preview = media_service.thumbnail_response(target, width, request)
+        if preview is not None:
+            return preview
     return stream_media_file(target, request)

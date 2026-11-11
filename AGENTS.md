@@ -58,6 +58,7 @@
 10. ✔️ **Plan-Before-Code** — เขียนแผนลง `TODO.md` ก่อนแตะโค้ด ปิดรอบย้ายเข้า `HISTORY.md` (ดู [.agents/rules/work_loop.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/work_loop.md))
 11. ✔️ **Test ตามชนิดงาน** — deterministic/offline + temp storage ห้ามแตะข้อมูลจริง (ดู [.agents/rules/testing_standard.md](file:///d:/Winona/Programmer/Capcut/.agents/rules/testing_standard.md))
 12. ✔️ **Font/Text Golden Master** — caption 1080x1920: em 50px / ASS 82 / EN 68% / line 1.0 / margin ล่าง 420px ห้าม drift, probe ด้วย .venv (ดู font_text_visual_contract.md)
+13. ✔️ **React & Web Performance Master** — โค้ด Frontend React 19 ต้องยึดเกณฑ์ **`react-best-practices`** (Vercel Engineering) คุม Re-render ไม่ให้ไทม์ไลน์/หัวอ่าน Scrubber กระตุก, ทำ State Colocation, ลบ Async Waterfalls ควบคู่กับ **`modern-web-guidance`** (Native Web APIs, Popover, Container Queries, View Transitions)
 13. ✔️ **ประหยัดโทเคน** — ห้ามเปิดไฟล์ใหญ่/HISTORY.md ทั้งไฟล์, ส่องไม่เกิน 100 บรรทัด, ห้ามสกิลไม่เกี่ยว (ดู token-efficiency-guardian/SKILL.md)
 14. ✔️ **ระบุตัวตนเอเจนต์+โมเดลทุกบล็อก** — ทั้งหัวบล็อกและสารบัญ (สืบย้อนว่าใครทำพังได้)
    - ในโปรเจกต์นี้มี AI หลายตัวทำขนานกัน ทุกบล็อกต้องมี `ดำเนินการโดย: <เอเจนต์> (<โมเดล>)`
@@ -126,6 +127,8 @@
    - ทุก `<ModalLayer>` ต้องมี `aria-label` หรือ `aria-labelledby` (เทสต์ `modalLayerContract.test.js` บังคับ)
    - แก้ overlay กลาง (`ui/ModalLayer`, `Modal`, `Toast`, `PopoverPanel`, `dialogService`) ต้องรัน `tools/overlay_browser_check.py` (Chromium + Firefox + WebKit) ให้ผ่าน
    - หลัง `vite build` ทุกครั้งต้องเปิดเบราว์เซอร์ดูว่าแอปขึ้นจริง — เทสต์ + build ผ่านไม่ได้แปลว่า bundle รันได้ (เคยพังจากการแก้ `manualChunks` 2026-11-11)
+   - รูปในรายการ (ปก, thumbnail) ใช้ `toThumbUrl(path, 96|160|320)` จาก `lib/mediaUrl.js` — ห้ามโหลดไฟล์เต็มขนาดมาแสดงเล็ก · ห้ามใส่ `manualChunks` กลับใน `vite.config.js`
+   - วัดความเร็วด้วย Lighthouse อย่างน้อย 3 รอบแล้วใช้ค่ากลาง (รอบเดียวแกว่ง ±3–5 คะแนน)
 
 ---
 

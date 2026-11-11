@@ -97,37 +97,12 @@ export default defineConfig(({ mode }) => {
     }
   },
   build: {
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          const norm = id.split('\\').join('/');
-          if (norm.includes('/components/SequencePlayer.')) {
-            return 'editor-player';
-          }
-          if (norm.includes('/components/editor/Timeline.') || norm.includes('/components/editor/timeline/')) {
-            return 'editor-timeline';
-          }
-          if (id.includes('node_modules')) {
-            // Specific packages first: "lucide-react" and "qrcode.react" both
-            // contain "react" and used to fall into vendor-react.
-            const path = id.split('\\').join('/');
-            if (path.includes('/node_modules/lucide-react/')) {
-              return 'vendor-icons';
-            }
-            if (path.includes('/node_modules/@dnd-kit/')) {
-              return 'vendor-dnd';
-            }
-            if (path.includes('/node_modules/qrcode.react/') || path.includes('/node_modules/axios/') || path.includes('/node_modules/clsx/') || path.includes('/node_modules/tailwind-merge/')) {
-              return 'vendor-utils';
-            }
-            if (/\/node_modules\/(react|react-dom|scheduler)\//.test(path)) {
-              return 'vendor-react';
-            }
-            return 'vendor-misc';
-          }
-        }
-      }
-    },
+    // No manualChunks on purpose. Named chunks for SequencePlayer / Timeline
+    // absorbed the helpers they share with the shell, so the entry imported
+    // them and every page downloaded ~570 KB of editor code; named vendor
+    // chunks then formed an import cycle with the bundler runtime once those
+    // were removed ("e is not a function" on load). Automatic splitting has
+    // neither problem: the entry is ~490 KB instead of ~1,060 KB.
     chunkSizeWarningLimit: 600
   }
   }

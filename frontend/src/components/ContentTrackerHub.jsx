@@ -1,6 +1,6 @@
 import { channelLocalStorage } from '../lib/channelStorage.js';
 import { activeChannel, registerChannelSwitchParticipant } from '../lib/channelRuntime.js';
-import { toMediaUrl } from '../lib/mediaUrl.js';
+import { toMediaUrl, toThumbUrl } from '../lib/mediaUrl.js';
 import { readTrackerDraft, writeTrackerDraft, clearTrackerDraft } from '../lib/trackerDrafts.js';
 import React, { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import {
@@ -306,7 +306,7 @@ const KanbanCard = memo(function KanbanCard({
         >
           {ang.cover_url ? (
             <img loading="lazy" decoding="async"
-              src={toMediaUrl(ang.cover_url)}
+              src={toThumbUrl(ang.cover_url, 160)}
               alt="Cover 9:16"
               className="w-full h-full object-cover"
             />
@@ -2114,7 +2114,7 @@ export default function ContentTrackerHub({
                         disabled={!hasAttachedVideos}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 shadow-sm transition-all ${
                           hasAttachedVideos
-                            ? 'bg-[#FE2C55] hover:bg-[#E0264B] text-white cursor-pointer active:scale-95'
+                            ? 'bg-[#E0244A] hover:bg-[#C81D40] text-white cursor-pointer active:scale-95'
                             : 'bg-white/[0.05] border border-white/[0.08] text-slate-500 cursor-not-allowed opacity-50'
                         }`}
                         title={hasAttachedVideos ? 'สร้าง & เรนเดอร์คลิปนี้ใน Studio' : 'ยังไม่มีคลิปดิบ (กรุณาแนบคลิปก่อนส่งตัดต่อ)'}

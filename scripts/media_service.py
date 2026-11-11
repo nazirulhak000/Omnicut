@@ -4,6 +4,7 @@ Handles video file scanning, media inspection, metadata extraction,
 and HTTP range-supported streaming for HTML5 audio/video playback.
 """
 
+import os
 import time
 import socket
 import datetime
@@ -233,3 +234,64 @@ def stream_media_file(file_path: Path, request: Request):
             "Content-Type": content_type,
         }
         return StreamingResponse(iterfile(), headers=headers)
+
+
+# ── Resized image previews ────────────────────────────────────────────────
+# List views draw a cover at 52-160 px but used to download the full
+# 1080x1920 file (~400 KB each, ~8 MB for one tracker page). `?w=` on
+# /api/media serves a small WebP instead. Only these widths are accepted so
+# the cache cannot be filled with arbitrary sizes.
+THUMBNAIL_WIDTHS = (96, 160, 320)
+_THUMBNAIL_SOURCE_EXTS = {".png", ".jpg", ".jpeg", ".webp"}
+_THUMBNAIL_CACHE_DIR = BASE_DIR / ".tmp" / "thumb_cache"
+
+
+def parse_thumbnail_width(value: Optional[str]) -> Optional[int]:
+    """Return an allowed preview width, or None to serve the original file."""
+    try:
+        width = int(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+    return width if width in THUMBNAIL_WIDTHS else None
+
+
+def thumbnail_response(file_path: Path, width: int, request: Request) -> Optional[Response]:
+    """Serve a cached, resized WebP of an image the caller may already read.
+
+    The caller has finished every path / ownership check for `file_path`; this
+    only changes the bytes. Returns None when the file is not a still image or
+    cannot be decoded, so the route falls back to the original.
+    """
+    if file_path.suffix.lower() not in _THUMBNAIL_SOURCE_EXTS or not file_path.is_file():
+        return None
+    try:
+        stat = file_path.stat()
+        import hashlib
+
+        # Key on content identity, so replacing a cover at the same path
+        # yields a new preview and a new ETag.
+        key = hashlib.sha1(
+            f"{file_path}|{stat.st_mtime_ns}|{stat.st_size}|{width}".encode("utf-8")
+        ).hexdigest()
+        etag = f'"{key}"'
+        headers = {"ETag": etag, "Cache-Control": "private, no-cache"}
+        if request.headers.get("if-none-match") == etag:
+            return Response(status_code=304, headers=headers)
+
+        cached = _THUMBNAIL_CACHE_DIR / f"{key}.webp"
+        if not cached.is_file():
+            from PIL import Image, ImageOps
+
+            _THUMBNAIL_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+            with Image.open(file_path) as image:
+                image = ImageOps.exif_transpose(image)
+                if image.mode not in ("RGB", "RGBA"):
+                    image = image.convert("RGBA" if "A" in image.getbands() else "RGB")
+                image.thumbnail((width, width * 4), Image.LANCZOS)
+                partial = cached.with_suffix(f".{os.getpid()}.tmp")
+                image.save(partial, "WEBP", quality=80, method=4)
+            os.replace(partial, cached)
+        return Response(content=cached.read_bytes(), media_type="image/webp", headers=headers)
+    except Exception as exc:  # noqa: BLE001 - a preview must never break the original
+        print(f"[media] สร้างภาพย่อไม่สำเร็จ ใช้ไฟล์ต้นฉบับแทน: {file_path.name}: {exc}")
+        return None

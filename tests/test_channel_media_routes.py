@@ -176,3 +176,46 @@ def test_voice_previews_are_channel_owned_unique_artifacts(env, monkeypatch):
     assert client.get(url.split("?")[0]).status_code == 404
     assert client.get(url).content == b"offline voice"
     assert not (root / "test_voice.wav").exists()
+
+
+def test_media_width_param_serves_small_cached_preview_without_widening_access(env, monkeypatch):
+    """`?w=` returns a small WebP of an image the caller may already read, and nothing more."""
+    from io import BytesIO
+    from PIL import Image
+    from scripts import media_service
+
+    root, client, _raw, foreign = env
+    monkeypatch.setattr(media_service, "_THUMBNAIL_CACHE_DIR", root / ".tmp" / "thumb_cache")
+    cover = root / "02_Assets" / "cover.png"
+    Image.new("RGB", (1080, 1920), (200, 30, 60)).save(cover)
+    original = cover.read_bytes()
+
+    res = client.get("/api/media/02_Assets/cover.png?w=160")
+    assert res.status_code == 200
+    assert res.headers["content-type"] == "image/webp"
+    preview = Image.open(BytesIO(res.content))
+    assert preview.size == (160, 284)
+    assert len(res.content) < len(original)
+    etag = res.headers["etag"]
+
+    # Revalidation is a 304, and the preview is read back from the cache.
+    assert client.get("/api/media/02_Assets/cover.png?w=160", headers={"If-None-Match": etag}).status_code == 304
+    assert len(list((root / ".tmp" / "thumb_cache").glob("*.webp"))) == 1
+    assert client.get("/api/media/02_Assets/cover.png?w=160").content == res.content
+
+    # Replacing the file at the same path yields a different preview identity.
+    Image.new("RGB", (1080, 1920), (10, 120, 220)).save(cover)
+    assert client.get("/api/media/02_Assets/cover.png?w=160").headers["etag"] != etag
+
+    # Unknown widths and non-images get the untouched original.
+    assert client.get("/api/media/02_Assets/cover.png?w=4000").content == cover.read_bytes()
+    assert client.get("/api/media/02_Assets/cover.png?w=abc").content == cover.read_bytes()
+    assert client.get("/api/media/01_Raw/shared.mp4?w=160").content == b"shared bytes"
+
+    # The ownership check still runs first: a foreign channel's file stays hidden.
+    private_cover = root / "04_Exports" / "private_cover.png"
+    Image.new("RGB", (400, 400), (0, 0, 0)).save(private_cover)
+    register(private_cover, "second")
+    assert client.get("/api/media/04_Exports/private_cover.png?w=160").status_code in (403, 404)
+    assert client.get("/api/media/04_Exports/private_cover.png?w=160&channel=second").status_code == 200
+    assert foreign.read_bytes() == b"private bytes"

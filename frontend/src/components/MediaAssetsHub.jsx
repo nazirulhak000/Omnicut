@@ -543,7 +543,7 @@ export default function MediaAssetsHub({ status }) {
             {/* Upload Button */}
             {activeAssetTab !== 'system' && (
               <label
-                className={`relative flex items-center justify-center gap-2 flex-1 sm:flex-initial px-3.5 sm:px-4 py-2 rounded-xl bg-[#FE2C55] hover:bg-[#e0244a] text-white text-xs font-bold shadow-sm transition-all cursor-pointer active:scale-95 ${
+                className={`relative flex items-center justify-center gap-2 flex-1 sm:flex-initial px-3.5 sm:px-4 py-2 rounded-xl bg-[#E0244A] hover:bg-[#C81D40] text-white text-xs font-bold shadow-sm transition-all cursor-pointer active:scale-95 ${
                   uploadingAsset ? 'opacity-50 pointer-events-none' : ''
                 }`}
               >
@@ -1470,7 +1470,7 @@ export default function MediaAssetsHub({ status }) {
                         onClick={() => playAudio(bgm, bgm.name)}
                         className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all cursor-pointer flex-shrink-0 active:scale-95 ${
                           isPlaying
-                            ? 'bg-[#FE2C55] text-white scale-95 shadow-md shadow-[#FE2C55]/30'
+                            ? 'bg-[#E0244A] text-white scale-95 shadow-md shadow-[#FE2C55]/30'
                             : 'bg-white/[0.06] text-slate-300 hover:bg-[#FE2C55]/20 hover:text-[#FE2C55]'
                         }`}
                       >

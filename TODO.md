@@ -4,8 +4,11 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round CLAUDE-PERF-AND-LIGHTHOUSE-20261111 · รอบความเร็ว: Lighthouse (desktop, ค่ากลาง 3 รอบ) Accessibility 100 + Best Practices 100 ครบ 7 หน้า, Performance 90–98 · thumbnail ย่อฝั่ง server (`?w=`), แบ่ง chunk อัตโนมัติ (โค้ดทุกหน้า ~1,060 → ~490 KB), preload ฟอนต์ UI, ฟอนต์ Google ไม่บล็อกการวาด, ปุ่มแดงผ่าน contrast → ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
+  - [ ] ค้าง (ต้องเป็นรอบแยก): ลด payload `/api/products` (ส่ง `tts_lines`/`script_lines`/`script_text` ทุกมุมทุกครั้ง) · เร่ง `require_media_owner` (~180 ms ต่อไฟล์ที่ไม่มีใน artifact index) · ลองบน iPhone เครื่องจริง
+
 - [x] Round CLAUDE-MODERN-WEB-POLISH-20261111 · รอบเก็บงาน Modern Web Guidance: ทดสอบ overlay บน WebKit (เอนจิน Safari, จำลอง iPhone) + Chromium + Firefox, แก้บั๊กที่การทดสอบจับได้ 6 จุด, Lighthouse Accessibility 100 ใน 6/7 หน้า, เพิ่ม gzip ที่ server → ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
-  - [ ] ค้างให้เจ้าของ: รีสตาร์ต backend เพื่อให้ gzip มีผล · ตัดสินสีปุ่มแดง `#FE2C55` (contrast 3.68) · ลองบน iPhone เครื่องจริง
+  - [x] รีสตาร์ต backend แล้ว (gzip ทำงาน) · สีปุ่มแดงแก้ในรอบ CLAUDE-PERF-AND-LIGHTHOUSE-20261111 · iPhone เครื่องจริงยังค้าง (ย้ายไปรอบนั้น)
 
 - [x] Round CLAUDE-MODERN-WEB-GUIDANCE-20261111 · ปรับ frontend ตาม Modern Web Guidance ครบ 6 เฟส: modal 24 จุด → native `<dialog>` (ui/ModalLayer), dropdown 5 ตัว → Popover API (ui/PopoverPanel), เลิก `alert`/`confirm` 20 จุด (ui/dialogService), Toast เป็น popover, IME-safe Enter 2 จุด, reduced-motion เฉพาะจุด + วงโฟกัสกลาง, lazy-load รูป 16 จุด → แผน: [_Docs/Plans/MODERN_WEB_GUIDANCE_PLAN_20261111.md](_Docs/Plans/MODERN_WEB_GUIDANCE_PLAN_20261111.md) · ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
 

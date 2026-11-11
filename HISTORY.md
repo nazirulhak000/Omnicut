@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round CLAUDE-PERF-AND-LIGHTHOUSE-20261111 | รอบความเร็ว: Lighthouse (desktop, ค่ากลาง 3 รอบ) Accessibility 100 + Best Practices 100 ครบ 7 หน้า, Performance 90–98 · thumbnail ย่อฝั่ง server (`?w=`), แบ่ง chunk อัตโนมัติ (โค้ดทุกหน้า ~1,060 → ~490 KB), preload ฟอนต์ UI, ฟอนต์ Google ไม่บล็อกการวาด, ปุ่มแดงผ่าน contrast | 2026-11-11 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-MODERN-WEB-POLISH-20261111 | รอบเก็บงาน Modern Web Guidance: ทดสอบ overlay บน WebKit (เอนจิน Safari, จำลอง iPhone) + Chromium + Firefox, แก้บั๊กที่การทดสอบจับได้ 6 จุด, Lighthouse Accessibility 100 ใน 6/7 หน้า, เพิ่ม gzip ที่ server — `npm test` 1282/1282, pytest 389 ผ่าน, overlay ผ่าน 6 เครื่องจำลอง | 2026-11-11 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-MODERN-WEB-GUIDANCE-20261111 | ปรับ frontend ตาม Modern Web Guidance ครบ 6 เฟส: modal 24 จุด → native `<dialog>` (ui/ModalLayer), dropdown 5 ตัว → Popover API (ui/PopoverPanel), เลิก `alert`/`confirm` 20 จุด (ui/dialogService), Toast เป็น popover, IME-safe Enter 2 จุด, reduced-motion เฉพาะจุด + วงโฟกัสกลาง, lazy-load รูป 16 จุด — `npm test` 1280/1280, pytest parity 298 ผ่าน, ลองเบราว์เซอร์จริง (Chromium) | 2026-11-11 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round ANTIGRAVITY-FLOW-STUDIO-10-ROUNDS-AUDIT-20261110 | ปฏิบัติการ 10-Round Autonomous UI/UX, Logic & Edge-Case Audit สำหรับหน้า "สินค้า ➔ สคริปต์ ➔ วิดีโอ" (FlowStudio / AI Script Lab) ครบ 10 รอบ 1,000 คะแนนเต็ม: ปรับปรุง MediaPickerModal 9:16 aspect ratio & tabular-nums, ยกระดับ Hook & Header Studio สู่ Obsidian Dark, ปรับ Action Buttons ไร้สัญลักษณ์ลูกศร/บวกตกค้าง, ติดตั้ง Graceful Offline Fallback ใน AI Co-Pilot, เสริม tabular-nums ทั่วทั้งระบบ, ผ่านชุดทดสอบ Vitest 1,264/1,264 tests (100%), Vite Build 1.86s (ดูรายงาน _Docs/Reports/FLOW_STUDIO_10_ROUNDS_AUDIT_REPORT.md) | 2026-11-10 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
@@ -194,6 +195,49 @@
 | Round CODEX-NVENC-QA-GATES-20261003 | ปิด NVENC/export contract และ QA guards; failures เดิมแก้และ gate รวมผ่าน | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 
 ---
+
+### Round CLAUDE-PERF-AND-LIGHTHOUSE-20261111 (2026-11-11)
+**ดำเนินการโดย:** Claude Code (Claude Fable 5.2)
+
+**เป้าหมาย:** ผู้ใช้สั่ง "เช็คอีกรอบแบบทั้งหมด ขอไวขึ้น ให้คะแนนเต็ม 100 ทุกจุดได้เลย" · กิ่ง `feat/perf-100`
+
+**ผลวัด Lighthouse (desktop preset, `http://localhost:8000`, ค่ากลาง 3 รอบ):**
+
+| หน้า | Performance ก่อนรอบนี้ | หลัง | LCP หลัง | Accessibility | Best Practices |
+|---|---|---|---|---|---|
+| flow | 89 | 92 | 1.8 s | 100 | 100 |
+| tracker | 93 | 93 | 1.7 s | 100 | 100 |
+| editor | 95 (รอบเดียว) | 90 | 2.1 s | 100 | 100 |
+| gallery | 91 | 94 | 1.6 s | 100 | 100 |
+| assets | 96 | 98 | 1.1 s | 100 (เดิม 96) | 100 |
+| analytics | 97 | 98 | 1.0 s | 100 | 100 |
+| settings | 94 | 96 | 1.3 s | 100 | 100 |
+
+- FCP ทุกหน้า ~620 ms → ~280 ms · น้ำหนักหน้า tracker 8,178 KB → 1,186 KB
+- "ก่อน" เป็นการวัดรอบเดียว ค่าแกว่ง ±3–5 คะแนนต่อรอบ (editor วัดได้ 86–94) — ตัวเลข editor ที่ลดลงอยู่ในช่วงแกว่ง ไม่ได้พิสูจน์ว่าช้าลง
+- **Performance 100 ยังไม่ถึง** ใน 4 หน้าที่ต้องรอข้อมูล (flow/tracker/editor/gallery): LCP ติดที่ payload และการเช็กสิทธิ์ฝั่ง server (ดู "ยังไม่ได้ทำ")
+
+**สิ่งที่ทำ:**
+- **Thumbnail ย่อฝั่ง server:** `GET /api/media/...?w=96|160|320` คืน WebP ย่อ (cache ใน `.tmp/thumb_cache`, ETag + 304) — ทำงานหลังการเช็ก path / สิทธิ์ช่องเดิมทั้งหมด จึงไม่ขยายสิทธิ์ · ความกว้างอื่นหรือไฟล์ที่ไม่ใช่รูปได้ไฟล์ต้นฉบับ · `scripts/media_service.py`, `scripts/api_videos.py`, เทสต์ใน `tests/test_channel_media_routes.py`
+  - ใช้ใน Tracker (ปก 52px เคยโหลด JPG 1080x1920 ~400 KB ต่อรูป → ~10 KB), คิวโพสต์ (`ScheduleAgenda`), การ์ดสินค้า (`ProductToClip`) ผ่าน `toThumbUrl()` ใน `lib/mediaUrl.js`
+- **แบ่ง chunk อัตโนมัติ:** ถอด `manualChunks` ทั้งหมดใน `vite.config.js` — entry + preload ~1,060 KB → ~490 KB (ก่อนบีบอัด) ทุกหน้าไม่ต้องโหลดโค้ด editor แล้ว · รอบก่อนถอดแค่บางส่วนแล้วแอปพัง รอบนี้ build ไปโฟลเดอร์แยก (`.tmp/dist_probe`) เสิร์ฟผ่าน proxy อ่านอย่างเดียว ทดสอบ 7 แท็บ × 3 เอนจินผ่านก่อน แล้วค่อย build ลง `dist`
+- **ฟอนต์:** preload `Anuphan-Bold.ttf` + `Prompt-Bold.ttf` (ไฟล์เดิม URL เดิม) · CSS ของ Google Fonts โหลดแบบไม่บล็อกการวาด (`rel="preload" as="style"` + `onload`) — ตรวจแล้วหน้าใช้ face จากไฟล์ local ชุดเดิมทั้ง Chromium และ WebKit ไม่มีผลทางสายตา
+- **รูปแถวแรก:** การ์ดสินค้าเลิก `loading="lazy"` (เป็น LCP candidate), การ์ด gallery 6 ใบแรก `fetchPriority="high"`
+- **Contrast:** ปุ่มแดงพื้นทึบตัวหนังสือขาว 4 ปุ่ม `#FE2C55` (3.68:1) → `#E0244A` (4.65:1), hover `#C81D40` — ผู้ใช้อนุญาตในคำสั่งรอบนี้ · สีแดงแบรนด์ที่อื่น (พื้นโปร่ง, เส้นขอบ, `.claude-btn-primary`, ปุ่ม gradient) ไม่ได้แตะ
+
+**ผลตรวจ:**
+- `npm test` 1282/1282 · oxlint 0 error · pytest (`test_api_auth`, `test_channel_media_routes`, parity 3 ไฟล์) 398 ผ่าน 1 ข้าม
+- `tools/overlay_browser_check.py` ผ่านครบ 6 เครื่องจำลอง + reduced-motion · แอปจริง (อ่านอย่างเดียว) 0 fail · smoke 7 แท็บ × Chromium/WebKit/Firefox 0 error
+- Tracker จริง: รูป `?w=160` โหลดครบ 20/20 (160x284 วาดที่ 50px)
+- รีสตาร์ต server ด้วย `start_app.bat` 2 ครั้ง (ผู้ใช้สั่งให้รัน; เช็กก่อนทุกครั้งว่าไม่มี task ค้าง)
+
+**ยังไม่ได้ทำ (ตั้งใจเว้น ต้องเป็นรอบแยก):**
+- `/api/products` 4.6 MB (0.5 MB หลัง gzip): `tts_lines` 3.2 MB + `script_lines` 1.35 MB + `script_text` 1.34 MB ของทุกมุมถูกส่งทุกครั้ง — การตัดออกกระทบสัญญา API ที่ทั้ง frontend ใช้และส่งกลับตอนบันทึก ไม่ได้แตะ
+- `require_media_owner` ใช้ ~180–220 ms ต่อไฟล์ที่ไม่มีใน artifact index (profile: `Path.resolve()` ต่อแถวใน `ExportRegistry.path_owners`, ~1,100 ครั้งต่อ request) — เป็นโค้ดกั้นสิทธิ์ระหว่างช่อง การ cache ผิดพลาดจะกลายเป็นเปิดไฟล์ข้ามช่อง จึงไม่แก้ในรอบนี้
+- `localhost` บน Windows เพิ่ม ~200 ms ต่อ connection ใหม่ (ลอง IPv6 ก่อน; server bind เฉพาะ 127.0.0.1) — ไม่ได้แก้
+- `EditorShell` chunk 828 KB ยังเกิน build warning 600 KB
+- iPhone เครื่องจริงยังไม่ได้ลอง · Lighthouse วัดเฉพาะ desktop preset ไม่ได้วัด mobile preset
+- Jev: SDK ไม่ได้ติดตั้ง — degrade ตามกฎข้อ 19
 
 ### Round CLAUDE-MODERN-WEB-POLISH-20261111 (2026-11-11)
 **ดำเนินการโดย:** Claude Code (Claude Fable 5.2)

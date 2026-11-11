@@ -89,3 +89,17 @@ export function getMediaName(v) {
   const str = typeof v === 'string' ? v : (v.path || v.rel_path || '');
   return str.split(/[/\\]/).pop() || '';
 }
+
+/**
+ * URL of a small server-resized preview of a still image (cover, thumbnail).
+ * `width` must be one the server accepts (96, 160, 320); pick about 3x the
+ * drawn CSS width so it stays sharp on a phone. Anything that is not served
+ * by /api/media (data:, blob:, external hosts) is returned unchanged.
+ */
+export function toThumbUrl(rawPath, width = 160, channelId) {
+  const url = channelId === undefined ? toMediaUrl(rawPath) : toMediaUrl(rawPath, channelId);
+  if (!url || !/\/api\/media\//.test(url)) return url;
+  const [withoutHash, hash = ''] = url.split('#');
+  const joined = withoutHash + (withoutHash.includes('?') ? '&' : '?') + 'w=' + width;
+  return hash ? `${joined}#${hash}` : joined;
+}

@@ -27,7 +27,7 @@ import SceneCatalogModal from './SceneCatalogModal';
 import ManualStoryboardModal from './ManualStoryboardModal';
 import UniversalFilmingRecipeModal from './UniversalFilmingRecipeModal';
 import AICoPilotChat from './AICoPilotChat';
-import { toMediaUrl } from '../lib/mediaUrl';
+import { toMediaUrl, toThumbUrl } from '../lib/mediaUrl';
 import { useToast } from '../hooks';
 import { useTaskManager } from '../context/TaskContext';
 import { guessBrandModel } from '../lib/overlayModel';
@@ -180,9 +180,10 @@ function ProductCard({ product, isSelected, onSelect, onDoubleClick, onToggleHid
   const total = pAngles.length || 4;
   const pct = Math.round((pDone / total) * 100);
   const thumb = product.images?.[0];
+  // Drawn at ~150 px: a 320 px server preview instead of the full image.
   const thumbSrc = thumb
-    ? toMediaUrl(thumb.rel_path || thumb.local_path || thumb.url)
-    : (product.thumbnail ? toMediaUrl(product.thumbnail) : null);
+    ? toThumbUrl(thumb.rel_path || thumb.local_path || thumb.url, 320)
+    : (product.thumbnail ? toThumbUrl(product.thumbnail, 320) : null);
   const productCode = product.product_code || product.code || '';
 
   return (
@@ -211,7 +212,7 @@ function ProductCard({ product, isSelected, onSelect, onDoubleClick, onToggleHid
       {/* Thumbnail or Placeholder */}
       <div className="w-full aspect-square rounded-lg overflow-hidden bg-black/70 border border-white/[0.06] flex items-center justify-center relative mb-2 flex-shrink-0">
         {thumbSrc ? (
-          <img loading="lazy" decoding="async" src={thumbSrc} alt="" className="w-full h-full object-cover pointer-events-none" />
+          <img decoding="async" src={thumbSrc} alt="" className="w-full h-full object-cover pointer-events-none" />
         ) : (
           <Package className={`w-7 h-7 ${isSelected ? 'text-[#25F4EE]' : 'text-slate-600'}`} />
         )}
@@ -6176,8 +6177,8 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   const pct = Math.round((pDone / total) * 100);
                   const thumb = p.images?.[0];
                   const thumbSrc = thumb
-                    ? toMediaUrl(thumb.rel_path || thumb.local_path || thumb.url)
-                    : (p.thumbnail ? toMediaUrl(p.thumbnail) : null);
+                    ? toThumbUrl(thumb.rel_path || thumb.local_path || thumb.url, 320)
+                    : (p.thumbnail ? toThumbUrl(p.thumbnail, 320) : null);
                   const isSelected = selectedHistoryId === p.id;
 
                   return (

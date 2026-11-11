@@ -140,7 +140,9 @@ const ExportCard = memo(function ExportCard({
   onToggleSelect,
   onOpenDetail,
   onOpenDelete,
-  onCopyCaption
+  onCopyCaption,
+  // First row of the grid: the LCP candidates, loaded eagerly at high priority.
+  priority = false
 }) {
   const nameLow = (item.name || '').toLowerCase();
   const isEsseger = nameLow.includes('esseger') || nameLow.includes('สายชาร์จ');
@@ -254,7 +256,8 @@ const ExportCard = memo(function ExportCard({
             <img
               src={displayThumb}
               alt={item.name}
-              loading="lazy"
+              loading={priority ? 'eager' : 'lazy'}
+              fetchPriority={priority ? 'high' : undefined}
               decoding="async"
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             />
@@ -2132,6 +2135,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                 {visibleExports.map((item, idx) => (
                   <ExportCard
                     key={item.export_id || item.rel_path || item.path || idx}
+                    priority={idx < 6}
                     item={item}
                     isSelected={selectedVideos.includes(item.path)}
                     onToggleSelect={toggleSelectVideo}
@@ -2224,7 +2228,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                   <a
                     href={toMediaUrl(selectedDetailVideo.rel_path || selectedDetailVideo.path)}
                     download={selectedDetailVideo.name}
-                    className="flex-1 min-h-[46px] py-2.5 px-3 rounded-xl bg-[#FE2C55] hover:bg-[#FE2C55]/90 active:scale-[0.98] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all"
+                    className="flex-1 min-h-[46px] py-2.5 px-3 rounded-xl bg-[#E0244A] hover:bg-[#C81D40]/90 active:scale-[0.98] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all"
                   >
                     <Download className="w-4 h-4 flex-shrink-0" />
                     <span>บันทึกคลิป MP4</span>

@@ -9,7 +9,7 @@ import { commitRescheduleOverdue, resolveUnpostedQueue, commitScheduleAutofill, 
 import { addDays, buildScheduleIso, dateOnly, DEFAULT_PRIMARY_TIMES, estimateQueueCoverage, groupScheduleItems, localParts, mergeScheduleDraft, nextTemplateSlotAfterLatest, parseDateOnly, primaryTimeOptions, PROJECT_TIME_ZONE, scheduleTimeOptions, templateForWeek, toLocalDateTime, WEEKDAY_LABELS, weekStartForDate } from '../lib/scheduleQueue';
 import { getStylePreset } from '../lib/stylePresetCatalog';
 import { useChannelDraft } from '../hooks/useChannelDraft.js';
-import { toMediaUrl } from '../lib/mediaUrl.js';
+import { toMediaUrl, toThumbUrl } from '../lib/mediaUrl.js';
 
 const STATUS_LABELS = {
   planned: 'รอจัดส่ง',
@@ -40,6 +40,11 @@ function clipKey(clip) {
 
 function coverSrc(path) {
   return toMediaUrl(path);
+}
+
+// Queue rows draw the cover at thumbnail size; ask the server for a small one.
+function coverThumbSrc(path) {
+  return toThumbUrl(path, 160);
 }
 
 function coverValue(item, clip) {
@@ -1362,7 +1367,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                               className="w-10 h-14 rounded-lg overflow-hidden bg-black border border-white/[0.1] flex-shrink-0 relative group/thumb"
                             >
                               {coverSrc(coverPath) ? (
-                                <img loading="lazy" decoding="async" src={coverSrc(coverPath)} alt="" className="w-full h-full object-cover" />
+                                <img loading="lazy" decoding="async" src={coverThumbSrc(coverPath)} alt="" className="w-full h-full object-cover" />
                               ) : (
                               <video src={toMediaUrl(item.video_path)} muted className="w-full h-full object-cover" />
                               )}
@@ -1580,7 +1585,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                           )}
                           <div className="flex items-center gap-3 min-w-0 flex-1">
                             <button type="button" onClick={() => clip?.video_url && onPreviewVideo?.(clip.video_url, clip)} className="w-14 h-20 rounded-xl overflow-hidden bg-black border border-white/[0.12] flex-shrink-0 relative group">
-                              {coverSrc(coverPath) ? <img loading="lazy" decoding="async" src={coverSrc(coverPath)} alt="" className="w-full h-full object-cover" /> : <video src={toMediaUrl(item.video_path)} muted className="w-full h-full object-cover" />}
+                              {coverSrc(coverPath) ? <img loading="lazy" decoding="async" src={coverThumbSrc(coverPath)} alt="" className="w-full h-full object-cover" /> : <video src={toMediaUrl(item.video_path)} muted className="w-full h-full object-cover" />}
                               <span className="absolute inset-x-1 bottom-1 text-[9px] rounded bg-black/75 text-white py-0.5">พรีวิว</span>
                             </button>
                             <div className="min-w-0 flex-1">
