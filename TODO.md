@@ -4,6 +4,19 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round CLAUDE-DRAFT-TO-RENDER-SPEED-AUDIT-20261111 · วัดเวลาจริงเส้นทาง "สร้างคลิป → ร่างแรก → editor → เรนเดอร์ mp4" หาคอขวดจากตัวเลข (ช่วงที่ 1 = วัดอย่างเดียว ปิดรอบแล้ว ดู [HISTORY.md](HISTORY.md) และ [_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md](_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md)) · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
+
+- [x] Round ANTIGRAVITY-FIX-SECURITY-TEST-FIXTURE-LEAK-20261111 · แก้ไขปัญหา OMNICUT_APP_PASSWORD จาก .env รั่วไหลเข้าสู่ test environment ทำให้ tests/test_security_boundary_agent.py::test_unconfigured_lan_bind_is_rejected ผ่านไม่สมบูรณ์: เพิ่ม monkeypatch.delenv("OMNICUT_APP_PASSWORD", raising=False) และเพิ่ม os.environ["OMNICUT_APP_PASSWORD"] = "" ใน tests/conftest.py (Pytest security boundary 15/15 passed 100%, test_api_auth 91/91 passed 100%, parity 212/212 passed 100%) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+- [ ] แผนงานช่วงถัดไป (Speed & System Hardening Phase 2 Implementation Roadmap):
+  - [ ] ข1 + ก1: แปลซับ — รวมหลายท่อนต่อ request (Batching) + Local File Cache ใน `scripts/bilingual_subtitles.py` (ลดเวลาร่างแรก ~120 วิ)
+  - [ ] ข2: ตัดการคำนวณเงาไล่ระดับ Hook (FFmpeg `geq` filter) เมื่อพ้นช่วง fade-in/out (ลดเวลาเรนเดอร์ 13.8 วิ)
+  - [ ] ก2: บันทึก Cache ผลทดสอบตัวเข้ารหัส (Encoder Probe Cache) ใน backend launch
+  - [ ] P0 Fix: แปลง `VideoEditor.get_media_info()` ใน `scripts/api_recording.py:103` สู่ `asyncio.to_thread`
+  - [ ] P0 Fix: ถอด `02_Assets` ออกจาก `allowed_roots` ของ `delete_file` ใน `scripts/api_videos.py:1208`
+  - [ ] P0 Fix: เพิ่ม backup `.bak` ก่อนเขียนทับ `draft_content.json` ใน `scripts/agent/omnicut_agent_tools.py:528`
+  - [ ] P1 Fix: เพิ่ม Global 500 JSON exception handler ใน `scripts/api_server.py:191`
+
 - [x] Round CLAUDE-AUTOPOST-EXTENSION-WEB-QUALITY-20261111 · side panel ของ `tiktok_autopost_extension` v0.10.1: axe-core 389 → 0 จุด (ธีมมืด/สว่าง, 3 แท็บ, 320–400px), modal ยืนยัน + พรีวิวเป็น native `<dialog>`, แท็บมี keyboard pattern, รูปปก 540x960 → 160px lazy · ไม่แตะ logic โพสต์ → ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
   - [x] ตรวจกับ extension ที่โหลดจริงแล้ว (ผู้ใช้สั่ง 2026-11-11): `tools/extension_real_check.py` 27/27 ในโปรไฟล์ Chromium แยกที่ไม่มี login TikTok · คิว/exports ฝั่ง server เหมือนเดิมทุกไบต์
   - [ ] ค้างให้เจ้าของ: กด reload extension ใน Chrome ของตัวเองที่ `chrome://extensions` เพื่อรับ v0.10.1 · flow โพสต์จริง (preflight → ยืนยัน → อัปโหลด) ยังไม่ได้รันหลังแก้

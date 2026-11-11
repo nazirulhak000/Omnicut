@@ -7,11 +7,13 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round CLAUDE-DRAFT-TO-RENDER-SPEED-AUDIT-20261111 | วัดเวลาจริงเส้นทาง "สร้างคลิป → ร่างแรก → editor → เรนเดอร์ mp4" หาคอขวดจากตัวเลข (ช่วงที่ 1 = วัดอย่างเดียว): ซับสองภาษา 125.6s (43 requests), Hook shadow 19–21s, ห่วงโซ่คลิป 12.2s, วางแผนช่วงที่ 2 (ก1–ก3, ข1–ข6) — ดูรายงาน _Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md และ tools/speed_audit/ | 2026-11-11 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-AUTOPOST-EXTENSION-WEB-QUALITY-20261111 | side panel ของ `tiktok_autopost_extension` v0.10.1: axe-core 389 → 0 จุด (ธีมมืด/สว่าง, 3 แท็บ, 320–400px), modal ยืนยัน + พรีวิวเป็น native `<dialog>`, แท็บมี keyboard pattern, รูปปก 540x960 → 160px lazy · ไม่แตะ logic โพสต์ — `node --test` 211/211, panel check 20/20 | 2026-11-11 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-EDITOR-REACT-PERF-20261111 | editor: เวลา playhead ระหว่างเล่นออกจาก state ของ `EditorShell` (render 24 → 2 ครั้ง/6 วิ, เวลา React 1,452 → 585 ms) + **แก้บั๊กที่ผมทำไว้ตั้งแต่รอบ 1: modal ทุกตัวปิดเองทันทีบน dev server (StrictMode)** — `npm test` 1288/1288, `tests/motion_capture` 162 ผ่าน (3 ตัวที่พังแกว่งอยู่เดิม) | 2026-11-11 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-PERF-AND-LIGHTHOUSE-20261111 | รอบความเร็ว: Lighthouse (desktop, ค่ากลาง 3 รอบ) Accessibility 100 + Best Practices 100 ครบ 7 หน้า, Performance 90–98 · thumbnail ย่อฝั่ง server (`?w=`), แบ่ง chunk อัตโนมัติ (โค้ดทุกหน้า ~1,060 → ~490 KB), preload ฟอนต์ UI, ฟอนต์ Google ไม่บล็อกการวาด, ปุ่มแดงผ่าน contrast | 2026-11-11 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-MODERN-WEB-POLISH-20261111 | รอบเก็บงาน Modern Web Guidance: ทดสอบ overlay บน WebKit (เอนจิน Safari, จำลอง iPhone) + Chromium + Firefox, แก้บั๊กที่การทดสอบจับได้ 6 จุด, Lighthouse Accessibility 100 ใน 6/7 หน้า, เพิ่ม gzip ที่ server — `npm test` 1282/1282, pytest 389 ผ่าน, overlay ผ่าน 6 เครื่องจำลอง | 2026-11-11 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-MODERN-WEB-GUIDANCE-20261111 | ปรับ frontend ตาม Modern Web Guidance ครบ 6 เฟส: modal 24 จุด → native `<dialog>` (ui/ModalLayer), dropdown 5 ตัว → Popover API (ui/PopoverPanel), เลิก `alert`/`confirm` 20 จุด (ui/dialogService), Toast เป็น popover, IME-safe Enter 2 จุด, reduced-motion เฉพาะจุด + วงโฟกัสกลาง, lazy-load รูป 16 จุด — `npm test` 1280/1280, pytest parity 298 ผ่าน, ลองเบราว์เซอร์จริง (Chromium) | 2026-11-11 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
+| Round ANTIGRAVITY-SWARM-DEEP-PROGRAM-AUDIT-20261111 | ปฏิบัติการ Swarm Deep Audit ทั่วทั้งระบบ OmniCut Pro Studio (Backend, Frontend, Pipeline Parity, Test Suite) ค้นหาจุดบกพร่อง บั๊กแฝง และจุดปรับปรุงเชิงสถาปัตยกรรมอย่างละเอียด: พบ Blocking FFprobe Subprocess ใน async route, ขาด Global 500 handler, ละเมิด AGENTS.md Path/Asset deletion, SequencePlayer canvas sticker scaling bug, CapCut draft audio drops, frontend double-click vulnerabilities, unslop rainbow gradients, และ test fixture env leak (ดูรายงาน _Docs/Reports/SWARM_DEEP_SYSTEM_AUDIT_REPORT_20261111.md) | 2026-11-11 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) |
 | Round ANTIGRAVITY-FLOW-STUDIO-10-ROUNDS-AUDIT-20261110 | ปฏิบัติการ 10-Round Autonomous UI/UX, Logic & Edge-Case Audit สำหรับหน้า "สินค้า ➔ สคริปต์ ➔ วิดีโอ" (FlowStudio / AI Script Lab) ครบ 10 รอบ 1,000 คะแนนเต็ม: ปรับปรุง MediaPickerModal 9:16 aspect ratio & tabular-nums, ยกระดับ Hook & Header Studio สู่ Obsidian Dark, ปรับ Action Buttons ไร้สัญลักษณ์ลูกศร/บวกตกค้าง, ติดตั้ง Graceful Offline Fallback ใน AI Co-Pilot, เสริม tabular-nums ทั่วทั้งระบบ, ผ่านชุดทดสอบ Vitest 1,264/1,264 tests (100%), Vite Build 1.86s (ดูรายงาน _Docs/Reports/FLOW_STUDIO_10_ROUNDS_AUDIT_REPORT.md) | 2026-11-10 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-OVERNIGHT-AUDIT-CYCLE2-TEST-PURITY-AND-IMPORT-SIDE-EFFECTS-20261110 | ปฏิบัติการกะดึก Cycle 2: ปราบปราม Side Effects ตอน Import ใน Test Suite (Rule 11 & testing_standard.md Rule 4): แก้ไข test_voice_pacing.py ขจัด ModuleNotFoundError: edge_tts, ครอบ if __name__ == '__main__': ใน test_translator_script.py, test_gemini_vision_match.py, test_script_lab_ai.py, test_bilingual_subtitles.py ขจัด live network/API calls ตอน import 100%, แก้ไข raw string escape syntax warnings ใน test_ghost_reveal_ass.py, ผ่าน Pytest Voice Tests 222/222 passed, Vitest 1,260/1,260 tests (100%), Vite Build 1.28s | 2026-11-10 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-OVERNIGHT-AUTONOMOUS-DEEP-AUDIT-AND-HARDENING-20261110 | ปฏิบัติการกะดึกข้ามคืน Autonomous Deep Audit & Hardening Loop ครบ 6 มิติ (Pass 1–6): แก้ไข Playwright Channel Selector Regression, ล้าง Visual Slop และ animate-ping ทั่วทั้งระบบ, ปรับ QuickRef 9:16 aspect ratio, แปลง Blocking HEIC FFmpeg Subprocess สู่ Async Threadpool, ตรวจสอบ Preview Parity 212/212 tests (100%), แก้ไข React Rules of Hooks ใน LoginScreen สู่ 0 Oxlint Errors, ผ่าน Vitest 1,260/1,260 tests (100%), Vite Build 1.14s (ดูรายงาน _Docs/Reports/OVERNIGHT_DEEP_AUDIT_REPORT_20261110.md) | 2026-11-10 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
@@ -401,6 +403,56 @@
 - `confirmDialog` ยังไม่ได้กดผ่าน UI จริง (ไม่มีข้อมูลให้ลบแบบปลอดภัย) — ตรวจแค่ชิ้นส่วนที่ใช้ (`ConfirmModal` บน `Modal`, `DialogHost` ผ่าน toast)
 - modal ที่ย้ายแล้วลองเปิดจริง 2 ตัวจาก 24 (ที่เหลือใช้ ModalLayer ตัวเดียวกันและ build ผ่าน แต่ไม่ได้เปิดดูทีละตัว)
 - Jev: SDK ไม่ได้ติดตั้ง (`typesafe_sdk: missing`) — degrade ตามกฎข้อ 19 ไม่ได้ถาม
+
+### Round CLAUDE-DRAFT-TO-RENDER-SPEED-AUDIT-20261111 (2026-11-11)
+**ดำเนินการโดย:** Claude Code (Claude Fable 5.2)
+
+**เป้าหมาย:** วัดเวลาจริงเส้นทาง "สร้างคลิป → ร่างแรก → editor → เรนเดอร์ mp4" หาคอขวดจากตัวเลข (ช่วงที่ 1 = วัดอย่างเดียว ห้ามแก้โค้ด product · ช่วงที่ 2 = แก้หลังเจ้าของเลือกข้อ)
+- **เครื่องที่วัด:** AMD Ryzen 7 7735HS 8c/16t, RAM 13.7 GB, AMD Radeon iGPU, ไม่มี CUDA/NVENC, `.venv` ไม่มี faster-whisper
+- **ผลการวัดเวลา (ร่างแรก ~193 วิ, เรนเดอร์ 1 คลิป 43.0 วิ):**
+  1. ซับสองภาษา 125.6 วิ (43 requests แปลอังกฤษทีละท่อน โดน Google TooManyRequests rate limit)
+  2. เงาไล่ระดับหลัง Hook (FFmpeg `geq` filter) ใช้เวลา 19–21 วิ คิดทุกพิกเซลกว้าง 1080x1920 ตลอดทั้งคลิป ทั้งที่โปร่งใสหลัง 7.1 วิ
+  3. ห่วงโซ่ต่อคลิป (scale 2 ชั้น, crop, xfade) 12.2 วิ
+  4. AI เขียนบท (Antigravity CLI WinError 206 ตกไป API) 31.5 วิ
+  5. Gemini วิเคราะห์โทนบทใน shot matching 18.1 วิ
+  6. Gemini TTS 17.1 วิ
+- **แผนแก้ความเร็ว (Speed Optimization Plan):**
+  - ก1/ข1: แปลซับ — รวมหลายท่อนต่อ request (Batching) + Local File Cache (ลด ~120 วิ ต่อร่าง)
+  - ข2: หยุดคำนวณเงา Hook เมื่อ fade จบ (ลด 13.8 วิ ต่อเรนเดอร์)
+  - ก2: จำผลทดสอบตัวเข้ารหัส (encoder probe cache) ลด 1.4 วิ
+- **เอกสารและสคริปต์:**
+  - รายงานฉบับเต็ม: `_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md`
+  - ชุดสคริปต์วัด: `tools/speed_audit/` (harness, parallel, replay, show, grad_exp)
+
+### Round ANTIGRAVITY-SWARM-DEEP-PROGRAM-AUDIT-20261111 (2026-11-11)
+**ดำเนินการโดย:** Swarm Multi-Agent Orchestration (Coordinator: Antigravity / Gemini 3.8 Flash High)
+
+**เป้าหมาย:** ปฏิบัติการ Swarm Deep Audit ทั่วทั้งระบบ OmniCut Pro Studio (Backend, Frontend, Pipeline Parity, Test Suite) ค้นหาจุดบกพร่อง บั๊กแฝง และจุดปรับปรุงเชิงสถาปัตยกรรมอย่างละเอียด ผ่าน 4 เอเจนต์ขนาน: `backend-auditor`, `frontend-auditor`, `parity-auditor`, `test-runner` พร้อม `monitor`
+**ผลการตรวจสอบหลัก (Key Audit Findings):**
+1. **Critical Backend Async Blocking & Security (P0):**
+   - ตรวจพบการเรียก `VideoEditor.get_media_info()` ซึ่งรัน `subprocess.run(["ffprobe", ...])` แบบ synchronous บน main event loop ใน `scripts/api_recording.py:103` บล็อก HTTP/WS ทั้งระบบ
+   - ตรวจพบการเขียนไฟล์ synchronous `with open(...)` ใน `scripts/api_producer.py:233` และ `api_recording.py:98`
+   - ตรวจพบการละเมิด AGENTS.md Rule 1: `scripts/api_videos.py:1208` ใส่ `02_Assets` ลงใน `allowed_roots` ของ `delete_file` เสี่ยงต่อการลบ Asset ส่วนกลาง
+   - ตรวจพบการละเมิด AGENTS.md Rule 3: `scripts/agent/omnicut_agent_tools.py:528` เขียนทับ `draft_content.json` โดยไม่มี `.bak`
+2. **Backend Error Handling & Pydantic Bypass (P1):**
+   - ขาด Global 500 handler ใน `scripts/api_server.py:191` ส่งผลให้ unhandled error กลายเป็น plain-text ทำลาย `response.json()` ของ frontend
+   - พบ UTF-8 BOM (`\xef\xbb\xbf`) ใน `scripts/api_schemas.py:1`
+   - มีมากกว่า 15 endpoints ที่รับ `payload: Dict[str, Any]` bypass Pydantic model validation
+   - พบ Hardcoded Absolute Paths ใน `scripts/capcut_builder.py:31` (`D:\Winona\Programmer\VectCutAPI`) และ `scripts/api_mobile_posting.py:204`
+3. **Pipeline Parity & CapCut Draft Loss (P1-P2):**
+   - ตรวจพบบั๊กการแปลงพิกัด Y ของสติกเกอร์ใน Canvas Preview (`SequencePlayer.jsx:1653` unscaled 420px ทำให้สติกเกอร์ลอยขึ้นไป 43.75% แทน 21.88%)
+   - CapCut Draft Exporter (`scripts/capcut_builder.py:315`) ดรอปแทร็ก BGM และ SFX หายไปจาก timeline
+   - Round-trip import จาก CapCut ไม่ดึง audio edits กลับคืนสู่ OmniCut
+4. **Frontend UI/UX & State Guards (P2):**
+   - ตรวจพบบั๊ก Double-Click / ขาด `disabled={loading}` บนปุ่ม Refresh และ Mutation 8 จุด (`ContentTrackerHub`, `ProductToClip`, `MediaAssetsHub`, `ScheduleAgenda`, `SystemAssets`)
+   - Dead JSX fragment ใน `SequencePlayer.jsx:5780-5782` และ dead branch ใน `overlayBoxGeometry.js:154`
+   - พบ Gradient สีรุ้งหลงเหลือใน `EditorShell`, `FindReplaceModal`, `ErrorBoundary`, `AIBridgePanel`, `Sidebar`, `MediaAssetsHub`
+5. **Test Suite & Environment Leak (Pytest 892 passed / 1 failed, Vitest 1,280 passed 100%):**
+   - วิเคราะห์สาเหตุ `tests/test_security_boundary_agent.py::test_unconfigured_lan_bind_is_rejected` ล้มเหลวจาก `OMNICUT_APP_PASSWORD` รั่วไหลจาก `.env` สู่ test environment
+   - พบ `frontend/.gitignore` คอมเมนต์ `# dist` ทำให้ oxlint สแกนไฟล์ build
+   - เอกสารฉบับสมบูรณ์: `_Docs/Reports/SWARM_DEEP_SYSTEM_AUDIT_REPORT_20261111.md`
+
+---
 
 ### Round ANTIGRAVITY-FLOW-STUDIO-10-ROUNDS-AUDIT-20261110 (2026-11-10)
 **ดำเนินการโดย:** Antigravity (Gemini 3.8 Flash)

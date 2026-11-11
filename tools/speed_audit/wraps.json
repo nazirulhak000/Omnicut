@@ -1,0 +1,17 @@
+[
+ ["scripts.ai_bridge", "AIBridge.generate"],
+ ["scripts.ai_bridge", "AIBridge.call_antigravity_cli"],
+ ["scripts.ai_bridge", "AIBridge._generate_from_prompt"],
+ ["scripts.gemini_tts_engine", "GeminiFlashTTSEngine.generate_speech"],
+ ["scripts.gemini_vision_matcher", "GeminiVisionMatcher.match_script_to_video"],
+ ["scripts.gemini_vision_matcher", "GeminiVisionMatcher._vision_proxy"],
+ ["scripts.gemini_vision_matcher", "GeminiVisionMatcher._get_or_upload_context"],
+ ["scripts.gemini_vision_matcher", "GeminiVisionMatcher._compute_file_hash"],
+ ["scripts.motion_analyzer", "MotionAnalyzer.get_motion_scores"],
+ ["scripts.beat_sync", "BeatSync.get_beat_times"],
+ ["scripts.beat_sync", "BeatSync.get_rms_energy"],
+ ["scripts.translator", "SubtitleTranslator.translate_batch"],
+ ["scripts.subtitle_engine", "SubtitleEngine.generate_ass"],
+ ["scripts.sfx_manager", "SFXManager.mix_audio_track"],
+ ["scripts.video_editor", "VideoEditor.get_media_info"]
+]

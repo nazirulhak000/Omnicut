@@ -24,6 +24,7 @@ COLLECTION_ROOT = Path(_collection_storage.name)
 _STORAGE_ROOTS = {COLLECTION_ROOT}
 os.environ["OMNICUT_DATA_ROOT"] = str(COLLECTION_ROOT)
 os.environ["OMNICUT_API_KEY"] = ""
+os.environ["OMNICUT_APP_PASSWORD"] = ""
 os.environ["OMNICUT_AUTH_DISABLED"] = ""
 os.environ["OMNICUT_MULTI_CHANNEL_STRICT"] = ""
 sys.dont_write_bytecode = True

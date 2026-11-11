@@ -57,6 +57,7 @@ def test_unconfigured_lan_bind_is_rejected(monkeypatch):
     api_server = _api_server_module_or_skip()
     monkeypatch.setenv("OMNICUT_HOST", "0.0.0.0")
     monkeypatch.delenv("OMNICUT_API_KEY", raising=False)
+    monkeypatch.delenv("OMNICUT_APP_PASSWORD", raising=False)
     with pytest.raises(RuntimeError, match="OMNICUT_API_KEY"):
         api_server.get_bind_host()
 
