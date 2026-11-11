@@ -1,1 +1,0 @@
-import{Co as e,So as t,bo as n,uo as r,xo as i}from"./editor-player-CMnQZUvp.js";function a(a,o=r()){return a?{getItem(e){return i(a,o,e,e,{decodeLegacy:e=>e}),t(a,o,e)},setItem(t,n){e(a,o,t,String(n))},removeItem(e){a.removeItem(n(o,e))},keyFor(e){return n(o,e)}}:null}function o(e=r()){return a(globalThis.localStorage,e)}export{o as t};

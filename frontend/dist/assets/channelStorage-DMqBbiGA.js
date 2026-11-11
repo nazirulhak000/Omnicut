@@ -1,0 +1,1 @@
+import{So as e,bo as t,lo as n,xo as r,yo as i}from"./editor-player-BIkaDU-M.js";function a(a,o=n()){return a?{getItem(e){return t(a,o,e,e,{decodeLegacy:e=>e}),r(a,o,e)},setItem(t,n){e(a,o,t,String(n))},removeItem(e){a.removeItem(i(o,e))},keyFor(e){return i(o,e)}}:null}function o(e=n()){return a(globalThis.localStorage,e)}export{o as t};
