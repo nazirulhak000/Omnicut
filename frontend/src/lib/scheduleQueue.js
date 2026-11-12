@@ -199,6 +199,42 @@ export function groupScheduleItems(items = []) {
   }, {});
 }
 
+// Rows a bulk prepare takes: waiting rows whose slot is still ahead, in
+// schedule order. Overdue rows go through the reschedule flow and failed rows
+// are retried one at a time, so both are only counted.
+export function pickPreparableItems(items = [], now = new Date()) {
+  const nowMs = now.getTime();
+  const ready = [];
+  let overdue = 0;
+  let failed = 0;
+  for (const item of sortScheduleItems(items)) {
+    if (item.status === 'failed') failed += 1;
+    else if (item.status !== 'planned') continue;
+    else if (new Date(item.scheduled_at).getTime() < nowMs) overdue += 1;
+    else ready.push(item);
+  }
+  return { ready, overdue, failed };
+}
+
+export function prepareAllConfirmText({ ready = [], overdue = 0, failed = 0 } = {}) {
+  const skipped = [
+    overdue > 0 && `เลยกำหนด ${overdue} คิว`,
+    failed > 0 && `ล้มเหลว ${failed} คิว`,
+  ].filter(Boolean);
+  const question = `ส่ง ${ready.length} คิวให้ Extension หรือไม่?`;
+  return skipped.length ? `${question}\nข้าม: ${skipped.join(' · ')}` : question;
+}
+
+export function prepareAllSummary({ done = 0, errors = [], notSent = 0 } = {}) {
+  if (notSent > 0) {
+    return { text: `หยุดก่อนครบเพราะออกจากตารางโพสต์หรือเปลี่ยนช่อง · ส่งให้ Extension แล้ว ${done} คิว ยังไม่ได้ส่ง ${notSent} คิว`, tone: 'error' };
+  }
+  if (errors.length) {
+    return { text: `ส่งให้ Extension ${done} คิว · ส่งไม่ได้ ${errors.length} คิว (${errors[0]})`, tone: 'error' };
+  }
+  return { text: `ส่ง ${done} คิวให้ Extension แล้ว เปิด Extension เพื่อทำ checklist ต่อ`, tone: 'success' };
+}
+
 export function localParts(iso) {
   const date = new Date(iso);
   return toLocalDateTime(Number.isNaN(date.getTime()) ? new Date() : date);

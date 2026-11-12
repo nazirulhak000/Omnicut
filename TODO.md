@@ -4,6 +4,8 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round CLAUDE-PREPARE-ALL-20261112 · งาน C1 ของแผน one-click: ปุ่ม `เตรียมทั้งหมด (N)` ในตารางโพสต์ — ส่งคิว `planned` ที่ยังไม่เลยเวลา (ตามตัวกรองบนจอ) ให้ Extension ทีละคิวผ่าน route เดิม, ยืนยันก่อนส่ง, ข้ามคิวเลยกำหนด/ล้มเหลว, toast สรุป · frontend อย่างเดียว · ยังไม่ได้ลองกับคิวจริง · merge เข้า `main` ไม่ push → HISTORY.md · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
+
 - [x] Round CLAUDE-FLOW-ONE-CLICK-SURVEY-20261112 · สำรวจ flow สินค้า → โพสต์ (อ่านอย่างเดียว) + แผนปกอัตโนมัติ / ปุ่มต่อสินค้า / เตรียมทั้งหมด · เจ้าของตัดสิน 2026-11-12 "ตามที่แนะนำ": D1 ทำ A + ผ่อนด่านปก Editor, D2 เฟรมสะอาด 9:16 + 3:4, D3 สองปุ่มมีจุดตรวจ (B1), D4 ทำ C1, D5 (ความคมชัดอัตโนมัติ) ยังไม่ตัดสิน · ลำดับ A → C1 → B1 → [_Docs/Plans/ONE_CLICK_FLOW_PLAN_20261112.md](_Docs/Plans/ONE_CLICK_FLOW_PLAN_20261112.md), HISTORY.md · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
 
 - [x] Round CLAUDE-AUTO-COVER-20261112 · งาน A ของแผน one-click: ปกอัตโนมัติหลังเรนเดอร์ (`scripts/auto_cover.py`, เฟรมสะอาด 9:16 + 3:4, ป้าย `auto`, ไม่ทับปกที่คนเลือก, ปิดได้ด้วย `OMNICUT_AUTO_COVER=0`) + Editor ไม่บังคับบันทึกปกก่อนเรนเดอร์ · 0.39–0.51 วิ/ปก · ยังไม่ได้เรนเดอร์จริงผ่านแอป (เจ้าของรับทราบ สั่ง merge 2026-11-12) · D5 เจ้าของตอบ "ใช้ทุกคลิป" → C2 ทำหลัง B1 · merge เข้า `main` ไม่ push → HISTORY.md · ดำเนินการโดย: Claude Code (Claude Fable 5.2)

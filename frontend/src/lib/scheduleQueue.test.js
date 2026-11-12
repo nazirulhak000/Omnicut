@@ -102,3 +102,44 @@ test('daily fixed-time batch slots advance by 1 day per clip at fixed time', () 
   assert.equal(slots[3], '2026-10-13T19:30:00+07:00');
   assert.equal(slots[4], '2026-10-14T19:30:00+07:00');
 });
+
+test('bulk prepare takes waiting rows still ahead of now, in schedule order', async () => {
+  const { pickPreparableItems } = await import('./scheduleQueue.js');
+  const now = new Date('2026-11-12T12:00:00+07:00');
+  const picked = pickPreparableItems([
+    { id: 'late', status: 'planned', scheduled_at: '2026-11-13T19:00:00+07:00' },
+    { id: 'overdue', status: 'planned', scheduled_at: '2026-11-12T09:00:00+07:00' },
+    { id: 'failed', status: 'failed', scheduled_at: '2026-11-13T09:00:00+07:00' },
+    { id: 'sent', status: 'ready_for_extension', scheduled_at: '2026-11-13T09:00:00+07:00' },
+    { id: 'posted', status: 'posted', scheduled_at: '2026-11-11T09:00:00+07:00' },
+    { id: 'early', status: 'planned', scheduled_at: '2026-11-12T16:00:00+07:00' },
+    { id: 'now', status: 'planned', scheduled_at: '2026-11-12T12:00:00+07:00' },
+  ], now);
+  assert.deepEqual(picked.ready.map((item) => item.id), ['now', 'early', 'late']);
+  assert.equal(picked.overdue, 1);
+  assert.equal(picked.failed, 1);
+  assert.deepEqual(pickPreparableItems([], now), { ready: [], overdue: 0, failed: 0 });
+});
+
+test('bulk prepare confirmation names what is sent and what is left out', async () => {
+  const { prepareAllConfirmText } = await import('./scheduleQueue.js');
+  assert.equal(prepareAllConfirmText({ ready: [{}, {}], overdue: 0, failed: 0 }), 'ส่ง 2 คิวให้ Extension หรือไม่?');
+  assert.equal(
+    prepareAllConfirmText({ ready: [{}], overdue: 3, failed: 2 }),
+    'ส่ง 1 คิวให้ Extension หรือไม่?\nข้าม: เลยกำหนด 3 คิว · ล้มเหลว 2 คิว',
+  );
+  assert.equal(prepareAllConfirmText({ ready: [{}], overdue: 0, failed: 1 }), 'ส่ง 1 คิวให้ Extension หรือไม่?\nข้าม: ล้มเหลว 1 คิว');
+});
+
+test('bulk prepare summary reports sent, refused and unsent rows', async () => {
+  const { prepareAllSummary } = await import('./scheduleQueue.js');
+  assert.deepEqual(prepareAllSummary({ done: 4, errors: [] }), {
+    text: 'ส่ง 4 คิวให้ Extension แล้ว เปิด Extension เพื่อทำ checklist ต่อ', tone: 'success',
+  });
+  assert.deepEqual(prepareAllSummary({ done: 3, errors: ['คลิปนี้ถูกโพสต์ไปแล้ว', 'อื่น'] }), {
+    text: 'ส่งให้ Extension 3 คิว · ส่งไม่ได้ 2 คิว (คลิปนี้ถูกโพสต์ไปแล้ว)', tone: 'error',
+  });
+  assert.deepEqual(prepareAllSummary({ done: 1, errors: [], notSent: 5 }), {
+    text: 'หยุดก่อนครบเพราะออกจากตารางโพสต์หรือเปลี่ยนช่อง · ส่งให้ Extension แล้ว 1 คิว ยังไม่ได้ส่ง 5 คิว', tone: 'error',
+  });
+});

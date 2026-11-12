@@ -6,7 +6,7 @@ import PaginationControls from './PaginationControls';
 import PublicationReviewModal from './PublicationReviewModal.jsx';
 import { useChannel } from '../context/ChannelContext.jsx';
 import { commitRescheduleOverdue, resolveUnpostedQueue, commitScheduleAutofill, copyScheduleTemplate, createScheduleQueue, getScheduleQueue, getScheduleTemplate, prepareScheduleQueue, previewRescheduleOverdue, previewScheduleAutofill, removeScheduleQueue, resetScheduleTemplate, saveScheduleTemplate, updateScheduleQueue } from '../api';
-import { addDays, buildScheduleIso, dateOnly, DEFAULT_PRIMARY_TIMES, estimateQueueCoverage, groupScheduleItems, localParts, mergeScheduleDraft, nextTemplateSlotAfterLatest, parseDateOnly, primaryTimeOptions, PROJECT_TIME_ZONE, scheduleTimeOptions, templateForWeek, toLocalDateTime, WEEKDAY_LABELS, weekStartForDate } from '../lib/scheduleQueue';
+import { addDays, buildScheduleIso, dateOnly, DEFAULT_PRIMARY_TIMES, estimateQueueCoverage, groupScheduleItems, localParts, mergeScheduleDraft, nextTemplateSlotAfterLatest, parseDateOnly, pickPreparableItems, prepareAllConfirmText, prepareAllSummary, primaryTimeOptions, PROJECT_TIME_ZONE, scheduleTimeOptions, templateForWeek, toLocalDateTime, WEEKDAY_LABELS, weekStartForDate } from '../lib/scheduleQueue';
 import { getStylePreset } from '../lib/stylePresetCatalog';
 import { useChannelDraft } from '../hooks/useChannelDraft.js';
 import { toMediaUrl, toThumbUrl } from '../lib/mediaUrl.js';
@@ -205,6 +205,16 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [bulkRemoving, setBulkRemoving] = useState(false);
+  // { done, total } while a bulk prepare is running, otherwise null.
+  const [prepareAllProgress, setPrepareAllProgress] = useState(null);
+  // The channel this mounted table belongs to; null once it unmounts. A bulk
+  // prepare stops when this no longer matches the channel it started in.
+  const liveChannelRef = useRef(null);
+  const channelKey = channel?.channelId || 'main';
+  useEffect(() => {
+    liveChannelRef.current = channelKey;
+    return () => { liveChannelRef.current = null; };
+  }, [channelKey]);
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('all');
   const [productFilter, setProductFilter] = useState('all');
@@ -404,6 +414,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   const nextToday = todayQueue.find((item) => new Date(item.scheduled_at).getTime() >= Date.now());
   const overdueTodayCount = todayQueue.filter((item) => item.status === 'planned' && new Date(item.scheduled_at).getTime() < Date.now()).length;
   const selectableQueue = useMemo(() => activeQueue.filter((item) => item.status === 'planned'), [activeQueue]);
+  const preparableCount = useMemo(() => pickPreparableItems(filteredActiveQueue).ready.length, [filteredActiveQueue]);
   const queueEndDate = useMemo(
     () => activeQueue.reduce((latest, item) => {
       const date = localParts(item.scheduled_at).date;
@@ -740,6 +751,39 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
     } catch (error) { showToast?.(error.response?.data?.detail || error.message, 'error'); }
   };
 
+  const prepareAll = async () => {
+    if (prepareAllProgress) return;
+    // Picked again at click time: a slot may have passed since the last render.
+    const picked = pickPreparableItems(filteredActiveQueue);
+    if (!picked.ready.length) return;
+    if (!(await confirmDialog(prepareAllConfirmText(picked)))) return;
+
+    const startChannel = liveChannelRef.current;
+    const total = picked.ready.length;
+    const errors = [];
+    let done = 0;
+    let attempted = 0;
+    setPrepareAllProgress({ done: 0, total });
+    // One at a time, in schedule order: every call writes the export registry
+    // and the posting jobs. A refused row does not stop the rest.
+    for (const item of picked.ready) {
+      if (liveChannelRef.current !== startChannel) break;
+      try {
+        const updated = await prepareScheduleQueue(item.id);
+        setQueue((prev) => prev.map((row) => row.id === item.id ? updated : row));
+        done += 1;
+      } catch (error) {
+        errors.push(error.response?.data?.detail || error.message);
+      }
+      attempted += 1;
+      setPrepareAllProgress({ done: attempted, total });
+    }
+    setPrepareAllProgress(null);
+    const summary = prepareAllSummary({ done, errors, notSent: total - attempted });
+    if (summary.tone === 'error') showToast?.(summary.text, 'error');
+    else showToast?.(summary.text);
+  };
+
   const onDropDate = async (date) => {
     if (!draggedId) return;
     const item = queue.find((row) => row.id === draggedId);
@@ -1074,6 +1118,11 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
               {overdueCount > 0 && (
                 <button type="button" onClick={openReschedule} className="min-h-11 px-3.5 py-2 rounded-xl border border-red-400/30 bg-red-500/10 text-red-200 text-xs font-bold flex items-center gap-1.5 hover:bg-red-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300">
                   <Clock className="w-4 h-4" />จัดเวลาใหม่ที่เลยกำหนด ({overdueCount})
+                </button>
+              )}
+              {(preparableCount > 0 || prepareAllProgress) && (
+                <button type="button" disabled={Boolean(prepareAllProgress)} onClick={prepareAll} className="min-h-11 px-3.5 py-2 rounded-xl border border-[#25F4EE]/40 bg-[#25F4EE]/10 text-cyan-100 text-xs font-bold flex items-center gap-1.5 hover:bg-[#25F4EE]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:opacity-60">
+                  <Rocket className="w-4 h-4" />{prepareAllProgress ? `กำลังเตรียม ${prepareAllProgress.done}/${prepareAllProgress.total}` : `เตรียมทั้งหมด (${preparableCount})`}
                 </button>
               )}
               <button type="button" onClick={openAutofill} className="obsidian-hero-btn px-4 py-2 text-xs flex items-center gap-1.5 shadow-lg"><Shuffle className="w-4 h-4" />จัดคิวอัตโนมัติ</button>
