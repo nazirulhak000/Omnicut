@@ -15,7 +15,7 @@ import {
   generateShotList, getShotList, getShotListStatus, getTaskStatus,
   generateProductBatch, batchGenerateAudio, startBatchDraft, getBatchRenderStatus, startProductionChain
 } from '../api';
-import { Modal, Toast, Button, Badge, Input, Textarea, ConfirmModal, PageHeader, confirmDialog } from './ui';
+import { Modal, Toast, Button, Badge, Input, Textarea, ConfirmModal, PageHeader, PopoverPanel, confirmDialog } from './ui';
 import MediaPickerModal from './MediaPickerModal';
 import FindReplaceModal from './FindReplaceModal';
 import ProductMetadataModal from './ProductMetadataModal';
@@ -37,7 +37,7 @@ import { resolveHistoryTargetId, resolveSelectedProduct } from '../lib/productSe
 import { buildProjectName } from '../lib/projectName';
 import {
   CHAIN_LABEL, CHAIN_TASK_TYPE, chainConfirmText, chainFollowUp, chainStartError, chainTargets,
-  findProductTask, requestScheduleAutofill, taskPercent,
+  findProductTask, taskPercent,
 } from '../lib/productionChain';
 
 const GEMINI_VOICE_OPTIONS = [
@@ -162,6 +162,27 @@ function ContentTypeBadges({ angle, compact = false }) {
           </span>
         );
       })}
+    </div>
+  );
+}
+
+// Header buttons: quiet tools and the items of the product list menu.
+const PRODUCT_TOOL_BUTTON = 'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold transition-colors';
+const PRODUCT_MENU_ITEM = 'w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold text-slate-200 hover:bg-white/[0.06] disabled:opacity-50';
+
+// Button weights of the lot toolbar: one filled primary, outlined secondary,
+// quiet tools inside the lot panel.
+const LOT_PRIMARY_BUTTON = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-xs font-bold disabled:opacity-50';
+const LOT_SECONDARY_BUTTON = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 border border-white/[0.12] text-xs font-bold disabled:opacity-50';
+const LOT_TOOL_BUTTON = 'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold disabled:opacity-50';
+
+/** One labelled cluster of the lot panel; renders nothing when it has no tools. */
+function LotToolGroup({ label, children }) {
+  if (React.Children.toArray(children).length === 0) return null;
+  return (
+    <div role="group" aria-label={label} className="flex flex-col gap-1.5 min-w-0">
+      <span className="text-[10px] font-semibold text-slate-400">{label}</span>
+      <div className="flex flex-wrap items-center gap-1.5">{children}</div>
     </div>
   );
 }
@@ -2576,7 +2597,8 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const [deleteTargetAngle, setDeleteTargetAngle] = useState(null);
   const [isDeletingAngle, setIsDeletingAngle] = useState(false);
   const [viewMode, setViewMode] = useState('split'); // 'split' | 'accordion'
-  const [productToolsOpen, setProductToolsOpen] = useState(false);
+  const [productMenuOpen, setProductMenuOpen] = useState(false);
+  const productMenuButtonRef = useRef(null);
 
   const hiddenProductsCount = useMemo(() => {
     return (historyList || []).filter(p => !!p.is_hidden).length;
@@ -4094,7 +4116,6 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
 
   const totalAngles = angles.length;
   const postedAngles = angles.filter(a => a.status === 'posted' || !!a.posted_at).length;
-  const progressPercent = totalAngles > 0 ? Math.round((postedAngles / totalAngles) * 100) : 0;
   const activeAngleIdx = openAngleIdx >= 0 && openAngleIdx < angles.length ? openAngleIdx : 0;
   const rerollTargetAngle = rerollModalAngleIdx !== null ? angles[rerollModalAngleIdx] : null;
 
@@ -4392,13 +4413,6 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     getShotListStatus(productId).then(res => setShotListStatusMap(res.status || {})).catch(() => {});
     refreshSceneCatalogs();
     workspaceData?.invalidateTrackerData?.();
-    if (followUp.openSchedule && onGoToTracker) {
-      // Rendered clips are ready: open the schedule on its auto-fill preview.
-      // Nothing is queued until the owner confirms there.
-      requestScheduleAutofill(window.sessionStorage);
-      try { window.localStorage.setItem('capcut_tracker_view_mode', 'schedule'); } catch { /* keeps the last view */ }
-      onGoToTracker();
-    }
   }, [chainTask, tasks, productData?.id]);
 
   const handleStartChain = async (kind) => {
@@ -4425,10 +4439,10 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
     }
   };
 
-  // One-step buttons step back to an outline while a chain button leads the row.
-  const manualStepButtonClass = (chainCounts.draft > 0 || chainCounts.render > 0)
-    ? 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 border border-white/[0.12] text-xs font-bold disabled:opacity-50'
-    : 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-xs font-bold disabled:opacity-50';
+  // The lot toolbar has one filled button: the chain that takes the lot furthest.
+  const primaryChainKind = chainCounts.full > 0 ? 'full' : (chainCounts.render > 0 ? 'render' : null);
+  const hasManualStep = missingAudioCount > 0 || unindexedVideosCount > 0 || readyForDraftAngles.length > 0;
+  const lotWorkRunning = Boolean(chainTask || batchAudioTask || batchDraftTask);
 
   const handleCancelChain = async () => {
     if (!chainTask) return;
@@ -4566,11 +4580,141 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         }
         title={productData?.title || productData?.name || (historyList.length > 0 ? 'เลือกสินค้าจากการ์ดสินค้า' : 'ยังไม่มีสินค้า — เริ่มวิเคราะห์สินค้าใหม่')}
         titleClassName="text-lg sm:text-xl md:text-2xl font-black text-white tracking-tight"
+        actions={productData && (
+          // Actions on the product in the title; list actions sit with the cards below.
+          <div role="group" aria-label="จัดการสินค้านี้" className="flex items-center gap-1.5 flex-wrap">
+            <button type="button" onClick={() => setShowMetadataModal(true)} className={PRODUCT_TOOL_BUTTON}>
+              <Database className="w-3.5 h-3.5 text-[#25F4EE]" /><span>ข้อมูล AI</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setHookHeaderAngleIdx(openAngleIdx >= 0 ? openAngleIdx : 0);
+                setHookHeaderModalOpen(true);
+              }}
+              className={PRODUCT_TOOL_BUTTON}
+            >
+              <Tag className="w-3.5 h-3.5 text-amber-300" /><span>ตั้งค่าป้าย Hook</span>
+            </button>
+            <button type="button" onClick={() => handleDeleteHistory(productData)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-rose-300 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/25 text-xs font-bold transition-colors">
+              <Trash2 className="w-3.5 h-3.5" /><span>ลบสินค้า</span>
+            </button>
+          </div>
+        )}
         secondRow={
           <>
+            {/* The product list: find, filter, browse, add. */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 pt-2.5 border-t border-white/[0.06]">
+              <div className="flex items-center gap-2 flex-1 min-w-0 flex-wrap">
+                {historyList.length > 1 && (
+                  <div className="relative flex items-center flex-1 min-w-[180px] max-w-xs">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" aria-hidden="true" />
+                    <input
+                      type="search"
+                      value={productSearch}
+                      onChange={(e) => setProductSearch(e.target.value)}
+                      placeholder="ค้นหาสินค้า..."
+                      aria-label="ค้นหาสินค้า"
+                      className="w-full bg-black/40 border border-white/[0.1] focus:border-[#25F4EE] text-slate-200 text-xs pl-8 pr-7 py-1.5 rounded-xl focus:outline-none placeholder-slate-500 [&::-webkit-search-cancel-button]:hidden"
+                    />
+                    {productSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setProductSearch('')}
+                        className="absolute right-2 text-slate-400 hover:text-white cursor-pointer"
+                        aria-label="ล้างคำค้นหา"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                )}
+                {(hiddenProductsCount > 0 || productFilter === 'hidden') && (
+                  <div role="group" aria-label="แสดงสินค้า" className="flex items-center gap-0.5 bg-black/30 p-0.5 rounded-lg border border-white/[0.06]">
+                    {[
+                      ['all', 'หลัก', activeProductsCount],
+                      ['hidden', 'ซ่อนอยู่', hiddenProductsCount],
+                    ].map(([value, label, count]) => {
+                      const active = value === 'hidden' ? productFilter === 'hidden' : productFilter !== 'hidden';
+                      return (
+                        <button
+                          key={value}
+                          type="button"
+                          aria-pressed={active}
+                          onClick={() => setProductFilter(value)}
+                          className={`px-2.5 py-1 rounded-md text-xs font-bold whitespace-nowrap ${active ? (value === 'hidden' ? 'bg-amber-500/15 text-amber-300' : 'bg-white/[0.1] text-white') : 'text-slate-400 hover:text-white'}`}
+                        >
+                          {label} <span className="font-mono tabular-nums">{count}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 sm:justify-end">
+                <button type="button" onClick={() => setShowCatalogModal(true)} className={PRODUCT_TOOL_BUTTON}>
+                  <LayoutGrid className="w-3.5 h-3.5 text-[#25F4EE]" /><span>คลังสินค้า</span>
+                </button>
+                <div className="relative">
+                  <button
+                    ref={productMenuButtonRef}
+                    type="button"
+                    onClick={() => setProductMenuOpen((open) => !open)}
+                    aria-expanded={productMenuOpen}
+                    aria-haspopup="menu"
+                    aria-label="เครื่องมือรายการสินค้าเพิ่มเติม"
+                    title="เครื่องมือรายการสินค้าเพิ่มเติม"
+                    className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] transition-colors"
+                  >
+                    <MoreHorizontal className="w-4 h-4" />
+                  </button>
+                  {productMenuOpen && (
+                    <PopoverPanel
+                      anchorRef={productMenuButtonRef}
+                      onClose={() => setProductMenuOpen(false)}
+                      role="menu"
+                      aria-label="เครื่องมือรายการสินค้าเพิ่มเติม"
+                      className="min-w-[220px] p-1 rounded-xl bg-[#0D111A] border border-white/[0.12] shadow-2xl"
+                    >
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => { setProductMenuOpen(false); loadHistory(); }}
+                        className={PRODUCT_MENU_ITEM}
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${loadingHistory ? 'animate-spin' : ''}`} /><span>รีเฟรชข้อมูล</span>
+                      </button>
+                      {unstartedVisibleProducts.length > 0 && (
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => { setProductMenuOpen(false); handleBatchHideUnstarted(); }}
+                          disabled={batchHiding}
+                          title="ซ่อนสินค้าที่ยังไม่มีคลิปเรนเดอร์หรือโพสต์ ออกจากแถบหลัก ดูคืนได้ที่ ซ่อนอยู่"
+                          className={PRODUCT_MENU_ITEM}
+                        >
+                          <EyeOff className="w-3.5 h-3.5" /><span>ซ่อนสินค้าที่ยังไม่ทำ ({unstartedVisibleProducts.length})</span>
+                        </button>
+                      )}
+                    </PopoverPanel>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-xs font-bold cursor-pointer active:scale-95 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0D14]"
+                  title="วิเคราะห์สินค้าใหม่"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>สินค้าใหม่</span>
+                </button>
+              </div>
+            </div>
+
             {/* Product cards: primary product switcher in the header. */}
             {historyList.length > 1 && (
-              <div className="pt-2 border-t border-white/[0.06] animate-fadeIn relative group/carousel">
+              <div className="animate-fadeIn relative group/carousel">
                 {/* Desktop Left navigation arrow */}
                 {canScrollLeft && (
                   <button
@@ -4614,171 +4758,32 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   ))}
                   {filteredHistory.length === 0 && productSearch && (
                     <div className="flex items-center justify-center p-4 rounded-xl bg-black/40 border border-white/[0.06] text-xs text-slate-400 gap-2 flex-shrink-0">
-                      <Search className="w-4 h-4 text-slate-500" />
+                      <Search className="w-4 h-4 text-slate-400" />
                       <span>ไม่พบสินค้าที่ตรงกับ "{productSearch}"</span>
                     </div>
                   )}
                   {filteredHistory.length === 0 && !productSearch && productFilter === 'hidden' && (
                     <div className="flex items-center justify-center p-4 rounded-xl bg-black/40 border border-white/[0.06] text-xs text-slate-400 gap-2 flex-shrink-0">
-                      <EyeOff className="w-4 h-4 text-slate-500" />
+                      <EyeOff className="w-4 h-4 text-slate-400" />
                       <span>ไม่มีสินค้าที่ถูกซ่อนอยู่</span>
                     </div>
                   )}
                 </div>
 
-                {productFilter === 'hidden' && (
-                  <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-amber-200 mt-2">
+                {productFilter === 'hidden' && filteredHistory.length > 0 && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-amber-200 mt-2">
                     <div className="flex items-center gap-2">
                       <EyeOff className="w-4 h-4 text-amber-400 flex-shrink-0" />
                       <span>กำลังแสดงเฉพาะสินค้าที่ซ่อนอยู่ ({filteredHistory.length} รายการ)</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={handleBatchUnhideAll}
-                        className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[11px] cursor-pointer"
-                      >
-                        ยกเลิกการซ่อนทั้งหมด
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setProductFilter('all')}
-                        className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/15 text-white font-bold text-[11px] cursor-pointer"
-                      >
-                        กลับไปดูสินค้าปกติ
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={handleBatchUnhideAll}
+                      className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[11px] cursor-pointer"
+                    >
+                      ยกเลิกการซ่อนทั้งหมด
+                    </button>
                   </div>
-                )}
-              </div>
-            )}
-
-            {/* Row 2: daily product controls. Less-used tools stay behind disclosure. */}
-            <div className="flex items-center gap-2 flex-wrap justify-between pt-2 border-t border-white/[0.06]">
-              {totalAngles > 0 && (
-                <div className="flex items-center gap-1.5 sm:gap-2 bg-black/40 px-2.5 py-1.5 rounded-xl border border-white/[0.08] flex-shrink-0">
-                  <span className="text-[11px] sm:text-xs text-slate-400 font-medium">คืบหน้า</span>
-                  <span className="text-[11px] sm:text-xs text-white font-bold font-mono">{postedAngles}/{totalAngles}</span>
-                  <div className="w-12 sm:w-16 h-1.5 bg-slate-800/80 rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full transition-all duration-500 ${progressPercent === 100 ? 'bg-emerald-400' : 'bg-[#25F4EE]'}`} style={{ width: `${progressPercent}%` }} />
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-center gap-2 ml-auto">
-                <button
-                  onClick={() => setShowAddModal(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-xs font-bold cursor-pointer shadow-md active:scale-95 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]"
-                  title="วิเคราะห์สินค้าใหม่"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>สินค้าใหม่</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setProductToolsOpen((open) => !open)}
-                  aria-expanded={productToolsOpen}
-                  aria-controls="product-secondary-tools"
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/60 ${
-                    productToolsOpen
-                      ? 'bg-white/[0.1] text-white border-white/[0.18]'
-                      : 'bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border-white/[0.08]'
-                  }`}
-                >
-                  <MoreHorizontal className="w-4 h-4" />
-                  <span>เครื่องมือสินค้า</span>
-                  {hiddenProductsCount > 0 && !productToolsOpen && (
-                    <span className="w-2 h-2 rounded-full bg-amber-400" title={`มีสินค้าที่ซ่อนอยู่ ${hiddenProductsCount} รายการ`} />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {productToolsOpen && (
-              <div id="product-secondary-tools" className="mt-2 p-2.5 rounded-xl bg-black/30 border border-white/[0.08] flex flex-wrap items-center gap-2 animate-fadeIn">
-                <div className="relative flex items-center flex-1 min-w-[190px] max-w-sm">
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={productSearch}
-                    onChange={(e) => setProductSearch(e.target.value)}
-                    placeholder="ค้นหาสินค้า..."
-                    className="w-full bg-black/40 border border-white/[0.1] focus:border-[#25F4EE] text-slate-200 text-xs pl-8 pr-7 py-1.5 rounded-xl focus:outline-none placeholder-slate-500"
-                  />
-                  {productSearch && (
-                    <button
-                      type="button"
-                      onClick={() => setProductSearch('')}
-                      className="absolute right-2 text-slate-400 hover:text-white cursor-pointer"
-                      title="ล้างคำค้นหา"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
-                {productData && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => setCopilotChatOpen(true)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition-all shadow-sm cursor-pointer"
-                      title="เปิด AI Production Co-Pilot วางมุมมองและดราฟต์คลิปอัตโนมัติ"
-                    >
-                      <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>AI Co-Pilot</span>
-                    </button>
-                    <button type="button" onClick={() => setShowMetadataModal(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold transition-colors">
-                      <Database className="w-3.5 h-3.5 text-[#25F4EE]" /><span>ข้อมูล AI</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setHookHeaderAngleIdx(openAngleIdx >= 0 ? openAngleIdx : 0);
-                        setHookHeaderModalOpen(true);
-                      }}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold transition-colors"
-                    >
-                      <Tag className="w-3.5 h-3.5 text-amber-300" /><span>ตั้งค่าป้าย Hook</span>
-                    </button>
-                  </>
-                )}
-                {unstartedVisibleProducts.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleBatchHideUnstarted}
-                    disabled={batchHiding}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/25 text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
-                    title="ซ่อนสินค้าที่ความคืบหน้า 0/10 มุม ออกจากแถบหลัก"
-                  >
-                    <EyeOff className="w-3.5 h-3.5 text-rose-400" />
-                    <span>ซ่อนสินค้าที่ยังไม่ทำ ({unstartedVisibleProducts.length})</span>
-                  </button>
-                )}
-                <button type="button" onClick={() => setShowCatalogModal(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold transition-colors">
-                  <LayoutGrid className="w-3.5 h-3.5 text-[#25F4EE]" /><span>คลังสินค้า</span>
-                </button>
-                <button type="button" onClick={loadHistory} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold transition-colors">
-                  <RefreshCw className={`w-3.5 h-3.5 ${loadingHistory ? 'animate-spin' : ''}`} /><span>รีเฟรชข้อมูล</span>
-                </button>
-                {(hiddenProductsCount > 0 || productFilter === 'hidden') && (
-                  <button
-                    type="button"
-                    onClick={() => setProductFilter((f) => (f === 'hidden' ? 'all' : 'hidden'))}
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-colors cursor-pointer ${
-                      productFilter === 'hidden'
-                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                        : 'bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-slate-200 border-white/[0.08]'
-                    }`}
-                    title={productFilter === 'hidden' ? 'กลับไปแสดงสินค้าหลัก' : `ดูสินค้าที่ซ่อนไว้ (${hiddenProductsCount})`}
-                  >
-                    {productFilter === 'hidden' ? <Eye className="w-3.5 h-3.5 text-amber-400" /> : <EyeOff className="w-3.5 h-3.5 text-slate-400" />}
-                    <span>{productFilter === 'hidden' ? 'ดูสินค้าหลัก' : `ซ่อนอยู่ (${hiddenProductsCount})`}</span>
-                  </button>
-                )}
-                {productData && (
-                  <button type="button" onClick={() => handleDeleteHistory(productData)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/25 text-xs font-bold transition-colors ml-auto">
-                    <Trash2 className="w-3.5 h-3.5" /><span>ลบสินค้า</span>
-                  </button>
                 )}
               </div>
             )}
@@ -5216,16 +5221,31 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   })}
                 </div>
 
-                <div className="flex items-center justify-between sm:justify-end gap-2 flex-wrap">
-
-                  {!chainTask && chainCounts.draft > 0 && (
-                    <button type="button" data-testid="production-chain-draft" onClick={() => handleStartChain('draft')} disabled={Boolean(startingChainKind) || Boolean(batchAudioTask) || Boolean(batchDraftTask)} title="เตรียมเสียงพากย์ สแกนฉาก และสร้างดราฟต์ต่อเนื่องกัน แล้วหยุดให้ตรวจใน Editor" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-xs font-bold disabled:opacity-50">
-                      {startingChainKind === 'draft' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                      <span>{CHAIN_LABEL.draft} (<strong className="font-mono tabular-nums">{chainCounts.draft}</strong>)</span>
+                <div className="flex items-center justify-start sm:justify-end gap-2 flex-wrap">
+                  {!lotWorkRunning && activeBatchAngles.length > 0 && (
+                    <label className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-500/[0.06] border border-cyan-500/20">
+                      <Mic className="w-3.5 h-3.5 shrink-0 text-[#25F4EE]" aria-hidden="true" />
+                      <span className="text-[10px] font-semibold text-slate-400 whitespace-nowrap">เสียง</span>
+                      <select
+                        value={selectedVoicePreset}
+                        onChange={(event) => setSelectedVoicePreset(event.target.value)}
+                        disabled={isStartingBatchAudio || Boolean(startingChainKind)}
+                        aria-label="เสียงที่จะใช้ก่อนเตรียมเสียง"
+                        title="เลือกเสียงสำหรับเตรียมเสียงหรือเจนเสียงใหม่ทั้งสคริปต์"
+                        className="w-[170px] max-w-full bg-black/40 border border-white/[0.1] rounded-md px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-[#25F4EE] disabled:opacity-50"
+                      >
+                        {GEMINI_VOICE_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+                      </select>
+                    </label>
+                  )}
+                  {!chainTask && chainCounts.full > 0 && (
+                    <button type="button" data-testid="production-chain-full" onClick={() => handleStartChain('full')} disabled={Boolean(startingChainKind) || Boolean(batchAudioTask) || Boolean(batchDraftTask)} title="เตรียมเสียงพากย์ สแกนฉาก สร้างดราฟต์ และเรนเดอร์ต่อเนื่องกันจนได้คลิป ไม่หยุดให้ตรวจดราฟต์ และไม่จัดคิวโพสต์" className={LOT_PRIMARY_BUTTON}>
+                      {startingChainKind === 'full' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                      <span>{CHAIN_LABEL.full} (<strong className="font-mono tabular-nums">{chainCounts.full}</strong>)</span>
                     </button>
                   )}
                   {!chainTask && chainCounts.render > 0 && (
-                    <button type="button" data-testid="production-chain-render" onClick={() => handleStartChain('render')} disabled={Boolean(startingChainKind) || Boolean(batchDraftTask)} title="เรนเดอร์ดราฟต์ที่ตรวจแล้วตามค่าที่บันทึกใน Editor แล้วเปิดหน้าจัดคิวโพสต์" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-xs font-bold disabled:opacity-50">
+                    <button type="button" data-testid="production-chain-render" onClick={() => handleStartChain('render')} disabled={Boolean(startingChainKind) || Boolean(batchDraftTask)} title="เรนเดอร์ดราฟต์ที่ตรวจแล้วตามค่าที่บันทึกใน Editor ไม่จัดคิวโพสต์" className={primaryChainKind === 'render' ? LOT_PRIMARY_BUTTON : LOT_SECONDARY_BUTTON}>
                       {startingChainKind === 'render' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                       <span>{CHAIN_LABEL.render} (<strong className="font-mono tabular-nums">{chainCounts.render}</strong>)</span>
                     </button>
@@ -5238,39 +5258,15 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       <button type="button" onClick={handleCancelChain} className="pl-2 border-l border-cyan-500/25 text-slate-300 hover:text-white">ยกเลิก</button>
                     </div>
                   ) : batchAudioTask || batchDraftTask ? (
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-cyan-500/10 text-cyan-200 border border-cyan-500/25 text-xs font-bold">
+                    <div role="status" className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-cyan-500/10 text-cyan-200 border border-cyan-500/25 text-xs font-bold">
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       <span>{batchAudioTask?.step_label || batchDraftTask?.step_label || 'กำลังประมวลผล...'}</span>
                     </div>
-                  ) : missingAudioCount > 0 ? (
-                    <button type="button" onClick={handleBatchGenerateAudio} disabled={isStartingBatchAudio} className={manualStepButtonClass}>
-                      {isStartingBatchAudio ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Volume2 className="w-3.5 h-3.5" />}
-                      <span>เตรียมเสียง (<strong className="font-mono tabular-nums">{missingAudioCount}</strong>)</span>
-                    </button>
-                  ) : unindexedVideosCount > 0 ? (
-                    <button type="button" onClick={() => handleIndexSceneCatalog()} disabled={isScanningScenes} className={manualStepButtonClass}>
-                      {isScanningScenes ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
-                      <span>สแกนฉาก (<strong className="font-mono tabular-nums">{unindexedVideosCount}</strong>)</span>
-                    </button>
-                  ) : readyForDraftAngles.length > 0 ? (
-                    <button type="button" onClick={handleBatchCreateDraft} disabled={isStartingBatchDraft} className={manualStepButtonClass}>
-                      {isStartingBatchDraft ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
-                      <span>สร้างดราฟต์ทุกมุม (<strong className="font-mono tabular-nums">{readyForDraftAngles.length}</strong>)</span>
-                    </button>
-                  ) : (
+                  ) : !primaryChainKind && chainCounts.draft === 0 && !hasManualStep ? (
                     <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-300 border border-emerald-500/25 text-xs font-bold">
                       <Check className="w-3.5 h-3.5" /> พร้อมครบ
                     </span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setCopilotChatOpen(true)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition-all shadow-sm cursor-pointer"
-                    title="เปิด AI Production Co-Pilot วางมุมมองและดราฟต์คลิปอัตโนมัติ"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>AI Co-Pilot</span>
-                  </button>
+                  ) : null}
                   <button
                     type="button"
                     onClick={() => setBatchToolsOpen((open) => !open)}
@@ -5286,55 +5282,73 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
               </div>
 
               {batchToolsOpen && (
-                <div id="batch-secondary-tools" className="pt-2.5 border-t border-white/[0.06] grid gap-3 xl:grid-cols-[auto_1fr] animate-fadeIn">
-                  <div className="flex items-center gap-1 bg-black/30 p-1 rounded-lg border border-white/[0.06] w-fit h-fit">
-                    <button type="button" onClick={() => setViewMode('split')} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold ${viewMode === 'split' ? 'bg-white/[0.1] text-white' : 'text-slate-400'}`}>
-                      <Columns className="w-3.5 h-3.5" /> แสดงแบบสตูดิโอ
-                    </button>
-                    <button type="button" onClick={() => setViewMode('accordion')} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold ${viewMode === 'accordion' ? 'bg-white/[0.1] text-white' : 'text-slate-400'}`}>
-                      <List className="w-3.5 h-3.5" /> แสดงแบบแถวยาว
-                    </button>
+                <div id="batch-secondary-tools" className="pt-3 border-t border-white/[0.06] flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4 animate-fadeIn">
+                  <div className="flex flex-wrap gap-x-6 gap-y-3">
+                    <LotToolGroup label="บท">
+                      <button type="button" onClick={() => setShowBatchModal(true)} className={LOT_TOOL_BUTTON}><Plus className="w-3.5 h-3.5" /> สร้างสคริปต์ล็อตใหม่</button>
+                      <button type="button" onClick={() => { setFindReplaceAngleIdx(activeAngleIdx); setFindReplaceOpen(true); }} className={LOT_TOOL_BUTTON}><Replace className="w-3.5 h-3.5" /> แทนที่คำในบท</button>
+                    </LotToolGroup>
+                    <LotToolGroup label="เสียง">
+                      {!lotWorkRunning && missingAudioCount === 0 && canRegenerateBatchAudio && (
+                        <button
+                          type="button"
+                          onClick={() => handleBatchGenerateAudio({ forceRegenerate: true })}
+                          disabled={isStartingBatchAudio}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-200 border border-indigo-400/25 text-xs font-bold disabled:opacity-50"
+                          title="สร้างเสียงพากย์ใหม่ให้ทุกสคริปต์ที่ยังไม่ตัดต่อเสร็จ โดยใช้เสียงที่เลือกไว้"
+                        >
+                          {isStartingBatchAudio ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                          <span>สร้างเสียงพากย์ใหม่ ({activeBatchAngles.length})</span>
+                        </button>
+                      )}
+                    </LotToolGroup>
+                    <LotToolGroup label="คลิป">
+                      <button type="button" onClick={() => handleOpenMediaPicker(-1)} className={LOT_TOOL_BUTTON}><FolderOpen className="w-3.5 h-3.5" /> เลือกคลิปให้ทุกมุม</button>
+                      <button type="button" onClick={() => setFilmingRecipeModalOpen(true)} className={LOT_TOOL_BUTTON}><Clapperboard className="w-3.5 h-3.5" /> ดูสูตรถ่ายทำ</button>
+                    </LotToolGroup>
+                    <LotToolGroup label="ทีละขั้น">
+                      {!chainTask && chainCounts.draft > 0 && (
+                        <button type="button" data-testid="production-chain-draft" onClick={() => handleStartChain('draft')} disabled={Boolean(startingChainKind) || Boolean(batchAudioTask) || Boolean(batchDraftTask)} title="เตรียมเสียงพากย์ สแกนฉาก และสร้างดราฟต์ต่อเนื่องกัน แล้วหยุดให้ตรวจใน Editor" className={LOT_TOOL_BUTTON}>
+                          {startingChainKind === 'draft' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                          <span>{CHAIN_LABEL.draft} (<strong className="font-mono tabular-nums">{chainCounts.draft}</strong>)</span>
+                        </button>
+                      )}
+                      {!lotWorkRunning && (missingAudioCount > 0 ? (
+                        <button type="button" onClick={handleBatchGenerateAudio} disabled={isStartingBatchAudio} className={LOT_TOOL_BUTTON}>
+                          {isStartingBatchAudio ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Volume2 className="w-3.5 h-3.5" />}
+                          <span>เตรียมเสียง (<strong className="font-mono tabular-nums">{missingAudioCount}</strong>)</span>
+                        </button>
+                      ) : unindexedVideosCount > 0 ? (
+                        <button type="button" onClick={() => handleIndexSceneCatalog()} disabled={isScanningScenes} className={LOT_TOOL_BUTTON}>
+                          {isScanningScenes ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
+                          <span>สแกนฉาก (<strong className="font-mono tabular-nums">{unindexedVideosCount}</strong>)</span>
+                        </button>
+                      ) : readyForDraftAngles.length > 0 ? (
+                        <button type="button" onClick={handleBatchCreateDraft} disabled={isStartingBatchDraft} className={LOT_TOOL_BUTTON}>
+                          {isStartingBatchDraft ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                          <span>สร้างดราฟต์ทุกมุม (<strong className="font-mono tabular-nums">{readyForDraftAngles.length}</strong>)</span>
+                        </button>
+                      ) : null)}
+                      <button type="button" onClick={() => setBatchRenderOpen(true)} title="เลือกมุมที่จะเรนเดอร์เองทีละชุด" className={LOT_TOOL_BUTTON}><Zap className="w-3.5 h-3.5" /> เรนเดอร์เลือกมุมเอง</button>
+                    </LotToolGroup>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    {!batchAudioTask && !batchDraftTask && activeBatchAngles.length > 0 && (
-                      <label className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-cyan-500/[0.06] border border-cyan-500/20">
-                        <Mic className="w-3.5 h-3.5 shrink-0 text-[#25F4EE]" aria-hidden="true" />
-                        <span className="text-[10px] font-semibold text-slate-400 whitespace-nowrap">เสียง</span>
-                        <select
-                          value={selectedVoicePreset}
-                          onChange={(event) => setSelectedVoicePreset(event.target.value)}
-                          disabled={isStartingBatchAudio}
-                          aria-label="เสียงที่จะใช้ก่อนเตรียมเสียง"
-                          title="เลือกเสียงสำหรับเตรียมเสียงหรือเจนเสียงใหม่ทั้งสคริปต์"
-                          className="w-[190px] max-w-full bg-black/40 border border-white/[0.1] rounded-md px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-[#25F4EE] disabled:opacity-50"
-                        >
-                          {GEMINI_VOICE_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-                        </select>
-                      </label>
-                    )}
-                    {!batchAudioTask && !batchDraftTask && missingAudioCount === 0 && canRegenerateBatchAudio && (
-                      <button
-                        type="button"
-                        onClick={() => handleBatchGenerateAudio({ forceRegenerate: true })}
-                        disabled={isStartingBatchAudio}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-200 border border-indigo-400/25 text-xs font-bold disabled:opacity-50"
-                        title="สร้างเสียงพากย์ใหม่ให้ทุกสคริปต์ที่ยังไม่ตัดต่อเสร็จ โดยใช้เสียงที่เลือกไว้"
-                      >
-                        {isStartingBatchAudio ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                        <span>สร้างเสียงพากย์ใหม่ ({activeBatchAngles.length})</span>
-                      </button>
-                    )}
-                    <button type="button" onClick={() => { setFindReplaceAngleIdx(activeAngleIdx); setFindReplaceOpen(true); }} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold"><Replace className="w-3.5 h-3.5" /> แทนที่คำในบท</button>
-                    <button type="button" onClick={() => handleOpenMediaPicker(-1)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold"><FolderOpen className="w-3.5 h-3.5" /> เลือกคลิปให้ทุกมุม</button>
-                    <button type="button" onClick={() => setBatchRenderOpen(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold"><Zap className="w-3.5 h-3.5" /> เรนเดอร์หลายมุมพร้อมกัน</button>
-                    <button type="button" onClick={() => setFilmingRecipeModalOpen(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold"><Clapperboard className="w-3.5 h-3.5" /> ดูสูตรถ่ายทำ</button>
-                    <button type="button" onClick={() => setShowBatchModal(true)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold"><Plus className="w-3.5 h-3.5" /> สร้างสคริปต์ล็อตใหม่</button>
-                    {postedAngles > 0 && (
-                      <button type="button" onClick={() => setHidePosted(!hidePosted)} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold">
-                        {hidePosted ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />} {hidePosted ? 'แสดงที่โพสต์แล้ว' : `ซ่อนที่โพสต์แล้ว (${postedAngles})`}
-                      </button>
-                    )}
+                  <div className="flex flex-wrap items-end gap-2 shrink-0 xl:pl-4 xl:border-l xl:border-white/[0.06]">
+                    <LotToolGroup label="มุมมอง">
+                      <div className="flex items-center gap-1 bg-black/30 p-1 rounded-lg border border-white/[0.06] w-fit">
+                        <button type="button" onClick={() => setViewMode('split')} aria-pressed={viewMode === 'split'} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold whitespace-nowrap ${viewMode === 'split' ? 'bg-white/[0.1] text-white' : 'text-slate-400'}`}>
+                          <Columns className="w-3.5 h-3.5" /> แสดงแบบสตูดิโอ
+                        </button>
+                        <button type="button" onClick={() => setViewMode('accordion')} aria-pressed={viewMode === 'accordion'} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold whitespace-nowrap ${viewMode === 'accordion' ? 'bg-white/[0.1] text-white' : 'text-slate-400'}`}>
+                          <List className="w-3.5 h-3.5" /> แสดงแบบแถวยาว
+                        </button>
+                      </div>
+                      {postedAngles > 0 && (
+                        <button type="button" onClick={() => setHidePosted(!hidePosted)} aria-pressed={hidePosted} className={LOT_TOOL_BUTTON}>
+                          {hidePosted ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />} {hidePosted ? 'แสดงที่โพสต์แล้ว' : `ซ่อนที่โพสต์แล้ว (${postedAngles})`}
+                        </button>
+                      )}
+                    </LotToolGroup>
                   </div>
                 </div>
               )}

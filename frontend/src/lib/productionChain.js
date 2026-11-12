@@ -1,12 +1,15 @@
 // Product page helpers for background work: which task belongs to the open
-// product, and what the two production-chain buttons would act on.
+// product, and what the production-chain buttons would act on.
 //
 // The backend's task record is { type, status: queued|processing|completed|
 // failed|cancelled, progress: 0..1, step_label, payload, result, error }.
 
 export const CHAIN_TASK_TYPE = 'production_chain';
-export const CHAIN_LABEL = { draft: 'ผลิตถึงดราฟต์', render: 'เรนเดอร์และเข้าคิว' };
-export const OPEN_AUTOFILL_KEY = 'omnicut.schedule.open_autofill';
+export const CHAIN_LABEL = {
+  draft: 'ผลิตถึงดราฟต์',
+  render: 'เรนเดอร์ดราฟต์',
+  full: 'ผลิตจนเรนเดอร์เสร็จ',
+};
 
 const ACTIVE_STATUSES = new Set(['queued', 'processing']);
 const DRAFT_STATUSES = new Set(['in_production', 'rendered', 'posted']);
@@ -50,16 +53,19 @@ export function chainTargets(angles, batch = null) {
     angle?.angle_id && (lot === null || (angle.batch || 1) === lot)
   ));
   const open = scoped.filter((angle) => !isFinished(angle));
-  return {
-    draft: open.filter((angle) => !hasDraft(angle) && hasScript(angle)).length,
-    render: open.filter(hasDraft).length,
-  };
+  const draft = open.filter((angle) => !hasDraft(angle) && hasScript(angle)).length;
+  // full renders only the drafts it builds itself, so it acts on the same angles as draft
+  return { draft, render: open.filter(hasDraft).length, full: draft };
 }
 
 export function chainConfirmText(kind, count) {
+  if (kind === 'full') {
+    return `เตรียมเสียงพากย์ สแกนฉาก สร้างดราฟต์ และเรนเดอร์ ${count} มุมต่อเนื่องกัน\n`
+      + 'ไม่หยุดให้ตรวจดราฟต์ก่อนเรนเดอร์ และไม่จัดคิวโพสต์\n\nเริ่มผลิตเลยไหม?';
+  }
   if (kind === 'render') {
     return `เรนเดอร์ดราฟต์ที่ตรวจแล้ว ${count} มุม ตามค่าที่บันทึกไว้ใน Editor\n`
-      + 'เสร็จแล้วระบบเปิดหน้าจัดคิวโพสต์ให้ตรวจก่อนบันทึก\n\nเริ่มเรนเดอร์เลยไหม?';
+      + 'ไม่จัดคิวโพสต์ — จัดคิวเองทีหลังที่หน้าตารางโพสต์\n\nเริ่มเรนเดอร์เลยไหม?';
   }
   return `เตรียมเสียงพากย์ สแกนฉาก และสร้างดราฟต์ ${count} มุมต่อเนื่องกัน\n`
     + 'ระบบหยุดที่ดราฟต์ให้เปิดตรวจใน Editor ก่อนเรนเดอร์\n\nเริ่มผลิตเลยไหม?';
@@ -73,31 +79,10 @@ export function chainStartError(error) {
 }
 
 /**
- * What the product page does once a chain task has ended.
- * `openSchedule` is true only for a render chain that produced clips.
+ * What the product page does once a chain task has ended: reload the product.
+ * No chain opens the posting schedule -- the owner queues finished clips
+ * later -- and the app-wide task toast already says how the chain ended.
  */
 export function chainFollowUp(task) {
-  if (!task || task.type !== CHAIN_TASK_TYPE || isActiveTask(task)) {
-    return { refresh: false, openSchedule: false, rendered: 0 };
-  }
-  const rendered = task.status === 'completed' && task.result?.kind === 'render'
-    ? (task.result.rendered || []).length
-    : 0;
-  return { refresh: true, openSchedule: rendered > 0, rendered };
-}
-
-/** Ask the schedule page to open its auto-fill preview on its next mount. */
-export function requestScheduleAutofill(storage) {
-  try { storage?.setItem(OPEN_AUTOFILL_KEY, '1'); } catch { /* storage unavailable: the owner opens it by hand */ }
-}
-
-/** True once per request; clears it so a reload does not reopen the preview. */
-export function consumeScheduleAutofill(storage) {
-  try {
-    if (storage?.getItem(OPEN_AUTOFILL_KEY) !== '1') return false;
-    storage.removeItem(OPEN_AUTOFILL_KEY);
-    return true;
-  } catch {
-    return false;
-  }
+  return { refresh: Boolean(task && task.type === CHAIN_TASK_TYPE && !isActiveTask(task)) };
 }

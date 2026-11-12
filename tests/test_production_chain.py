@@ -589,3 +589,166 @@ def test_route_rejects_an_unknown_kind_and_an_unknown_product():
 
     assert client.post(f"/api/products/{product['id']}/production-chain", json={"kind": "post"}).status_code == 400
     assert client.post("/api/products/no-such-product/production-chain", json={"kind": "draft"}).status_code == 404
+
+
+# ─── Chain: full (draft then render, no review stop) ─────────────────────────
+
+@pytest.fixture
+def full_fakes(draft_fakes, fake_pipeline, monkeypatch):
+    """The draft fakes, but a built draft leaves its project and angle state
+    behind the way the real batch does, so the render stage can find it."""
+    events, state = draft_fakes
+    calls, behaviour = fake_pipeline
+    state["draft_fails"] = set()
+    built = BatchRenderManager.create_batch
+
+    def create_batch(cls, product_id, angle_ids=None, options=None, **kwargs):
+        batch = built(product_id, angle_ids=angle_ids, options=options, **kwargs)
+        product = ProductStore.get(product_id)
+        angles = product["angles"]
+        for item in batch["items"]:
+            if item["angle_id"] in state["draft_fails"]:
+                item.update(status="failed", error="ไม่มีฉากพอ", project_name=None)
+                continue
+            _draft_project(product_id, item["angle_id"], item["project_name"])
+            for angle in angles:
+                if angle["angle_id"] == item["angle_id"]:
+                    angle.update(status="in_production", project_name=item["project_name"])
+        ProductStore.update(product_id, angles=angles)
+        return batch
+
+    monkeypatch.setattr(BatchRenderManager, "create_batch", classmethod(create_batch))
+    return events, state, calls, behaviour
+
+
+def test_full_chain_drafts_then_renders_only_the_drafts_it_built(full_fakes, tmp_path):
+    events, state, calls, behaviour = full_fakes
+    product = _product([
+        _angle("a1"), _angle("a2"),
+        _angle("old", status="in_production", project_name="proj_old"),
+        _angle("done", status="rendered", project_name="proj_done"),
+    ], default_videos=[_clip(tmp_path, "raw1.mp4")])
+    pid = product["id"]
+
+    task = _run(pid, "full", batch_index=1)
+
+    assert [e[0] for e in events] == ["voice", "voice", "scan", "draft"]
+    assert sorted(c["project_name"] for c in calls) == ["proj_a1", "proj_a2"]
+    assert task["status"] == "completed"
+    result = task["result"]
+    assert result["kind"] == "full"
+    assert [d["angle_id"] for d in result["draft"]["drafts"]["created"]] == ["a1", "a2"]
+    assert sorted(r["angle_id"] for r in result["render"]["rendered"]) == ["a1", "a2"]
+    assert result["message"] == "สร้างดราฟต์ 2 มุม · เรนเดอร์เสร็จ 2 คลิป"
+    assert _status(pid, "a1") == "rendered" and _status(pid, "a2") == "rendered"
+    # a draft left from an earlier run is the render button's job
+    assert _status(pid, "old") == "in_production"
+    assert task["title"].startswith("ผลิตจนเรนเดอร์เสร็จ:")
+
+
+def test_full_chain_renders_the_drafts_that_were_built_when_others_failed(full_fakes, tmp_path):
+    events, state, calls, behaviour = full_fakes
+    state["draft_fails"].add("a2")
+    product = _product([_angle("a1"), _angle("a2")], default_videos=[_clip(tmp_path, "raw1.mp4")])
+
+    task = _run(product["id"], "full")
+
+    assert [c["project_name"] for c in calls] == ["proj_a1"]
+    assert task["status"] == "completed"
+    result = task["result"]
+    assert [(f["angle_id"], f["error"]) for f in result["draft"]["drafts"]["failed"]] == [("a2", "ไม่มีฉากพอ")]
+    assert result["message"] == "สร้างดราฟต์ 1 มุม · ล้มเหลว 1 มุม · เรนเดอร์เสร็จ 1 คลิป"
+
+
+def test_full_chain_stops_before_drafts_and_renders_when_the_scan_fails(full_fakes, tmp_path):
+    events, state, calls, behaviour = full_fakes
+    state["fallback"].add("raw1.mp4")
+    product = _product([_angle("a1")], default_videos=[_clip(tmp_path, "raw1.mp4")])
+
+    task = _run(product["id"], "full")
+
+    assert "draft" not in [e[0] for e in events]
+    assert calls == []
+    assert task["status"] == "failed"
+    assert "หยุดที่ขั้นสแกนฉาก" in task["error"]
+
+
+def test_full_chain_points_to_the_render_button_for_drafts_it_could_not_render(full_fakes, tmp_path):
+    events, state, calls, behaviour = full_fakes
+    product = _product([_angle("a1"), _angle("a2")], default_videos=[_clip(tmp_path, "raw1.mp4")])
+
+    def explode(kwargs):
+        raise RuntimeError("ffmpeg ล้ม")
+    behaviour["proj_a2"] = explode
+
+    task = _run(product["id"], "full")
+
+    assert task["status"] == "completed"
+    assert task["result"]["message"].endswith("ดราฟต์ที่ยังไม่ได้เรนเดอร์ใช้ปุ่ม เรนเดอร์ดราฟต์")
+    assert _status(product["id"], "a2") == "in_production"
+
+
+def test_full_chain_with_nothing_to_draft_renders_nothing(full_fakes):
+    events, state, calls, behaviour = full_fakes
+    product = _product([_angle("old", status="in_production", project_name="proj_old")])
+
+    task = _run(product["id"], "full")
+
+    assert events == [] and calls == []
+    assert task["status"] == "completed"
+    assert task["result"]["render"] is None
+
+
+def test_full_chain_progress_gives_the_first_half_to_drafts_and_the_second_to_renders(full_fakes, tmp_path,
+                                                                                       monkeypatch):
+    seen = []
+    original = TaskManager.update_progress
+
+    def record(task_id, value, *args, **kwargs):
+        seen.append((task_id, value, kwargs.get("step_label") or ""))
+        return original(task_id, value, *args, **kwargs)
+
+    monkeypatch.setattr(TaskManager, "update_progress", staticmethod(record))
+    product = _product([_angle("a1")], default_videos=[_clip(tmp_path, "raw1.mp4")])
+
+    task = _run(product["id"], "full")
+
+    assert task["status"] == "completed"
+    seen = [(v, label) for tid, v, label in seen if tid == task["id"]]  # not the voice task's own bar
+    values = [v for v, _ in seen]
+    assert values == sorted(values) and max(values) <= 1.0
+    assert all(v <= 0.5 for v, label in seen if "เรนเดอร์ 1 คลิป" not in label)
+    assert any(v > 0.5 for v, label in seen if "เรนเดอร์ 1 คลิป" in label)
+    assert production_chain._WINDOWS == {}
+
+
+def test_cancelling_the_full_chain_during_its_render_stops_it(full_fakes, tmp_path):
+    events, state, calls, behaviour = full_fakes
+    product = _product([_angle("a1")], default_videos=[_clip(tmp_path, "raw1.mp4")])
+    started = threading.Event()
+
+    def wait_for_cancel(kwargs):
+        started.set()
+        assert kwargs["cancel_event"].wait(5.0), "the render was never told to stop"
+        raise render_jobs.RenderCancelled()
+
+    behaviour["proj_a1"] = wait_for_cancel
+
+    task = production_chain.start_chain(product["id"], "full")
+    assert started.wait(5.0)
+    TaskManager.cancel_task(task["id"])
+
+    assert _wait_until(lambda: (product["id"] in {k[1] for k in production_chain._ACTIVE}) is False)
+    assert TaskManager.get_task(task["id"])["status"] == "cancelled"
+    assert _status(product["id"], "a1") == "in_production"
+
+
+def test_route_starts_the_full_chain(full_fakes, tmp_path):
+    events, state, calls, behaviour = full_fakes
+    product = _product([_angle("a1")], default_videos=[_clip(tmp_path, "raw1.mp4")])
+
+    task = _run_through_route(product["id"], "full")
+
+    assert task["status"] == "completed", task.get("error")
+    assert task["payload"]["kind"] == "full"
+    assert [c["project_name"] for c in calls] == ["proj_a1"]

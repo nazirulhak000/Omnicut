@@ -1,11 +1,18 @@
 """Production chain: the steps of one product run back to back by the server.
 
-Two chains, with the owner's review of the drafts in between:
+Three chains:
 
 * ``draft``  -- prepare the voice of every angle that has no draft yet, scan
-  the attached footage that has no Scene Catalog, then build the drafts.
+  the attached footage that has no Scene Catalog, then build the drafts, and
+  stop so the owner can review them in the Editor.
 * ``render`` -- render every reviewed draft from the state the Editor saved
   (the same function the Editor's own Render button ends in), a few at a time.
+* ``full``   -- ``draft`` then ``render`` in one task, without the review stop.
+  It renders only the drafts it built itself; drafts left from earlier runs
+  are the ``render`` chain's job.
+
+None of them touches the posting queue: the owner schedules finished clips
+later, from the schedule page.
 
 Each chain is one ``production_chain`` task in TaskManager. It runs on its own
 thread, so it keeps going when the page is closed, and it only calls workers
@@ -35,8 +42,8 @@ from scripts.task_manager import TaskManager
 router = APIRouter(tags=["Production chain"])
 
 TASK_TYPE = "production_chain"
-KINDS = ("draft", "render")
-KIND_LABEL = {"draft": "ผลิตถึงดราฟต์", "render": "เรนเดอร์และเข้าคิว"}
+KINDS = ("draft", "render", "full")
+KIND_LABEL = {"draft": "ผลิตถึงดราฟต์", "render": "เรนเดอร์ดราฟต์", "full": "ผลิตจนเรนเดอร์เสร็จ"}
 
 # Seconds between looks at a child task, a draft batch or the cancel flag.
 POLL_SECONDS = 1.0
@@ -48,6 +55,9 @@ RENDER_PART = "bgm"
 
 _ACTIVE: Dict[tuple, str] = {}
 _ACTIVE_LOCK = threading.Lock()
+
+# task id -> (low, high): the share of the bar a stage of the full chain owns.
+_WINDOWS: Dict[str, tuple] = {}
 
 
 class ChainBusy(Exception):
@@ -129,10 +139,22 @@ def _cancelled(task_id: str) -> bool:
 
 def _progress(task_id: str, value: float, label: str) -> None:
     """Report progress; a poll that found nothing new adds no log line."""
+    low, high = _WINDOWS.get(task_id, (0.0, 1.0))
+    value = low + (high - low) * value
     task = TaskManager.get_task(task_id) or {}
     if task.get("step_label") == label and abs(float(task.get("progress") or 0.0) - value) < 0.005:
         return
     TaskManager.update_progress(task_id, value, step_label=label)
+
+
+@contextmanager
+def _progress_window(task_id: str, low: float, high: float) -> Iterator[None]:
+    """Map the 0..1 progress of one stage of the full chain onto low..high."""
+    _WINDOWS[task_id] = (low, high)
+    try:
+        yield
+    finally:
+        _WINDOWS.pop(task_id, None)
 
 
 @contextmanager
@@ -411,14 +433,20 @@ def _projects_rendering_now() -> set:
     return busy
 
 
-def plan_render(product: Dict[str, Any], batch_index: Optional[int]) -> Dict[str, List[Dict[str, Any]]]:
-    """Drafts waiting for their render, and the ones this chain must leave alone."""
+def plan_render(product: Dict[str, Any], batch_index: Optional[int],
+                only: Optional[set] = None) -> Dict[str, List[Dict[str, Any]]]:
+    """Drafts waiting for their render, and the ones this chain must leave alone.
+
+    ``only`` limits the plan to these angle keys (``_angle_key``).
+    """
     from scripts.project_manifest import ProjectManifest
 
     ready: List[Dict[str, Any]] = []
     skipped: List[Dict[str, Any]] = []
     busy = _projects_rendering_now()
     for angle in _angles_in_scope(product, batch_index):
+        if only is not None and _angle_key(angle) not in only:
+            continue
         project = str(angle.get("project_name") or "")
         if _is_finished(angle) or angle.get("status") != "in_production" or not project:
             continue
@@ -475,8 +503,9 @@ def _render_one(item: Dict[str, Any], channel_id: Optional[str],
 
 def run_render_chain(task_id: str, product_id: str, *, batch_index: Optional[int] = None,
                      channel_id: Optional[str] = None,
-                     job_scope: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    """Render every reviewed draft from its saved Editor state."""
+                     job_scope: Optional[Dict[str, Any]] = None,
+                     only: Optional[set] = None) -> Dict[str, Any]:
+    """Render every reviewed draft (or the ``only`` angle keys) from its saved Editor state."""
     summary: Dict[str, Any] = {"kind": "render", "ok": False, "stopped_at": None, "message": "",
                                "rendered": [], "failed": [], "skipped": []}
     product = ProductStore.get(product_id, **_channel_kwargs(channel_id))
@@ -484,7 +513,7 @@ def run_render_chain(task_id: str, product_id: str, *, batch_index: Optional[int
         summary.update(stopped_at="product", message="ไม่พบสินค้า")
         return summary
 
-    plan = plan_render(product, batch_index)
+    plan = plan_render(product, batch_index, only)
     ready, summary["skipped"] = plan["ready"], plan["skipped"]
     total = len(ready)
     if not total:
@@ -573,6 +602,45 @@ def run_render_chain(task_id: str, product_id: str, *, batch_index: Optional[int
     return summary
 
 
+# ─── Chain: full ──────────────────────────────────────────────────────────────
+
+def run_full_chain(task_id: str, product_id: str, *, batch_index: Optional[int] = None,
+                   voice_preset: Optional[str] = None, channel_id: Optional[str] = None,
+                   job_scope: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """The draft chain, then the render chain for the drafts it built.
+
+    The draft chain's own stop rules hold (a failed scene scan builds no
+    draft). Drafts that failed are reported; the ones that were built are
+    rendered.
+    """
+    summary: Dict[str, Any] = {"kind": "full", "ok": False, "stopped_at": None, "message": "",
+                               "draft": None, "render": None}
+    with _progress_window(task_id, 0.0, 0.5):
+        draft = run_draft_chain(task_id, product_id, batch_index=batch_index, voice_preset=voice_preset,
+                                channel_id=channel_id, job_scope=job_scope)
+    summary["draft"] = draft
+    created = (draft.get("drafts") or {}).get("created") or []
+    if draft.get("stopped_at") == "cancelled" or _cancelled(task_id):
+        summary.update(stopped_at="cancelled", message=draft.get("message") or "ยกเลิกก่อนเรนเดอร์")
+        return summary
+    if not created:
+        summary.update(ok=bool(draft.get("ok")), stopped_at=draft.get("stopped_at"),
+                       message=draft.get("message") or "")
+        return summary
+
+    keys = {_angle_key(item) for item in created}
+    with _progress_window(task_id, 0.5, 1.0):
+        render = run_render_chain(task_id, product_id, batch_index=batch_index, channel_id=channel_id,
+                                  job_scope=job_scope, only=keys)
+    summary["render"] = render
+    parts = [draft.get("message") or "", render.get("message") or ""]
+    if len(render.get("rendered") or []) < len(created):
+        parts.append("ดราฟต์ที่ยังไม่ได้เรนเดอร์ใช้ปุ่ม เรนเดอร์ดราฟต์")
+    summary.update(ok=bool(render.get("ok")), stopped_at=render.get("stopped_at"),
+                   message=" · ".join(part for part in parts if part))
+    return summary
+
+
 # ─── Start / run ──────────────────────────────────────────────────────────────
 
 def _run_chain(task_id: str, product_id: str, kind: str, batch_index: Optional[int],
@@ -584,6 +652,9 @@ def _run_chain(task_id: str, product_id: str, kind: str, batch_index: Optional[i
         if kind == "draft":
             summary = run_draft_chain(task_id, product_id, batch_index=batch_index, voice_preset=voice_preset,
                                       channel_id=channel_id, job_scope=job_scope)
+        elif kind == "full":
+            summary = run_full_chain(task_id, product_id, batch_index=batch_index, voice_preset=voice_preset,
+                                     channel_id=channel_id, job_scope=job_scope)
         else:
             summary = run_render_chain(task_id, product_id, batch_index=batch_index,
                                        channel_id=channel_id, job_scope=job_scope)
@@ -651,11 +722,11 @@ class ProductionChainRequest(BaseModel):
 @router.post("/api/products/{product_id}/production-chain")
 def start_production_chain(product_id: str, req: ProductionChainRequest,
                            scope: ChannelScope = Depends(get_workflow_scope)) -> Dict[str, Any]:
-    """Starts one of the two chains of a product as a background task."""
+    """Starts one of the chains of a product as a background task."""
     if req.kind not in KINDS:
-        raise HTTPException(status_code=400, detail="kind ต้องเป็น draft หรือ render")
+        raise HTTPException(status_code=400, detail="kind ต้องเป็น draft, render หรือ full")
     require_active_for_new_work(scope)
-    if req.kind == "render" and not (scope.is_implicit_default and not scope.strict):
+    if req.kind in ("render", "full") and not (scope.is_implicit_default and not scope.strict):
         require_final_ready(scope)
     require_record_owner(scope, ProductStore.get(product_id, channel_id=scope.channel_id), resource_label="สินค้า")
     try:
