@@ -7,6 +7,8 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round CLAUDE-ONE-PRESS-RENDER-PLAN-20261112 | ปุ่มเดียวผลิตจนเรนเดอร์เสร็จ (chain `full`, เรนเดอร์เฉพาะดราฟต์ที่สร้างในรอบ), `เรนเดอร์ดราฟต์` ไม่เปิดตารางโพสต์, แถบล็อตมีปุ่มหลักปุ่มเดียว + แผงจัดกลุ่มตามลำดับงาน | Claude Code (Claude Opus 5.5) |
+| Round CLAUDE-PRODUCT-HEADER-METADATA-LAYOUT-20261112 | บั๊กสเปก `{key,value}`/`{name,value}` ขึ้น `[object Object]` + บันทึกทับ → แสดง `ชื่อ: ค่า` บันทึกกลับรูปเดิม; ปุ่มของสินค้าข้างชื่อ, ค้นหาเห็นตลอด, เมนู ⋯; modal ตัดส่วนซ้ำ ปุ่มบันทึกติดล่าง | Claude Code (Claude Opus 5.5) |
 | Round CLAUDE-AUTO-SHARPEN-20261112 | ความคมชัด TikTok อัตโนมัติหลังเรนเดอร์ทุกทาง (reroll / Editor / batch) แบบทับไฟล์เดิม ก่อนสร้างปก; `scripts/auto_sharpen.py` + ธง `tiktok_sharp` บน export record; Gallery และปุ่มเดิมรู้จากธง; ยังไม่ได้ตรวจกับเรนเดอร์สินค้าจริง | 2026-11-12 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-PRODUCTION-CHAIN-20261112 | สองปุ่มต่อสินค้า: `ผลิตถึงดราฟต์` (เสียง → สแกนฉาก → ดราฟต์ หยุดให้ตรวจ) และ `เรนเดอร์และเข้าคิว` (เรนเดอร์จากค่าที่ Editor บันทึก → เปิด preview จัดคิว); `scripts/production_chain.py` + route ใหม่ 1 ตัว; ยังไม่ได้กดกับสินค้าจริง | 2026-11-12 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-PREPARE-ALL-20261112 | ปุ่ม `เตรียมทั้งหมด (N)` ในตารางโพสต์: ส่งคิว `planned` ที่ยังไม่เลยเวลา (ตามตัวกรองบนจอ) ให้ Extension ทีละคิวผ่าน route เดิม; ไม่แตะ backend; ยังไม่ได้ลองกับคิวจริง | 2026-11-12 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
@@ -621,6 +623,26 @@
 
 ---
 ---
+
+## Round CLAUDE-ONE-PRESS-RENDER-PLAN-20261112 · ปุ่มเดียว ผลิต → เรนเดอร์ (ไม่จัดคิวโพสต์) + แถบเครื่องมือล็อต · ผู้ใช้สั่ง 2026-11-12 "ทำแผนเรื่องนี้ต่อได้ไหม" → "จัดการได้เลย" → `/impeccable` จัดแถบ · ดำเนินการโดย: Claude Code (Claude Opus 5.5)
+
+- **แผน:** [_Docs/Plans/ONE_PRESS_PRODUCE_TO_RENDER_PLAN_20261112.md](_Docs/Plans/ONE_PRESS_PRODUCE_TO_RENDER_PLAN_20261112.md) · เจ้าของตัดสิน D1 เพิ่มปุ่มที่ 3 · D2 ปุ่มเรนเดอร์เดิมเลิกเปิดตารางโพสต์ · D3 เรนเดอร์เฉพาะมุมที่เพิ่งสร้างดราฟต์ · D4 ดราฟต์ล้มบางมุมยังเรนเดอร์ส่วนที่ได้ · แถบ: แบบ A (ปุ่มหลักปุ่มเดียว)
+- **backend:** `scripts/production_chain.py` — chain `full` = `run_draft_chain` → `run_render_chain(only=มุมที่สร้างในรอบ)`, progress 0–50 / 50–100 (`_progress_window`), เรนเดอร์ไม่ครบบอกให้ใช้ปุ่ม `เรนเดอร์ดราฟต์` · ป้าย `render` = `เรนเดอร์ดราฟต์` · route รับ `full`
+- **frontend:** `lib/productionChain.js` (`CHAIN_LABEL.full`, นับ `full` = `draft`, `chainFollowUp` คืนแค่ `refresh`) · ถอด `requestScheduleAutofill` / `consumeScheduleAutofill` + effect ใน `ScheduleAgenda.jsx` · `ProductToClip.jsx` แถบล็อต: เสียง + ปุ่มหลัก 1 ปุ่ม (`full` ถ้ามี ไม่งั้น `render`) + `เรนเดอร์ดราฟต์` + `จัดการล็อต`; แผงกลุ่ม บท / เสียง / คลิป / ทีละขั้น / มุมมอง · `เรนเดอร์หลายมุมพร้อมกัน` → `เรนเดอร์เลือกมุมเอง`
+- **เทสต์:** `tests/test_production_chain.py` 27 (ใหม่ 8) · backend ที่เกี่ยวข้อง 146 ผ่าน · `npm test` 1312 ผ่าน · `test_production_chain_browser.py` 4 ผ่าน (dev + build, เช็กปุ่มฟ้าเต็มปุ่มเดียว) · `pytest tests/motion_capture` 172 ผ่าน / 13 ข้าม / 2 ตก (Cutout `master1080`, subject points — ผลไม่นิ่งเดิม)
+- **ใช้จริง:** restart backend `:8000` แล้ว (21:46) route ตอบ `full` · เจ้าของยังไม่ได้กดปุ่มใหม่กับสินค้าจริงตอนปิดรอบ
+- **Jev:** เริ่มแผน 1.00 · ดราฟต์ล้มบางมุม 0.88 · วางปุ่ม 0.64 → ถาม · ก่อน commit 0.52 / คุณภาพการตรวจ 0.57 → ถาม · **เจ้าของตัดสิน:** commit + merge
+- **ปิดงาน:** merge เข้า `main` ลบกิ่ง `feat/one-press-render` · ไม่ push · `ProductToClip.jsx` มีงานรอบ `ANTIGRAVITY-REMOVE-AI-COPILOT-BUTTON-20261112` ติดมาด้วย (ปุ่ม Co-Pilot อยู่ในบล็อกที่เขียนใหม่ แยกไม่ได้)
+
+## Round CLAUDE-PRODUCT-HEADER-METADATA-LAYOUT-20261112 · หัวหน้าสินค้า + modal ข้อมูล AI · ผู้ใช้สั่ง 2026-11-12 `/impeccable /ui-ux-pro-max` เลือกแบบ A ทั้งสองจุด · ดำเนินการโดย: Claude Code (Claude Opus 5.5)
+
+- **บั๊ก:** สเปกในร้านค้าจริงมี `{key,value}` 28 / `{name,value}` 10 รายการ — modal ต่อด้วย `join('
+')` จึงขึ้น `[object Object]` และกดบันทึกจะเขียนทับสเปกจริง · แก้ด้วย `frontend/src/lib/productListFields.js` (แสดง `ชื่อ: ค่า`, แก้แล้วบันทึกกลับเป็น object key เดิม, ไม่แก้ = ส่งค่าเดิมทั้งก้อน) + เทสต์ 6
+- **หัวหน้าสินค้า (`ProductToClip.jsx`):** ปุ่มของสินค้าที่เลือก (ข้อมูล AI · ตั้งค่าป้าย Hook · ลบสินค้า) ไป `actions` ข้างชื่อ · แถวรายการ: ค้นหาเห็นตลอด, ตัวกรอง หลัก / ซ่อนอยู่, คลังสินค้า, เมนู ⋯ (`ui/PopoverPanel`: รีเฟรชข้อมูล, ซ่อนที่ยังไม่ทำ), สินค้าใหม่ · ตัด `คืบหน้า x/y` ที่ซ้ำ และแผง `เครื่องมือสินค้า` · ปุ่มซ่อนเลิกใช้สีแดง
+- **modal (`ProductMetadataModal.jsx`):** แหล่งข้อมูล + ปุ่มดึงใหม่ → ข้อมูลหลัก → เนื้อหาที่ส่งให้ AI → สเปก / จุดขาย / Pain points 3 คอลัมน์ + จำนวนรายการ → รูปอ้างอิง → ข้อมูลระบบ + JSON (พับ) · ตัดตารางอ่านอย่างเดียว 2 ส่วนและการ์ดสรุปที่ซ้ำ · ปุ่มบันทึกติดล่าง (`sticky -bottom-4/-6` ชดเชย padding) บอกสถานะยังไม่บันทึก กดได้เมื่อมีการแก้
+- **เทสต์:** `tests/motion_capture/test_product_header_metadata_browser.py` 2 ผ่าน (API จำลอง; PATCH ส่งสเปกเป็น `{key,value}`, list ที่ไม่ได้แตะส่งค่าเดิม) · `npm test` 1312 · lint ไม่มีคำเตือนใหม่ · ภาพ 1440 / 390 จาก build (แก้ footer ลอย) · detector impeccable เหลือแต่ของเดิม · motion suite ตามรอบ CLAUDE-ONE-PRESS-RENDER-PLAN-20261112
+- **ยังไม่ได้ตรวจ:** เปิด modal กับสินค้าจริงแล้วกดบันทึก (เทสต์ไม่แตะข้อมูลจริง)
+- **ปิดงาน:** commit แยกจากรอบปุ่มเดียว · merge เข้า `main` · ไม่ push
 
 ## Round CLAUDE-AUTO-SHARPEN-20261112 · ความคมชัด TikTok อัตโนมัติทุกคลิปหลังเรนเดอร์ (งาน C2 ของแผน one-click) · เจ้าของอนุมัติ D5 2026-11-12 · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
 
