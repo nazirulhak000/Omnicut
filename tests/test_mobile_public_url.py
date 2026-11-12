@@ -1,4 +1,4 @@
-"""Mobile / quick-post links must open on the owner's phone (Colab tunnel), not a dead LAN IP."""
+"""Mobile / quick-post links must open on the owner's phone (public tunnel), not a dead LAN IP."""
 
 from __future__ import annotations
 

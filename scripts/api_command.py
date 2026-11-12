@@ -143,7 +143,6 @@ def _check_agy_logged_in() -> bool:
         home / ".gemini" / "google_accounts.json",
         home / ".gemini" / "antigravity",
          home / ".config" / "gcloud" / "application_default_credentials.json",
-        Path("/content/drive/MyDrive"),
     ]
     for p in candidates:
         try:

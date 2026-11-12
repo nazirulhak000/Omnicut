@@ -14,7 +14,7 @@ Reads:
 
 Writes to:
   - scripts.product_store.ProductStore (_Docs/products.json & _Docs/store.db)
-  - _Docs/products_seed.json (tracked in Git for instant Colab/Cloud hydration)
+  - _Docs/products_seed.json (tracked in Git for instant seed hydration)
 """
 
 import sys

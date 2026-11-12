@@ -119,7 +119,7 @@ def recover_startup_work() -> dict[str, int]:
         "background_isolation": 0,
         "batch_render": 0,
     }
-    # ── Auto-Seed ProductStore from products_seed.json if empty (e.g. fresh Colab clone) ──
+    # ── Auto-Seed ProductStore from products_seed.json if empty (e.g. fresh clone) ──
     try:
         from scripts.product_store import ProductStore
         from scripts.config import BASE_DIR

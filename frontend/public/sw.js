@@ -14,7 +14,7 @@ const OFFLINE_FALLBACK_HTML = `<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>OmniCut — เซิร์ฟเวอร์หรือ Colab กำลังหลับ</title>
+  <title>OmniCut — เซิร์ฟเวอร์กำลังหลับ</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -64,8 +64,8 @@ const OFFLINE_FALLBACK_HTML = `<!doctype html>
 </head>
 <body>
   <main class="card" role="alert">
-    <h1>เซิร์ฟเวอร์หรือ Colab กำลังหลับ</h1>
-    <p>ไม่สามารถติดต่อเซิร์ฟเวอร์ OmniCut ได้ในขณะนี้ กรุณาตรวจสอบว่า Colab Runner หรือเซิร์ฟเวอร์เปิดอยู่ แล้วกดลองเชื่อมต่อใหม่</p>
+    <h1>เซิร์ฟเวอร์กำลังหลับ</h1>
+    <p>ไม่สามารถติดต่อเซิร์ฟเวอร์ OmniCut ได้ในขณะนี้ กรุณาตรวจสอบว่าเซิร์ฟเวอร์เปิดอยู่ แล้วกดลองเชื่อมต่อใหม่</p>
     <button type="button" onclick="window.location.reload()">ลองเชื่อมต่อใหม่</button>
   </main>
 </body>

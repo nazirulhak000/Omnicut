@@ -4,6 +4,10 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round ANTIGRAVITY-REMOVE-GOOGLE-COLAB-CLEAN-SWEEP-20261112 · ดำเนินการตัดโค้ดและโมดูล Google Colab ออกทั้งหมดตามคำขอผู้ใช้ (Clean Sweep 3,100+ บรรทัด: ลบ 9 ไฟล์เฉพาะของ Colab, decouple finalize.py/auth.py/api_auth.py, คลีน UI และ Service Worker, ผ่าน compileall 100%) → ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+
+
 - [x] Round CLAUDE-SPEED-PHASE4-20261112 · merge ช่วงที่ 3 เข้า `main` · ข6 เผาซับรอบสองต่อเข้า renderer (เฉพาะเรนเดอร์ซ้ำจาก editor: แก้ซับ 16.5 → 7.4 วิ, ปิดด้วย `OMNICUT_SUBTITLE_SECOND_PASS=0`) · ข4 ซูมรายเฟรมใช้ `bilinear` · ประทับ fingerprint เสียง 46 โปรเจกต์ (`tools/restamp_voice_fingerprints.py`) · ลบ `.tmp/speed_audit/replay` 5 GB · pytest 5434 ผ่าน → [_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md](_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md) หัวข้อ 9, HISTORY.md · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
 
 - [x] Round CLAUDE-SPEED-PHASE3-RTX4060-20261112 · วัดซ้ำบน i7-14700 / RTX 4060 (เรนเดอร์ 43 วิ ใช้ ~18–19 วิ, batch 4 งาน 1.7–1.9 เท่า) · `shot_matching` ข้าม beat/ความดัง/motion เมื่อมีรายการคลิปแล้ว · แก้เทส SAM2 preflight ที่อ่าน RAM จริง · ข4/ข6 วัดแล้วรอเจ้าของ · pytest 5409 ผ่าน → [_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md](_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md) หัวข้อ 8, HISTORY.md · ดำเนินการโดย: Claude Code (Claude Fable 5.2)

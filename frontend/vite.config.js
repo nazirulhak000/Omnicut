@@ -75,7 +75,7 @@ export default defineConfig(({ mode }) => {
         // API key injected and no forward headers. Any other client (a phone
         // on the LAN) gets X-Forwarded-For with its real IP and never the
         // key, so scripts/api_auth.py classifies it REMOTE -> cookie login
-        // (needs OMNICUT_APP_PASSWORD in .env), same as the Colab tunnel.
+        // (needs OMNICUT_APP_PASSWORD in .env), same as a remote tunnel.
         // Not `xfwd: true`: that would mark the desktop remote as well.
         configure: (proxy) => {
           const isLoopback = (addr) =>
