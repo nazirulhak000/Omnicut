@@ -26,6 +26,7 @@ import CloudArchiveModal from './CloudArchiveModal';
 import { getCoverVariant } from '../lib/coverVariant';
 import PaginationControls from './PaginationControls';
 import { matchExportVideo } from '../lib/exportMatching';
+import { isTiktokSharp } from '../lib/tiktokSharp.js';
 
 // The gallery's own QR used to be a degraded copy of ContentTrackerHub's --
 // missing pid/aid/hook/hashtags and reading `video.caption`, a key
@@ -239,7 +240,7 @@ const ExportCard = memo(function ExportCard({
             <Badge variant="cyan" size="xs">Esseger</Badge>
           ) : null}
 
-          {((item.name || '').includes('_tiktok_sharp') || (item.rel_path || '').includes('_tiktok_sharp')) && (
+          {isTiktokSharp(item) && (
             <span className="px-1.5 sm:px-2 py-0.5 rounded-md bg-cyan-500/25 text-cyan-200 font-black text-[9px] sm:text-[10px] shadow-sm tracking-wider flex items-center gap-1 border border-cyan-400/50 backdrop-blur-md" title="วิดีโอผ่านการปรับความคมชัดสำหรับ TikTok แล้ว">
               <Zap className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-cyan-300" />
               <span>TikTok Sharp</span>
@@ -761,6 +762,7 @@ function ExportActiveWorkbench({
     }
   };
 
+  const alreadySharp = isTiktokSharp(video);
   const scriptLines = Array.isArray(video.script_lines) ? video.script_lines : [];
   const renderedTime = video.modified_time || video.modified;
   const relativeTime = getRelativeTimeDesc(video.timestamp, renderedTime);
@@ -1196,9 +1198,9 @@ function ExportActiveWorkbench({
             <button
               type="button"
               onClick={handleEnhanceTikTokClick}
-              disabled={sharpBusy || (video.name || '').includes('_tiktok_sharp')}
+              disabled={sharpBusy || alreadySharp}
               className={`py-2.5 px-3.5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg cursor-pointer active:scale-95 transition-all ${
-                (video.name || '').includes('_tiktok_sharp')
+                alreadySharp
                   ? 'bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 cursor-default'
                   : 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:brightness-110 text-white'
               } disabled:opacity-70 disabled:cursor-wait`}
@@ -1208,7 +1210,7 @@ function ExportActiveWorkbench({
               <span>
                 {sharpBusy
                   ? 'กำลังเร่งความคมชัด...'
-                  : (video.name || '').includes('_tiktok_sharp')
+                  : alreadySharp
                   ? 'คมชัดระดับ TikTok แล้ว'
                   : 'ปรับความคมชัด TikTok'}
               </span>

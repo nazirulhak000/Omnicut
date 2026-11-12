@@ -84,6 +84,9 @@ def _normalise_path(raw_path: Any) -> str:
 STYLE_METADATA_FIELDS = ("style_preset", "hook_style", "story_format", "duration_sec", "hook_text")
 DEFAULT_STORY_FORMAT = "classic"
 _HOOK_TEXT_MAX = 200
+# Fingerprint of the file after the automatic in-place TikTok sharpness pass
+# (scripts.auto_sharpen).  Optional like the style fields above.
+TIKTOK_SHARP_FIELD = "tiktok_sharp"
 
 
 def normalize_style_metadata(raw: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -645,6 +648,37 @@ class ExportRegistry:
                 if record is None:
                     return None
                 if clean and _fill_style_metadata(record, clean, overwrite=overwrite):
+                    record["updated_at"] = _now()
+                return dict(record)
+
+    @classmethod
+    def set_tiktok_sharp(
+        cls,
+        export_id: Optional[str],
+        marker: Optional[Dict[str, Any]],
+        *,
+        channel_id: Optional[str] = None,
+        all_channels: bool = False,
+    ) -> Optional[Dict[str, Any]]:
+        """Record the in-place TikTok sharpness marker, or clear it with ``None``.
+
+        The marker is the fingerprint of the sharpened file (see
+        ``scripts.auto_sharpen``).  Returns the stored row, or ``None`` when
+        the export is unknown in this scope.  Same locking as
+        ``set_style_metadata``.
+        """
+        if not export_id:
+            return None
+        scope = cls._scope(channel_id, all_channels)
+        with cls._metadata_lock:
+            with cls._scoped_mutate(scope) as records:
+                record = next((row for row in records if str(row.get("id")) == str(export_id)), None)
+                if record is None:
+                    return None
+                if marker:
+                    record[TIKTOK_SHARP_FIELD] = dict(marker)
+                    record["updated_at"] = _now()
+                elif record.pop(TIKTOK_SHARP_FIELD, None) is not None:
                     record["updated_at"] = _now()
                 return dict(record)
 

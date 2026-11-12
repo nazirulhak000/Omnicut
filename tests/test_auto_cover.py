@@ -242,6 +242,8 @@ def cover_requests(monkeypatch):
 
     for module in (api_render, api_phase1, batch_render):
         monkeypatch.setattr(module, "ensure_default_cover", record)
+        # The sharpness step that runs first has its own tests (test_auto_sharpen).
+        monkeypatch.setattr(module, "ensure_tiktok_sharp", lambda *args, **kwargs: {"status": "skipped"})
     monkeypatch.setattr(render_jobs, "ACTIVE_JOBS", {})
     return seen
 
@@ -313,9 +315,7 @@ def test_editor_render_without_output_asks_for_no_cover(studio, cover_requests, 
     assert cover_requests == []
 
 
-@pytest.mark.parametrize("export_mp4, expected", [(True, [EXPORT_ID]), (False, [])])
-def test_batch_render_asks_for_a_default_cover_only_for_rendered_clips(
-        studio, cover_requests, monkeypatch, tmp_path, export_mp4, expected):
+def _batch_render(monkeypatch, studio, tmp_path, *, export_mp4):
     from scripts import batch_queue_store
     from scripts.task_manager import TaskManager
 
@@ -342,6 +342,12 @@ def test_batch_render_asks_for_a_default_cover_only_for_rendered_clips(
             batch_render.BatchRenderManager._run_batch_worker(batch["batch_id"])
     finally:
         batch_render.BATCH_REGISTRY.clear()
+
+
+@pytest.mark.parametrize("export_mp4, expected", [(True, [EXPORT_ID]), (False, [])])
+def test_batch_render_asks_for_a_default_cover_only_for_rendered_clips(
+        studio, cover_requests, monkeypatch, tmp_path, export_mp4, expected):
+    _batch_render(monkeypatch, studio, tmp_path, export_mp4=export_mp4)
 
     assert [export_id for export_id, _ in cover_requests] == expected
     for _, kwargs in cover_requests:

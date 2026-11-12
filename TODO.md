@@ -4,6 +4,8 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round CLAUDE-AUTO-SHARPEN-20261112 · งาน C2 ของแผน one-click: ความคมชัด TikTok อัตโนมัติทุกคลิปหลังเรนเดอร์ แบบทับไฟล์เรนเดอร์เดิม (คลิปละ 1 ไฟล์ 1 export) ก่อนสร้างปก · Gallery ขึ้น "คมชัดระดับ TikTok แล้ว" จากธงของ backend · ปุ่มเดิมปฏิเสธคลิปที่คมชัดแล้ว (409) · ปิดได้ด้วย `OMNICUT_AUTO_TIKTOK_SHARP=0` · ไม่เก็บไฟล์ก่อนปรับ · ยังไม่ได้ตรวจกับเรนเดอร์สินค้าจริง · ต้อง restart backend · merge เข้า `main` ไม่ push → HISTORY.md · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
+
 - [x] Round CLAUDE-PRODUCTION-CHAIN-20261112 · งาน B1 ของแผน one-click: สองปุ่มต่อสินค้า `ผลิตถึงดราฟต์ (N)` (เสียง → สแกนฉาก → ดราฟต์ แล้วหยุดให้ตรวจใน Editor) และ `เรนเดอร์และเข้าคิว (N)` (เรนเดอร์ดราฟต์จากค่าที่ Editor บันทึก พร้อมกันไม่เกิน 4 → เปิด preview จัดคิวอัตโนมัติ ไม่บันทึกจนเจ้าของยืนยัน) · งาน `production_chain` สินค้าละ 1 งาน · ยังไม่ได้กดกับสินค้าจริง (พิสูจน์ด้วยเทสต์ offline เทียบค่าเรนเดอร์ตามที่เจ้าของเลือก) · ต้อง restart backend · merge เข้า `main` ไม่ push → HISTORY.md · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
 
 - [x] Round CLAUDE-PREPARE-ALL-20261112 · งาน C1 ของแผน one-click: ปุ่ม `เตรียมทั้งหมด (N)` ในตารางโพสต์ — ส่งคิว `planned` ที่ยังไม่เลยเวลา (ตามตัวกรองบนจอ) ให้ Extension ทีละคิวผ่าน route เดิม, ยืนยันก่อนส่ง, ข้ามคิวเลยกำหนด/ล้มเหลว, toast สรุป · frontend อย่างเดียว · ยังไม่ได้ลองกับคิวจริง · merge เข้า `main` ไม่ push → HISTORY.md · ดำเนินการโดย: Claude Code (Claude Fable 5.2)

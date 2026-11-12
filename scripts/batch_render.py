@@ -35,6 +35,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from scripts.config import BASE_DIR, RAW_DIR, INBOX_DIR, EXPORTS_DIR, STICKERS_DIR, PROJECTS_DIR
 from scripts.product_store import ProductStore
 from scripts.auto_cover import ensure_default_cover
+from scripts.auto_sharpen import ensure_tiktok_sharp
 from scripts.task_manager import TaskManager
 from scripts.batch_queue_store import BatchQueueStore
 from scripts import batch_queue_store as _batch_queue_store
@@ -951,6 +952,8 @@ class BatchRenderManager:
                  **channel_kwargs)
 
                 if is_rendered:
+                    # Sharpness first so the cover frame comes from the final file.
+                    ensure_tiktok_sharp(result.get("export_id"), **channel_kwargs)
                     # Before complete_job so the cover exists when the UI sees
                     # the clip as finished. Never raises.
                     ensure_default_cover(

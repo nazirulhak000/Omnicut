@@ -18,6 +18,7 @@ from scripts.channel_ownership import resolve_store_scope
 from scripts.channel_scope import ChannelScope, get_channel_scope, require_writable
 from scripts.channel_store import ChannelError
 from scripts.config import BASE_DIR, EXPORTS_DIR, COVERS_DIR
+from scripts import auto_sharpen
 from scripts import media_validation
 from scripts.product_store import ProductStore
 from scripts.media_service import get_file_info
@@ -602,6 +603,9 @@ def list_exports(scope: ChannelScope = Depends(get_channel_scope)):
             export_record = registry_record
             info["export_id"] = export_record["id"]
             info["export_status"] = export_record.get("status")
+            # Sharpened in place after render: the gallery shows the manual
+            # sharpness button as already done for this clip.
+            info["tiktok_enhanced"] = auto_sharpen.is_sharpened(export_record, f)
         else:
             # Listing remains usable on a legacy read-only installation;
             # render/mark flows still persist identity before they proceed.
@@ -1455,6 +1459,17 @@ def enhance_export_for_tiktok(
         export_record = ExportRegistry.lookup(path=target, **_kw(channel_id))
         if export_record is None and not _legacy_files_allowed(channel_id):
             raise _unregistered_file_error()
+
+    # A clip sharpened in place after its render must not go through the pass
+    # a second time (visible halos, and a duplicate export of the same clip).
+    sharp_record = export_record
+    if sharp_record is None:
+        try:
+            sharp_record = ExportRegistry.lookup(path=target, **_kw(channel_id))
+        except Exception:
+            sharp_record = None
+    if auto_sharpen.is_sharpened(sharp_record, target):
+        raise HTTPException(status_code=409, detail="คลิปนี้ปรับความคมชัด TikTok แล้วตั้งแต่ตอนเรนเดอร์ ไม่ต้องปรับซ้ำ")
 
     from scripts.tiktok_enhancer import enhance_video_for_tiktok
 

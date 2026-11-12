@@ -22,6 +22,7 @@ from scripts.config import (
 from scripts.pipeline import TikTokAutoCutterPipeline
 from scripts.product_store import ProductStore
 from scripts.auto_cover import ensure_default_cover
+from scripts.auto_sharpen import ensure_tiktok_sharp
 from scripts.task_manager import TaskManager
 from scripts import render_jobs
 from scripts.render_jobs import RenderCancelled
@@ -275,6 +276,8 @@ def execute_render_job(job_id: str, req_data: RenderRequest, job_scope: Optional
                 print(f"Warning: could not update angle status: {angle_err}")
 
         if req_data.export_mp4 and (result.get("mp4") or result.get("mp4_video") or result.get("output_video") or result.get("video_path")):
+            # Sharpness first so the cover frame comes from the final file.
+            ensure_tiktok_sharp(result.get("export_id"), **channel_kwargs)
             # Before complete_job so the cover exists when the UI sees the
             # clip as finished. Never raises.
             ensure_default_cover(
