@@ -39,5 +39,8 @@ def test_renderer_uses_per_frame_camera_filter_only_for_camera_keyframes():
     dynamic = dynamic_camera_filter(clip, 1.0)
     assert dynamic is not None
     assert "eval=frame" in dynamic
+    # The per-frame scale is bilinear (speed audit 9.2); only the resampling
+    # kernel changed, the zoom/pan geometry is the same expression as before.
+    assert dynamic.count("flags=bilinear") == 1 and "eval=frame:flags=bilinear,crop=" in dynamic
     assert "crop=1080:1920" in dynamic
     assert dynamic_camera_filter({"zoom": 1.0}, 1.0) is None

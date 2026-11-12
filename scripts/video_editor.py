@@ -42,6 +42,7 @@ from scripts.spotlight_effect import build_ffmpeg_filter
 from scripts.proxy_manager import is_proxy_path
 from scripts.render_jobs import RenderCancelled
 from scripts.ffmpeg_graph import cleanup_graph_file, externalize_filter_graph
+from scripts import subtitle_second_pass
 
 # Above this speed, duplicated frames are not visible enough to be worth
 # minterpolate's cost, so the smooth-slowmo flag is ignored.
@@ -1558,9 +1559,13 @@ def dynamic_camera_filter(clip: Dict[str, Any], fallback_zoom: float, *, input_i
     # crop's iw/ih are negotiated when the graph starts and may stay at the
     # first frame's size even though scale=eval=frame changes its output.
     # Drive the crop origin from the same per-frame zoom expression instead.
+    # bilinear: this scale re-initialises on every frame, and the default
+    # bicubic kernel cost 1-2 s per 43 s render for SSIM (Y) 0.9992 / PSNR
+    # 55 dB against it -- same geometry, no visible difference (owner
+    # decision 2026-11-12). The static-zoom chains keep lanczos.
     return (
         f"{prefix}"
-        f"scale={scaled_w}:{scaled_h}:eval=frame,"
+        f"scale={scaled_w}:{scaled_h}:eval=frame:flags=bilinear,"
         f"crop={VIDEO_WIDTH}:{VIDEO_HEIGHT}:"
         f"(({scaled_w}-{VIDEO_WIDTH})/2)*(1+({pan_x})):"
         f"(({scaled_h}-{VIDEO_HEIGHT})/2)*(1+({pan_y})),setsar=1"
@@ -1788,6 +1793,7 @@ class VideoEditor:
         cancel_event: Optional[threading.Event] = None,
         spotlight: Optional[Dict[str, Any]] = None,
         background_isolation: Optional[Dict[str, Any]] = None,
+        subtitle_second_pass_enabled: bool = False,
     ) -> str:
         """
         Takes raw footage, creates fast-paced punch-in cuts synced to audio duration and Gemini Vision scenes,
@@ -2875,34 +2881,81 @@ class VideoEditor:
         render_target = media_validation.partial_path_for(out_file)
         encode_timeout = media_validation.encode_timeout_for(total_duration, floor=300.0)
 
+        # Complex filter graphs (scale/crop/transitions/ASS/overlays) are
+        # still CPU work even when AMF encodes on the GPU. Let FFmpeg size
+        # that graph's worker pool to the machine instead of serialising it.
+        ffmpeg_head = ["ffmpeg", "-y", "-threads", "0", "-filter_complex_threads", "0"]
+        audio_codec_args = ["-c:a", "aac", "-b:a", "192k"]
+
         def _run_final_encode(codec_args: List[str]) -> None:
             cmd = [
-                "ffmpeg", "-y",
-                "-threads", "0",
-                # Complex filter graphs (scale/crop/transitions/ASS/overlays) are
-                # still CPU work even when AMF encodes on the GPU. Let FFmpeg size
-                # that graph's worker pool to the machine instead of serialising it.
-                "-filter_complex_threads", "0",
+                *ffmpeg_head,
                 *cmd_inputs,
                 "-filter_complex", full_filter,
                 "-map", "[v_final]",
                 "-map", final_audio_map,
                 *codec_args,
                 "-r", str(target_fps),
-                "-c:a", "aac",
-                "-b:a", "192k",
+                *audio_codec_args,
                 "-pix_fmt", "yuv420p",
                 "-movflags", "+faststart",
                 "-t", str(total_duration),
                 str(render_target)
             ]
+            _run_encode(cmd, full_filter, render_target)
+
+        def _run_two_pass_encode(codec_args: List[str]) -> None:
+            """Pass 1 (everything under the subtitles) is reused when its key matches."""
+            cache = subtitle_second_pass.cache_dir()
+            pass1_args = [
+                *ffmpeg_head, *cmd_inputs, "-filter_complex", second_pass_split.pre_graph,
+                "-map", final_audio_map, *codec_args, "-r", str(target_fps),
+                *audio_codec_args, "-t", str(total_duration),
+            ]
+            key = subtitle_second_pass.render_key(
+                pass1_args, cmd_inputs, len(video_input_paths),
+                dependencies=[lut_path] if lut_path else [],
+            )
+            intermediate = subtitle_second_pass.find_reusable(cache, key)
+            burn_span = (0.0, 1.0)
+            if intermediate is None:
+                cache.mkdir(parents=True, exist_ok=True)
+                intermediate = subtitle_second_pass.intermediate_path(cache, key)
+                # Unique per run: two renders that reach the same key at the
+                # same moment must not write into one file.
+                pass1_target = intermediate.with_name(f"{intermediate.stem}.{os.getpid()}_{threading.get_ident()}.partial.mp4")
+                pass1_cmd = subtitle_second_pass.build_pass1_cmd(
+                    ffmpeg_head, cmd_inputs, second_pass_split.pre_graph, final_audio_map,
+                    codec_args, audio_codec_args, str(target_fps), str(total_duration), pass1_target,
+                )
+                _run_encode(pass1_cmd, second_pass_split.pre_graph, pass1_target, progress_span=(0.0, 0.72))
+                os.replace(pass1_target, intermediate)
+                burn_span = (0.72, 1.0)
+            else:
+                print(f"♻️ ใช้ภาพใต้ซับจากรอบก่อน ({intermediate.name}) — เผาซับอย่างเดียว")
+                subtitle_second_pass.mark_used(intermediate)
+            pass2_cmd = subtitle_second_pass.build_pass2_cmd(
+                ffmpeg_head, intermediate, second_pass_split.burn_chain, True,
+                codec_args, str(target_fps), render_target,
+            )
+            _run_encode(pass2_cmd, second_pass_split.burn_chain, render_target, progress_span=burn_span)
+            subtitle_second_pass.drop_old_intermediates(cache)
+
+        def _run_encode(cmd: List[str], graph: str, render_target: Path,
+                        progress_span: Tuple[float, float] = (0.0, 1.0)) -> None:
+            span_start, span_end = progress_span
+
+            def _report(curr_sec: float) -> None:
+                total = float(total_duration)
+                ratio = min(1.0, max(0.0, curr_sec / max(0.1, total)))
+                progress_callback(total * (span_start + (span_end - span_start) * ratio), total)
 
             # A long timeline makes this graph (and so the command line) grow with
             # the clip count; Windows rejects a command line over 32,767 chars
             # before ffmpeg even starts. Above the threshold the unchanged graph is
             # handed over through a temp file instead (below it, cmd is untouched).
             # The finally blocks of the two run paths below delete the file.
-            cmd, graph_script_file = externalize_filter_graph(cmd, full_filter)
+            cmd, graph_script_file = externalize_filter_graph(cmd, graph)
 
             if progress_callback:
                 cmd.insert(1, "pipe:1")
@@ -3006,7 +3059,7 @@ class VideoEditor:
                                 curr_sec = us / 1_000_000.0
                                 now = time.time()
                                 if now - last_reported >= 0.4:
-                                    progress_callback(curr_sec, float(total_duration))
+                                    _report(curr_sec)
                                     last_reported = now
                             except Exception:
                                 pass
@@ -3016,7 +3069,7 @@ class VideoEditor:
                                 curr_sec = ms / 1_000_000.0
                                 now = time.time()
                                 if now - last_reported >= 0.4:
-                                    progress_callback(curr_sec, float(total_duration))
+                                    _report(curr_sec)
                                     last_reported = now
                             except Exception:
                                 pass
@@ -3110,16 +3163,30 @@ class VideoEditor:
                         except OSError:
                             pass
 
+        # Subtitles in a second pass: a re-render that only changed the .ass
+        # reuses the encoded picture underneath it. An isolated subject burns
+        # a second, freshly written .ass inside pass 1, and some inputs have
+        # no single file to fingerprint; those renders stay on one pass.
+        second_pass_split = None
+        if subtitle_second_pass_enabled and not isolated_subject_nodes and not subtitle_second_pass.switched_off():
+            try:
+                second_pass_split = subtitle_second_pass.split_graph(full_filter)
+                subtitle_second_pass.input_files(cmd_inputs)
+            except subtitle_second_pass.SecondPassUnavailable as unavailable:
+                second_pass_split = None
+                print(f"   ℹ️ เผาซับรอบสองใช้ไม่ได้กับคลิปนี้ ({unavailable}) — เรนเดอร์รอบเดียว")
+        run_encode = _run_two_pass_encode if second_pass_split else _run_final_encode
+
         primary_codec_args = encoder_args(profile)
         uses_nvenc = "h264_nvenc" in primary_codec_args
         try:
             with media_validation.nvenc_session(enabled=uses_nvenc):
-                _run_final_encode(primary_codec_args)
+                run_encode(primary_codec_args)
         except FFmpegRenderError as encode_err:
             if not (uses_nvenc and media_validation.is_nvenc_open_failure(encode_err.stderr)):
                 raise
             print("⚠️ เปิด session NVENC ไม่สำเร็จ — เข้ารหัสใหม่ด้วย libx264 บน CPU")
-            _run_final_encode(software_encoder_args(profile))
+            run_encode(software_encoder_args(profile))
 
         try:
             media_validation.finalize_partial(

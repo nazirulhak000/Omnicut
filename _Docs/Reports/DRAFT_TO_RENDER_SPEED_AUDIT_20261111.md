@@ -255,3 +255,34 @@
 - `--resume-from video` ครั้งแรกบน data root ที่ cache คำแปลว่าง ซับถูกสร้างใหม่ 29.7 วิ
 
 วิธีวัดซ้ำ: `tools/speed_audit/harness.py rerender <project> <label> --resume-from video` → `dump_cmd.py <label>` → `replay.py <label> <rounds> full full+nozoom full+zoompan md5 lossless burn …` · batch: `parallel.py`
+
+## 9. ช่วงที่ 4 — ข6 ต่อเข้า renderer, ข4 `bilinear`, ประทับ fingerprint เสียง (2026-11-12, กิ่ง `feat/speed-phase4`)
+
+> ดำเนินการโดย: Claude Code (Claude Fable 5.2) · เจ้าของตัดสินจากรายงานเช้า: ข6 เปิดเฉพาะเรนเดอร์จาก editor, ข4 ใช้ `bilinear`, ยอมรับเสียงปัจจุบันของ 46 โปรเจกต์
+
+### 9.1 ข6 เผาซับรอบสอง
+
+- เปิดเมื่อ pipeline ถูกเรียกพร้อม `resume_from` (เรนเดอร์ซ้ำจาก editor ทุกครั้ง) · งานผลิตครั้งแรก/batch ยังเรนเดอร์รอบเดียวเหมือนเดิม
+- ปิดทั้งระบบ: ตั้ง `OMNICUT_SUBTITLE_SECOND_PASS=0`
+- ไฟล์กลางอยู่ที่ `.tmp/render_cache/second_pass/` เก็บ 6 ไฟล์ใหม่สุด (~60 MB ต่อไฟล์สำหรับคลิป 43 วิ) ที่เกินลบอัตโนมัติ
+- ใช้รอบเดียวตามเดิมเมื่อ: คลิปมีการแยกตัวสินค้าออกจากพื้นหลัง, input ไม่ใช่ไฟล์เดี่ยว (ลำดับภาพ), รูปกราฟไม่ตรงที่รู้จัก
+- key ของไฟล์กลาง = คำสั่งรอบ 1 ทั้งคำสั่ง + ขนาด/เวลาแก้ของฟุตเทจ + เนื้อหา (sha256) ของเสียงมิกซ์ สติกเกอร์ เอฟเฟกต์ และ LUT
+- progress / ยกเลิก / fallback NVENC → libx264 ใช้ทางเดิมทั้งสองรอบ
+
+วัดผ่าน pipeline จริง (`GOC01-รีวิวสเปก_1`, `--resume-from video`, ขั้น `ffmpeg_assembly` รวมตรวจหลังเรนเดอร์):
+
+| | วิ |
+| :-- | --: |
+| ก่อน (รอบเดียว) | 16.5 |
+| ครั้งแรกแบบสองรอบ (รวม ข4) | 16.6 |
+| เรนเดอร์ซ้ำ ภาพใต้ซับไม่เปลี่ยน | 7.4 |
+
+SSIM Y เทียบผลรอบเดียวของรอบก่อน 0.9911 · 1,274 เฟรมเท่าเดิม · ดูเฟรมเทียบ 3 จุดด้วยตาไม่เห็นต่าง
+
+### 9.2 ข4
+
+`dynamic_camera_filter`: `scale ... eval=frame:flags=bilinear` (เฉพาะคลิปที่มี keyframe กล้อง) · ซูมคงที่ยังใช้ `lanczos` · `zoompan` ไม่ใส่ (ตำแหน่งภาพเลื่อน)
+
+### 9.3 Fingerprint เสียง
+
+`tools/restamp_voice_fingerprints.py` (ค่าเริ่มแสดงรายการอย่างเดียว, `--apply` เขียน `project.json` ผ่าน `finalize_incremental_render` ตัวเดียวกับที่เรนเดอร์สำเร็จใช้) · รันแล้ว: stale 46 → 0, ok 8 → 54, legacy 6

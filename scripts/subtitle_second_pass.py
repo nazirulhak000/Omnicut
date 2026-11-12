@@ -1,4 +1,4 @@
-"""Prototype (not wired into the renderer): burn subtitles in a second pass.
+"""Burn subtitles in a second pass, so a caption edit does not redo the rest.
 
 A render spends most of its time on everything *under* the subtitles: clip
 scaling, zoom keyframes, transitions, the hook scrim. When only the .ass file
@@ -14,15 +14,18 @@ A later render whose pass-1 key matches an existing intermediate skips pass 1.
 
 Measured on a 42.5 s / 18 clip timeline (RTX 4060, h264_nvenc cq 20):
 single pass 17.4 s; pass 1 13.6 s; pass 2 5.1 s. The second encode costs
-0.0018 SSIM (Y) against the single-pass result, which is why this is opt-in
-and still waits for the project owner's decision.
+0.0018 SSIM (Y) against the single-pass result and a first render is about
+1.9 s slower, so the renderer uses it only for re-renders of an existing
+project (owner decision 2026-11-12); ``OMNICUT_SUBTITLE_SECOND_PASS=0`` turns
+it off everywhere.
 
-Everything here is pure command construction; nothing runs ffmpeg.
+Nothing here runs ffmpeg; ``VideoEditor`` owns the encode.
 """
 from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -152,5 +155,111 @@ def build_pass2_cmd(head: Sequence[str], intermediate: Path, burn_chain: str, ha
 
 def prune(cache_dir: Path, keep: int = 1) -> List[Path]:
     """Intermediates beyond the newest ``keep``, oldest first. The caller decides whether to delete."""
-    files = sorted(Path(cache_dir).glob("pre_subtitles_*.mp4"), key=lambda p: p.stat().st_mtime, reverse=True)
+    # A ".partial.mp4" is a pass 1 another render is still writing.
+    finished = [p for p in Path(cache_dir).glob("pre_subtitles_*.mp4") if not p.name.endswith(".partial.mp4")]
+    files = sorted(finished, key=lambda p: p.stat().st_mtime, reverse=True)
     return list(reversed(files[keep:]))
+
+
+# ---------------------------------------------------------------------------
+# Renderer-facing helpers
+# ---------------------------------------------------------------------------
+
+ENV_SWITCH = "OMNICUT_SUBTITLE_SECOND_PASS"
+# About 59 MB each for a 43 s clip; the newest few cover the projects someone
+# is actively re-rendering.
+KEEP_INTERMEDIATES = 6
+# Inputs up to this size are identified by content. The mixed audio and sticker
+# images are rewritten in place under the same name, so size + mtime would
+# either miss a real change or (more often) invalidate on an identical rewrite.
+CONTENT_HASH_MAX_BYTES = 64 * 1024 * 1024
+
+
+def switched_off() -> bool:
+    """True when the environment turns the second pass off for every render."""
+    return os.environ.get(ENV_SWITCH, "").strip().lower() in ("0", "false", "off", "no")
+
+
+def cache_dir() -> Path:
+    from scripts.config import BASE_DIR
+
+    return BASE_DIR / ".tmp" / "render_cache" / "second_pass"
+
+
+def input_files(cmd_inputs: Sequence[str]) -> List[Path]:
+    """Every path given with ``-i``. Raises when one is not a plain file.
+
+    An image-sequence pattern or a lavfi source has no single file to
+    fingerprint, so a render that uses one stays on the single pass.
+    """
+    files = []
+    for i, arg in enumerate(cmd_inputs[:-1]):
+        if arg != "-i":
+            continue
+        path = Path(cmd_inputs[i + 1])
+        if not path.is_file():
+            raise SecondPassUnavailable(f"input is not a plain file: {path.name}")
+        files.append(path)
+    return files
+
+
+def _stream_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _input_identity(path: Path, by_content: bool) -> dict:
+    try:
+        stat = path.stat()
+        if by_content and stat.st_size <= CONTENT_HASH_MAX_BYTES:
+            return {"path": str(path), "sha256": _stream_sha256(path)}
+        return {"path": str(path), "size": stat.st_size, "mtime_ns": stat.st_mtime_ns}
+    except OSError:
+        return {"path": str(path), "missing": True}
+
+
+def render_key(pass1_args: Sequence[str], cmd_inputs: Sequence[str], footage_count: int,
+               dependencies: Iterable[Path] = ()) -> str:
+    """Key of the pass-1 result for a renderer command.
+
+    ``footage_count``  how many of the leading ``-i`` files are source footage
+                       (never rewritten, can be large: size + mtime); every
+                       later input and each of ``dependencies`` (the LUT) is
+                       identified by content.
+    """
+    files = input_files(cmd_inputs)
+    payload = {
+        "version": KEY_VERSION,
+        "args": list(pass1_args),
+        "inputs": [_input_identity(p, by_content=i >= footage_count) for i, p in enumerate(files)],
+        "deps": [_input_identity(Path(p), by_content=True) for p in dependencies],
+    }
+    blob = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:32]
+
+
+def mark_used(path: Path) -> None:
+    """Move a reused intermediate to the front of the keep-newest order."""
+    try:
+        os.utime(path, None)
+    except OSError:
+        pass
+
+
+def drop_old_intermediates(directory: Path, keep: int = KEEP_INTERMEDIATES) -> List[Path]:
+    """Delete this module's own intermediates beyond the newest ``keep``."""
+    dropped = []
+    try:
+        stale = prune(directory, keep=keep)
+    except OSError:
+        return dropped
+    for path in stale:
+        try:
+            path.unlink()
+            dropped.append(path)
+        except OSError:
+            pass  # in use by another render; the next call retries
+    return dropped

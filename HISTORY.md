@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round CLAUDE-SPEED-PHASE4-20261112 | merge ช่วงที่ 3 เข้า main; ข6 เผาซับรอบสองต่อเข้า renderer เฉพาะเรนเดอร์ซ้ำจาก editor (แก้ซับ 16.5 → 7.4 วิ); ข4 ซูมรายเฟรม `bilinear`; ประทับ fingerprint เสียง 46 โปรเจกต์; ลบ `.tmp/speed_audit/replay` 5 GB; pytest 5434 ผ่าน | 2026-11-12 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-SPEED-OVERNIGHT-20261112 | งานความเร็วข้ามคืน: เงา Hook คำนวณบนแถบ 2 px + blend เฉพาะช่วงที่มองเห็น (เรนเดอร์ 18.0 → 16.5 วิ, md5 ของ 1,274 เฟรมเหมือนเดิม), `psutil` เข้า requirements + เทส `memory_low`, ต้นแบบเผาซับรอบสอง (กิ่งแยก ไม่ต่อเข้า renderer), พบ 46/60 โปรเจกต์เสียงพากย์ไม่ตรง fingerprint; pytest 5414 ผ่าน; ยังไม่ merge เข้า main (Jev < 0.80) | 2026-11-12 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-SPEED-PHASE3-RTX4060-20261112 | ความเร็วช่วงที่ 3 บน i7-14700 / RTX 4060: เรนเดอร์คลิป 43 วิ ใช้ ~18–19 วิ, batch 4 งานได้ 1.7–1.9 เท่า (RAM เป็นตัวจำกัด), `shot_matching` ข้ามวิเคราะห์ beat/ความดัง/motion เมื่อมีรายการคลิปแล้ว (−2.2 ถึง −12.5 วิ เฉพาะเรนเดอร์แรกของ process), แก้เทส SAM2 preflight ที่อ่าน RAM จริง, ข5 ไม่คุ้ม, ข4/ข6 วัดแล้วรอเจ้าของ; pytest 5409 ผ่าน | 2026-11-12 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CODEX-AUTOPOST-PREPARE-ACK-20261112 | 0.10.5 รอ backend prepare/claim ก่อนปิด dialog, inline errors/retry และ old-job handoff; Node 272/272, real sidebar mouse tests 38/38, backend read-only 27/27 compatibility | 2026-11-12 | ดำเนินการโดย: Codex (GPT-6) |
@@ -533,6 +534,18 @@
 
 ---
 ---
+
+## Round CLAUDE-SPEED-PHASE4-20261112 · ข6 ต่อเข้า renderer, ข4 `bilinear`, ประทับ fingerprint เสียง · ผู้ใช้ตอบรายงานเช้า 2026-11-12 ครบ 5 ข้อ แล้วสั่ง "เสร็จแล้ว merge เข้า main ได้เลย" · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
+
+- **1 merge:** `main` fast-forward ถึง `ee89ec4` (ช่วงที่ 3 + งานข้ามคืน), ลบกิ่ง `feat/speed-phase3` และ `feat/subtitle-second-pass` (commit ต้นแบบ cherry-pick มาที่ `feat/speed-phase4`)
+- **2 ข6:** `scripts/video_editor.py` — `_run_final_encode` แยกเป็น `_run_encode(cmd, graph, target, progress_span)` ใช้ร่วมทั้งรอบเดียวและสองรอบ (progress / cancel / stall watchdog / NVENC fallback ทางเดิม) + `_run_two_pass_encode` · `scripts/subtitle_second_pass.py` เพิ่ม `render_key` (ฟุตเทจ = ขนาด+mtime, เสียงมิกซ์/สติกเกอร์/เอฟเฟกต์/LUT = sha256), `cache_dir` (`.tmp/render_cache/second_pass/`), `drop_old_intermediates` (เก็บ 6 ไฟล์ใหม่สุด ไม่แตะ `.partial.mp4`), `switched_off` (`OMNICUT_SUBTITLE_SECOND_PASS=0`) · `scripts/stages/video_assembly_stage.py` ส่ง `subtitle_second_pass_enabled=True` เฉพาะเมื่อมี `resume_from` (ผู้ใช้เลือก "เฉพาะเรนเดอร์จาก editor") · ใช้รอบเดียวเมื่อมี isolated subject / input ไม่ใช่ไฟล์เดี่ยว / กราฟไม่ตรงรูป
+- **ผลวัดผ่าน pipeline จริง** (`GOC01-รีวิวสเปก_1`, ขั้น `ffmpeg_assembly`): รอบเดียว 16.5 วิ → ครั้งแรกสองรอบ 16.6 วิ → เรนเดอร์ซ้ำภาพเดิม 7.4 วิ · SSIM Y 0.9911 เทียบผลรอบเดียว · 1,274 เฟรมเท่าเดิม · ดูเฟรมเทียบ 3 จุดด้วยตา
+- **3 fingerprint เสียง:** `tools/restamp_voice_fingerprints.py` (ค่าเริ่มแสดงรายการ, `--apply` เขียนผ่าน `render_jobs.finalize_incremental_render`) · รันจริง: stale 46 → 0, ok 54, legacy 6 · เขียนเฉพาะ `project.json` (มี .bak หมุนของ `ProjectManifest`)
+- **4 ข4:** `dynamic_camera_filter` ใช้ `eval=frame:flags=bilinear` (ผู้ใช้เลือก `bilinear`; `zoompan` ไม่ใส่)
+- **5 Gate:** pytest เต็มชุดไม่รวม `tests/motion_capture` 5434 ผ่าน 22 ข้าม (ไม่แตะ UI) · เทสใหม่: เรนเดอร์ ffmpeg จริงผ่าน `VideoEditor` (แก้ซับ = เผาอย่างเดียว, แก้ timeline = ภาพใหม่, สวิตช์ปิด = รอบเดียว), key/แคช, เครื่องมือประทับ, `bilinear`
+- **Jev:** เริ่มงาน — ค่าเริ่ม ข6 confidence 0.40, แบบซูม 0.64, ความเสี่ยง 0.77 → ถามผู้ใช้ทั้งสองข้อ (ตอบ: editor only / bilinear) · ก่อน commit — `commit_and_merge` 0.67, ความเสี่ยง 1.28/4 (confidence 0.68) ต่ำกว่า 0.80; ผู้ใช้สั่ง merge เองไว้ก่อนแล้วจึง merge ตามคำสั่ง
+- **6 ลบ:** `.tmp/speed_audit/replay` 5.0 GB (ผลทดลอง สร้างซ้ำได้) · เก็บ `.tmp/speed_audit/data` 1.1 GB ไว้วัดซ้ำ
+- **ยังไม่ได้ทดสอบ:** เรนเดอร์โปรเจกต์เดียวกันสองงานพร้อมกัน (ไฟล์รอบ 1 ตั้งชื่อแยกต่อ process/thread แล้ว) · ไม่ได้ push
 
 ## Round CLAUDE-SPEED-OVERNIGHT-20261112 · งานความเร็วข้ามคืน · ผู้ใช้สั่ง 2026-11-12 02:21 "ไป" ตามแผนที่เสนอ (อนุญาต commit + merge ข้อ 1, 3, 5 เมื่อเทสผ่าน, ติดตั้ง `psutil` ใน `.venv`, ไม่ push, ไม่ลบไฟล์) · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
 

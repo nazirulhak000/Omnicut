@@ -4,6 +4,8 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round CLAUDE-SPEED-PHASE4-20261112 · merge ช่วงที่ 3 เข้า `main` · ข6 เผาซับรอบสองต่อเข้า renderer (เฉพาะเรนเดอร์ซ้ำจาก editor: แก้ซับ 16.5 → 7.4 วิ, ปิดด้วย `OMNICUT_SUBTITLE_SECOND_PASS=0`) · ข4 ซูมรายเฟรมใช้ `bilinear` · ประทับ fingerprint เสียง 46 โปรเจกต์ (`tools/restamp_voice_fingerprints.py`) · ลบ `.tmp/speed_audit/replay` 5 GB · pytest 5434 ผ่าน → [_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md](_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md) หัวข้อ 9, HISTORY.md · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
+
 - [x] Round CLAUDE-SPEED-PHASE3-RTX4060-20261112 · วัดซ้ำบน i7-14700 / RTX 4060 (เรนเดอร์ 43 วิ ใช้ ~18–19 วิ, batch 4 งาน 1.7–1.9 เท่า) · `shot_matching` ข้าม beat/ความดัง/motion เมื่อมีรายการคลิปแล้ว · แก้เทส SAM2 preflight ที่อ่าน RAM จริง · ข4/ข6 วัดแล้วรอเจ้าของ · pytest 5409 ผ่าน → [_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md](_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md) หัวข้อ 8, HISTORY.md · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
 
 - [x] Round CLAUDE-SPEED-OVERNIGHT-20261112 · เงา Hook เร็วขึ้น (เรนเดอร์ 18.0 → 16.5 วิ, md5 เฟรมเหมือนเดิม), `psutil` เข้า requirements, ต้นแบบเผาซับรอบสองบนกิ่ง `feat/subtitle-second-pass` (แก้ซับ 14.9 → 5.1 วิ), พบ 46/60 โปรเจกต์จะยิง TTS ใหม่เมื่อเรนเดอร์ซ้ำ; pytest 5414 ผ่าน · **ยังไม่ merge เข้า `main`** (Jev confidence 0.74 / 0.53 < 0.80) รอเจ้าของสั่ง merge กิ่ง `feat/speed-phase3` → [_Docs/Reports/SPEED_OVERNIGHT_20261112.md](_Docs/Reports/SPEED_OVERNIGHT_20261112.md), HISTORY.md · ดำเนินการโดย: Claude Code (Claude Fable 5.2)

@@ -390,6 +390,12 @@ class VideoAssemblyStage:
                 print("   ⚠️ VideoEditor รุ่นปัจจุบันยังไม่รองรับ SpotlightV1 — ข้ามเอฟเฟกต์อย่างปลอดภัย")
             if background_isolation is not None:
                 assemble_kwargs["background_isolation"] = background_isolation
+            # A re-render of an existing project (the editor always passes
+            # resume_from) is the case where the next render is likely a
+            # caption fix; a first production render keeps the single pass,
+            # which is faster and encodes once (owner decision 2026-11-12).
+            if getattr(ctx, "resume_from", None):
+                assemble_kwargs["subtitle_second_pass_enabled"] = True
             assembly_started_at = time.perf_counter()
             try:
                 pipeline_mod.VideoEditor.assemble_tiktok_video(**assemble_kwargs)

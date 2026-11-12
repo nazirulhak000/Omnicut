@@ -289,3 +289,27 @@ def test_change_class_uses_canonical_reroll_policy(change_class, expected_stage)
 def test_unknown_change_class_is_not_silently_mapped():
     with pytest.raises(ValueError, match="Unknown change class"):
         stage_for_change("unknown")
+
+
+def test_restamp_tool_accepts_the_voice_that_is_on_disk_now(isolated_manifest):
+    """tools/restamp_voice_fingerprints.py: the owner chose to keep the current
+    voiceover of projects whose file no longer matches the stored fingerprint."""
+    from tools import restamp_voice_fingerprints as tool
+
+    project_name, project_dir, raw_video, manifest = _strict_project(isolated_manifest)
+    assert tool.scan() == {project_name: "ok"}
+
+    (project_dir / "voiceover.wav").write_bytes(b"voice-rewritten-elsewhere")
+    assert _context_for(project_name, project_dir, raw_video, manifest).should_run("voice") is True
+    assert tool.scan() == {project_name: "stale"}
+
+    assert tool.main([]) == 0                                   # list only
+    assert tool.scan() == {project_name: "stale"}, "without --apply nothing is written"
+
+    assert tool.main(["--apply"]) == 0
+    assert tool.scan() == {project_name: "ok"}
+    stamped = ProjectManifest.load(project_name)
+    ctx = _context_for(project_name, project_dir, raw_video, stamped)
+    assert ctx.should_run("voice") is False
+    assert ctx.reuse("voice_audio", "voice") == project_dir / "voiceover.wav"
+    assert (project_dir / "voiceover.wav").read_bytes() == b"voice-rewritten-elsewhere"
