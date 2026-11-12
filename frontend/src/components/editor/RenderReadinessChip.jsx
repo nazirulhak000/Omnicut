@@ -19,6 +19,7 @@ import { getRenderReadinessState, READINESS_STATES } from '../../lib/renderReadi
  */
 export default function RenderReadinessChip({
   coverStatus = null,
+  coverSource = null,
   coverChecking = false,
   preflightLoading = false,
   onOpenCoverStudio,
@@ -49,8 +50,11 @@ export default function RenderReadinessChip({
   const hasWarnings = readinessState === READINESS_STATES.WARNING;
   const isReady = readinessState === READINESS_STATES.READY;
 
+  // A missing cover is informational: the renderer creates a default one
+  // after export, so it never counts as a blocker.
   const isCoverMissing = coverStatus === false;
-  const totalBlockers = errors.length + (isCoverMissing ? 1 : 0);
+  const isCoverAuto = coverStatus === true && coverSource === 'auto';
+  const totalBlockers = errors.length;
 
   return (
     <div className={`relative flex-shrink-0 ${className}`}>
@@ -203,7 +207,7 @@ export default function RenderReadinessChip({
                       : coverStatus === true
                         ? 'bg-emerald-500/15 text-emerald-400'
                         : isCoverMissing
-                          ? 'bg-red-500/15 text-red-400'
+                          ? 'bg-sky-500/15 text-sky-300'
                           : 'bg-white/[0.06] text-slate-400'
                   }`}
                 >
@@ -216,10 +220,12 @@ export default function RenderReadinessChip({
                       <span className="text-amber-300 flex items-center gap-1">
                         <Loader2 className="w-2.5 h-2.5 animate-spin" /> กำลังตรวจสอบ...
                       </span>
+                    ) : isCoverAuto ? (
+                      <span className="text-emerald-400 font-medium">ปกอัตโนมัติ เปลี่ยนได้</span>
                     ) : coverStatus === true ? (
                       <span className="text-emerald-400 font-medium">มีภาพปกแล้ว พร้อมเรนเดอร์</span>
                     ) : isCoverMissing ? (
-                      <span className="text-red-400 font-semibold">ยังไม่มีภาพปก (จำเป็น)</span>
+                      <span className="text-sky-300 font-medium">ยังไม่มี ระบบสร้างให้หลังเรนเดอร์</span>
                     ) : (
                       'ยังไม่ได้ตรวจสอบ'
                     )}
@@ -234,13 +240,9 @@ export default function RenderReadinessChip({
                     setOpen(false);
                     onOpenCoverStudio();
                   }}
-                  className={`px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex-shrink-0 ${
-                    coverStatus === true
-                      ? 'bg-white/[0.08] hover:bg-white/[0.15] text-slate-200 hover:text-white'
-                      : 'bg-red-500/20 hover:bg-red-500/30 text-red-200 border border-red-500/40 shadow-sm'
-                  }`}
+                  className="px-2 py-1 rounded-lg text-xs font-bold bg-white/[0.08] hover:bg-white/[0.15] text-slate-200 hover:text-white transition-all cursor-pointer flex-shrink-0"
                 >
-                  {coverStatus === true ? 'แก้ไขปก' : 'สร้างปก'}
+                  {isCoverAuto ? 'เปลี่ยนปก' : coverStatus === true ? 'แก้ไขปก' : 'สร้างปก'}
                 </button>
               )}
             </div>

@@ -4,6 +4,10 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round CLAUDE-FLOW-ONE-CLICK-SURVEY-20261112 · สำรวจ flow สินค้า → โพสต์ (อ่านอย่างเดียว) + แผนปกอัตโนมัติ / ปุ่มต่อสินค้า / เตรียมทั้งหมด · เจ้าของตัดสิน 2026-11-12 "ตามที่แนะนำ": D1 ทำ A + ผ่อนด่านปก Editor, D2 เฟรมสะอาด 9:16 + 3:4, D3 สองปุ่มมีจุดตรวจ (B1), D4 ทำ C1, D5 (ความคมชัดอัตโนมัติ) ยังไม่ตัดสิน · ลำดับ A → C1 → B1 → [_Docs/Plans/ONE_CLICK_FLOW_PLAN_20261112.md](_Docs/Plans/ONE_CLICK_FLOW_PLAN_20261112.md), HISTORY.md · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
+
+- [x] Round CLAUDE-AUTO-COVER-20261112 · งาน A ของแผน one-click: ปกอัตโนมัติหลังเรนเดอร์ (`scripts/auto_cover.py`, เฟรมสะอาด 9:16 + 3:4, ป้าย `auto`, ไม่ทับปกที่คนเลือก, ปิดได้ด้วย `OMNICUT_AUTO_COVER=0`) + Editor ไม่บังคับบันทึกปกก่อนเรนเดอร์ · 0.39–0.51 วิ/ปก · ยังไม่ได้เรนเดอร์จริงผ่านแอป (เจ้าของรับทราบ สั่ง merge 2026-11-12) · D5 เจ้าของตอบ "ใช้ทุกคลิป" → C2 ทำหลัง B1 · merge เข้า `main` ไม่ push → HISTORY.md · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
+
 - [x] Round CLAUDE-SPEED-PHASE5-20261112 · ดราฟต์ครั้งแรก 62 → 45 วิ (ตัวจำแนกโทนถามแบบคิดน้อยสุด + timeout) · `-filter_complex_threads 4` (เรนเดอร์ −12%, batch 6.8 → 7.7 คลิป/นาที, เฟรมเท่าเดิม) · ข6 รองรับเรนเดอร์ซ้อนกัน · ต้นเหตุเสียง 46 โปรเจกต์ = รอบตัดเสียงขยะ 2026-11-08; เติมช่วงเงียบต้นไฟล์กลับ 50 โปรเจกต์ (`tools/restore_voice_lead.py`, ไฟล์เดิมใน `06_Archive/voice_lead_backup/`) · pytest 5440 ผ่าน · merge เข้า `main` แล้ว → [_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md](_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md) หัวข้อ 10, HISTORY.md · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
 
 - [x] Round CLAUDE-SPEED-PHASE4-20261112 · merge ช่วงที่ 3 เข้า `main` · ข6 เผาซับรอบสองต่อเข้า renderer (เฉพาะเรนเดอร์ซ้ำจาก editor: แก้ซับ 16.5 → 7.4 วิ, ปิดด้วย `OMNICUT_SUBTITLE_SECOND_PASS=0`) · ข4 ซูมรายเฟรมใช้ `bilinear` · ประทับ fingerprint เสียง 46 โปรเจกต์ (`tools/restamp_voice_fingerprints.py`) · ลบ `.tmp/speed_audit/replay` 5 GB · pytest 5434 ผ่าน → [_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md](_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md) หัวข้อ 9, HISTORY.md · ดำเนินการโดย: Claude Code (Claude Fable 5.2)

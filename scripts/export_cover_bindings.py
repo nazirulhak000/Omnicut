@@ -107,7 +107,22 @@ class ExportCoverBindingStore:
             raise ChannelError(409, "export_cover_selection_changed", "Explicit selected cover bytes changed; choose and save a new cover")
         return {**verified, "export_id": export_id, "channel_id": channel_id, "revision": row["revision"]}
 
-    def save(self, channel_id, export_id, video_path, selections, *, expected_revision=None):
+    def source_of(self, channel_id, export_id):
+        """Who chose the bound cover: None (no binding), "auto" or "manual"."""
+        row = self._binding(channel_id, export_id)
+        if row is None:
+            return None
+        return "auto" if row.get("source") == "auto" else "manual"
+
+    def save(self, channel_id, export_id, video_path, selections, *, expected_revision=None, source=None):
+        """Bind covers to one export.
+
+        ``source="auto"`` marks a system-generated default cover. It never
+        replaces a selection a person saved; a person's save (``source=None``)
+        always clears the mark.
+        """
+        if source not in (None, "auto"):
+            raise ChannelError(422, "export_cover_source_invalid", "Unsupported cover source")
         export = self.validate_export(channel_id, export_id, video_path)
         if not isinstance(selections, dict) or not selections:
             raise ChannelError(422, "export_cover_selection_missing", "Rendered cover selection is required")
@@ -117,8 +132,10 @@ class ExportCoverBindingStore:
             if len(matches) > 1:
                 raise ChannelError(409, "export_cover_identity_conflict", "Cover selection is ambiguous")
             current = matches[0] if matches else None
+            if source == "auto" and current and current.get("source") != "auto":
+                raise ChannelError(409, "export_cover_manual_selection", "A person already chose this export's cover")
             merged = {**((current or {}).get("selections") or {}), **verified}
-            if current and current.get("selections") == merged:
+            if current and current.get("selections") == merged and current.get("source") == source:
                 return deepcopy(current)
             revision = current.get("revision", 0) if current else 0
             if expected_revision is not None and revision != expected_revision:
@@ -126,6 +143,8 @@ class ExportCoverBindingStore:
             result = {"id": "cover_" + sha256(f"{channel_id}\0{export_id}".encode()).hexdigest(),
                       "channel_id": channel_id, "export_id": export_id, "video_path": export["path"],
                       "selections": merged, "revision": revision + 1, "updated_at": self.clock()}
+            if source:
+                result["source"] = source
             if current:
                 current.clear()
                 current.update(result)

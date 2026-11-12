@@ -1,7 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { getRenderReadinessState, READINESS_STATES, normalizeSaveStatus } from './renderReadiness.js';
+import {
+  getRenderReadinessState,
+  getRenderCoverNote,
+  isRenderBlockedByCover,
+  READINESS_STATES,
+  normalizeSaveStatus,
+} from './renderReadiness.js';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
@@ -9,6 +15,7 @@ const headerSource = read('../components/editor/EditorHeader.jsx');
 const saveStatusChipSource = read('../components/editor/SaveStatusChip.jsx');
 const viewToggleGroupSource = read('../components/editor/ViewToggleGroup.jsx');
 const readinessChipSource = read('../components/editor/RenderReadinessChip.jsx');
+const shellSource = read('../components/editor/EditorShell.jsx');
 const preflightNoticeSource = read('../components/editor/RenderPreflightNotice.jsx');
 const headerMenuSource = read('../components/editor/HeaderMenu.jsx');
 const projectSelectorSource = read('../components/editor/ProjectSelector.jsx');
@@ -106,7 +113,7 @@ test('RenderReadinessChip implements 5-state truth table without false ready sta
     'both loading must yield loading'
   );
 
-  // 2) unknown / unchecked: (coverStatus === null || coverStatus === undefined) && !preflightReport
+  // 2) unknown / unchecked: (coverStatus === null || coverStatus === undefined) || !preflightReport
   assert.equal(
     getRenderReadinessState({ coverStatus: null, preflightReport: null }),
     READINESS_STATES.UNKNOWN,
@@ -128,12 +135,13 @@ test('RenderReadinessChip implements 5-state truth table without false ready sta
     'true cover with null preflight must remain unknown (cannot be ready without preflight audit)'
   );
 
-  // 3) blocked / error: errors.length > 0 || coverStatus === false
   assert.equal(
     getRenderReadinessState({ coverStatus: false, preflightReport: null }),
-    READINESS_STATES.ERROR,
-    'explicit missing cover (false) must yield error / blocker'
+    READINESS_STATES.UNKNOWN,
+    'missing cover with null preflight must remain unknown (not an error: a default cover is created after render)'
   );
+
+  // 3) blocked / error: errors.length > 0 (a missing cover is not a blocker)
   assert.equal(
     getRenderReadinessState({ coverStatus: true, preflightReport: { errors: ['Missing audio source'] } }),
     READINESS_STATES.ERROR,
@@ -142,7 +150,7 @@ test('RenderReadinessChip implements 5-state truth table without false ready sta
   assert.equal(
     getRenderReadinessState({ coverStatus: false, preflightReport: { errors: ['Timeline empty'] } }),
     READINESS_STATES.ERROR,
-    'missing cover and errors must both yield error / blocker'
+    'preflight errors yield error / blocker whatever the cover state'
   );
 
   // 4) warnings: warnings.length > 0 && !hasErrors
@@ -155,15 +163,51 @@ test('RenderReadinessChip implements 5-state truth table without false ready sta
     'warnings without errors when cover is true must yield warning'
   );
 
-  // 5) ready: coverStatus === true && errors.length === 0 && warnings.length === 0
+  assert.equal(
+    getRenderReadinessState({
+      coverStatus: false,
+      preflightReport: { errors: [], warnings: ['Pacing slow on shot 2'] },
+    }),
+    READINESS_STATES.WARNING,
+    'warnings without errors when the cover is missing must yield warning'
+  );
+
+  // 5) ready: cover checked (true or false) && errors.length === 0 && warnings.length === 0
   assert.equal(
     getRenderReadinessState({
       coverStatus: true,
       preflightReport: { errors: [], warnings: [] },
     }),
     READINESS_STATES.READY,
-    'ready is only achieved when cover is true AND errors === 0 AND warnings === 0'
+    'ready when cover is saved AND errors === 0 AND warnings === 0'
   );
+  assert.equal(
+    getRenderReadinessState({
+      coverStatus: false,
+      preflightReport: { errors: [], warnings: [] },
+    }),
+    READINESS_STATES.READY,
+    'a missing cover does not hold back ready: the renderer creates a default cover after export'
+  );
+});
+
+test('a missing cover lets Render run; only an unchecked cover keeps it disabled', () => {
+  assert.equal(isRenderBlockedByCover(null), true, 'no product angle found yet -> disabled');
+  assert.equal(isRenderBlockedByCover(undefined), true);
+  assert.equal(isRenderBlockedByCover(false), false, 'missing cover -> Render allowed');
+  assert.equal(isRenderBlockedByCover(true), false);
+
+  assert.equal(getRenderCoverNote(true), '', 'saved cover needs no note');
+  assert.ok(getRenderCoverNote(false).includes('ปกอัตโนมัติ'), 'missing cover note tells the user a default cover follows');
+  assert.ok(getRenderCoverNote(null).includes('เรนเดอร์ไม่ได้'), 'unchecked cover note explains the disabled button');
+
+  assert.ok(headerSource.includes('isRenderBlockedByCover(coverStatus)'), 'EditorHeader must use the shared rule');
+  assert.ok(!headerSource.includes('coverStatus !== true'), 'EditorHeader must not block Render on a missing cover');
+  assert.ok(!shellSource.includes('coverStatus !== true'), 'EditorShell must not block Render on a missing cover');
+  assert.ok(!shellSource.includes('hasSavedCover'), 'handleApply must not stop a render for a missing cover');
+  assert.ok(shellSource.includes("matchAngle?.status === 'posted'"), 'posted clips stay locked');
+  assert.ok(readinessChipSource.includes('ปกอัตโนมัติ'), 'chip labels a system-made cover');
+  assert.ok(!readinessChipSource.includes('(จำเป็น)'), 'chip must not call the cover required');
 });
 
 test('RenderReadinessChip JSX satisfies visual and accessibility contract for all 5 states', () => {

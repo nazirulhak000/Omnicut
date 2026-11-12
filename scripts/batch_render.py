@@ -34,6 +34,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from scripts.config import BASE_DIR, RAW_DIR, INBOX_DIR, EXPORTS_DIR, STICKERS_DIR, PROJECTS_DIR
 from scripts.product_store import ProductStore
+from scripts.auto_cover import ensure_default_cover
 from scripts.task_manager import TaskManager
 from scripts.batch_queue_store import BatchQueueStore
 from scripts import batch_queue_store as _batch_queue_store
@@ -948,6 +949,13 @@ class BatchRenderManager:
                     export_id=result.get("export_id") if is_rendered else None,
                     batch=item_b,
                  **channel_kwargs)
+
+                if is_rendered:
+                    # Before complete_job so the cover exists when the UI sees
+                    # the clip as finished. Never raises.
+                    ensure_default_cover(
+                        result.get("export_id"), product_id=product_id, angle_id=angle_id,
+                        batch=item_b, **channel_kwargs)
 
                 render_jobs.complete_job(sub_job_id, result, **channel_kwargs)
                 mark(

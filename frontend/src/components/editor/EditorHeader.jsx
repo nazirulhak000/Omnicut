@@ -26,6 +26,7 @@ import RenderReadinessChip from './RenderReadinessChip.jsx';
 import { ActivityIndicatorButton } from '../ActivityCenter.jsx';
 import { getProjectOrigin } from '../../api.js';
 import { loadPlaybookNotes } from '../../lib/producerInsights.js';
+import { getRenderCoverNote, isRenderBlockedByCover } from '../../lib/renderReadiness.js';
 
 export default function EditorHeader({
   projectName,
@@ -60,6 +61,7 @@ export default function EditorHeader({
   setDeleteOrigin,
   setPendingDelete,
   coverStatus = null,
+  coverSource = null,
   coverChecking = false,
   onOpenCoverStudio,
   showWatermark = true,
@@ -75,7 +77,9 @@ export default function EditorHeader({
 }) {
   const [showPlaybookModal, setShowPlaybookModal] = React.useState(false);
   const playbookNotes = React.useMemo(() => loadPlaybookNotes(), [showPlaybookModal]);
-  const renderNeedsCover = coverStatus !== true;
+  // A missing cover no longer blocks Render (a default one is created after
+  // export); only an unchecked cover -- no product angle found yet -- does.
+  const renderBlockedByCover = isRenderBlockedByCover(coverStatus);
 
   const handleDeleteRequest = React.useCallback(
     (name = projectName) => {
@@ -296,6 +300,7 @@ export default function EditorHeader({
         {projectName && (
           <RenderReadinessChip
             coverStatus={coverStatus}
+            coverSource={coverSource}
             coverChecking={coverChecking}
             preflightLoading={preflightLoading}
             onOpenCoverStudio={onOpenCoverStudio}
@@ -315,8 +320,8 @@ export default function EditorHeader({
           onRender={handleApply}
           busy={applying}
           progress={progress}
-          disabled={!projectName || isPosted || renderNeedsCover}
-          needsCover={renderNeedsCover}
+          disabled={!projectName || isPosted || renderBlockedByCover}
+          coverNote={projectName ? getRenderCoverNote(coverStatus) : ''}
           isPosted={isPosted}
         />
       </div>

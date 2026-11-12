@@ -21,6 +21,7 @@ from scripts.config import (
 )
 from scripts.pipeline import TikTokAutoCutterPipeline
 from scripts.product_store import ProductStore
+from scripts.auto_cover import ensure_default_cover
 from scripts.task_manager import TaskManager
 from scripts import render_jobs
 from scripts.render_jobs import RenderCancelled
@@ -272,6 +273,13 @@ def execute_render_job(job_id: str, req_data: RenderRequest, job_scope: Optional
                 )
             except Exception as angle_err:
                 print(f"Warning: could not update angle status: {angle_err}")
+
+        if req_data.export_mp4 and (result.get("mp4") or result.get("mp4_video") or result.get("output_video") or result.get("video_path")):
+            # Before complete_job so the cover exists when the UI sees the
+            # clip as finished. Never raises.
+            ensure_default_cover(
+                result.get("export_id"), product_id=req_data.product_id, angle_id=req_data.angle_id,
+                **channel_kwargs)
 
         render_jobs.complete_job(job_id, result, **channel_kwargs)
         is_exported = bool(req_data.export_mp4 and (result.get("mp4") or result.get("mp4_video") or result.get("output_video") or result.get("video_path")))

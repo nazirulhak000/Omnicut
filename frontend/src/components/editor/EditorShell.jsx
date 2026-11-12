@@ -124,6 +124,7 @@ import { ActivityIndicatorButton } from '../ActivityCenter';
 import { useTaskManager } from '../../context/TaskContext';
 import HeaderMenu from './HeaderMenu';
 import RenderButton from './RenderButton';
+import { getRenderCoverNote, isRenderBlockedByCover } from '../../lib/renderReadiness.js';
 import SaveStatusChip from './SaveStatusChip';
 import MixDegradedNotice from './MixDegradedNotice';
 import ProjectRevisionNotice from './ProjectRevisionNotice';
@@ -510,6 +511,8 @@ export default function EditorShell({
       pendingRenderBaseline.current = null;
     }
     syncAfterRenderRef.current?.(targetProject, { allowReload: true });
+    // The backend creates a default cover before it reports the job done.
+    setCoverRefreshTick((tick) => tick + 1);
     if (productContext?.id && productContext?.angles?.[angleIndex]?.angle_id) {
       try {
         const vPath = rawResult?.mp4 || rawResult?.final_video_path || rawResult?.video_path || '';
@@ -644,10 +647,16 @@ export default function EditorShell({
   const [coverGateItem, setCoverGateItem] = useState(null);
   const [coverGateChecking, setCoverGateChecking] = useState(false);
   // Surfaced in the header as a status badge so the user can tell whether
-  // this project's angle already has a cover without having to hit render
-  // and get blocked to find out. null = not yet resolved (no matching
-  // angle, or still checking); true/false once a fresh fetch resolves it.
+  // this project's angle already has a cover. null = not yet resolved (no
+  // matching angle, or still checking); true/false once a fresh fetch
+  // resolves it. false does not block Render: the backend creates a default
+  // cover after export (scripts/auto_cover.py).
   const [coverStatus, setCoverStatus] = useState(null);
+  // 'auto' while the angle's cover is that system-made default; null once a
+  // person saves one.
+  const [coverSource, setCoverSource] = useState(null);
+  // Bumped when a render finishes so the cover badge is re-read.
+  const [coverRefreshTick, setCoverRefreshTick] = useState(0);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   // Per-stem mute/solo affects Preview and Export through one audibility rule.
   // Lives in the undo history alongside the other editable state so
@@ -2185,17 +2194,19 @@ export default function EditorShell({
   // badge reflects this project's actual state instead of staying stuck on
   // whatever the previously-loaded project showed.
   useEffect(() => {
-    if (!projectName) { setCoverStatus(null); return; }
+    if (!projectName) { setCoverStatus(null); setCoverSource(null); return; }
     let cancelled = false;
     findMatchingAngle(projectName)
       .then(({ matchAngle }) => {
         if (cancelled) return;
-        if (!matchAngle) { setCoverStatus(null); return; }
-        setCoverStatus(!!(matchAngle.cover_path || matchAngle.cover_3x4_path || matchAngle.cover_9x16_path));
+        if (!matchAngle) { setCoverStatus(null); setCoverSource(null); return; }
+        const hasCover = !!(matchAngle.cover_path || matchAngle.cover_3x4_path || matchAngle.cover_9x16_path);
+        setCoverStatus(hasCover);
+        setCoverSource(hasCover && matchAngle.cover_source === 'auto' ? 'auto' : null);
       })
-      .catch(() => { if (!cancelled) setCoverStatus(null); });
+      .catch(() => { if (!cancelled) { setCoverStatus(null); setCoverSource(null); } });
     return () => { cancelled = true; };
-  }, [projectName, findMatchingAngle]);
+  }, [projectName, findMatchingAngle, coverRefreshTick]);
 
   const handleApply = async (requestedCutoutOverride = false) => {
     const forceDisableCutout = requestedCutoutOverride === true;
@@ -2240,15 +2251,15 @@ export default function EditorShell({
       return;
     }
 
-    // Re-check posted status and the persisted cover fresh (not just the
-    // isProjectPosted/coverStatus props) before letting a render start. The
-    // pre-render Cover Studio flow can create a cover from the current
-    // Timeline frame, so a first render is safe to gate behind a saved cover.
+    // Re-check the project's angle and posted status fresh (not just the
+    // isProjectPosted/coverStatus props) before letting a render start. A
+    // missing cover does not block: the backend creates a default one after
+    // export, and the user can still save their own from the "ปก" button.
     setCoverGateChecking(true);
     try {
       const { matchAngle } = await findMatchingAngle(projectName);
       if (!matchAngle) {
-        setApplyError('ไม่พบข้อมูลโปรเจกต์นี้ กรุณาสร้างและบันทึกหน้าปกก่อน Render');
+        setApplyError('ไม่พบข้อมูลสินค้าของโปรเจกต์นี้ จึงยังเรนเดอร์ไม่ได้');
         setCoverGateChecking(false);
         return;
       }
@@ -2258,18 +2269,10 @@ export default function EditorShell({
         setIsProjectPosted(true);
         return;
       }
-      const hasSavedCover = Boolean(
-        matchAngle.cover_path || matchAngle.cover_3x4_path || matchAngle.cover_9x16_path,
-      );
-      if (!hasSavedCover) {
-        setApplyError('กรุณาสร้างและบันทึกหน้าปกก่อน Render — กดปุ่ม “ปก” แล้วบันทึกหน้าปกก่อน');
-        setCoverGateChecking(false);
-        return;
-      }
     } catch (e) {
-      // Do not fail open: without a fresh cover check, rendering could bypass
-      // the required pre-render cover step.
-      setApplyError('ตรวจสอบหน้าปกไม่สำเร็จ กรุณาลองใหม่ก่อน Render');
+      // Do not fail open: without a fresh check, rendering could overwrite
+      // a clip that was already posted.
+      setApplyError('ตรวจสอบสถานะโปรเจกต์ไม่สำเร็จ กรุณาลองใหม่ก่อน Render');
       setCoverGateChecking(false);
       return;
     }
@@ -2389,6 +2392,7 @@ export default function EditorShell({
         return;
       }
       setCoverStatus(true);
+      setCoverSource(null);
     }
     setCoverGateItem(null);
   }, [coverGateItem, workspaceData]);
@@ -2621,6 +2625,7 @@ export default function EditorShell({
           setDeleteOrigin={setDeleteOrigin}
           setPendingDelete={setPendingDelete}
           coverStatus={coverStatus}
+          coverSource={coverSource}
           coverChecking={coverGateChecking}
           onOpenCoverStudio={openCoverStudioManually}
           showWatermark={style.showWatermark !== false}
@@ -2685,8 +2690,8 @@ export default function EditorShell({
               onRender={handleApply}
               busy={applying || coverGateChecking}
               progress={progress}
-              disabled={!projectName || isProjectPosted || (coverStatus !== true)}
-              needsCover={coverStatus !== true}
+              disabled={!projectName || isProjectPosted || isRenderBlockedByCover(coverStatus)}
+              coverNote={projectName ? getRenderCoverNote(coverStatus) : ''}
               isPosted={isProjectPosted}
             />
 
@@ -2726,7 +2731,7 @@ export default function EditorShell({
             <button
               type="button"
               onClick={handleApply}
-              disabled={!projectName || isProjectPosted || (coverStatus !== true) || applying || coverGateChecking}
+              disabled={!projectName || isProjectPosted || isRenderBlockedByCover(coverStatus) || applying || coverGateChecking}
               title="เรนเดอร์ทันที (หรือขยายเพื่อเลือกความละเอียด)"
               aria-label="เรนเดอร์ทันที"
               className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#D97757] hover:bg-[#C2683D] text-white transition-all cursor-pointer shadow-md disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 flex-shrink-0"

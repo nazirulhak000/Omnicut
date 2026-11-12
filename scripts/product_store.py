@@ -1215,6 +1215,9 @@ class ProductStore:
                         angle["cover_3x4_path"] = _to_relative(cover_3x4_path) if cover_3x4_path else None
                     if cover_9x16_path is not None:
                         angle["cover_9x16_path"] = _to_relative(cover_9x16_path) if cover_9x16_path else None
+                    if any(value is not None for value in (cover_path, cover_3x4_path, cover_9x16_path)):
+                        # A cover set through this path was chosen by a person.
+                        angle.pop("cover_source", None)
                     if status == "posted" and not angle.get("posted_at"):
                         angle["posted_at"] = cls._now()
                     angle["updated_at"] = cls._now()
@@ -1423,6 +1426,7 @@ class ProductStore:
         *,
         channel_id: Optional[str] = None,
         all_channels: bool = False,
+        cover_source: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Persist generated cover variants on the angle that owns them.
 
@@ -1430,7 +1434,14 @@ class ProductStore:
         relative paths on the angle makes the association survive a page
         refresh while preserving the existing cover naming and media routes.
         Only files inside ``05_Covers_Thumbnails`` are accepted.
+
+        ``cover_source="auto"`` marks a system-generated default cover. It is
+        ignored (product returned unchanged) when the angle already holds a
+        cover a person saved; a person's save (``cover_source=None``) clears
+        the mark.
         """
+        if cover_source not in (None, "auto"):
+            raise ValueError("cover_source ต้องเป็น 'auto' หรือไม่ระบุ")
         scope = cls._scope(channel_id, all_channels)
 
         def normalize_cover_path(raw_path: Optional[str], field_name: str) -> Optional[str]:
@@ -1476,6 +1487,14 @@ class ProductStore:
                         continue
                     if effective_batch is not None and (angle.get("batch") or 1) != effective_batch:
                         continue
+
+                    has_cover = any(angle.get(key) for key in normalized)
+                    if cover_source == "auto":
+                        if has_cover and angle.get("cover_source") != "auto":
+                            return product
+                        angle["cover_source"] = "auto"
+                    else:
+                        angle.pop("cover_source", None)
 
                     for key, value in normalized.items():
                         if value is not None:

@@ -26,6 +26,7 @@ from scripts.it_angles import ANGLES_BY_KEY, catalog_for_prompt, fallback_angles
 from scripts.subtitle_engine import DEFAULT_HOOK_MOTION
 from scripts.post_log import METRIC_FIELDS, PostLog
 from scripts.product_store import STATUSES, ProductStore
+from scripts.auto_cover import ensure_default_cover
 from scripts.product_scraper import _build_safe_image_opener, _validate_public_http_url
 from scripts.config import BASE_DIR, COVERS_DIR, DEFAULT_AD_TONE, DEFAULT_VOICE_PRESET, STICKERS_DIR
 from scripts.project_manifest import REROLL_STAGE, ProjectManifest, project_revision
@@ -1539,6 +1540,13 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 ProductStore.attach_project(product_id, project_name, channel_id=channel_scope.channel_id)
             except Exception:
                 pass
+
+        if mp4_val:
+            # The Editor no longer blocks a render on a saved cover, so a clip
+            # rendered from here gets its default cover now. Never raises.
+            ensure_default_cover(
+                result.get("export_id"), product_id=product_id, angle_id=angle_id,
+                channel_id=channel_scope.channel_id)
 
         render_jobs.complete_job(job_id, result, message="🎉 เรนเดอร์เสร็จสมบูรณ์!")
         TaskManager.complete_task(
