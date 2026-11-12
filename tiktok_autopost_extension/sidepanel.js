@@ -73,6 +73,16 @@ function scopedPanelMedia(url) {
 
 }
 
+// An Error for a worker reply that failed, carrying what the batch needs to classify it: busy/transient (nothing was
+// done, safe to retry) and postAttempted (true = clicked, false = provably not, missing = unknown).
+function workerFailure(reply, fallback) {
+  const failure = new Error(reply?.error || reply?.reason || fallback);
+  if (reply?.transient) failure.transient = true;
+  if (reply?.busy) failure.busy = true;
+  if (typeof reply?.postAttempted === 'boolean') failure.postAttempted = reply.postAttempted;
+  return failure;
+}
+
 async function panelWorkerRequest(message) {
   if (heldRunOwner && !['retry-posting-receipt','release-posting-job','reconcile-posting-result','capture-evidence','notify-attention','clear-attention','verify-post-content','verify-draft-content'].includes(message.action)) {
     const lock = await globalThis.OmniRunLock.read(chrome.storage.local);
@@ -83,7 +93,7 @@ async function panelWorkerRequest(message) {
 
     if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
 
-    if (!result?.success) return reject(new Error(result?.error || 'Extension ไม่รับคำขอ'));
+    if (!result?.success) return reject(workerFailure(result, 'Extension ไม่รับคำขอ'));
 
     resolve(result);
 
@@ -351,11 +361,30 @@ async function initializeChannelSelector() {
 
   });
 
+  // A stored post result the backend keeps refusing would block every later clip. This drops it, but only after the
+  // worker has checked that the backend already settled that job (the result is kept in the unresolved list).
+  const discard = document.createElement('button'); discard.id='discardReceiptBtn'; discard.type='button'; discard.textContent='ตรวจและปิดผลโพสต์ที่ค้างส่ง';
+  discard.className='btn-copy-action'; discard.style.minHeight='44px'; discard.hidden = true;
+  discard.title='ใช้เมื่อส่งผลโพสต์เดิมเข้า Backend ไม่ผ่านซ้ำๆ ระบบจะเช็กว่า Backend ปิดงานนั้นแล้วก่อนจึงจะปิดให้';
+  discard.addEventListener('click', async () => {
+    discard.disabled = true;
+    try {
+      const res = await panelWorkerRequest({action: 'discard-posting-receipt'});
+      discard.hidden = true;
+      await loadExports();
+      setStatus(res.discarded ? `ปิดผลโพสต์ที่ค้างแล้ว (Backend บันทึกงานนี้เป็น ${res.outcome}) เก็บไว้ในรายการรอตรวจ` : 'ไม่มีผลโพสต์ที่ค้างส่ง', 'success');
+    } catch (err) {
+      setStatus(err.message, 'error');
+    } finally { discard.disabled = false; }
+  });
+
   // Reuse the existing manual button as a read-only reconciliation action.
 
   const button = document.getElementById('markPostedBtn');
 
   button?.parentElement?.appendChild(release);
+
+  button?.parentElement?.appendChild(discard);
 
   if (button) {
 
@@ -369,9 +398,13 @@ async function initializeChannelSelector() {
 
   if (help) help.textContent = 'กดเมื่อโพสต์หรือตั้งเวลาบน TikTok เรียบร้อยแล้ว เพื่อมาร์กว่าโพสต์สำเร็จ ย้ายไฟล์ และเปิดรับคลิปถัดไปทันที';
 
+  // Read-only look at the worker's state. Every change goes through a worker action: a copy written back from here
+  // could be older than the worker's own (a newer receipt or job) and would silently overwrite it.
   const saved = await new Promise(resolve => chrome.storage.local.get(['omnicutPostingProtocolV2'], resolve));
 
   let job = saved.omnicutPostingProtocolV2?.activeJob;
+
+  discard.hidden = !saved.omnicutPostingProtocolV2?.pendingReceipt;
 
   if (job) {
 
@@ -381,51 +414,37 @@ async function initializeChannelSelector() {
 
     try {
 
-      const curRes = await scopedPanelFetch(`${BACKEND}/api/tiktok-autopost/jobs/${encodeURIComponent(job.job_id)}`);
+      const refreshed = await panelWorkerRequest({action: 'refresh-active-job'});
 
-      if (curRes.ok) {
+      const fresh = refreshed?.job;
 
-        const fresh = await curRes.json();
+      if (!fresh) {
 
-        if (fresh.status === 'published' || fresh.status === 'cancelled') {
+        isFinished = true;
 
-          isFinished = true;
+      } else if (refreshed.final) {
 
-          saved.omnicutPostingProtocolV2.activeJob = null;
+        // the worker clears a settled job; a stored receipt is resent, never dropped
+        const settled = await panelWorkerRequest({action: 'release-posting-job'});
 
-          saved.omnicutPostingProtocolV2.pendingReceipt = null;
+        isFinished = true;
 
-          await new Promise(r => chrome.storage.local.set(saved, r));
+        activeClip = null;
 
-          await panelWorkerRequest({action: 'release-posting-job', park: true}).catch(() => {});
+        resetChecklist();
 
-          activeClip = null;
+        renderActiveClipBanner();
 
-          resetChecklist();
+        showTab('list');
 
-          renderActiveClipBanner();
+        scrollToTop();
 
-          showTab('list');
+        setStatus(settled?.discarded ? 'งานเดิมปิดบน Backend แล้ว เก็บผลเดิมไว้ในรายการรอตรวจ พร้อมสำหรับคลิปถัดไป'
+          : (fresh.status === 'cancelled' ? 'งานเดิมถูกยกเลิกแล้ว พร้อมสำหรับคลิปถัดไป' : 'คลิปเดิมบันทึกผลเรียบร้อยแล้ว พร้อมสำหรับคลิปถัดไป'), 'success');
 
-          scrollToTop();
+      } else {
 
-          setStatus(fresh.status === 'published' ? 'คลิปเดิมเผยแพร่เรียบร้อยแล้ว พร้อมสำหรับคลิปถัดไป' : 'งานเดิมถูกยกเลิกแล้ว พร้อมสำหรับคลิปถัดไป', 'success');
-
-        } else {
-
-          if (fresh.cover_path) {
-
-            job.cover_path = fresh.cover_path;
-
-            saved.omnicutPostingProtocolV2.activeJob.cover_path = fresh.cover_path;
-
-            await new Promise(r => chrome.storage.local.set(saved, r));
-
-          }
-
-          Object.assign(job, fresh);
-
-        }
+        Object.assign(job, fresh);
 
       }
 
@@ -625,6 +644,15 @@ function updateBatchCountDisplay(filteredCount = null) {
 }
 
 async function checkTikTokQuota(silent = false, allowNavigate = false) {
+  // A silent refresh must never take the worker's single step slot from a running batch (the batch step would be
+  // refused as busy). The batch reads the quota itself at its start.
+  let runActive = Boolean(heldRunOwner);
+  try { runActive = runActive || Boolean(batchStarting); } catch (_) { /* declared further down; not started yet */ }
+  if (silent && runActive) return;
+  if (silent) {
+    const lock = await globalThis.OmniRunLock?.read?.(chrome.storage.local).catch(() => null);
+    if (lock && globalThis.OmniRunLock.isFresh(lock, Date.now())) return;
+  }
   const btn = document.getElementById('btnCheckQuota');
   if (btn) btn.classList.add('loading');
   try {
@@ -641,16 +669,20 @@ async function checkTikTokQuota(silent = false, allowNavigate = false) {
         scheduledCount,
         scheduledAt: scheduledCount != null ? (keepScheduled ? currentQuotaState.scheduledAt : Date.now()) : null,
         draftCount: res.draftCount,
+        // an incomplete scan only proves a lower bound of scheduled posts: never more room than that leaves
         remainingSchedule: keepScheduled
           ? currentQuotaState.remainingSchedule
-          : (res.remainingSchedule ?? (res.scheduledCount != null ? Math.max(0, 30 - res.scheduledCount) : 30)),
+          : (res.remainingSchedule ?? (res.scheduledCount != null ? Math.max(0, 30 - res.scheduledCount)
+            : (res.countIncomplete ? Math.max(0, 30 - Number(res.partialScheduledCount || 0)) : 30))),
+        countIncomplete: Boolean(res.countIncomplete && !keepScheduled),
         remainingDraft: res.remainingDraft ?? (res.draftCount != null ? Math.max(0, 30 - res.draftCount) : 30),
         maxSchedule: res.maxSchedule || 30,
         maxDraft: res.maxDraft || 30,
       };
       updateQuotaUI();
       updateBatchCountDisplay();
-      if (!silent) setStatus(`อัปเดตโควตาสำเร็จ: ${res.message || ''}`, 'success');
+      if (!silent && res.countIncomplete) setStatus(`นับโพสต์ตั้งเวลาได้ไม่ครบ (เห็นอย่างน้อย ${res.partialScheduledCount}) จึงจำกัดจำนวนรอบนี้ไว้ไม่เกินที่เหลือจากตัวเลขนั้น`, 'warn');
+      else if (!silent) setStatus(`อัปเดตโควตาสำเร็จ: ${res.message || ''}`, 'success');
     } else {
       if (!silent) setStatus(res?.message || 'ไม่พบข้อมูลโควตาจากแท็บ TikTok Studio', 'info');
     }
@@ -755,6 +787,8 @@ const BLOCK_REASON_TH = {
   caption_too_long: 'caption ยาวเกิน 4000 ตัวอักษร',
   too_many_hashtags: 'แฮชแท็กเกิน 30 อัน',
   slot_passed_or_too_close: 'เวลาโพสต์ผ่านแล้วหรือใกล้เกินไป',
+  slot_too_far: 'เวลาโพสต์เกิน 10 วันข้างหน้า (TikTok ตั้งเวลาได้ไม่เกิน 10 วัน)',
+  slot_not_on_step: 'เวลาโพสต์ต้องเป็นช่วงละ 5 นาที',
   no_schedule: 'ไม่มีเวลาโพสต์ (ในโหมดตั้งเวลาจะกลายเป็นโพสต์สด)',
   draft_in_draft_mode: 'โหมดแบบร่างอย่างเดียวไม่เผยแพร่แบบร่าง (เปลี่ยนเป็น Schedule Only หรือ Smart)',
   draft_out_of_sync: 'แบบร่างไม่ตรงกับ TikTok (ดูข้อความบนการ์ดแล้วจัดการก่อน)',
@@ -932,30 +966,21 @@ let busy = false;
 
 const SCHEDULE_LEAD_MINUTES = 15;
 
-function localDateValue(date) {
-
-  const year = date.getFullYear();
-
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-
-  const day = String(date.getDate()).padStart(2, '0');
-
-  return `${year}-${month}-${day}`;
-
+// Slots are Bangkok wall time (post_guard.slotMs), whatever timezone this PC is set to.
+function bangkokSlotParts(ms) {
+  const d = new Date(ms + 7 * 60 * 60 * 1000);
+  const pad = n => String(n).padStart(2, '0');
+  return { date: `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`, time: `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}` };
 }
 
-function minimumScheduleDateTime() {
-
-  const minimum = new Date(Date.now() + SCHEDULE_LEAD_MINUTES * 60 * 1000);
-
-  minimum.setSeconds(0, 0);
-
-  const remainder = minimum.getMinutes() % 5;
-
-  if (remainder) minimum.setMinutes(minimum.getMinutes() + (5 - remainder));
-
-  return minimum;
-
+// Earliest and latest slot TikTok accepts right now, on the 5-minute grid (Bangkok is a whole-hour offset).
+function scheduleBounds(now = Date.now()) {
+  const step = 5 * 60 * 1000;
+  const limits = globalThis.OmniLimits;
+  return {
+    min: bangkokSlotParts(Math.ceil((now + SCHEDULE_LEAD_MINUTES * 60 * 1000) / step) * step),
+    max: bangkokSlotParts(Math.floor((now + limits.MAX_LEAD_MS) / step) * step),
+  };
 }
 
 function populateScheduleTimes() {
@@ -964,11 +989,11 @@ function populateScheduleTimes() {
 
   const selectedDate = scheduleDateInput.value;
 
-  const minimum = minimumScheduleDateTime();
+  const bounds = scheduleBounds();
 
-  const today = localDateValue(minimum);
+  const today = bounds.min.date;
 
-  const minimumTime = `${String(minimum.getHours()).padStart(2, '0')}:${String(minimum.getMinutes()).padStart(2, '0')}`;
+  const minimumTime = bounds.min.time;
 
   const options = ['<option value="">เลือกเวลา</option>'];
 
@@ -978,7 +1003,7 @@ function populateScheduleTimes() {
 
       const value = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 
-      const disabled = selectedDate === today && value < minimumTime ? ' disabled' : '';
+      const disabled = (selectedDate === today && value < minimumTime) || (selectedDate === bounds.max.date && value > bounds.max.time) ? ' disabled' : '';
 
       options.push(`<option value="${value}"${disabled}>${value}</option>`);
 
@@ -998,13 +1023,17 @@ function populateScheduleTimes() {
 
 function syncScheduleConstraints() {
 
-  const minimum = minimumScheduleDateTime();
+  const bounds = scheduleBounds();
 
-  const minimumDate = localDateValue(minimum);
+  const minimumDate = bounds.min.date;
 
   scheduleDateInput.min = minimumDate;
 
+  scheduleDateInput.max = bounds.max.date;
+
   if (scheduleDateInput.value && scheduleDateInput.value < minimumDate) scheduleDateInput.value = minimumDate;
+
+  if (scheduleDateInput.value && scheduleDateInput.value > bounds.max.date) scheduleDateInput.value = bounds.max.date;
 
   populateScheduleTimes();
 
@@ -1482,8 +1511,56 @@ async function loadExports() {
   }));
 
   filterAndRenderClips();
+  updateLinkDueButton(allQueueRaw);
   checkTikTokQuota(true);
+  autoLinkDueContent();
 }
+
+// ── B2: scheduled clips whose time has passed are linked to their live post on Studio > Content ──
+const LINK_DUE_GRACE_MS = 10 * 60 * 1000;
+let linkDueCount = 0;
+let linkDueRunning = false;
+let linkDueAutoTried = false;
+function updateLinkDueButton(queueItems) {
+  const now = Date.now();
+  linkDueCount = (queueItems || []).filter((item) => item.status === 'scheduled_on_platform'
+    && Date.parse(item.scheduled_at || '') + LINK_DUE_GRACE_MS <= now).length;
+  const btn = document.getElementById('linkDueBtn');
+  if (btn) { btn.hidden = linkDueCount === 0; btn.textContent = `ตรวจคลิปที่ถึงเวลาแล้ว (${linkDueCount})`; }
+}
+async function runLinkDue(silent) {
+  if (linkDueRunning) return null;
+  linkDueRunning = true;
+  const btn = document.getElementById('linkDueBtn');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await panelWorkerRequest({ action: 'link-due-content', silent });
+    const parts = [`บันทึกว่าโพสต์แล้ว ${res.linked} คลิป`];
+    if (res.notFound) parts.push(`ยังไม่เจอบนหน้า Content ${res.notFound}`);
+    if (res.ambiguous) parts.push(`เจอซ้ำกันจนเลือกไม่ได้ ${res.ambiguous}`);
+    if (res.failed) parts.push(`บันทึกไม่สำเร็จ ${res.failed}`);
+    if (!silent || res.linked) setStatus(res.due ? parts.join(' · ') : 'ไม่มีคลิปที่ถึงเวลาและรอตรวจ', res.failed ? 'warn' : 'success');
+    if (res.linked) await loadExports();
+    return res;
+  } catch (err) {
+    if (!silent) setStatus(`ตรวจคลิปที่ถึงเวลาไม่สำเร็จ: ${err.message}`, 'error');
+    return null;
+  } finally {
+    linkDueRunning = false;
+    if (btn) btn.disabled = false;
+  }
+}
+// Once per panel session, quietly, and only when nobody runs a batch (it opens its own background tab, read-only).
+async function autoLinkDueContent() {
+  if (linkDueAutoTried || !linkDueCount || heldRunOwner) return;
+  linkDueAutoTried = true;
+  try {
+    const lock = await globalThis.OmniRunLock?.read?.(chrome.storage.local);
+    if (lock && globalThis.OmniRunLock.isFresh(lock, Date.now())) return;
+  } catch (_) { return; }
+  await runLinkDue(true);
+}
+document.getElementById('linkDueBtn')?.addEventListener('click', () => runLinkDue(false));
 
 function filterAndRenderClips() {
   updateFilterChipCounts();
@@ -1702,8 +1779,11 @@ function renderClipCards(ready) {
       const dateIn = document.createElement('input'); dateIn.type = 'date'; dateIn.value = item.schedule_date || ''; dateIn.setAttribute('aria-label', 'วันที่เผยแพร่');
       const timeIn = document.createElement('input'); timeIn.type = 'time'; timeIn.step = 60; timeIn.value = item.schedule_time || ''; timeIn.setAttribute('aria-label', 'เวลาเผยแพร่');
       timeIn.step = 300;   // TikTok schedules in 5-minute steps
+      { const bounds = scheduleBounds(); dateIn.min = bounds.min.date; dateIn.max = bounds.max.date; }
       const applySlot = async () => {
         if (!dateIn.value || !timeIn.value) return;
+        const slotCode = globalThis.OmniPostGuard.slotProblem(dateIn.value, timeIn.value);
+        if (slotCode) { setStatus(`เปลี่ยนเวลาไม่สำเร็จ: ${BLOCK_REASON_TH[slotCode] || 'วันที่/เวลาอ่านไม่ได้'}`, 'error'); return; }
         try {
           const res = await scopedPanelFetch(`${BACKEND}/api/schedule-queue/${encodeURIComponent(item.id)}`, {
             method: 'PATCH', headers: { 'Content-Type': 'application/json' },
@@ -1890,7 +1970,7 @@ async function prepareClip(item, {throwOnError = false} = {}) {
 
             const pendingData = await pendingRes.json();
 
-            if (pendingData?.job_id && pendingData.status === 'prepared') {
+            if (globalThis.OmniPostGuard.clearableStaleJob(pendingData, preparePayload.export_id)) {
 
               await scopedPanelFetch(`${BACKEND}/api/tiktok-autopost/clear`, {
 
@@ -2540,9 +2620,10 @@ markPostedBtn.addEventListener('click', async () => {
 
     const result = await panelWorkerRequest({action: 'reconcile-posting-result', manual: true});
 
-    if (result.outcome !== 'published' && result.outcome !== 'scheduled_on_platform') {
+    // a saved draft is a valid final result too; anything else keeps the job open for another check
+    if (!['published', 'scheduled_on_platform', 'draft_saved'].includes(result.outcome)) {
 
-      throw new Error('Publication is not confirmed; no posted status was recorded');
+      throw new Error('Backend ยังไม่ยืนยันผล งานเดิมยังเปิดอยู่ ตรวจที่ TikTok Studio > Content แล้วลองอีกครั้ง');
 
     }
 
@@ -3325,24 +3406,32 @@ async function runBatchFromPanel(override = null) {
               // that was claimed/attempted is resolved by the worker's park +
               // reconcile path; force-cancelling it from the panel would let
               // the same export be posted twice.
-              if (pendingData?.job_id && pendingData.status === 'prepared') {
-                await scopedPanelFetch(`${BACKEND}/api/tiktok-autopost/clear`, {
+              // ...and only this clip's own job: /pending returns the channel's oldest job, which may be another clip's.
+              if (globalThis.OmniPostGuard.clearableStaleJob(pendingData, preparePayload.export_id)) {
+                const cleared = await scopedPanelFetch(`${BACKEND}/api/tiktok-autopost/clear`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ job_id: pendingData.job_id }),
-                }).catch(() => {});
+                }).catch(() => null);
+                if (cleared?.ok) {
+                  res = await scopedPanelFetch(`${BACKEND}/api/tiktok-autopost/prepare`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(preparePayload),
+                  });
+                }
               }
             }
           } catch (_) {}
-
-          res = await scopedPanelFetch(`${BACKEND}/api/tiktok-autopost/prepare`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(preparePayload),
-          });
         }
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
+          const slotMessage = globalThis.OmniPrepareForm?.slotErrorMessage(Object.keys(body).length ? body : errBody);
+          if (slotMessage) {
+            const slotError = new Error(slotMessage);
+            slotError.transient = false;   // the slot itself must change: retrying the same prepare cannot succeed
+            throw slotError;
+          }
           throw new Error(body.detail || errBody.detail || `เตรียมคลิปล้มเหลว (HTTP ${res.status})`);
         }
       }
@@ -3391,7 +3480,7 @@ async function runBatchFromPanel(override = null) {
         });
       });
       if (!uploadResp?.success) {
-        throw new Error(uploadResp?.error || uploadResp?.reason || 'อัปโหลดไฟล์วิดีโอไม่สำเร็จ');
+        throw workerFailure(uploadResp, 'อัปโหลดไฟล์วิดีโอไม่สำเร็จ');
       }
       await new Promise((r) => setTimeout(r, 1200));
       return uploadResp;
@@ -3399,16 +3488,22 @@ async function runBatchFromPanel(override = null) {
 
     awaitProcessing: async (clip) => {
       if (clip?.publish_draft) return { success: true, skipped: 'draft' };   // the video of a draft is already on TikTok
-      const waitResp = await new Promise((resolve, reject) => {
-        chrome.runtime.sendMessage({ action: 'wait-for-upload-only', runOwner:PANEL_RUN_ID }, (r) => {
-          if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
-          if (!r) return reject(new Error('ไม่ได้รับคำตอบจาก Extension ขณะรออัปโหลดวิดีโอ'));
-          resolve(r);
+      // short slices (a service-worker event must not run for 15 minutes), up to 15 minutes in all
+      const deadline = Date.now() + 15 * 60 * 1000;
+      let waitResp;
+      do {
+        waitResp = await new Promise((resolve, reject) => {
+          chrome.runtime.sendMessage({ action: 'wait-for-upload-only', maxMs: 240000, runOwner:PANEL_RUN_ID }, (r) => {
+            if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+            if (!r) return reject(new Error('ไม่ได้รับคำตอบจาก Extension ขณะรออัปโหลดวิดีโอ'));
+            resolve(r);
+          });
         });
-      });
-      if (waitResp?.error || waitResp?.success === false) {
-        throw new Error(waitResp.error || waitResp.reason || 'รอประมวลผลวิดีโอไม่สำเร็จ');
-      }
+        if (waitResp?.error || waitResp?.success === false) {
+          throw workerFailure(waitResp, 'รอประมวลผลวิดีโอไม่สำเร็จ');
+        }
+      } while (waitResp.done === false && Date.now() < deadline);
+      if (waitResp.done === false) throw new Error('TikTok ยังอัปโหลดวิดีโอไม่เสร็จภายใน 15 นาที');
       return waitResp;
     },
 
@@ -3434,7 +3529,7 @@ async function runBatchFromPanel(override = null) {
         });
       });
       if (!response?.success) {
-        throw new Error(response?.error || 'เตรียมรายละเอียดบนหน้า TikTok ไม่สำเร็จ');
+        throw workerFailure(response, 'เตรียมรายละเอียดบนหน้า TikTok ไม่สำเร็จ');
       }
       return response;
     },
@@ -3450,10 +3545,8 @@ async function runBatchFromPanel(override = null) {
         });
       });
       if (!response?.success) {
-        const failure = new Error(response?.error || response?.reason || 'กดโพสต์บนหน้า TikTok ไม่สำเร็จ');
         // true = the click happened, false = provably not; missing (port closed, worker restarted) = unknown
-        if (typeof response?.postAttempted === 'boolean') failure.postAttempted = response.postAttempted;
-        throw failure;
+        throw workerFailure(response, 'กดโพสต์บนหน้า TikTok ไม่สำเร็จ');
       }
       return response;
     },
@@ -3480,11 +3573,18 @@ async function runBatchFromPanel(override = null) {
           episodeNo: clip.episode_no || null,
           scheduleDate: scheduled ? (clip.schedule_date || '') : '',
           scheduleTime: scheduled ? (clip.schedule_time || '') : '',
+          clickedAtMs: scheduled ? null : (submitResult.clickedAt || null),
         });
       } catch (err) {
         verdict = { verified: false, reason: err.message };
       }
       if (verdict?.verified) return { ...submitResult, verified: true };
+      if (submitResult.marked) {
+        // The backend already recorded TikTok's own confirmation; the Content list may simply lag. Keep the recorded
+        // result (a reconcile would find no open job) and flag it for a look instead of counting an "unknown".
+        appendBatchLog(`บันทึกผลตามข้อความยืนยันของ TikTok แล้ว แต่หน้า Content ยังไม่เห็นคลิปนี้ (${verdict?.reason || 'ไม่ทราบสาเหตุ'}) — ตรวจด้วยตาภายหลัง`, 'warn');
+        return { ...submitResult, verified: false, verifyReason: verdict?.reason };
+      }
       appendBatchLog(`ตรวจหน้า Content แล้วไม่ยืนยัน (${verdict?.reason || 'ไม่ทราบสาเหตุ'}) — ถือว่ายังไม่แน่ใจ`, 'warn');
       return { ...submitResult, outcome: 'confirmation_unknown', verified: false, verifyReason: verdict?.reason };
     },
@@ -3509,9 +3609,16 @@ async function runBatchFromPanel(override = null) {
     },
     resetUploadPage: async () => {
       await panelWorkerRequest({ action: 'release-posting-job', park: true }).catch((err) => appendBatchLog(`พักงานเดิมไม่สำเร็จ: ${err.message}`, 'warn'));
-      const res = await new Promise((resolve) => {
-        chrome.runtime.sendMessage({ action: 'reset-upload-page', runOwner:PANEL_RUN_ID }, (r) => resolve(r || {}));
-      });
+      // a busy worker answers at once without doing anything: wait and ask again, and say so if it never resets
+      let res = {};
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        res = await new Promise((resolve) => {
+          chrome.runtime.sendMessage({ action: 'reset-upload-page', runOwner:PANEL_RUN_ID }, (r) => resolve(r || {}));
+        });
+        if (res.success || !res.busy) break;
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+      if (!res.success) appendBatchLog(`เตรียมหน้าอัปโหลดใหม่ไม่สำเร็จ: ${res.error || 'ไม่มีคำตอบ'}`, 'warn');
       return res;
     },
   };
@@ -3817,7 +3924,7 @@ rescheduleOverdueBtn?.addEventListener('click', async () => {
   rescheduleOverdueBtn.disabled = true;
   try {
     const previewRes = await scopedPanelFetch(`${BACKEND}/api/schedule-queue/reschedule-overdue/preview`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ window_days: 14 }),
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ window_days: 10 }),
     });
     const preview = await previewRes.json().catch(() => ({}));
     if (!previewRes.ok) { setStatus(`ดูตัวอย่างไม่สำเร็จ: ${preview.detail || previewRes.status}`, 'error'); return; }

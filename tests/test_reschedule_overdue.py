@@ -64,7 +64,7 @@ def test_list_flags_overdue_planned_and_drafts_and_labels_the_draft(queue):
 def test_preview_places_everything_in_free_future_slots_with_the_daily_rules_and_writes_nothing(queue):
     standard_rows()
     before = [dict(r) for r in queue_store.ScheduleQueueStore.list_items(channel_id="main")]
-    body = client.post("/api/schedule-queue/reschedule-overdue/preview", json={"window_days": 14}).json()
+    body = client.post("/api/schedule-queue/reschedule-overdue/preview", json={"window_days": 10}).json()
     assert body["overdue_count"] == 3 and not body["unplaced"]
     new = {i["id"]: i["new_scheduled_at"] for i in body["items"]}
     now = dt.datetime.now(TZ)

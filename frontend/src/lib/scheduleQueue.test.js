@@ -113,12 +113,16 @@ test('bulk prepare takes waiting rows still ahead of now, in schedule order', as
     { id: 'sent', status: 'ready_for_extension', scheduled_at: '2026-11-13T09:00:00+07:00' },
     { id: 'posted', status: 'posted', scheduled_at: '2026-11-11T09:00:00+07:00' },
     { id: 'early', status: 'planned', scheduled_at: '2026-11-12T16:00:00+07:00' },
-    { id: 'now', status: 'planned', scheduled_at: '2026-11-12T12:00:00+07:00' },
+    { id: 'soon', status: 'planned', scheduled_at: '2026-11-12T12:15:00+07:00' },
+    { id: 'tooSoon', status: 'planned', scheduled_at: '2026-11-12T12:10:00+07:00' },
+    { id: 'far', status: 'planned', scheduled_at: '2026-11-22T12:05:00+07:00' },
   ], now);
-  assert.deepEqual(picked.ready.map((item) => item.id), ['now', 'early', 'late']);
-  assert.equal(picked.overdue, 1);
+  // TikTok's window: at least 15 minutes and at most 10 days ahead
+  assert.deepEqual(picked.ready.map((item) => item.id), ['soon', 'early', 'late']);
+  assert.equal(picked.overdue, 2);
   assert.equal(picked.failed, 1);
-  assert.deepEqual(pickPreparableItems([], now), { ready: [], overdue: 0, failed: 0 });
+  assert.equal(picked.tooFar, 1);
+  assert.deepEqual(pickPreparableItems([], now), { ready: [], overdue: 0, failed: 0, tooFar: 0 });
 });
 
 test('bulk prepare confirmation names what is sent and what is left out', async () => {
@@ -126,7 +130,11 @@ test('bulk prepare confirmation names what is sent and what is left out', async 
   assert.equal(prepareAllConfirmText({ ready: [{}, {}], overdue: 0, failed: 0 }), 'ส่ง 2 คิวให้ Extension หรือไม่?');
   assert.equal(
     prepareAllConfirmText({ ready: [{}], overdue: 3, failed: 2 }),
-    'ส่ง 1 คิวให้ Extension หรือไม่?\nข้าม: เลยกำหนด 3 คิว · ล้มเหลว 2 คิว',
+    'ส่ง 1 คิวให้ Extension หรือไม่?\nข้าม: เลยกำหนดหรือเหลือไม่ถึง 15 นาที 3 คิว · ล้มเหลว 2 คิว',
+  );
+  assert.equal(
+    prepareAllConfirmText({ ready: [{}], overdue: 0, failed: 0, tooFar: 4 }),
+    'ส่ง 1 คิวให้ Extension หรือไม่?\nข้าม: เกิน 10 วันข้างหน้า 4 คิว',
   );
   assert.equal(prepareAllConfirmText({ ready: [{}], overdue: 0, failed: 1 }), 'ส่ง 1 คิวให้ Extension หรือไม่?\nข้าม: ล้มเหลว 1 คิว');
 });

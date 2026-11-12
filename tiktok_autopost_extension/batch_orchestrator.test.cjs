@@ -545,3 +545,22 @@ test('a forced schedule (publishing a draft) stops when the schedule slots are u
   assert.equal(stats.finalKind, 'halted');
   assert.match(stats.haltReason, /ช่องตั้งเวลาเต็ม/);
 });
+
+test('a real post the backend has not recorded yet is reported as such, not as a plain success', async () => {
+  const logs = [];
+  const orchestrator = createBatchOrchestrator({
+    clips: [{ id: 'c1', hook_title: 'คลิปบันทึกไม่ได้' }],
+    options: { cooldownSeconds: 0 },
+    onLog: (msg, kind) => logs.push({ msg: String(msg), kind }),
+    actions: {
+      triggerSubmit: async () => ({ success: true, clicked: true, outcome: 'scheduled_on_platform', marked: false, markError: 'HTTP 503' }),
+      verifySuccessToast: async (_clip, _mode, submit) => submit,
+    },
+  });
+  const summary = await orchestrator.start();
+  assert.equal(summary.successful, 1);
+  assert.equal(summary.results[0].unrecorded, true);
+  assert.match(summary.results[0].markError, /503/);
+  assert.ok(logs.some(l => /ยังบันทึกลงระบบไม่ได้/.test(l.msg) && l.kind === 'warn'));
+  assert.ok(!logs.some(l => /✅/.test(l.msg)));
+});

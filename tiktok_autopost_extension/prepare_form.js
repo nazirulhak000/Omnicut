@@ -48,10 +48,22 @@
       else if (!/^\d{2}:\d{2}$/.test(values.time) || Number(values.time.split(':')[1]) % 5 !== 0) issues.push({field: 'Time', message: 'กรุณาเลือกเวลาเป็นช่วงละ 5 นาที เช่น 12:00 หรือ 12:05'});
     }
     const result = build(item, values, guard, record, now, exportsKnown);
-    if (!result.item && !issues.length) issues.push({field: result.code === 'slot_passed_or_too_close' ? 'Date' : 'Caption', message: result.error || reasons[result.code] || result.code});
+    if (!result.item && !issues.length) issues.push({field: ['slot_passed_or_too_close', 'slot_too_far', 'slot_not_on_step'].includes(result.code) ? 'Date' : 'Caption', message: result.error || reasons[result.code] || result.code});
     return issues.length ? {issues} : {...result, issues: []};
   }
+  // Slot problems /prepare reports itself: a fixed Thai message, and never worth retrying (the slot must change).
+  const SLOT_ERRORS_TH = {
+    posting_slot_too_soon: 'เวลาโพสต์ผ่านแล้วหรือใกล้เกิน 15 นาที เลือกเวลาใหม่ก่อนเตรียมคลิป',
+    posting_slot_too_far: 'เวลาโพสต์เกิน 10 วันข้างหน้า TikTok ตั้งเวลาได้ไม่เกิน 10 วัน เลือกเวลาใหม่ก่อนเตรียมคลิป',
+    posting_schedule_invalid: 'เวลาโพสต์ต้องเป็นช่วงละ 5 นาที เช่น 12:00 หรือ 12:05',
+  };
+  const codeOf = (body) => body?.code || (body?.detail && typeof body.detail === 'object' ? body.detail.code : null);
+  function slotErrorMessage(body) {
+    return SLOT_ERRORS_TH[codeOf(body)] || '';
+  }
   function describeError(body, status) {
+    const slot = slotErrorMessage(body);
+    if (slot) return slot;
     let detail = body?.detail ?? body?.message ?? body?.error;
     if (Array.isArray(detail)) detail = detail.map(entry => `${(entry.loc || []).join('.')}: ${entry.msg || JSON.stringify(entry)}`).join(' · ');
     else if (detail && typeof detail === 'object') detail = detail.message || JSON.stringify(detail);
@@ -148,5 +160,5 @@
       sync(); dialog.showModal(); field('Caption').focus();
     });
   }
-  return {build, validate, fillProductName, createStore, describeError, open};
+  return {build, validate, fillProductName, createStore, describeError, slotErrorMessage, open};
 });

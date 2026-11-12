@@ -214,7 +214,13 @@ async function postingRequest(path, channelId, body) {
 
   const data = await response.json().catch(() => ({}));
 
-  if (!response.ok) throw new Error(`${data.code || response.status}: ${data.detail || 'ติดต่อ posting protocol ไม่สำเร็จ'}`);
+  if (!response.ok) {
+    const error = new Error(`${data.code || response.status}: ${data.detail || 'ติดต่อ posting protocol ไม่สำเร็จ'}`);
+    error.status = response.status;
+    error.code = data.code || null;
+    error.data = data;
+    throw error;
+  }
 
   if (data.channel_id && data.channel_id !== channelId) throw new Error('ผลตอบกลับเป็นของอีกช่อง หยุดการโพสต์');
 
@@ -255,34 +261,52 @@ async function readStudioAccountOnce(send) {
 
       const handles = [];
 
-      const nodes = Array.from(document.querySelectorAll(
+      // Only the account area counts (header, side nav, the profile/account menu). A link to another creator anywhere
+      // else on the page (a video row, a product card) is not this session's account.
+      const ACCOUNT_AREA = 'header, nav, aside, [data-tt*="Header"], [data-e2e*="profile"], [data-e2e*="account"], [data-e2e="user-avatar"], [role="menu"], [role="dialog"]';
+      const inAccountArea = (el) => Boolean(el.closest(ACCOUNT_AREA));
+      const take = (els) => {
+        for (const el of els) {
+          if (!inAccountArea(el)) continue;
+          const val = el.getAttribute('href') || (el.textContent || '').trim();
+          const m = val.match(/@([a-zA-Z0-9._]+)/);
+          if (m) handles.push('@' + m[1]);
+        }
+      };
+
+      take(Array.from(document.querySelectorAll(
 
         '[data-e2e="profile-icon"] a[href*="/@"], a[data-e2e="profile-icon"][href*="/@"], '
 
         + '[data-e2e="user-avatar"] a[href*="/@"], [data-e2e="account-menu"] a[href*="/@"], '
 
-        + '[data-e2e="account-handle"], [data-e2e="user-unique-id"], a[href*="/@"]'));
+        + '[data-e2e="account-handle"], [data-e2e="user-unique-id"], a[href*="/@"]')));
 
-      for (const el of nodes) {
-        const val = el.getAttribute('href') || (el.textContent || '').trim();
-        const m = val.match(/@([a-zA-Z0-9._]+)/);
-        if (m) handles.push('@' + m[1]);
-      }
       if (!handles.length) {
         const btn = document.querySelector('[data-tt="Header_NewHeader_Clickable"], button:has([data-tt*="Avatar"]), [data-tt*="Avatar"]');
         if (btn) {
+          const before = new Set(Array.from(document.querySelectorAll('a[href*="/@"]')));
           btn.click();
           // The profile menu renders asynchronously; read it only once it exists.
-          for (let i = 0; i < 8 && !document.querySelector('a[href*="/@"]'); i += 1) {
+          const menuLinks = () => Array.from(document.querySelectorAll('a[href*="/@"]')).filter((el) => !before.has(el));
+          for (let i = 0; i < 8 && !menuLinks().length; i += 1) {
             await new Promise(resolve => setTimeout(resolve, 150));
           }
-          const more = Array.from(document.querySelectorAll('a[href*="/@"], [role="dialog"] a[href*="/@"]'));
-          for (const el of more) {
+          const opened = menuLinks();
+          for (const el of opened) {
             const val = el.getAttribute('href') || (el.textContent || '').trim();
             const m = val.match(/@([a-zA-Z0-9._]+)/);
             if (m) handles.push('@' + m[1]);
           }
-          btn.click();
+          // Close the menu only if this read opened it, and make sure it is gone (a second click on a menu that never
+          // opened would open it and leave it over the form).
+          if (opened.length) {
+            btn.click();
+            await new Promise(resolve => setTimeout(resolve, 150));
+            if (menuLinks().some((el) => el.isConnected && el.getClientRects().length)) {
+              document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', code: 'Escape', bubbles: true}));
+            }
+          }
         }
       }
 
@@ -308,13 +332,14 @@ async function readStudioAccountOnce(send) {
 
       } catch (_) {}
 
-      try {
-
-        const match = document.documentElement.innerHTML.match(/"uniqueId"\s*:\s*"([a-zA-Z0-9._]{2,24})"/);
-
-        if (match && match[1]) handles.push('@' + match[1]);
-
-      } catch (_) {}
+      // Last resort only: a uniqueId in the page source counts when it is the ONLY one there. A page that lists other
+      // creators carries several and proves nothing about the logged-in account.
+      if (!handles.length) {
+        try {
+          const ids = [...new Set(Array.from(document.documentElement.innerHTML.matchAll(/"uniqueId"\\s*:\\s*"([a-zA-Z0-9._]{2,24})"/g)).map((m) => m[1]))];
+          if (ids.length === 1) handles.push('@' + ids[0]);
+        } catch (_) {}
+      }
 
       return {handles: [...new Set(handles)]};
 
@@ -461,6 +486,25 @@ async function savePostingReceipt(job, source, outcome, proof) {
 
 }
 
+// Backend statuses after which a stored receipt has nothing left to record.
+const FINAL_JOB_STATUSES = ['published', 'scheduled_on_platform', 'draft_saved', 'cancelled'];
+
+// Move a receipt the backend will never accept into unresolvedJobs (kept as evidence, shown in the panel) and free the
+// worker. Only called after the backend itself said the job is final.
+async function retireRejectedReceipt(state, receipt, current, reason) {
+  const jobId = receipt.body?.job_id;
+  const entry = {job_id: jobId, channel_id: receipt.channelId, status: current?.status || null, parked_at: Date.now(),
+    rejected_receipt: {outcome: receipt.body?.outcome, proof: receipt.body?.proof || {}}, reason: String(reason || '').slice(0, 300)};
+  state.unresolvedJobs = [...(state.unresolvedJobs || []).filter(item => item.job_id !== jobId), entry].slice(-50);
+  state.pendingReceipt = null;
+  if (!state.activeJob || state.activeJob.job_id === jobId) {
+    state.activeJob = null;
+    state.tabId = null;
+  }
+  await persistPostingState(state);
+  return {success: true, retried: true, discarded: true, outcome: current?.status || null, job_id: jobId};
+}
+
 async function retryPostingReceipt() {
 
   const state = await postingState();
@@ -479,7 +523,7 @@ async function retryPostingReceipt() {
 
   } catch (error) {
 
-    if (/posting_lease_expired|posting_reconciliation_required/.test(error.message)) {
+    if (/posting_lease_expired|posting_reconciliation_required/.test(error.message) && !receipt.reconcile) {
 
       // A receipt after lease expiry or pre-attempt claim is reconciliation only; this endpoint
 
@@ -489,9 +533,13 @@ async function retryPostingReceipt() {
 
       await persistPostingState(state);
 
-      result = await postingRequest('/reconcile', receipt.channelId, receipt.body);
+      try {
+        result = await postingRequest('/reconcile', receipt.channelId, receipt.body);
+      } catch (reconcileError) {
+        return settleRejectedReceipt(state, receipt, reconcileError);
+      }
 
-    } else throw error;
+    } else return settleRejectedReceipt(state, receipt, error);
 
   }
 
@@ -505,6 +553,166 @@ async function retryPostingReceipt() {
 
   return {success: true, retried: true, outcome: result.status};
 
+}
+
+// A receipt the backend refused. Network errors, 5xx and auth problems keep it for a later retry (it is the only record
+// of a real click). A definitive 4xx is checked against the job itself: a stale revision is re-fenced once, a job the
+// backend already settled releases the receipt into unresolvedJobs instead of blocking every later clip forever.
+async function settleRejectedReceipt(state, receipt, error) {
+  if (!(error?.status >= 400 && error.status < 500) || error.status === 401 || error.status === 403) throw error;
+  let current = null;
+  try {
+    current = await postingRequest(`/jobs/${encodeURIComponent(receipt.body.job_id)}`, receipt.channelId);
+  } catch (_) {
+    throw error;
+  }
+  if (FINAL_JOB_STATUSES.includes(current?.status)) return retireRejectedReceipt(state, receipt, current, error.message);
+  if (error.code === 'revision_conflict' && !receipt.refenced && Number.isInteger(current?.revision)) {
+    receipt.refenced = true;
+    receipt.body = {...receipt.body, expected_revision: current.revision};
+    await persistPostingState(state);
+    return retryPostingReceipt();
+  }
+  throw error;
+}
+
+// Panel action: merge the backend's current copy of the active job into the worker state (the panel must never write
+// the posting state itself: its copy may be stale and would overwrite a newer receipt or job).
+async function refreshActiveJob() {
+  const state = await postingState();
+  const job = state.activeJob;
+  if (!job) return {success: true, job: null};
+  const current = await postingRequest(`/jobs/${encodeURIComponent(job.job_id)}`, job.channel_id);
+  const latest = await postingState();
+  if (latest.activeJob?.job_id !== job.job_id) return {success: true, job: latest.activeJob || null};
+  const {lease_token: _ignored, ...visible} = current || {};
+  latest.activeJob = {...latest.activeJob, ...visible, lease_token: latest.activeJob.lease_token};
+  await persistPostingState(latest);
+  return {success: true, job: latest.activeJob, final: FINAL_JOB_STATUSES.includes(latest.activeJob.status)};
+}
+
+// Rows of Studio > Content that carry a video link: {videoId, text}. The row is the largest ancestor of a /video/{id}
+// link that still holds only that one video, so its text is that post's caption, badge and counters.
+const CONTENT_ROWS_WITH_IDS = `(() => {
+  const idOf = (a) => { const m = String(a.getAttribute('href') || '').match(/\\/video\\/([0-9]{8,32})/); return m ? m[1] : null; };
+  const out = [];
+  const seen = new Set();
+  for (const a of document.querySelectorAll('a[href*="/video/"]')) {
+    const id = idOf(a);
+    if (!id || seen.has(id)) continue;
+    let row = a;
+    for (let el = a.parentElement, depth = 0; el && depth < 12; el = el.parentElement, depth += 1) {
+      const ids = new Set(Array.from(el.querySelectorAll('a[href*="/video/"]')).map(idOf).filter(Boolean));
+      if (ids.size > 1) break;
+      row = el;
+    }
+    seen.add(id);
+    out.push({videoId: id, text: String(row.innerText || '').slice(0, 2000)});
+  }
+  return out;
+})()`;
+
+// Bangkok ISO time of a Content row's date badge, or null.
+function rowBadgeIso(text) {
+  const detector = globalThis.OmniCutQuotaDetector;
+  if (!detector?.parseBadgeTime) return null;
+  for (const line of String(text || '').split(/\r?\n/)) {
+    const ts = detector.parseBadgeTime(line, Date.now());
+    if (ts) return new Date(ts + 7 * 3600 * 1000).toISOString().replace('.000', '').replace('Z', '+07:00');
+  }
+  return null;
+}
+
+// B2: scheduled jobs whose slot has passed are linked to the live post on Studio > Content (its video id), so the queue,
+// export and post log can become "posted". Read-only on TikTok: it opens its own background tab, scrolls and reads,
+// never clicks a post, edit or delete control, and closes the tab again.
+async function runLinkDueContent({silent = false} = {}) {
+  const state = await postingState();
+  const channelId = state.channelId;
+  const due = await postingRequest('/linkage-due', channelId);
+  const items = Array.isArray(due?.items) ? due.items : [];
+  const summary = {success: true, due: items.length, linked: 0, notFound: 0, ambiguous: 0, failed: 0, details: []};
+  if (!items.length) return summary;
+  if (typeof chrome.tabs?.create !== 'function') throw new Error('เปิดแท็บ TikTok Studio ไม่ได้');
+  const tab = await chrome.tabs.create({url: 'https://www.tiktok.com/tiktokstudio/content', active: false});
+  const send = cdp(tab.id);
+  try {
+    await sleep(6000);
+    await attachDebugger(tab.id);
+    try {
+      await send('Runtime.enable');
+      const source = await readStudioAccount(send);
+      if (!source) throw new Error('source_account_required: อ่านบัญชี TikTok ที่ล็อกอินไม่ได้ จึงไม่ผูกคลิป');
+      const rows = new Map();
+      const guard = globalThis.OmniPostGuard;
+      const pendingJobs = () => items.filter((job) => !guard.matchLinkageRow([...rows.values()], job).row);
+      for (let step = 0; step < 40; step += 1) {
+        const out = await send('Runtime.evaluate', {expression: CONTENT_ROWS_WITH_IDS, returnByValue: true});
+        for (const row of (out?.result?.value || [])) rows.set(row.videoId, row);
+        if (!pendingJobs().length) break;
+        const moved = await send('Runtime.evaluate', {
+          expression: `(() => {
+            const candidates = [document.scrollingElement, ...document.querySelectorAll('div')].filter((e) => {
+              if (!e || e.scrollHeight <= e.clientHeight + 80) return false;
+              return e === document.scrollingElement || /auto|scroll/.test(getComputedStyle(e).overflowY);
+            });
+            const box = candidates.sort((a, b) => b.scrollHeight - a.scrollHeight)[0];
+            if (!box) return 0;
+            const before = box.scrollTop;
+            box.scrollTop = before + Math.max(300, Math.floor(box.clientHeight * 0.8));
+            return box.scrollTop - before;
+          })()`,
+          returnByValue: true,
+        });
+        if (!(moved?.result?.value > 0)) break;
+        await sleep(800);
+      }
+      const all = [...rows.values()];
+      for (const job of items) {
+        const match = guard.matchLinkageRow(all, job);
+        if (!match.row) {
+          if (match.reason === 'ambiguous') summary.ambiguous += 1; else summary.notFound += 1;
+          summary.details.push({job_id: job.job_id, result: match.reason});
+          continue;
+        }
+        const observed = rowBadgeIso(match.row.text);
+        if (!observed) { summary.notFound += 1; summary.details.push({job_id: job.job_id, result: 'no_publish_time'}); continue; }
+        try {
+          const res = await postingRequest(`/jobs/${encodeURIComponent(job.job_id)}/content-linkage`, channelId, {
+            source_account: source,
+            platform_video_id: match.row.videoId,
+            observed_published_at: observed,
+            caption_text: match.row.text,
+            idempotency_key: `content-linkage:${job.job_id}:${match.row.videoId}`,
+            expected_job_revision: job.revision,
+          });
+          if (res?.linked) summary.linked += 1; else summary.failed += 1;
+          summary.details.push({job_id: job.job_id, result: res?.linked ? 'linked' : 'not_linked', video_id: match.row.videoId});
+        } catch (error) {
+          summary.failed += 1;
+          summary.details.push({job_id: job.job_id, result: error.code || 'error', error: String(error.message || error).slice(0, 200)});
+        }
+      }
+    } finally {
+      try { await chrome.debugger.detach({tabId: tab.id}); } catch (_) {}
+    }
+  } finally {
+    try { await chrome.tabs.remove(tab.id); } catch (_) {}
+  }
+  summary.silent = Boolean(silent);
+  return summary;
+}
+
+// Panel action: drop a stored receipt, but only after the backend shows the job is settled. Never a blind delete.
+async function discardPostingReceipt() {
+  const state = await postingState();
+  const receipt = state.pendingReceipt;
+  if (!receipt) return {success: true, discarded: false};
+  const current = await postingRequest(`/jobs/${encodeURIComponent(receipt.body.job_id)}`, receipt.channelId);
+  if (!FINAL_JOB_STATUSES.includes(current?.status)) {
+    throw new Error(`ยังทิ้งผลเดิมไม่ได้: งานบน Backend ยังเป็น ${current?.status || 'ไม่ทราบ'} ต้องส่งผลเดิมให้สำเร็จก่อน`);
+  }
+  return retireRejectedReceipt(state, receipt, current, 'discarded_after_backend_check');
 }
 
 async function fetchPendingJob(requestedJobId = null) {
@@ -629,13 +837,15 @@ async function releasePostingJob(options = {}) {
 
   } catch (_) {}
 
-  // 2. If already published or cancelled on backend, clear local state immediately!
+  // 2. Settled on the backend: clear the local job. A stored receipt is NEVER thrown away here (a "cancelled" job may
+  // still have a real click behind it): it is resent, and only a backend-confirmed rejection retires it into
+  // unresolvedJobs with its evidence.
 
-  if (job.status === 'published' || job.status === 'cancelled') {
+  if (state.pendingReceipt) return retryPostingReceipt();
+
+  if (FINAL_JOB_STATUSES.includes(job.status)) {
 
     state.activeJob = null;
-
-    state.pendingReceipt = null;
 
     state.tabId = null;
 
@@ -770,6 +980,25 @@ async function reconcileFromListPages(send, tab, job) {
   return scan.found ? accept(scan.found) : {confirmed: false};
 }
 
+// The tab a reconcile may navigate: the job's own bound tab, else an existing TikTok Studio tab, else a new background
+// Studio tab. Never the person's other TikTok tabs (a video they are watching, their profile).
+const STUDIO_URL_RE = /^https:\/\/(www\.)?tiktok\.com\/tiktokstudio(\/|$|\?)/;
+async function reconcileTab(state) {
+  if (state.tabId) {
+    try {
+      const bound = await chrome.tabs.get(state.tabId);
+      if (bound && STUDIO_URL_RE.test(bound.url || '')) return bound;
+    } catch (_) {}
+  }
+  const studio = (await chrome.tabs.query({url: '*://*.tiktok.com/tiktokstudio*'})).filter(t => STUDIO_URL_RE.test(t.url || ''));
+  const found = studio.find(t => (t.url || '').includes('/content')) || studio.find(t => t.active) || studio[0];
+  if (found) return found;
+  if (typeof chrome.tabs.create !== 'function') return null;
+  const created = await chrome.tabs.create({url: 'https://www.tiktok.com/tiktokstudio/content', active: false});
+  await sleep(6000);
+  return created;
+}
+
 async function runReconcilePostingResult(options = {}) {
 
   const isManual = Boolean(options?.manual);
@@ -810,37 +1039,30 @@ async function runReconcilePostingResult(options = {}) {
 
   }
 
-  if (job.status === 'published') {
+  // Already settled on the backend (no receipt is pending here: that case returned above).
+  if (['published', 'scheduled_on_platform', 'draft_saved'].includes(job.status) || (job.status === 'cancelled' && isManual)) {
 
     state.activeJob = null;
-
-    state.pendingReceipt = null;
 
     state.tabId = null;
 
     await persistPostingState(state);
 
-    return { success: true, outcome: 'published' };
-
-  }
-
-  if (job.status === 'cancelled' && isManual) {
-
-    state.activeJob = null;
-
-    state.pendingReceipt = null;
-
-    state.tabId = null;
-
-    await persistPostingState(state);
-
-    return { success: true, outcome: 'cancelled' };
+    return { success: true, outcome: job.status, final: true };
 
   }
 
   await persistPostingState(state);
 
   if (isManual) {
+
+    // A person may only confirm a post that the extension actually tried to make. A job that was never clicked has
+    // nothing on TikTok; recording it as posted would lose the clip (the backend refuses it too: posting_not_attempted).
+    if (!job.publish_attempted_at) {
+
+      throw new Error('posting_not_attempted: งานนี้ยังไม่เคยกดโพสต์ จึงยืนยันว่าโพสต์แล้วไม่ได้ ให้กดโพสต์ตามขั้นตอน หรือยกเลิกงานก่อนโพสต์');
+
+    }
 
     const manualSource = job.attempted_source_account || job.target_handle;
 
@@ -878,61 +1100,16 @@ async function runReconcilePostingResult(options = {}) {
 
     await persistPostingState(state);
 
+    // retryPostingReceipt keeps the job active when the backend still answers confirmation_unknown.
     const ackRes = await retryPostingReceipt();
 
-    state.activeJob = null;
-
-    state.pendingReceipt = null;
-
-    state.tabId = null;
-
-    await persistPostingState(state);
-
-    return { success: true, outcome: 'published', manual: true, ...ackRes };
+    return { success: true, manual: true, ...ackRes, final: RECONCILED_FINAL_OUTCOMES.includes(ackRes.outcome) };
 
   }
 
   if (!['claimed', 'publishing', 'confirmation_unknown'].includes(job.status)) throw new Error('งานนี้ไม่มีการกดโพสต์ที่รอตรวจผล');
 
-  let tab = null;
-
-  for (const q of [{active: true, lastFocusedWindow: true}, {active: true, currentWindow: true}]) {
-
-    try {
-
-      const [t] = await chrome.tabs.query(q);
-
-      if (t && /(^|\.)tiktok\.com$/.test(new URL(t.url || 'about:blank').hostname)) {
-
-        tab = t;
-
-        break;
-
-      }
-
-    } catch (_) {}
-
-  }
-
-  if (!tab && state.tabId) {
-
-    try {
-
-      const t = await chrome.tabs.get(state.tabId);
-
-      if (t && /(^|\.)tiktok\.com$/.test(new URL(t.url || 'about:blank').hostname)) tab = t;
-
-    } catch (_) {}
-
-  }
-
-  if (!tab) {
-
-    const tabs = await chrome.tabs.query({url: '*://*.tiktok.com/*'});
-
-    tab = tabs.find(t => t.active) || tabs.find(t => (t.url || '').includes('/content')) || tabs[0];
-
-  }
+  const tab = await reconcileTab(state);
 
   if (!tab) throw new Error('ไม่พบแท็บ TikTok Studio ที่เปิดอยู่');
 
@@ -944,7 +1121,7 @@ async function runReconcilePostingResult(options = {}) {
 
   try {
 
-    await chrome.debugger.attach({tabId: tab.id}, '1.3');
+    await attachDebugger(tab.id);
 
     attached = true;
 
@@ -1183,12 +1360,35 @@ async function ensureWorkableViewport(send) {
 
 // just avoids repeating {tabId} at every call.
 
-function cdp(tabId) {
+// Every CDP command has a deadline: a hung page or a detached target must fail the step (cdp_timeout is classed as
+// transient by the batch) instead of holding the worker's single step slot forever.
+const CDP_TIMEOUT_MS = 60_000;
+function cdp(tabId, timeoutMs = CDP_TIMEOUT_MS) {
 
-  return (method, params) =>
+  return (method, params) => {
 
-    chrome.debugger.sendCommand({ tabId }, method, params);
+    const command = chrome.debugger.sendCommand({ tabId }, method, params);
 
+    if (typeof AbortSignal === 'undefined' || typeof AbortSignal.timeout !== 'function') return command;
+
+    const signal = AbortSignal.timeout(timeoutMs);
+
+    return Promise.race([command, new Promise((_, reject) => signal.addEventListener('abort', () => reject(new Error(`cdp_timeout: ${method} ไม่ตอบภายใน ${Math.round(timeoutMs / 1000)} วินาที`)), {once: true}))]);
+
+  };
+
+}
+
+// Attach the debugger; a session left behind by an earlier step ("already attached") is detached and attached again
+// so the next step does not fail on it.
+async function attachDebugger(tabId) {
+  try {
+    await chrome.debugger.attach({ tabId }, '1.3');
+  } catch (err) {
+    if (!/already attached/i.test(String(err?.message || err))) throw err;
+    try { await chrome.debugger.detach({ tabId }); } catch (_) {}
+    await chrome.debugger.attach({ tabId }, '1.3');
+  }
 }
 
 // Finds the file input nodeId with a short retry loop
@@ -1481,7 +1681,14 @@ async function waitForUploadComplete(send, timeoutMs = 900_000) {
 
       expression: `(() => {
 
-        let allText = document.body ? (document.body.innerText || '') : '';
+        // The upload status line is the evidence when TikTok renders it; the whole page is only a fallback (it also
+        // holds product cards such as "-50%" that are not upload progress).
+        const statusBox = typeof document.querySelector === 'function' ? document.querySelector('[data-e2e="upload_status_container"]') : null;
+        const statusText = statusBox ? (statusBox.innerText || statusBox.textContent || '') : '';
+        if (statusBox && ${globalThis.OmniAutomation.UPLOAD_FAILED_RE}.test(statusText)) {
+          return { isUploading: false, failed: true, reason: statusText.trim().slice(0, 200) };
+        }
+        let allText = statusBox ? statusText : (document.body ? (document.body.innerText || '') : '');
 
         // Text the user typed (caption/hashtags, e.g. "ลด 50%") must not be
         // read as upload progress -- strip every editable field's own text
@@ -1494,7 +1701,8 @@ async function waitForUploadComplete(send, timeoutMs = 900_000) {
 
         // 1. Check for active upload percentage (e.g. 29.36%, 70%)
 
-        const percentMatch = allText.match(/\\b([0-9]{1,2}(?:\\.[0-9]+)?%)/);
+        // a discount ("-50%", "50% off") is never upload progress
+        const percentMatch = allText.match(/(?<![-\u2212\u2013\\d.])\\b([0-9]{1,2}(?:\\.[0-9]+)?%)(?!\\s*off)/i);
 
         if (percentMatch && !percentMatch[0].startsWith('100')) {
 
@@ -1575,6 +1783,12 @@ async function waitForUploadComplete(send, timeoutMs = 900_000) {
       returnByValue: true,
 
     });
+
+    if (status?.result?.value?.failed) {
+
+      throw new Error(`upload_failed: TikTok แจ้งว่าอัปโหลดวิดีโอไม่สำเร็จ (${status.result.value.reason || 'ไม่มีข้อความ'})`);
+
+    }
 
     if (!status?.result?.value?.isUploading) {
 
@@ -2658,93 +2872,19 @@ async function attachProductLink(send, productId, cartName = '') {
 
   // compose form underneath the caption editor.
 
+  // The modal closing on its own proves nothing (an error, a cancel or an auto-close also close it): the product must
+  // be SEEN in the compose form, outside any dialog, as a product card or its name.
   const attachConfirmed = await (async () => {
 
     const deadline = Date.now() + 8000;
 
     while (Date.now() < deadline) {
 
-      const check = await send('Runtime.evaluate', {
-
-        expression: `(() => {
-
-          const isVisible = (el) => {
-
-            if (!el) return false;
-
-            if (typeof el.checkVisibility === 'function') {
-
-              return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
-
-            }
-
-            const rect = el.getBoundingClientRect();
-
-            return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
-
-          };
-
-          // 1. Modal closed: neither the product-link modal title nor the
-
-          // Showcase tab (both only visible while the modal is open) remain
-
-          // on screen.
-
-          const texts = Array.from(document.querySelectorAll('h1, h2, h3, h4, [role="tab"], div, span'))
-
-            .filter(isVisible)
-
-            .map(el => (el.innerText || el.textContent || '').trim());
-
-          const modalStillOpen = texts.some(t =>
-
-            t.includes('เพิ่มลิงก์สินค้า') || t.includes('Add product links') ||
-
-            t === 'นำเสนอสินค้า' || t.includes('นำเสนอสินค้า') || t === 'Showcase' || t.includes('Showcase products'));
-
-          if (!modalStillOpen) {
-
-            return { done: true, ok: true, reason: 'modal-closed' };
-
-          }
-
-          // 2. Product chip/badge visible in the compose form (outside any
-
-          // dialog) -- e.g. a card showing the attached product's name/price
-
-          // under the caption editor. TikTok renders this with classes like
-
-          // "product-anchor", "productCard", "anchor-card"; fall back to any
-
-          // visible element outside a dialog that shows the attached
-
-          // product's name text.
-
-          const dialogRoot = document.querySelector('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal');
-
-          const chip = document.querySelector(
-
-            '[class*="product-anchor"], [class*="productAnchor"], [class*="anchor-card"], [class*="product-card"], [class*="productCard"], [class*="linked-product"]'
-
-          );
-
-          if (chip && isVisible(chip) && (!dialogRoot || !dialogRoot.contains(chip))) {
-
-            return { done: true, ok: true, reason: 'chip-visible' };
-
-          }
-
-          return { done: false };
-
-        })()`,
-
-        returnByValue: true,
-
-      });
+      const check = await send('Runtime.evaluate', {expression: productEvidenceExpression(selection.name), returnByValue: true});
 
       const val = check?.result?.value;
 
-      if (val?.done) return val.ok;
+      if (val && !val.modalOpen && (val.chip || val.nameSeen)) return true;
 
       await sleep(500);
 
@@ -2762,6 +2902,37 @@ async function attachProductLink(send, productId, cartName = '') {
 
   return { success: true, productName: selection.name };
 
+}
+
+// What the compose form shows about the attached product: is the product-link modal still open, is a product card
+// visible outside any dialog, is the chosen product's name visible outside any dialog.
+function productEvidenceExpression(productName = '') {
+  const key = String(productName || '').toLowerCase().replace(/[^a-z0-9ก-๙]/g, '').slice(0, 14);
+  return `(() => {
+    const key = ${JSON.stringify(key)};
+    const isVisible = (el) => {
+      if (!el) return false;
+      if (typeof el.checkVisibility === 'function') return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
+    };
+    const dialogs = Array.from(document.querySelectorAll('[role="dialog"], [aria-modal="true"], .semi-modal, .TUXModal')).filter(isVisible);
+    const inDialog = (el) => dialogs.some((d) => d.contains(el));
+    const texts = Array.from(document.querySelectorAll('h1, h2, h3, h4, [role="tab"]')).filter(isVisible).map(el => (el.innerText || el.textContent || '').trim());
+    const modalOpen = texts.some(t => t.includes('เพิ่มลิงก์สินค้า') || t.includes('Add product links') || t.includes('นำเสนอสินค้า') || t === 'Showcase' || t.includes('Showcase products'));
+    const chip = Array.from(document.querySelectorAll('[class*="product-anchor"], [class*="productAnchor"], [class*="anchor-card"], [class*="product-card"], [class*="productCard"], [class*="linked-product"]'))
+      .some(el => isVisible(el) && !inDialog(el));
+    let nameSeen = false;
+    if (key.length >= 6) {
+      const walker = document.createTreeWalker(document.body || document.documentElement, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node && !nameSeen; node = walker.nextNode()) {
+        const flat = String(node.textContent || '').toLowerCase().replace(/[^a-z0-9ก-๙]/g, '');
+        if (flat.includes(key) && node.parentElement && isVisible(node.parentElement) && !inDialog(node.parentElement)
+          && !node.parentElement.closest('[contenteditable="true"]')) nameSeen = true;   // the caption editor is not evidence
+      }
+    }
+    return {modalOpen, chip, nameSeen};
+  })()`;
 }
 
 // Switches upload form to "กำหนดเวลาโพสต์" / "ตั้งเวลา" (Schedule) option
@@ -2902,44 +3073,28 @@ async function switchToScheduleMode(send, schedule = {}) {
 
 // date cells expose only the day number and time uses separate hour/minute lists.
 
-// TikTok exposes minutes in five-minute increments, so normalize extension
-
-// input before opening the picker (16:08 becomes 16:10, including hour carry).
-
+// TikTok exposes minutes in five-minute increments. A time off that grid is REJECTED, never rounded: a silently
+// rounded slot (10:58 -> 11:00) no longer matches the job's own slot, so the Content-page verify and reconcile would
+// then report the post as unknown.
 function normalizeScheduleTime(rawTime) {
-
   const match = /^(\d{1,2}):(\d{2})$/.exec(String(rawTime || '').trim());
-
   if (!match) return '';
-
-  let hour = Number(match[1]);
-
-  let minute = Number(match[2]);
-
-  if (hour > 23 || minute > 59) return '';
-
-  minute = Math.round(minute / 5) * 5;
-  if (minute === 60) {
-    if (hour === 23) {
-      // Rounding up would wrap to 00:00 of the SAME date (a day early in
-      // effect). Round down instead so the date the user picked stays true.
-      minute = 55;
-    } else {
-      hour += 1;
-      minute = 0;
-    }
-  }
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour > 23 || minute > 59 || minute % globalThis.OmniLimits.SLOT_STEP_MINUTES !== 0) return '';
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }
 
-// TikTok rejects schedules less than ~15 minutes ahead; a past or too-close
-// slot must fail loudly instead of letting the picker fall back to a default.
+// TikTok accepts a slot 15 minutes to 10 days ahead. Slots are Bangkok wall time (post_guard.slotMs), whatever the
+// PC's timezone; a slot outside the window must fail loudly instead of letting the picker fall back to a default.
 const MIN_SCHEDULE_LEAD_MS = globalThis.OmniLimits.MIN_LEAD_MS;
 function scheduleWindowProblem(date, time, nowMs = Date.now()) {
   if (!date || !time) return '';
-  const target = new Date(`${date}T${time}:00`).getTime();
-  if (!Number.isFinite(target)) return 'วันที่/เวลานัดโพสต์อ่านไม่ได้';
-  if (target - nowMs < MIN_SCHEDULE_LEAD_MS) return `เวลานัดโพสต์ ${date} ${time} ผ่านไปแล้วหรือใกล้เกิน 15 นาที`;
+  const problem = globalThis.OmniPostGuard.slotProblem(date, time, nowMs);
+  if (problem === 'slot_invalid') return 'วันที่/เวลานัดโพสต์อ่านไม่ได้';
+  if (problem === 'slot_not_on_step') return `เวลานัดโพสต์ ${time} ต้องเป็นช่วงละ 5 นาที`;
+  if (problem === 'slot_passed_or_too_close') return `เวลานัดโพสต์ ${date} ${time} ผ่านไปแล้วหรือใกล้เกิน 15 นาที`;
+  if (problem === 'slot_too_far') return `เวลานัดโพสต์ ${date} ${time} เกิน 10 วันข้างหน้า (TikTok ตั้งเวลาได้ไม่เกิน 10 วัน)`;
   return '';
 }
 
@@ -2991,7 +3146,7 @@ async function setScheduleDateTime(send, { date = '', time = '' } = {}) {
 
   const requestedTime = rawTime ? normalizeScheduleTime(rawTime) : '';
 
-  if (rawTime && !requestedTime) return {success: false, changed: false, reason: 'เวลาต้องอยู่ในรูปแบบ HH:mm และอยู่ระหว่าง 00:00-23:59'};
+  if (rawTime && !requestedTime) return {success: false, changed: false, reason: 'เวลาต้องอยู่ในรูปแบบ HH:mm ระหว่าง 00:00-23:59 และเป็นช่วงละ 5 นาที'};
 
   if (!requestedDate && !requestedTime) return {success: true, changed: false};
   const windowProblem = scheduleWindowProblem(requestedDate, requestedTime);
@@ -3509,7 +3664,7 @@ async function cleanResetUploadTab() {
 
       try {
 
-        await chrome.debugger.attach({ tabId: tab.id }, '1.3');
+        await attachDebugger(tab.id);
 
         await dismissDiscardDialogIfPresent(send, 500);
 
@@ -3851,7 +4006,9 @@ async function waitForPostConfirmation(send, tabId, timeoutMs = 20_000, confirma
 
           // merely have "error" somewhere in a class name.
 
-          if (/แคปชัน|คำอธิบาย|หน้าปก|cover|caption|หมวดหมู่|category|ล้มเหลว|ไม่สำเร็จ|failed|required|กรุณา(กรอก|เลือก)/i.test(t)) {
+          // A notice that was already on the page before the click (an old hint, a stale banner) is not TikTok's
+          // answer to this click: only a fresh one counts as a rejection.
+          if (fresh && /แคปชัน|คำอธิบาย|หน้าปก|cover|caption|หมวดหมู่|category|ล้มเหลว|ไม่สำเร็จ|failed|required|กรุณา(กรอก|เลือก)/i.test(t)) {
 
             return { done: true, failed: true, message: t.slice(0, 300) };
 
@@ -4069,7 +4226,8 @@ async function observePostConfirmation(send, token) {
 
     window.__omnicutPostObservation?.observer?.disconnect();
 
-    const selector = '[class*="toast"], [class*="Toast"], [class*="notice"], [class*="Notice"], [role="alert"]';
+    // the same nodes waitForPostConfirmation reads, so an error banner can be told fresh from stale too
+    const selector = '[class*="toast"], [class*="Toast"], [class*="notice"], [class*="Notice"], [class*="error"], [class*="Error"], [role="alert"]';
 
     const text = el => (el.innerText || el.textContent || '').trim();
 
@@ -4328,7 +4486,31 @@ async function assertPublishReady(send, job) {
   if (!wants.includes(label)) {
     throw new Error(`intent_page_mismatch: งานเป็น ${intent} แต่ปุ่มบนหน้าเขียนว่า "${btn.text}" (หน้าอยู่ผิดโหมด) จึงหยุดก่อนกด`);
   }
+  // The cover editor can re-render the form after the slot was set: the picker must still show THIS job's slot,
+  // otherwise TikTok would publish at another time while the backend records the planned one.
+  if (intent === 'schedule') {
+    const wantTime = normalizeScheduleTime(job.schedule_time);
+    const shown = await send('Runtime.evaluate', {expression: SCHEDULE_VALUES_EXPRESSION, returnByValue: true});
+    const values = shown?.result?.value;
+    if (Array.isArray(values) && !(values.includes(job.schedule_date) && wantTime && values.includes(wantTime))) {
+      throw new Error(`schedule_mismatch: ฟอร์มแสดงวันเวลา ${values.join(' ') || '(ว่าง)'} ไม่ตรงกับ ${job.schedule_date} ${job.schedule_time} จึงหยุดก่อนกด (ไม่ใช้สิทธิ์กดครั้งเดียว)`);
+    }
+  }
+  // An affiliate clip must still show its product in the form at the moment of the click.
+  if (job.tiktok_product_id) {
+    const product = await send('Runtime.evaluate', {expression: productEvidenceExpression(job.attached_product_name || job.product_name || ''), returnByValue: true});
+    const evidence = product?.result?.value;
+    if (evidence && typeof evidence === 'object' && (evidence.modalOpen || !(evidence.chip || evidence.nameSeen))) {
+      throw new Error('product_missing: ไม่เห็นสินค้าที่แนบในฟอร์มก่อนกดโพสต์ จึงหยุดก่อนกด (ไม่ใช้สิทธิ์กดครั้งเดียว)');
+    }
+  }
 }
+
+const SCHEDULE_VALUES_EXPRESSION = `(() => {
+  const visible = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  return Array.from(document.querySelectorAll('input.TUXTextInputCore-input, input[type="date"], input[type="time"]'))
+    .filter(visible).map(el => String(el.value || '').trim());
+})()`;
 
 function withScheduledOutcome(confirmation, job) {
   if (confirmation?.confirmed && confirmation.outcome === 'published' && job?.schedule_date && job?.schedule_time) {
@@ -4467,7 +4649,7 @@ async function runUploadCoverOnly({coverPath = ''} = {}) {
 
   const tab = await findUploadTab();
 
-  await chrome.debugger.attach({tabId:tab.id}, '1.3');
+  await attachDebugger(tab.id);
 
   try {
 
@@ -4509,7 +4691,7 @@ async function runAttachProductOnly({ productId, cartName = '' }) {
 
   const send = cdp(tab.id);
 
-  await chrome.debugger.attach({ tabId: tab.id }, '1.3');
+  await attachDebugger(tab.id);
 
   try {
 
@@ -4522,6 +4704,15 @@ async function runAttachProductOnly({ productId, cartName = '' }) {
     await guardPostingAction(job, send, tab.id);
 
     const attachResult = await attachProductLink(send, productId, cartName);
+
+    if (attachResult.success && attachResult.productName) {
+      // remembered for the last check before the click (assertPublishReady looks for this exact name in the form)
+      const state = await postingState();
+      if (state.activeJob?.job_id === job.job_id) {
+        state.activeJob = {...state.activeJob, attached_product_name: attachResult.productName};
+        await persistPostingState(state);
+      }
+    }
 
     return {
 
@@ -4579,7 +4770,7 @@ async function runScheduleModeOnly({ date = '', time = '' } = {}) {
 
   }
 
-  await chrome.debugger.attach({ tabId: tab.id }, '1.3');
+  await attachDebugger(tab.id);
 
   try {
 
@@ -4629,6 +4820,8 @@ async function runScheduleModeOnly({ date = '', time = '' } = {}) {
 
 }
 
+const RECONCILED_FINAL_OUTCOMES = ['published', 'scheduled_on_platform', 'draft_saved'];
+
 async function runClickPostOnly() {
 
   const job = await fetchPendingJob();
@@ -4667,9 +4860,11 @@ async function runClickPostOnly() {
 
   let attempted = false;
 
+  let clickedAtMs = null;
+
   let confirmation;
 
-  await chrome.debugger.attach({ tabId: tab.id }, '1.3');
+  await attachDebugger(tab.id);
 
   try {
 
@@ -4682,6 +4877,8 @@ async function runClickPostOnly() {
       sourceAccount = await guardPostingAction(job, send, tab.id, {beginPublish: true, clickKind: 'post'});
 
       attempted = true;
+
+      clickedAtMs = Date.now();
 
       return sourceAccount;
 
@@ -4702,11 +4899,13 @@ async function runClickPostOnly() {
 
           const reconciled = await runReconcilePostingResult();
 
-          if (reconciled.outcome === 'published') {
+          // Any confirmed result ends here (a scheduled one too): sending an "unknown" receipt on top of it, with the
+          // revision it had before the reconcile, would downgrade or be rejected and then block the worker.
+          if (RECONCILED_FINAL_OUTCOMES.includes(reconciled.outcome)) {
 
-            await openUploadPage(tab);
+            if (reconciled.outcome === 'published') await openUploadPage(tab);
 
-            return { success: true, clicked: true, posted: true, outcome: 'published', marked: true };
+            return { success: true, clicked: true, posted: reconciled.outcome === 'published', outcome: reconciled.outcome, marked: true };
 
           }
 
@@ -4714,11 +4913,13 @@ async function runClickPostOnly() {
 
       } catch (_) {}
 
-      // An uncertain submission is terminal for automation, even after restart.
-
-      try { await savePostingReceipt(job, sourceAccount, 'confirmation_unknown', {}); }
-
-      catch (receiptError) { err.message += `; ผลยังรอส่งกลับ: ${receiptError.message}`; }
+      // An uncertain submission is terminal for automation, even after restart. Only when nothing else recorded a
+      // result for this job meanwhile (a reconcile may have stored or sent its own receipt).
+      const latest = await postingState();
+      if (!latest.pendingReceipt && latest.activeJob?.job_id === job.job_id) {
+        try { await savePostingReceipt(latest.activeJob, sourceAccount, 'confirmation_unknown', {}); }
+        catch (receiptError) { err.message += `; ผลยังรอส่งกลับ: ${receiptError.message}`; }
+      }
 
     }
 
@@ -4760,6 +4961,8 @@ async function runClickPostOnly() {
 
       marked: false,
 
+      clickedAt: clickedAtMs,
+
       markError: err.message || String(err),
 
     };
@@ -4770,7 +4973,7 @@ async function runClickPostOnly() {
 
   await openUploadPage(tab);
 
-  return { success: true, clicked: true, posted: published, outcome: confirmation.outcome, marked: published };
+  return { success: true, clicked: true, posted: published, outcome: confirmation.outcome, marked: RECONCILED_FINAL_OUTCOMES.includes(confirmation.outcome), clickedAt: clickedAtMs };
 
 }
 
@@ -4807,7 +5010,7 @@ async function captureDraftBaseline(job) {
   const tab = await chrome.tabs.create({url: 'about:blank', active: false});
   let attached = false;
   try {
-    await chrome.debugger.attach({tabId: tab.id}, '1.3');
+    await attachDebugger(tab.id);
     attached = true;
     const send = cdp(tab.id);
     await send('Runtime.enable');
@@ -4865,7 +5068,7 @@ async function runSaveDraftOnly() {
   let sourceAccount = null;
   let attempted = false;
   let confirmation = null;
-  await chrome.debugger.attach({ tabId: tab.id }, '1.3');
+  await attachDebugger(tab.id);
   try {
     await send('DOM.enable');
     await send('Runtime.enable');
@@ -4956,7 +5159,7 @@ async function runVerifyDraftOnContent({caption = '', attempts = 5} = {}) {
         await navigateAcceptingLeave(tab.id, DRAFT_TAB_URL);
         await sleep(5000);
       }
-      await chrome.debugger.attach({tabId: tab.id}, '1.3');
+      await attachDebugger(tab.id);
       try {
         await send('Runtime.enable');
         evidence = await readDraftRowEvidence(send, caption);
@@ -4984,7 +5187,7 @@ async function runTypeCaptionOnly({ caption, hashtags }) {
 
   const send = cdp(tab.id);
 
-  await chrome.debugger.attach({ tabId: tab.id }, '1.3');
+  await attachDebugger(tab.id);
 
   try {
 
@@ -5040,13 +5243,16 @@ async function runTypeCaptionOnly({ caption, hashtags }) {
 
 // of them instead of just the cover step.
 
-async function runWaitForUploadOnly() {
+// One message never waits longer than a service-worker event may live (~5 min): it answers {done:false} after
+// `maxMs` and the panel asks again until the upload is done or its own overall deadline passes.
+const UPLOAD_WAIT_SLICE_MS = 240_000;
+async function runWaitForUploadOnly({maxMs = UPLOAD_WAIT_SLICE_MS} = {}) {
 
   const tab = await findUploadTab();
 
   const send = cdp(tab.id);
 
-  await chrome.debugger.attach({ tabId: tab.id }, '1.3');
+  await attachDebugger(tab.id);
 
   try {
 
@@ -5054,10 +5260,16 @@ async function runWaitForUploadOnly() {
 
     await send('Runtime.enable');
 
-    await OmniAutomation.waitForUploadStatusBadge(send);
+    try {
+      await OmniAutomation.waitForUploadStatusBadge(send, Math.min(Number(maxMs) || UPLOAD_WAIT_SLICE_MS, UPLOAD_WAIT_SLICE_MS));
+    } catch (err) {
+      // only "this slice ran out" means still uploading; a failed upload or an unreadable page is a real error
+      if (!/ยังอัปโหลดวิดีโอไม่เสร็จ/.test(String(err?.message || ''))) throw err;
+      return { success: true, done: false };
+    }
 
     // The side panel treats an empty reply as a dead worker; always answer.
-    return { success: true };
+    return { success: true, done: true };
 
   } finally {
 
@@ -5154,7 +5366,16 @@ async function runPrepareDetails(message) {
 // Second, independent proof that a post is really on TikTok: open Studio > Content (reloading while the
 // list lags behind the success toast) and find the row with this clip's caption and, for a scheduled
 // post, its day and time. Returns {verified, reason}; always leaves the tab on the upload page.
-async function runVerifyPostOnContent({caption = '', episodeNo = null, scheduleDate = '', scheduleTime = '', attempts = 6} = {}) {
+// Does a Content row of an immediate post carry a publish time close to our click? Without it an older post of the same
+// product (same caption start) would "verify" a post that never happened.
+function rowPublishedNear(row, clickedAtMs) {
+  if (!Number.isFinite(Number(clickedAtMs)) || !clickedAtMs) return true;   // old callers: caption/EP match only
+  const detector = globalThis.OmniCutQuotaDetector;
+  const rowTime = detector?.parseListRows ? detector.parseListRows(`header\n${row}`, Date.now())[0]?.ts : null;
+  return Boolean(rowTime) && rowTime >= clickedAtMs - RECONCILE_POST_WINDOW_MS && rowTime <= Date.now() + RECONCILE_POST_WINDOW_MS;
+}
+
+async function runVerifyPostOnContent({caption = '', episodeNo = null, scheduleDate = '', scheduleTime = '', clickedAtMs = null, attempts = 6} = {}) {
   // The post just left the tab on Studio > Content, so accept any Studio tab; do not pre-navigate.
   let tab;
   try { tab = await findUploadTab({recover: false}); } catch (e) { tab = await findAnyStudioTab(); }
@@ -5168,7 +5389,7 @@ async function runVerifyPostOnContent({caption = '', episodeNo = null, scheduleD
       await navigateAcceptingLeave(tab.id, 'https://www.tiktok.com/tiktokstudio/content');
       await sleep(6000);
       let scan = {rows: [], found: null};
-      await chrome.debugger.attach({tabId: tab.id}, '1.3');
+      await attachDebugger(tab.id);
       try {
         await send('Runtime.enable');
         // wait for the list to render its first rows, then scroll the whole (virtualized) list
@@ -5177,7 +5398,8 @@ async function runVerifyPostOnContent({caption = '', episodeNo = null, scheduleD
           if (/\d{2}:\d{2}\n/.test(out?.result?.value || '')) break;
           await sleep(1500);
         }
-        scan = await collectContentRows(send, {match: (row) => OmniPostGuard.rowMatchesClip(row, clip).ok});
+        const immediate = !(clip.schedule_date && clip.schedule_time);
+        scan = await collectContentRows(send, {match: (row) => OmniPostGuard.rowMatchesClip(row, clip).ok && (!immediate || rowPublishedNear(row, clickedAtMs))});
       } finally {
         try { await chrome.debugger.detach({tabId: tab.id}); } catch (e) {}
       }
@@ -5196,7 +5418,7 @@ async function runVerifyPostOnContent({caption = '', episodeNo = null, scheduleD
 async function runDismissCoverModal() {
   const tab = await findUploadTab();
   const send = cdp(tab.id);
-  await chrome.debugger.attach({ tabId: tab.id }, '1.3');
+  await attachDebugger(tab.id);
   try {
     await send('DOM.enable');
     await send('Runtime.enable');
@@ -5263,11 +5485,13 @@ async function runDetectQuotaFromTab() {
 
   }
 
-  const targetTab = tabs.find(t => (t.url || '').includes('/content') || (t.url || '').includes('/manage'))
+  // Only TikTok Studio tabs: never a video, profile or feed the person has open in another TikTok tab.
+  const studio = tabs.filter(t => STUDIO_URL_RE.test(t.url || ''));
+  const targetTab = studio.find(t => (t.url || '').includes('/content') || (t.url || '').includes('/manage'))
 
-    || tabs.find(t => t.active)
+    || studio.find(t => t.active)
 
-    || tabs[0];
+    || studio[0];
 
   if (!targetTab?.id) {
 
@@ -5370,7 +5594,7 @@ async function runCountScheduledOnContent() {
       await navigateAcceptingLeave(tab.id, 'https://www.tiktok.com/tiktokstudio/content');
       await sleep(6000);
     }
-    await chrome.debugger.attach({tabId: tab.id}, '1.3');
+    await attachDebugger(tab.id);
     try {
       await send('Runtime.enable');
       // The list is virtualized (only rows near the viewport exist), so walk it from the top in
@@ -5412,6 +5636,17 @@ async function runCountScheduledOnContent() {
         atEnd = !snap.height || snap.top + snap.client >= snap.height - 8;
         await sleep(900);
       }
+      if (!result.complete && atEnd) {
+        // The bottom of a lazy list is not its end until a second wait loads nothing new.
+        await sleep(2500);
+        const before = seen.size;
+        const again = await read(1);
+        for (const row of detector.parseListRows(again.text, Date.now())) seen.set(row.key, row.ts);
+        const stillAtEnd = !again.height || again.top + again.client >= again.height - 8;
+        result = {...detector.summarizeRows(seen, Date.now(), {endConfirmed: seen.size === before && stillAtEnd}), draftCount: result.draftCount};
+      }
+      // only a complete scan is a count; a partial one is reported but never used as the number of scheduled posts
+      result = {...result, partialCount: result.count, count: detector.trustedScheduledCount(result)};
     } finally {
       try { await chrome.debugger.detach({tabId: tab.id}); } catch (e) {}
     }
@@ -5437,6 +5672,11 @@ async function runDetectTikTokQuota({allowNavigate = false} = {}) {
     // The Content page also carries the "Drafts N" tab: use it when the tab labels did not give a draft count.
     if (typeof counted?.draftCount === 'number' && typeof merged.draftCount !== 'number') merged = detector.applyDraftCount(merged, counted.draftCount);
     if (typeof counted?.count === 'number') return merged;
+    // The scan never reached the end of the scheduled part: say so (with the lower bound) instead of letting the
+    // panel read "unknown" as "30 free".
+    if (typeof counted?.partialCount === 'number') {
+      return {...(fromTab || {}), success: true, scheduledCount: null, countIncomplete: true, partialScheduledCount: counted.partialCount};
+    }
   } catch (e) {
     return {...(fromTab || {}), countError: String(e?.message || e)};
   }
@@ -5452,7 +5692,7 @@ async function runPreflight() {
   out.url = tab.url || '';
   const send = cdp(tab.id);
   try {
-    await chrome.debugger.attach({tabId: tab.id}, '1.3');
+    await attachDebugger(tab.id);
   } catch (e) {
     return {...out, success: false, error: `เชื่อม debugger กับแท็บไม่ได้ (${e.message || e})`};
   }
@@ -5482,7 +5722,7 @@ async function runCaptureEvidence() {
   let tab;
   try { tab = await findUploadTab({recover: false}); }
   catch (e) { return {success: true, found: false, reason: e.message || String(e)}; }
-  try { await chrome.debugger.attach({tabId: tab.id}, '1.3'); }
+  try { await attachDebugger(tab.id); }
   catch (e) { return {success: true, found: false, url: tab.url || '', reason: `attach: ${e.message || e}`}; }
   try {
     const r = await cdp(tab.id)('Runtime.evaluate', {
@@ -5523,6 +5763,50 @@ async function clearAttention() {
 // Publish-from-draft, step 1: open THIS job's draft from Studio > Content > Drafts, check it is the right one and put the
 // form in the mode the job needs (a slot, or "Now"). It never presses Post / Save draft: the click is the ordinary
 // click-post-only step (same label check, identity check, single /attempt, same confirmation and reconcile rules).
+// Scroll the Drafts list from the top until the row whose text is exactly `rowText` is rendered, then press its edit
+// (pencil) button. The text is re-checked in the page at the moment of the click.
+async function openDraftRowByText(send, rowText, {maxSteps = 30, settleMs = 700} = {}) {
+  await send('Runtime.evaluate', {expression: `(() => {
+    for (const e of [document.scrollingElement, ...document.querySelectorAll('div')]) if (e && e.scrollTop) e.scrollTop = 0;
+    return true;
+  })()`, returnByValue: true});
+  await sleep(settleMs);
+  for (let step = 0; step < maxSteps; step += 1) {
+    const out = await send('Runtime.evaluate', {
+      expression: `(() => {
+        const target = ${JSON.stringify(rowText)};
+        const rows = Array.from(document.querySelectorAll('[data-tt="components_DraftRowLayout_FlexRow"]')).filter((row) => (row.innerText || '') === target);
+        if (rows.length !== 1) return {ok: false, count: rows.length};
+        const cell = rows[0].children[rows[0].children.length - 1];
+        const buttons = cell ? cell.querySelectorAll('button[data-tt="components_DraftCells_Clickable"]') : [];
+        if (!buttons.length) return {ok: false, count: 1, noButtons: true};
+        buttons[0].click();   // the first action of a draft row is "edit" (pencil); the other two are cut and delete
+        return {ok: true, count: 1};
+      })()`,
+      returnByValue: true,
+    });
+    const pick = out?.result?.value || {};
+    if (pick.ok || pick.noButtons || pick.count > 1) return pick;
+    const moved = await send('Runtime.evaluate', {
+      expression: `(() => {
+        const candidates = [document.scrollingElement, ...document.querySelectorAll('div')].filter((e) => {
+          if (!e || e.scrollHeight <= e.clientHeight + 80) return false;
+          return e === document.scrollingElement || /auto|scroll/.test(getComputedStyle(e).overflowY);
+        });
+        const box = candidates.sort((a, b) => b.scrollHeight - a.scrollHeight)[0];
+        if (!box) return 0;
+        const before = box.scrollTop;
+        box.scrollTop = before + Math.max(300, Math.floor(box.clientHeight * 0.8));
+        return box.scrollTop - before;
+      })()`,
+      returnByValue: true,
+    });
+    if (!(moved?.result?.value > 0)) return {ok: false, count: 0};
+    await sleep(settleMs);
+  }
+  return {ok: false, count: 0};
+}
+
 async function runOpenDraftForPublish() {
   const job = await fetchPendingJob();
   if (job.intent !== 'publish_draft') throw new Error('intent_mismatch: งานนี้ไม่ใช่งานเผยแพร่จากแบบร่าง');
@@ -5536,30 +5820,24 @@ async function runOpenDraftForPublish() {
   await navigateAcceptingLeave(tab.id, DRAFT_TAB_URL);
   await sleep(6000);
   const send = cdp(tab.id);
-  await chrome.debugger.attach({tabId: tab.id}, '1.3');
+  await attachDebugger(tab.id);
   try {
     await send('DOM.enable');
     await send('Runtime.enable');
     await ensureWorkableViewport(send);
     await guardPostingAction(job, send, tab.id);
-    const found = await send('Runtime.evaluate', {
-      expression: `(() => {
-        const key = ${JSON.stringify(key)};
-        const norm = (text) => String(text || '').toLowerCase().split('').filter((ch) => /[a-z0-9]/.test(ch) || (ch >= 'ก' && ch <= '๙')).join('');
-        const rows = Array.from(document.querySelectorAll('[data-tt="components_DraftRowLayout_FlexRow"]')).filter((row) => norm(row.innerText).includes(key));
-        if (rows.length !== 1) return {ok: false, count: rows.length};
-        const cell = rows[0].children[rows[0].children.length - 1];
-        const buttons = cell ? cell.querySelectorAll('button[data-tt="components_DraftCells_Clickable"]') : [];
-        if (!buttons.length) return {ok: false, count: 1, noButtons: true};
-        buttons[0].click();   // the first action of a draft row is "edit" (pencil); the other two are cut and delete
-        return {ok: true, count: 1};
-      })()`,
-      returnByValue: true,
-    });
-    const pick = found?.result?.value || {};
-    if (pick.count === 0) throw new Error('draft_not_found: ไม่พบแบบร่างบน TikTok ที่ตรงกับ caption ของคลิปนี้ (ถูกลบไปแล้วหรือยังไม่ได้บันทึก) จึงไม่เผยแพร่');
-    if (pick.count > 1) throw new Error('draft_ambiguous: มีแบบร่างมากกว่าหนึ่งอันที่ caption ตรงกัน จึงไม่เดาว่าอันไหน — ลบอันที่ซ้ำบน TikTok ก่อน');
-    if (!pick.ok) throw new Error('draft_open_failed: หาปุ่มแก้ไขของแบบร่างไม่เจอ (หน้า TikTok อาจเปลี่ยน) จึงไม่เผยแพร่');
+    // Identify the draft over the WHOLE (virtualized) Drafts list with the same rule save/verify use: EP tag when it is
+    // visible, else an exact caption line. A prefix match on the rows that happen to be rendered could pick another
+    // draft of the same product (or miss the real one further down).
+    const evidence = globalThis.OmniDraftEvidence;
+    const allRows = await collectDraftRows(send);
+    const hits = allRows.filter((row) => evidence.matches(row, job));
+    if (hits.length === 0) throw new Error('draft_not_found: ไม่พบแบบร่างบน TikTok ที่ตรงกับคลิปนี้ (ถูกลบไปแล้วหรือยังไม่ได้บันทึก) จึงไม่เผยแพร่');
+    if (hits.length > 1) throw new Error('draft_ambiguous: มีแบบร่างมากกว่าหนึ่งอันที่ตรงกับคลิปนี้ จึงไม่เดาว่าอันไหน — ลบอันที่ซ้ำบน TikTok ก่อน');
+    const opened = await openDraftRowByText(send, hits[0]);
+    if (!opened.ok) throw new Error(opened.noButtons
+      ? 'draft_open_failed: หาปุ่มแก้ไขของแบบร่างไม่เจอ (หน้า TikTok อาจเปลี่ยน) จึงไม่เผยแพร่'
+      : 'draft_not_found: เลื่อนหาแบบร่างที่ตรงกันไม่เจออีกครั้ง จึงไม่เผยแพร่');
     // the editor of that draft must load, and it must be the same caption
     let editor = null;
     for (let i = 0; i < 50; i += 1) {
@@ -5568,7 +5846,7 @@ async function runOpenDraftForPublish() {
         expression: `(() => {
           const norm = (text) => String(text || '').toLowerCase().split('').filter((ch) => /[a-z0-9]/.test(ch) || (ch >= 'ก' && ch <= '๙')).join('');
           const field = document.querySelector('[contenteditable="true"]');
-          return {url: location.href, hasPost: Boolean(document.querySelector('button[data-e2e="post_video_button"]')), caption: field ? norm(field.innerText).slice(0, 60) : ''};
+          return {url: location.href, hasPost: Boolean(document.querySelector('button[data-e2e="post_video_button"]')), caption: field ? norm(field.innerText).slice(0, 60) : '', raw: field ? String(field.innerText || '') : ''};
         })()`,
         returnByValue: true,
       });
@@ -5577,6 +5855,12 @@ async function runOpenDraftForPublish() {
     }
     if (!editor) throw new Error('draft_editor_not_loaded: เปิดแบบร่างแล้วแต่หน้าแก้ไขไม่โหลดภายในเวลาที่กำหนด');
     if (!editor.caption.includes(key)) throw new Error('draft_mismatch: แบบร่างที่เปิดมี caption ไม่ตรงกับคลิปนี้ จึงหยุดก่อนโพสต์');
+    // the episode number in the opened editor must be this clip's (when the job has one)
+    const wantEp = evidence.episodeOf(job);
+    const editorEps = [...String(editor.raw || '').matchAll(/#EP0*(\d+)(?!\d)/gi)].map((m) => Number(m[1]));
+    if (wantEp && editorEps.length && !editorEps.every((n) => n === wantEp)) {
+      throw new Error(`draft_mismatch: แบบร่างที่เปิดเป็น EP${editorEps.join(',')} ไม่ใช่ EP${wantEp} ของคลิปนี้ จึงหยุดก่อนโพสต์`);
+    }
     if (job.schedule_date && job.schedule_time) {
       const normalizedTime = normalizeScheduleTime(String(job.schedule_time).trim());
       if (!normalizedTime) throw new Error('schedule_time_invalid: เวลานัดโพสต์ไม่ถูกต้อง');
@@ -5663,7 +5947,7 @@ async function runSyncDraftsWithTikTok({drafts = [], cutoffMs = 0, expectedHandl
   try {
     await navigateAcceptingLeave(tab.id, DRAFT_TAB_URL);
     await sleep(6000);
-    await chrome.debugger.attach({tabId: tab.id}, '1.3');
+    await attachDebugger(tab.id);
     try {
       await send('Runtime.enable');
       scanAccount = checkPostingAccount({channel_id:'main',target_handle:expectedHandle}, await readStudioAccount(send));
@@ -5679,7 +5963,7 @@ async function runSyncDraftsWithTikTok({drafts = [], cutoffMs = 0, expectedHandl
     }
     await navigateAcceptingLeave(tab.id, 'https://www.tiktok.com/tiktokstudio/content');
     await sleep(6000);
-    await chrome.debugger.attach({tabId: tab.id}, '1.3');
+    await attachDebugger(tab.id);
     try {
       await send('Runtime.enable');
       for (let i = 0; i < 8; i += 1) {
@@ -5772,7 +6056,7 @@ const actions = {
   'reset-upload-page': () => cleanResetUploadTab(),
 
   'detect-tiktok-quota': message => runDetectTikTokQuota({allowNavigate: Boolean(message && message.allowNavigate)}),
-  'wait-for-upload-only': () => runWaitForUploadOnly(),
+  'wait-for-upload-only': message => runWaitForUploadOnly(message),
   'run-preflight': () => runPreflight(),
   'open-draft-for-publish': () => runOpenDraftForPublish(),
   'sync-drafts-with-tiktok': message => runSyncDraftsWithTikTok(message),
@@ -5783,6 +6067,9 @@ const actions = {
   'broadcast-batch-signal': async (message) => ({ success: true, signal: message.signal }),
 
   'select-posting-channel': message => selectPostingChannel(message.channelId),
+  'discard-posting-receipt': () => discardPostingReceipt(),
+  'refresh-active-job': () => refreshActiveJob(),
+  'link-due-content': message => runLinkDueContent(message),
 
 };
 
@@ -5802,7 +6089,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (actionRunning) {
 
-    sendResponse({success:false, error:'มีขั้นตอนกำลังทำอยู่ กรุณารอให้จบก่อน'});
+    // Nothing was done for this message, so the caller may retry it safely (it is never a post attempt).
+    sendResponse({success:false, busy:true, transient:true, postAttempted:false, error:'มีขั้นตอนกำลังทำอยู่ กรุณารอให้จบก่อน'});
 
     return false;
 
@@ -5816,10 +6104,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       const run = chrome.storage?.local ? (await postingStorageGet([globalThis.OmniRunLock.KEY]))[globalThis.OmniRunLock.KEY] : null;
       if (globalThis.OmniRunLock.isFresh(run, Date.now()) && run.owner !== message.runOwner
-        && !['retry-posting-receipt','reconcile-posting-result','capture-evidence','notify-attention','clear-attention','broadcast-batch-signal'].includes(message.action)) {
+        && !['retry-posting-receipt','reconcile-posting-result','capture-evidence','notify-attention','clear-attention','broadcast-batch-signal','refresh-active-job'].includes(message.action)) {
         throw new Error('posting_run_owned: อีกแผงกำลังควบคุมรอบอยู่ จึงไม่เปลี่ยนงานหรือหน้า TikTok');
       }
-      if (!['retry-posting-receipt', 'release-posting-job', 'select-posting-channel', 'claim-posting-job', 'reconcile-posting-result', 'detect-tiktok-quota', 'broadcast-batch-signal', 'verify-post-content', 'verify-draft-content', 'run-preflight', 'capture-evidence', 'notify-attention', 'clear-attention', 'sync-drafts-with-tiktok'].includes(message.action)) {
+      // The owner is alive (it just sent a step): renew its lease here too, so a throttled panel timer cannot let
+      // another panel take over a run that is still working.
+      if (run && run.owner === message.runOwner && message.runOwner) {
+        await globalThis.OmniRunLock.beat(chrome.storage.local, run.owner).catch(() => {});
+      }
+      if (!['retry-posting-receipt', 'release-posting-job', 'select-posting-channel', 'claim-posting-job', 'reconcile-posting-result', 'discard-posting-receipt', 'refresh-active-job', 'link-due-content', 'detect-tiktok-quota', 'broadcast-batch-signal', 'verify-post-content', 'verify-draft-content', 'run-preflight', 'capture-evidence', 'notify-attention', 'clear-attention', 'sync-drafts-with-tiktok'].includes(message.action)) {
         // The click steps work on the already-filled form. If that tab has gone (a post sends it on to Content) bringing a
         // Studio tab back to a blank upload page would only destroy the page that proves what happened.
         pinnedUploadTabId = (await findUploadTab({recover: !NO_TAB_RECOVERY_ACTIONS.has(message.action)})).id;

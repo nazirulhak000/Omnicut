@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import datetime
 import hashlib
+import logging
 import time
 import uuid
 from contextlib import contextmanager
@@ -28,6 +29,8 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Iterator, List, Optional, Union
 
 from scripts.config import BASE_DIR
+
+logger = logging.getLogger(__name__)
 from scripts.db import DocumentTable
 
 PRODUCTS = "products"
@@ -99,10 +102,27 @@ def mutate(name: str, docs_dir: Optional[PathLike] = None) -> Iterator[List[Dict
             yield rows
         return
     with _table(name, docs_dir).mutate() as rows:
+        posted_before = ({str(r.get("id")): (r.get("posted_at"), r.get("path"))
+                          for r in rows if r.get("status") == "posted" and r.get("id")}
+                         if name == EXPORT_REGISTRY else {})
         yield rows
+        if posted_before:
+            _keep_posted_exports(rows, posted_before)
     if name == EXPORT_REGISTRY and default:
         from scripts.export_registry import ExportRegistry
         ExportRegistry._invalidate_index()
+
+
+def _keep_posted_exports(rows: List[Dict[str, Any]], posted_before: Dict[str, Any]) -> None:
+    """An export that is posted stays posted. `posted` is the guard that stops /prepare from sending a clip twice;
+    batch/one-off tools used to reset it to `rendered` while re-scheduling, which queued already-posted clips again."""
+    for row in rows:
+        before = posted_before.get(str(row.get("id")))
+        if before is None or row.get("status") == "posted":
+            continue
+        logger.warning("store_io: คืนสถานะ posted ให้ export %s (มีโค้ดพยายามเปลี่ยนเป็น %s)", row.get("id"), row.get("status"))
+        row["status"] = "posted"
+        row["posted_at"] = row.get("posted_at") or before[0]
 
 
 def load_products(docs_dir: Optional[PathLike] = None) -> List[Dict[str, Any]]:

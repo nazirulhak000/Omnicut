@@ -50,6 +50,31 @@ class PublicationObservationStore:
         except HandleError:
             self._error("publication_account_invalid", "An exact valid platform account is required", 422)
 
+    @staticmethod
+    def caption_key(text, length=40):
+        """Whitespace-insensitive prefix of a caption (TikTok re-wraps lines and may trim spaces)."""
+        return re.sub(r"\s+", "", str(text or ""))[:length]
+
+    def _check_content_linkage(self, job, evidence, stamp):
+        linkage = evidence.get("linkage") or {}
+        if linkage.get("method") != "content_row":
+            self._error("publication_evidence_required", "Content-page linkage evidence is required", 422)
+        expected = self.caption_key(job.get("caption"))
+        seen = re.sub(r"\s+", "", str(linkage.get("caption_text") or ""))
+        if len(expected) < 8 or expected not in seen:
+            self._error("publication_linkage_mismatch", "Content row caption differs from this job")
+        from scripts.episode_registry import tag_numbers
+        episode = job.get("episode_no")
+        shown = tag_numbers(linkage.get("caption_text"))
+        # The EP hashtag is the clip's permanent identity (two clips of one product share a caption prefix):
+        # a row showing another clip's EP is never this job; a row showing none is accepted on caption + time.
+        if episode and shown and int(episode) not in shown:
+            self._error("publication_linkage_mismatch", "Content row carries another clip's EP tag")
+        if job.get("schedule_date") and job.get("schedule_time"):
+            slot = datetime.fromisoformat(f"{job['schedule_date']}T{job['schedule_time']}:00+07:00")
+            if abs((stamp - slot).total_seconds()) > 15 * 60:
+                self._error("publication_linkage_mismatch", "Content row publish time differs from this job's slot")
+
     def get(self, channel_id, observation_id):
         return deepcopy(self._find(self.table.scoped_load(channel_id), observation_id))
 
@@ -89,7 +114,20 @@ class PublicationObservationStore:
         accepted_id = (receipt.get("proof") or {}).get("platform_post_id")
         if accepted_id and video_id and str(accepted_id) != video_id:
             self._error("publication_linkage_mismatch", "Video ID differs from frozen scheduled receipt")
-        state = "verified" if accepted_id and video_id else "waiting_linkage"
+        # TikTok's "scheduled" toast never carries a video id, so a scheduled receipt usually has none. Then the link
+        # is established by (a) a human who reviewed the exact public URL, or (b) the Content-page row whose caption and
+        # publish time match this job exactly.
+        linked = bool(accepted_id and video_id)
+        if not accepted_id and video_id:
+            if (evidence.get("source") == "reviewed_platform_record"
+                    and evidence.get("review_confirmation") == "reviewed_published_video"
+                    and str(evidence.get("evidence_url") or "").rstrip("/").endswith(f"/{account}/video/{video_id}")):
+                # an operator opened that exact public video of this account and confirmed it is this clip
+                linked = True
+            elif evidence.get("source") == "platform_detail" and evidence.get("linkage"):
+                self._check_content_linkage(job, evidence, stamp)
+                linked = True
+        state = "verified" if linked else "waiting_linkage"
         payload = {"job_id": job_id, "channel_id": channel_id, "source_account": account,
                    "platform_video_id": video_id, "observed_published_at": observed_published_at,
                    "evidence": deepcopy(evidence), "scheduled_receipt_hash": job.get("receipt_hash"),

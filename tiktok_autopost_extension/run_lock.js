@@ -7,7 +7,10 @@
   else root.OmniRunLock = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   const KEY = 'omnicutBatchRunLock';
-  const TTL_MS = 45 * 1000;      // a lock whose heartbeat is older than this belongs to a dead run
+  // A hidden/minimized Chrome window throttles the panel's heartbeat timer to about once a minute, so the TTL must sit
+  // well above that (a 45 s TTL let a second panel "recover" a run that was still alive). The worker also renews the
+  // beat on every step the owner sends.
+  const TTL_MS = 150 * 1000;     // a lock whose heartbeat is older than this belongs to a dead run
   const BEAT_MS = 10 * 1000;
 
   const isFresh = (lock, now, ttl = TTL_MS) => Boolean(lock && lock.owner && now - Number(lock.beat || 0) < ttl);

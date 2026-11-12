@@ -105,7 +105,7 @@ def test_prepare_all_sends_waiting_rows_one_at_a_time_and_reports_refusals(motio
         # Cancelling the confirmation sends nothing.
         button.click()
         confirm = page.get_by_role("dialog").filter(has_text="ส่ง 3 คิวให้ Extension หรือไม่?")
-        expect(confirm).to_contain_text("ข้าม: เลยกำหนด 1 คิว · ล้มเหลว 1 คิว")
+        expect(confirm).to_contain_text("ข้าม: เลยกำหนดหรือเหลือไม่ถึง 15 นาที 1 คิว · ล้มเหลว 1 คิว")
         confirm.get_by_role("button", name="ยกเลิก", exact=True).click()
         expect(confirm).to_be_hidden()
         assert fixture.prepared == []

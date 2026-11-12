@@ -202,24 +202,34 @@ export function groupScheduleItems(items = []) {
 // Rows a bulk prepare takes: waiting rows whose slot is still ahead, in
 // schedule order. Overdue rows go through the reschedule flow and failed rows
 // are retried one at a time, so both are only counted.
+// TikTok Studio accepts a scheduled post 15 minutes to 10 days ahead (the backend refuses anything else).
+export const SCHEDULE_MIN_LEAD_MS = 15 * 60 * 1000;
+export const SCHEDULE_MAX_LEAD_MS = 10 * 24 * 60 * 60 * 1000;
+
 export function pickPreparableItems(items = [], now = new Date()) {
   const nowMs = now.getTime();
   const ready = [];
   let overdue = 0;
   let failed = 0;
+  let tooFar = 0;
   for (const item of sortScheduleItems(items)) {
     if (item.status === 'failed') failed += 1;
     else if (item.status !== 'planned') continue;
-    else if (new Date(item.scheduled_at).getTime() < nowMs) overdue += 1;
-    else ready.push(item);
+    else {
+      const at = new Date(item.scheduled_at).getTime();
+      if (!(at >= nowMs + SCHEDULE_MIN_LEAD_MS)) overdue += 1;
+      else if (at > nowMs + SCHEDULE_MAX_LEAD_MS) tooFar += 1;
+      else ready.push(item);
+    }
   }
-  return { ready, overdue, failed };
+  return { ready, overdue, failed, tooFar };
 }
 
-export function prepareAllConfirmText({ ready = [], overdue = 0, failed = 0 } = {}) {
+export function prepareAllConfirmText({ ready = [], overdue = 0, failed = 0, tooFar = 0 } = {}) {
   const skipped = [
-    overdue > 0 && `เลยกำหนด ${overdue} คิว`,
+    overdue > 0 && `เลยกำหนดหรือเหลือไม่ถึง 15 นาที ${overdue} คิว`,
     failed > 0 && `ล้มเหลว ${failed} คิว`,
+    tooFar > 0 && `เกิน 10 วันข้างหน้า ${tooFar} คิว`,
   ].filter(Boolean);
   const question = `ส่ง ${ready.length} คิวให้ Extension หรือไม่?`;
   return skipped.length ? `${question}\nข้าม: ${skipped.join(' · ')}` : question;

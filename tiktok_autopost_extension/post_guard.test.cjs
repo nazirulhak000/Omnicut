@@ -130,3 +130,32 @@ test('EP tag: same number matches even when the caption is cut short, another nu
   assert.equal(guard.rowMatchesClip(row('cut... #EP1731'), sched).ok, true);
   assert.equal(guard.rowMatchesClip(row('cut... #EP1731'), { ...sched, schedule_time: '11:00' }).reason, 'schedule_badge_mismatch');
 });
+
+test('A3: after a 409 the panel clears only a never-claimed job of the same export', () => {
+  const g = require('./post_guard.js');
+  assert.equal(g.clearableStaleJob({job_id: 'j1', status: 'prepared', export_id: 'e1'}, 'e1'), true);
+  assert.equal(g.clearableStaleJob({job_id: 'j2', status: 'prepared', export_id: 'other'}, 'e1'), false);
+  assert.equal(g.clearableStaleJob({job_id: 'j3', status: 'claimed', export_id: 'e1'}, 'e1'), false);
+  assert.equal(g.clearableStaleJob({job_id: 'j4', status: 'prepared', export_id: 'e1'}, null), false);
+  assert.equal(g.clearableStaleJob(null, 'e1'), false);
+});
+
+test('B2: content linkage needs the 40-character caption key, the right EP and exactly one row', () => {
+  const g = require('./post_guard.js');
+  const job = {caption: 'พัดลม Hatari 16 นิ้ว ลมแรงเงียบกริบ ใช้ได้ทั้งวัน ไม่ร้อนมอเตอร์ ของแท้ประกันศูนย์', hashtags: '#Hatari #EP12'};
+  const same20 = 'พัดลม Hatari 16 นิ้ว ลมแรงเงียบกริบ แต่คนละคลิปกัน';
+  const rows = [
+    {videoId: '7300000000000000001', text: `${same20}
+#EP11
+10 พ.ย. 4:20 PM`},
+    {videoId: '7300000000000000002', text: `${job.caption} #Hatari #EP12
+10 พ.ย. 4:20 PM`},
+  ];
+  assert.equal(g.matchLinkageRow(rows, job).row.videoId, '7300000000000000002');
+  assert.equal(g.linkageEpisode(job), 12);
+  // a row of the same caption with another clip's EP is never this job
+  assert.equal(g.matchLinkageRow([{videoId: '7300000000000000003', text: `${job.caption} #EP99`}], job).reason, 'not_found');
+  // two rows that both fit: refuse to guess
+  assert.equal(g.matchLinkageRow([rows[1], {...rows[1], videoId: '7300000000000000004'}], job).reason, 'ambiguous');
+  assert.equal(g.matchLinkageRow([{videoId: 'abc', text: rows[1].text}], job).reason, 'not_found');
+});

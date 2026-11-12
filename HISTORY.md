@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round CLAUDE-AUTOPOST-E2E-FIXES-20261113 | ตรวจ + แก้ครบเส้นทาง ผลิต → เรนเดอร์ → คิว → extension 0.11.0 + API (A1–A5, B1–B15, C1–C21): กันโพสต์ซ้ำ, ปลดล็อกคิว (ปก auto 409, หน้าคิว 500), หน้าต่าง TikTok 15 นาที–10 วัน, ปิดโพสต์ตั้งเวลาจากหน้า Content, ล้างข้อมูลคิวจริง (แถวซ้ำ 3), caption ติดราคา AI เขียนใหม่ตอนเข้าคิว + ปุ่มแก้ทั้งชุด · ยังไม่ทดสอบกับบัญชี TikTok จริง | Claude Code (Claude Opus 5.5) |
 | Round CLAUDE-ANGLE-SIDE-AND-SHOT-LIST-LAYOUT-20261112 | คอลัมน์ข้าง 300px พื้นผิวเดียว ปุ่มรอง 2 ช่อง; `ShotListModal` ไทม์ไลน์ + แถบเสียงแถวเดียว; ชิปคลิปไม่ล้น; ลบ modal แผนถ่ายที่ render ซ้ำ; รายงานสำรวจถ่ายมือถือคลิปเดียว (พบบั๊ก guided take รั่วข้ามมุม) | Claude Code (Claude Opus 5.5) |
 | Round CLAUDE-PRODUCT-ANGLE-AREA-LAYOUT-PLAN-20261112 | แผงมุม: ปุ่มหลักตามสถานะ (`lib/angleNextStep.js`), Tracker เป็นปุ่มรอง; รายการมุมแถวกระชับ + ชิปสถานะ; แผงสถานะ → แถบความคืบหน้าในการ์ดล็อต; มือถือแถบปุ่มแถวเดียว; จอ ≥1536px คอลัมน์ข้าง | Claude Code (Claude Opus 5.5) |
 | Round CLAUDE-ONE-PRESS-RENDER-PLAN-20261112 | ปุ่มเดียวผลิตจนเรนเดอร์เสร็จ (chain `full`, เรนเดอร์เฉพาะดราฟต์ที่สร้างในรอบ), `เรนเดอร์ดราฟต์` ไม่เปิดตารางโพสต์, แถบล็อตมีปุ่มหลักปุ่มเดียว + แผงจัดกลุ่มตามลำดับงาน | Claude Code (Claude Opus 5.5) |
@@ -219,6 +220,19 @@
 | Round CODEX-NVENC-QA-GATES-20261003 | ปิด NVENC/export contract และ QA guards; failures เดิมแก้และ gate รวมผ่าน | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 
 ---
+
+### Round CLAUDE-AUTOPOST-END-TO-END-AUDIT-20261113 + CLAUDE-AUTOPOST-E2E-FIXES-20261113 (2026-11-13)
+
+ดำเนินการโดย: Claude Code (Claude Opus 5.5) · เจ้าของสั่ง "ดูส่วน tiktok helper autopost แบบละเอียด คู่กับ API … ตั้งแต่ผลิต เรนเดอร์ ออโต้โพสต์" แล้ว "จัดการแล้วเริ่มได้เลย แบบละเอียดทุกจุด ห้ามขาดห้ามเกิน … extension ต้องผ่านการทดสอบจริง" · กิ่ง `feat/autopost-e2e-fixes`
+
+- ตรวจ (อ่านอย่างเดียว, 3 agent ขนาน + ข้อมูลคิวจริง) → [_Docs/Reports/AUTOPOST_END_TO_END_AUDIT_20261113.md](_Docs/Reports/AUTOPOST_END_TO_END_AUDIT_20261113.md) หัวข้อ A–F
+- แก้ครบ + ผลทดสอบ → รายงานเดียวกัน หัวข้อ G
+- ข้อมูลจริง: สำรอง `06_Archive/store_backup_20261113_autopost/` (SQLite backup API + JSON) ก่อนแก้ผ่าน store
+- เพิ่มตามเจ้าของ (ภาพจอแถบแดง 7 คิว): caption ติดราคา → AI เขียนใหม่ (`scripts/caption_price_fix.py`) ตอนเข้าคิว + ปุ่ม "แก้ caption ที่ติดราคา (N)"; ลองกับ 7 คิวจริงแล้วผ่านด่านทุกคลิป (ยังไม่บันทึก รอเจ้าของกด)
+- Jev ล่ม (JSONDecodeError) ทั้ง start gate และ pre-commit → ทำต่อตามกฎ
+- restart backend 3 ครั้ง หลังงาน production_chain ของเจ้าของจบ (ไม่ขัดงาน)
+- ค้างให้เจ้าของ: reload extension เป็น 0.11.0 · กด "ตรวจคลิปที่ถึงเวลาแล้ว" (17 งานตั้งเวลาที่ถึงเวลา) · ตั้งเวลาโพสต์จริง 1 คลิป · กด "แก้ caption ที่ติดราคา (7)"
+- ไม่ใช่ของรอบนี้: `test_channel_scope` 2 ข้อ (route `master-shot-list` ของรอบ PHONE-ONE-TAKE ยังไม่มี policy row) · `test_couple_engine::test_finalize_clip_export_concurrent_20_clips_and_gdrive_sync` (ล้มบน HEAD สะอาด)
 
 ### Round ANTIGRAVITY-FIX-AUTOPOST-SCHEDULED-STATUS-SYNC-20261112 (2026-11-12)
 **ดำเนินการโดย:** Antigravity (Gemini 3.8 Flash High)

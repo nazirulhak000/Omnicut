@@ -140,6 +140,18 @@
       "module": "scripts.api_publication_observations"
     },
     {
+      "method": "POST",
+      "path": "/api/tiktok-autopost/jobs/{job_id}/content-linkage",
+      "scope": "channel",
+      "allow_query_scope": false,
+      "access": "write",
+      "risk": "blocker",
+      "resource_params": [
+        "job_id"
+      ],
+      "module": "scripts.api_publication_observations"
+    },
+    {
       "method": "GET",
       "path": "/api/hyperframes/projects",
       "scope": "channel",
@@ -3004,6 +3016,28 @@
     },
     {
       "method": "POST",
+      "path": "/api/schedule-queue/fix-price-captions/preview",
+      "scope": "channel",
+      "allow_query_scope": false,
+      "access": "read",
+      "risk": "major",
+      "resource_params": [],
+      "module": "scripts.api_schedule_queue"
+    },
+    {
+      "method": "POST",
+      "path": "/api/schedule-queue/fix-price-captions",
+      "scope": "channel",
+      "allow_query_scope": false,
+      "access": "write",
+      "risk": "blocker",
+      "resource_params": [
+        "items[].id"
+      ],
+      "module": "scripts.api_schedule_queue"
+    },
+    {
+      "method": "POST",
       "path": "/api/schedule-queue/reschedule-overdue/preview",
       "scope": "channel",
       "allow_query_scope": false,
@@ -3450,6 +3484,16 @@
       "allow_query_scope": false,
       "access": "read_write",
       "risk": "blocker",
+      "resource_params": [],
+      "module": "scripts.api_tiktok_autopost"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tiktok-autopost/linkage-due",
+      "scope": "channel",
+      "allow_query_scope": false,
+      "access": "read",
+      "risk": "major",
       "resource_params": [],
       "module": "scripts.api_tiktok_autopost"
     },

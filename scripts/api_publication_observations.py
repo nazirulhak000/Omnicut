@@ -51,6 +51,37 @@ def _reviewed_evidence(req, channel_id, job_id):
             "review_confirmation": req.review_confirmation}
 
 
+class ContentLinkageRequest(BaseModel):
+    """What the extension read from one TikTok Studio Content row (read-only scan, no click)."""
+    model_config = ConfigDict(extra="forbid")
+    source_account: str
+    platform_video_id: str = Field(pattern=r"^[0-9]{8,32}$")
+    observed_published_at: str
+    caption_text: str = Field(min_length=8, max_length=4000)
+    idempotency_key: str = Field(min_length=1, max_length=200)
+    expected_job_revision: int = Field(ge=1)
+
+
+@router.post("/{job_id}/content-linkage")
+def link_from_content_page(job_id: str, req: ContentLinkageRequest,
+                           scope: ChannelScope = Depends(get_workflow_scope)):
+    """Close a scheduled post once its slot passed: the extension found exactly one Content row with this job's
+    caption, EP and publish time. Records publication (queue/export/post log/angle) without touching any file."""
+    require_writable(scope)
+    observations, effects = _services()
+    account = normalize_handle(req.source_account)
+    evidence = {"kind": "platform_publication", "source": "platform_detail", "published": True,
+                "channel_id": scope.channel_id, "job_id": job_id, "source_account": account,
+                "platform_video_id": req.platform_video_id,
+                "linkage": {"method": "content_row", "caption_text": req.caption_text}}
+    event = observations.observe(scope.channel_id, job_id, req.source_account, req.platform_video_id,
+                                 req.observed_published_at, evidence, idempotency_key=req.idempotency_key,
+                                 expected_job_revision=req.expected_job_revision)
+    if event["status"] == "verified" and not event.get("effects_applied"):
+        event = effects.apply(scope.channel_id, event["id"])
+    return {"observation": event, "linked": event["status"] == "verified"}
+
+
 @router.get("/{job_id}/publication-observations")
 def list_publication_observations(job_id: str, scope: ChannelScope = Depends(get_channel_scope)):
     observations, _ = _services()

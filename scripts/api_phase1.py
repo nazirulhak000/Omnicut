@@ -25,7 +25,7 @@ from scripts.hook_motion_presets import hook_motion_catalog
 from scripts.it_angles import ANGLES_BY_KEY, catalog_for_prompt, fallback_angles
 from scripts.subtitle_engine import DEFAULT_HOOK_MOTION
 from scripts.post_log import METRIC_FIELDS, PostLog
-from scripts.product_store import STATUSES, ProductStore
+from scripts.product_store import STATUSES, ProductStore, select_angle
 from scripts.auto_cover import ensure_default_cover
 from scripts.auto_sharpen import ensure_tiktok_sharp
 from scripts.product_scraper import _build_safe_image_opener, _validate_public_http_url
@@ -1364,17 +1364,16 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
         prev_status = None
         prev_video_url = None
         prev_export_id = None
+        # The lot this render belongs to: an angle id can repeat across lots,
+        # so every read/write below targets this one angle only.
+        angle_batch = None
         if product_id and angle_id:
             try:
                 existing_product = ProductStore.get(product_id, channel_id=channel_scope.channel_id)
-                existing_angle = next(
-                    (
-                        a for a in (existing_product or {}).get("angles", [])
-                        if (a.get("angle_id") or a.get("id")) == angle_id
-                    ),
-                    None,
-                )
+                existing_angle = select_angle(
+                    (existing_product or {}).get("angles", []), angle_id, project_name=project_name)
                 if existing_angle:
+                    angle_batch = existing_angle.get("batch")
                     prev_status = existing_angle.get("status")
                     prev_video_url = existing_angle.get("video_url")
                     prev_export_id = existing_angle.get("export_id")
@@ -1401,8 +1400,9 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                     product_id,
                     angle_id,
                     "in_production",
-                    project_name=project_name
-                , channel_id=channel_scope.channel_id)
+                    project_name=project_name,
+                    batch=angle_batch,
+                    channel_id=channel_scope.channel_id)
             except Exception:
                 pass
 
@@ -1425,7 +1425,8 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                         video_url=prev_video_url,
                         project_name=project_name,
                         export_id=prev_export_id,
-                     channel_id=channel_scope.channel_id)
+                        batch=angle_batch,
+                        channel_id=channel_scope.channel_id)
                 else:
                     # Snapshot was never taken (product/angle missing at
                     # snapshot time, e.g. deleted mid-reroll) -- fall back to
@@ -1438,8 +1439,9 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                         product_id,
                         angle_id,
                         "in_production",
-                        project_name=project_name
-                    , channel_id=channel_scope.channel_id)
+                        project_name=project_name,
+                        batch=angle_batch,
+                        channel_id=channel_scope.channel_id)
             except Exception:
                 pass
 
@@ -1531,6 +1533,12 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 channel_identity_snapshot=provenance.get("channel_identity_snapshot"),
                 job_scope=provenance,
             )
+            mp4_val = result.get("mp4_video") or result.get("mp4") or result.get("output_video") or result.get("video_path") or ""
+            if mp4_val:
+                # Inside the render slot: the re-encode is as heavy as a render
+                # (libx264 fallback has no NVENC cap), so it counts against the
+                # same 4-job limit. Never raises.
+                ensure_tiktok_sharp(result.get("export_id"), channel_id=channel_scope.channel_id)
 
         # Round: the pipeline's own result_paths key is "mp4_video"
         # (video_assembly_stage.py) -- "mp4"/"output_video"/"video_path" were
@@ -1538,7 +1546,17 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
         # left the angle stuck on "in_production" no matter how the render
         # actually finished. api_render.py's initial-render path already
         # checked "mp4_video" correctly; this path just never matched it.
-        mp4_val = result.get("mp4_video") or result.get("mp4") or result.get("output_video") or result.get("video_path") or ""
+        if mp4_val:
+            # The Editor no longer blocks a render on a saved cover, so a clip
+            # rendered from here gets its default cover now (from the
+            # sharpened file above). Never raises.
+            ensure_default_cover(
+                result.get("export_id"), product_id=product_id, angle_id=angle_id,
+                batch=angle_batch, channel_id=channel_scope.channel_id)
+
+        # Only now "rendered": the schedule page lists rendered angles as
+        # ready to queue, so the clip must not appear there while its file is
+        # still being re-encoded or before it has a cover.
         if product_id and angle_id:
             try:
                 ProductStore.update_angle_status(
@@ -1548,7 +1566,8 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                     video_url=str(mp4_val) if mp4_val else None,
                     project_name=project_name,
                     export_id=result.get("export_id") if mp4_val else None,
-                 channel_id=channel_scope.channel_id)
+                    batch=angle_batch,
+                    channel_id=channel_scope.channel_id)
             except Exception as update_err:
                 print(f"Warning: could not update angle status after reroll: {update_err}")
 
@@ -1557,15 +1576,6 @@ def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[
                 ProductStore.attach_project(product_id, project_name, channel_id=channel_scope.channel_id)
             except Exception:
                 pass
-
-        if mp4_val:
-            # Sharpness first so the cover frame comes from the final file.
-            ensure_tiktok_sharp(result.get("export_id"), channel_id=channel_scope.channel_id)
-            # The Editor no longer blocks a render on a saved cover, so a clip
-            # rendered from here gets its default cover now. Never raises.
-            ensure_default_cover(
-                result.get("export_id"), product_id=product_id, angle_id=angle_id,
-                channel_id=channel_scope.channel_id)
 
         render_jobs.complete_job(job_id, result, message="🎉 เรนเดอร์เสร็จสมบูรณ์!")
         TaskManager.complete_task(

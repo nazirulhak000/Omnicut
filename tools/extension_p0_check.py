@@ -18,6 +18,9 @@ ROOT = Path(__file__).resolve().parents[1]
 EXT = ROOT / 'tiktok_autopost_extension'
 UPLOAD = 'https://www.tiktok.com/tiktokstudio/upload'
 DRAFTS = 'https://www.tiktok.com/tiktokstudio/content?tab=draft'
+# a slot inside TikTok's 10-day scheduling window (the extension refuses anything further)
+import datetime as _dt
+NEAR_DATE = (_dt.datetime.now(_dt.timezone(_dt.timedelta(hours=7))) + _dt.timedelta(days=3)).strftime('%Y-%m-%d')
 
 
 class Sidebar:
@@ -155,7 +158,7 @@ def main():
               runSyncDraftsWithTikTok=async()=>{if(globalThis.fixtureSyncError)throw Error('fixture disconnected');return globalThis.fixtureSyncReply;};
             }''')
             # Exercise the real batch-start button with one selected draft. No confirmation or prepare is allowed on failure.
-            sidebar.evaluate('''allClips=[{id:'draft-1',export_id:'exp-1',caption:'Same product review NEW',tiktok_caption:'Same product review NEW',is_draft:true,publish_draft:true,is_scheduled:true,schedule_date:'2030-01-01',schedule_time:'12:00',video_path:'fixture.mp4',name:'Fixture'}]; exportRecordIndex=new Map([['exp-1',{export_id:'exp-1'}]]); selectedClipKeys.clear();selectedClipKeys.add(selectionKey(allClips[0])); filterAndRenderClips();''')
+            sidebar.evaluate('''allClips=[{id:'draft-1',export_id:'exp-1',caption:'Same product review NEW',tiktok_caption:'Same product review NEW',is_draft:true,publish_draft:true,is_scheduled:true,schedule_date:'__NEAR__',schedule_time:'12:00',video_path:'fixture.mp4',name:'Fixture'}]; exportRecordIndex=new Map([['exp-1',{export_id:'exp-1'}]]); selectedClipKeys.clear();selectedClipKeys.add(selectionKey(allClips[0])); filterAndRenderClips();'''.replace('__NEAR__', NEAR_DATE))
             for label, error, reply in [
                 ('worker disconnected', True, None),
                 ('missing results', False, {'success': True, 'results': []}),
@@ -225,11 +228,11 @@ def main():
             sidebar.evaluate("document.getElementById('clipSetupCaption').value='Feature works well';document.getElementById('clipSetupIntent').value='schedule';document.getElementById('clipSetupIntent').dispatchEvent(new Event('change'));document.getElementById('clipSetupForm').requestSubmit()")
             opener.wait_for_timeout(250)
             check('missing schedule cannot silently become a live post', sidebar.evaluate('preparePayloads.length===0'))
-            sidebar.evaluate("document.getElementById('clipSetupDate').value='2030-01-01';document.getElementById('clipSetupTime').value='12:00';exportRecordIndex=new Map([['exp-1',{export_id:'exp-1'}]]);globalThis.rejectPrepare=true")
+            sidebar.evaluate("document.getElementById('clipSetupDate').value='"+NEAR_DATE+"';document.getElementById('clipSetupTime').value='12:00';exportRecordIndex=new Map([['exp-1',{export_id:'exp-1'}]]);globalThis.rejectPrepare=true")
             sidebar.click('#clipSetupPrepare')
             opener.wait_for_timeout(500)
             check('actual Prepare click retains the form and shows backend rejection inline', sidebar.evaluate("document.querySelector('.clip-setup-dialog')?.open===true && document.getElementById('clipSetupError').textContent.includes('fixture_prepare_rejected') && activeClip===null"))
-            check('rejected preparation preserves saved fields and permits retry', sidebar.evaluate("document.getElementById('clipSetupCaption').value==='Feature works well' && document.getElementById('clipSetupDate').value==='2030-01-01' && !document.getElementById('clipSetupPrepare').disabled"))
+            check('rejected preparation preserves saved fields and permits retry', sidebar.evaluate("document.getElementById('clipSetupCaption').value==='Feature works well' && document.getElementById('clipSetupDate').value==='"+NEAR_DATE+"' && !document.getElementById('clipSetupPrepare').disabled"))
             screenshot = sidebar.call('Page.captureScreenshot', {'format':'png'})
             (ROOT / '.tmp' / 'autopost-prepare-error.png').write_bytes(base64.b64decode(screenshot['data']))
             sidebar.evaluate("globalThis.rejectPrepare=false;globalThis.prepareResponseGate=new Promise(resolve=>globalThis.releasePrepareResponse=resolve);exportRecordIndex=new Map([['exp-1',{export_id:'exp-1'}]])")

@@ -230,6 +230,19 @@ class AIBridge:
                 "cover_text": "ข้อความบนภาพปก สั้นมาก อ่านออกในครึ่งวินาที",
             },
         },
+        # A caption the posting guard refused (price/discount wording): rewrite it, same meaning and tone.
+        "caption_fix": {
+            "label": "แก้แคปชั่น TikTok ที่มีคำเรื่องราคา/ส่วนลด ให้ความหมาย อารมณ์ และความยาวใกล้เดิม",
+            "required_context": ["caption", "product_name", "forbidden_found"],
+            "schema_hint": {
+                "caption": (
+                    "แคปชั่นเดิมที่เขียนใหม่ทั้งประโยค: ห้ามมีคำว่า ราคา ลดราคา ส่วนลด ร้อยละ ตัวเลขที่ตามด้วยบาท/฿/% "
+                    "หรือ 'ลดเหลือ/เหลือแค่ + ตัวเลข' · ใช้คำอย่าง คุ้ม คุ้มเกินตัว ของล็อตแรก รีบเก็บ แทนได้ · "
+                    "คงอีโมจิและ CTA ชี้ตะกร้าเดิม · ชื่อแบรนด์/รุ่น/ศัพท์เทคนิคเขียนเป็นภาษาอังกฤษตามเดิม · "
+                    "ห้ามใช้ ... หรือ … · ห้ามมีแฮชแท็ก"
+                ),
+            },
+        },
     }
 
     STYLE_RULES = """กติกาการเขียน (ห้ามข้าม):
@@ -497,6 +510,10 @@ __LENGTH_RULES__
                 raise ValueError("ต้องมี key 'caption'")
             if not isinstance(data.get("hashtags"), list):
                 raise ValueError("'hashtags' ต้องเป็น list")
+
+        elif task == "caption_fix":
+            if not isinstance(data.get("caption"), str) or not data["caption"].strip():
+                raise ValueError("ต้องมี key 'caption' เป็นข้อความ")
 
         elif task == "product_enrich":
             if not data.get("product_name"):

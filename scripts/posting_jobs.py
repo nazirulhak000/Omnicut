@@ -94,11 +94,16 @@ class PostingJobStore:
             raise ChannelError(404, "resource_not_found", "ไม่พบงานโพสต์ของช่องนี้")
         return row
 
-    def pending(self, channel_id):
+    def pending_candidates(self, channel_id):
+        """Every job the extension could still pick up, oldest first."""
         rows = self.table.scoped_load(channel_id)
         eligible = [r for r in rows if r["status"] in {"prepared", "claimed"} and not r.get("publish_attempted_at")
                     and r.get("prepare_effects_applied", True)]
-        return min(eligible, key=lambda r: (r["created_at"], r["id"])) if eligible else None
+        return sorted(eligible, key=lambda r: (r["created_at"], r["id"]))
+
+    def pending(self, channel_id):
+        candidates = self.pending_candidates(channel_id)
+        return candidates[0] if candidates else None
 
     def _audit(self, row, event, **metadata):
         row.setdefault("audit", []).append({"event": event, "at": self.clock(), **metadata})
@@ -123,15 +128,22 @@ class PostingJobStore:
             existing_export = next((r for r in rows if r["export_id"] == frozen["export_id"]
                                     and r["status"] != "cancelled"
                                     and not (draft_source and r["id"] == draft_source and r["status"] == "draft_saved")), None)
+            superseded = []
             if existing_export:
                 now = self.clock()
                 if (not existing_export.get("publish_attempted_at")
                         and existing_export["status"] == "claimed"
                         and existing_export.get("lease_expires_at")
                         and existing_export["lease_expires_at"] <= now):
-                    existing_export["status"] = "cancelled"
-                    existing_export["updated_at"] = now
+                    existing_export.update(status="cancelled", updated_at=now, revision=existing_export["revision"] + 1)
                     self._audit(existing_export, "cancel_expired_abandoned")
+                    superseded.append(deepcopy(existing_export))
+                elif existing_export["status"] == "prepared" and not existing_export.get("publish_attempted_at"):
+                    # Nobody holds it yet (never claimed): the newer preparation of the same export replaces it,
+                    # instead of a 409 that the side panel used to "fix" by clearing whatever /pending returned.
+                    existing_export.update(status="cancelled", updated_at=now, revision=existing_export["revision"] + 1)
+                    self._audit(existing_export, "superseded_by_new_prepare")
+                    superseded.append(deepcopy(existing_export))
                 else:
                     raise ChannelError(409, "posting_export_already_prepared", "คลิปนี้มีงานโพสต์อยู่แล้ว ต้องตรวจผลเดิมก่อน")
             now = self.clock()
@@ -145,7 +157,10 @@ class PostingJobStore:
                    "prepare_effects_applied": not frozen.get("queue_id")}
             self._audit(row, "prepare")
             rows.append(row)
-            return deepcopy(row)
+            result = deepcopy(row)
+            # Not persisted: the caller resets the queue rows that still point at the replaced jobs.
+            result["superseded_jobs"] = superseded
+            return result
 
     def _find(self, rows, job_id):
         row = next((r for r in rows if r["id"] == job_id), None)
@@ -279,8 +294,10 @@ class PostingJobStore:
                 return deepcopy(row)
             self._fence(row, owner, token, revision, allow_expired=reconcile)
             if row["status"] not in ({"claimed", "publishing", "confirmation_unknown"} if reconcile else {"publishing"}):
-                if not (reconcile and kind in {"manual_user_confirmation", "user_confirmed"} and row["status"] == "prepared"):
-                    raise ChannelError(409, "posting_reconciliation_required", "สถานะงานไม่รับผลนี้ ต้องตรวจงานเดิมก่อน")
+                raise ChannelError(409, "posting_reconciliation_required", "สถานะงานไม่รับผลนี้ ต้องตรวจงานเดิมก่อน")
+            if not row.get("publish_attempted_at"):
+                # Nothing was ever pressed for this job: no evidence (manual or not) can make it a post.
+                raise ChannelError(409, "posting_not_attempted", "งานนี้ยังไม่เคยกดโพสต์ จึงบันทึกว่าโพสต์แล้วไม่ได้")
             if row["status"] == "confirmation_unknown" and not reconcile:
                 raise ChannelError(409, "posting_reconciliation_required", "ต้องยืนยันผลผ่านการตรวจสอบงานเดิม")
             check = account_check(channel_id, row["target_handle"], source_account, strict=row["strict_mode"])
@@ -288,7 +305,6 @@ class PostingJobStore:
                 raise ChannelError(409, "account_handle_mismatch", "บัญชีของผลลัพธ์ต่างจากบัญชีขณะกดโพสต์")
             now = self.clock()
             row.update(status=outcome, receipt=receipt, receipt_hash=receipt_hash,
-                       publish_attempted_at=row.get("publish_attempted_at") or now,
                        attempt=row.get("attempt") or 1,
                        attempted_source_account=row.get("attempted_source_account") or check["source_account"],
                        revision=row["revision"] + 1, updated_at=now)
@@ -313,9 +329,10 @@ class PostingJobStore:
             row = self._find(rows, job_id)
             if row["status"] in {"cancelled", "published"}:
                 return deepcopy(row)
-            if row["status"] != "prepared":
+            # awaiting_post = parked for the phone (never pressed on the desktop): as cancellable as a prepared job
+            if row["status"] not in {"prepared", "awaiting_post"} or row.get("publish_attempted_at"):
                 raise ChannelError(409, "posting_job_busy", "ยกเลิกงานที่รับหรือกดโพสต์แล้วไม่ได้ ต้องตรวจผลเดิมก่อน")
-            row.update(status="cancelled", revision=row["revision"] + 1)
+            row.update(status="cancelled", revision=row["revision"] + 1, updated_at=self.clock())
             self._audit(row, "cancel")
             return deepcopy(row)
 

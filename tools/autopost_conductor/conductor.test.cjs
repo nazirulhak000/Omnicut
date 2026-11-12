@@ -9,7 +9,7 @@ const { createStorage, urlMatches } = require('./chrome_shim');
 const { readApiKey } = require('./api');
 const { parseArgs } = require('./run');
 
-const FUTURE = '2030-01-01T10:00';
+const FUTURE = '2026-11-12T10:00';   // within TikTok's 10-day window of the tests' 2026-11-09 clock
 const item = (over = {}) => ({
   id: 'q1', status: 'planned', export_id: 'e1', video_path: 'a.mp4', scheduled_at: FUTURE,
   tiktok_product_id: '123', caption: 'พัดลมพกพา', hashtags: '#fan', hook_title: 'hook', ...over,
@@ -38,7 +38,7 @@ function fakeDeps({ replies = {}, prepare, pending, onSend } = {}) {
 
 test('clipFromQueueItem splits scheduled_at into date and time', () => {
   const clip = clipFromQueueItem(item());
-  assert.equal(clip.schedule_date, '2030-01-01');
+  assert.equal(clip.schedule_date, '2026-11-12');
   assert.equal(clip.schedule_time, '10:00');
 });
 
@@ -51,11 +51,13 @@ test('skipReason: past slot, no product, price caption, no schedule', () => {
   assert.equal(skipReason(clipFromQueueItem(item({ caption: 'ต้องมี! {product_name} ดีมาก' })), { now }), 'placeholder_in_caption');
   assert.equal(skipReason(clipFromQueueItem(item({ caption: 'ลด 50% วันนี้' })), { now, allowPriceCaption: true }), '');
   assert.equal(skipReason(clipFromQueueItem(item({ scheduled_at: '' })), { now }), 'no_schedule');
+  assert.equal(skipReason(clipFromQueueItem(item({ scheduled_at: '2026-11-25T10:00' })), { now }), 'slot_too_far');
+  assert.equal(skipReason(clipFromQueueItem(item({ scheduled_at: '2026-11-12T10:03' })), { now }), 'slot_not_on_step');
 });
 
 test('pickClips keeps only planned/ready items, sorted, limited, with skip reasons', async () => {
   const api = { get: async route => route.includes('schedule-queue') ? ({ ok: true, data: { items: [
-    item({ id: 'b', scheduled_at: '2030-01-02T10:00' }), item({ id: 'a' }),
+    item({ id: 'b', scheduled_at: '2026-11-13T10:00' }), item({ id: 'a' }),
     item({ id: 'done', status: 'posted' }), item({ id: 'np', tiktok_product_id: '' }),
   ] } }) : ({ ok: false }) };
   const { clips, skipped } = await pickClips(api, { limit: 1, now: new Date('2026-11-09').getTime() });
@@ -457,7 +459,7 @@ test('schedule mode is unchanged by the draft option (Post button, schedule in t
   });
   const res = await runClip(deps, clipFromQueueItem(item()), { mode: 'schedule' });
   assert.equal(res.status, 'scheduled');
-  assert.equal(preparedBody.schedule_date, '2030-01-01');
+  assert.equal(preparedBody.schedule_date, '2026-11-12');
   assert.ok(!calls.includes('save-draft-only'));
 });
 

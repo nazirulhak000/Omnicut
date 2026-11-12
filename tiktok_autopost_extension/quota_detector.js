@@ -300,15 +300,23 @@
   }
 
   // rows: array of { ts } (or a Map key -> ts). count is null when no row had a readable badge.
-  function summarizeRows(rows, nowMs = Date.now()) {
+  // complete = the whole scheduled part was seen: a published row older than 31 days was reached, or the caller
+  // confirmed the end of the list (scrolled to the bottom and no new row appeared after a second wait).
+  function summarizeRows(rows, nowMs = Date.now(), { endConfirmed = false } = {}) {
     const list = rows instanceof Map ? Array.from(rows.values()).map((ts) => ({ ts })) : rows;
     let scheduled = 0;
-    let complete = false;
+    let complete = Boolean(endConfirmed && list.length);
     for (const row of list) {
       if (row.ts > nowMs) scheduled += 1;
       else if (row.ts < nowMs - 31 * DAY_MS) complete = true;
     }
     return { count: list.length ? scheduled : null, rowsParsed: list.length, complete };
+  }
+
+  // The count a caller may act on: only a complete scan. A partial one (lazy-loaded rows not reached yet) undercounts
+  // and would let a batch schedule past TikTok's cap.
+  function trustedScheduledCount(summary) {
+    return summary && summary.complete && typeof summary.count === 'number' ? summary.count : null;
   }
 
   // One-shot variant for a text that already holds the whole list (tests, non-virtualized pages).
@@ -376,6 +384,7 @@
     parseBadgeTime,
     parseListRows,
     summarizeRows,
+    trustedScheduledCount,
     countScheduledFromListText,
     applyScheduledCount,
     parseDraftCountFromText,

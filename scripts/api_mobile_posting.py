@@ -23,7 +23,7 @@ from scripts.channel_scope import (
 )
 from scripts.channel_store import ChannelError
 from scripts.export_registry import ExportRegistry
-from scripts.posting_jobs import PostingJobStore
+from scripts.posting_jobs import PostingJobStore, fingerprint
 from scripts.schedule_store import ScheduleQueueStore, now_iso
 
 PROJECT_TZ = ZoneInfo("Asia/Bangkok")
@@ -151,7 +151,8 @@ def _serialize_queue_item(row: Dict[str, Any], now: Optional[dt.datetime] = None
     if isinstance(row.get("hashtags"), list):
         hashtags = " ".join(str(t) for t in row["hashtags"] if t)
 
-    cover_raw = row.get("cover_url") or row.get("cover_path") or ""
+    # the frozen snapshot path is the truth (what the extension posts); cover_url is only a legacy fallback
+    cover_raw = row.get("cover_path") or row.get("cover_url") or ""
     cover_9x16_url = _media_url_from_path(row.get("cover_9x16_url") or cover_raw)
     cover_3x4_url = _media_url_from_path(row.get("cover_3x4_url") or _derive_cover_3x4(str(cover_raw)))
     video_url = _media_url_from_path(row.get("video_url") or video_path)
@@ -416,22 +417,30 @@ def _sync_posting_job_on_handoff(
     export_id: Optional[str],
     claim_owner: str,
 ) -> None:
-    """Mark any prepared desktop extension job as awaiting_post so /pending skips it."""
+    """Mark any prepared desktop extension job as awaiting_post so /pending skips it.
+
+    Raises instead of swallowing: if the desktop job cannot be parked, the phone must not take the clip (the
+    extension could still claim and post it -> double post)."""
     eff_channel = channel_id or config.DEFAULT_CHANNEL_ID
-    try:
-        store = PostingJobStore(config.BASE_DIR)
-        with store.table.scoped_mutate(eff_channel) as rows:
-            for row in rows:
-                matches_queue = bool(queue_id and row.get("queue_id") == queue_id)
-                matches_export = bool(export_id and row.get("export_id") == export_id)
-                if (matches_queue or matches_export) and row.get("status") in {"prepared", "claimed"}:
-                    if not row.get("publish_attempted_at"):
-                        row["previous_status"] = row.get("status", "prepared")
-                        row["status"] = "awaiting_post"
-                        row["lease_owner"] = claim_owner
-                        row["updated_at"] = store.clock()
-    except Exception:
-        pass
+    store = PostingJobStore(config.BASE_DIR)
+    with store.table.scoped_mutate(eff_channel) as rows:
+        now = store.clock()
+        for row in rows:
+            matches_queue = bool(queue_id and row.get("queue_id") == queue_id)
+            matches_export = bool(export_id and row.get("export_id") == export_id)
+            if not (matches_queue or matches_export) or row.get("status") not in {"prepared", "claimed"}:
+                continue
+            if row.get("publish_attempted_at"):
+                continue
+            if row.get("status") == "claimed" and (row.get("lease_expires_at") or 0) > now:
+                raise HTTPException(status_code=409, detail="Extension บนคอมกำลังทำคลิปนี้อยู่ มือถือจึงรับไปโพสต์ไม่ได้")
+            row["previous_status"] = row.get("status", "prepared")
+            row["status"] = "awaiting_post"
+            row["lease_owner"] = claim_owner
+            row["lease_token"] = None
+            row["lease_expires_at"] = None
+            row["revision"] = row.get("revision", 1) + 1
+            row["updated_at"] = now
     try:
         from scripts import api_tiktok_autopost as autopost
         pending = getattr(autopost, "_pending", None)
@@ -458,7 +467,10 @@ def _sync_posting_job_on_abandon(
                 matches_queue = bool(queue_id and row.get("queue_id") == queue_id)
                 matches_export = bool(export_id and row.get("export_id") == export_id)
                 if (matches_queue or matches_export) and row.get("status") == "awaiting_post":
-                    row["status"] = row.pop("previous_status", "cancelled")
+                    # a claim that was parked goes back to `prepared` (its lease is gone), never to a live claim
+                    previous = row.pop("previous_status", "cancelled")
+                    row["status"] = "prepared" if previous == "claimed" else previous
+                    row["revision"] = row.get("revision", 1) + 1
                     row["lease_owner"] = None
                     row["lease_token"] = None
                     row["lease_expires_at"] = None
@@ -498,6 +510,10 @@ def _sync_posting_job_on_confirm(
                         "evidence_url": evidence_url,
                         "confirmed_at": now_iso(),
                     }
+                    # same integrity fields as an extension receipt, so receipt repair / observations can verify it
+                    row["receipt_hash"] = fingerprint(row["receipt"])
+                    row["publish_attempted_at"] = row.get("publish_attempted_at") or store.clock()
+                    row["revision"] = row.get("revision", 1) + 1
                     row["updated_at"] = store.clock()
     except Exception:
         logger.exception("mobile confirm: could not finalize the posting job of queue item %s", queue_id)
@@ -643,16 +659,22 @@ def handoff_to_mobile(
         row["claim_expires_at"] = expires.isoformat(timespec="seconds")
         row["updated_at"] = now_iso()
 
-    updated = ScheduleQueueStore.update_item(req.queue_id, apply, **_kw(channel_id))
-    if updated is None:
+    current = ScheduleQueueStore.get_item(req.queue_id, **_kw(channel_id))
+    if current is None:
         raise HTTPException(status_code=404, detail="ไม่พบรายการในคิว")
-
-    _sync_posting_job_on_handoff(
-        channel_id,
-        req.queue_id,
-        updated.get("export_id"),
-        phone_owner,
-    )
+    if current.get("status") == "posted":
+        raise HTTPException(status_code=409, detail="รายการนี้ถูกโพสต์ไปแล้ว")
+    _refuse_extension_owned(current)
+    # park the desktop job FIRST: if that fails the phone never holds the clip
+    _sync_posting_job_on_handoff(channel_id, req.queue_id, current.get("export_id"), phone_owner)
+    try:
+        updated = ScheduleQueueStore.update_item(req.queue_id, apply, **_kw(channel_id))
+    except Exception:
+        _sync_posting_job_on_abandon(channel_id, req.queue_id, current.get("export_id"))
+        raise
+    if updated is None:
+        _sync_posting_job_on_abandon(channel_id, req.queue_id, current.get("export_id"))
+        raise HTTPException(status_code=404, detail="ไม่พบรายการในคิว")
     serialized = _serialize_queue_item(updated, now)
     return {**serialized, "item": serialized}
 

@@ -13,13 +13,17 @@ from scripts.hyperframes_publication import apply_gadget_publication
 from scripts.posting_jobs import PostingJobStore
 from scripts.publication_effects import PublicationEffects
 from scripts.publication_observations import PublicationObservationStore
+import datetime as _dt
+
+# TikTok accepts a slot at most 10 days ahead (api_tiktok_autopost._check_schedule_window)
+_TOMORROW = (_dt.datetime.now(_dt.timezone(_dt.timedelta(hours=7))) + _dt.timedelta(days=1)).strftime("%Y-%m-%d")
 
 
 def observed(context, *, slot=False, accepted_id=True):
     client, service, _, _ = context
     repo, source, project, record, artifact = candidate(context, slot=slot, slot_ready=slot)
     approve(context, source, artifact)
-    response = client.post("/api/tiktok-autopost/prepare", json={**preparation(record), "schedule_date": "2035-10-12", "schedule_time": "09:00"})
+    response = client.post("/api/tiktok-autopost/prepare", json={**preparation(record), "schedule_date": _TOMORROW, "schedule_time": "09:00"})
     assert response.status_code == 200, response.text
     jobs = PostingJobStore(service.root)
     job = jobs.get("main", response.json()["job_id"])

@@ -253,3 +253,13 @@ test('applyDraftCount sets remaining drafts and flags a full draft quota', () =>
   assert.equal(detector.applyDraftCount(base, 35).remainingDraft, 0);
   assert.equal(detector.applyDraftCount(base, null), base);
 });
+
+test('B12: a partial scan is never a trusted count; an end confirmed after a second wait is', () => {
+  const rows = [{ ts: NOW + 3600e3 }, { ts: NOW + 7200e3 }];
+  const partial = detector.summarizeRows(rows, NOW);
+  assert.equal(partial.count, 2);
+  assert.equal(detector.trustedScheduledCount(partial), null);
+  const ended = detector.summarizeRows(rows, NOW, { endConfirmed: true });
+  assert.equal(detector.trustedScheduledCount(ended), 2);
+  assert.equal(detector.trustedScheduledCount(detector.summarizeRows([], NOW, { endConfirmed: true })), null);
+});

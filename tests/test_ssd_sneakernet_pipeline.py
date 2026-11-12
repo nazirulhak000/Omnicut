@@ -291,9 +291,11 @@ def test_category_3_and_4_portable_mini_server_and_extension(sandbox_env):
             assert claimed["status"] == "claimed"
 
         # 4.4 POST /api/tiktok-autopost/acknowledge (Simulate upload success)
+        # a result is only accepted for the claimed job with its lease token and an explicit outcome
         ack_payload = json.dumps({
             "job_id": job_id,
-            "queue_id": queue_items[0]["id"],
+            "lease_token": claimed["lease_token"],
+            "outcome": "published",
             "post_url": "https://www.tiktok.com/@omnicut_official/video/7391234567890",
             "platform_id": "7391234567890",
         }).encode("utf-8")
@@ -530,8 +532,10 @@ def test_100_point_scoring_rubric_evaluation(sandbox_env):
         with urllib.request.urlopen(claim_req) as resp:
             if resp.status == 200:
                 scores["cat4_extension_parity"] += 5
+            claimed = json.loads(resp.read().decode("utf-8"))
 
-        ack_payload = json.dumps({"job_id": job["job_id"], "queue_id": q[0]["id"], "post_url": "https://tiktok.com/123"}).encode("utf-8")
+        ack_payload = json.dumps({"job_id": job["job_id"], "lease_token": claimed["lease_token"], "outcome": "published",
+                                  "post_url": "https://tiktok.com/123"}).encode("utf-8")
         ack_req = urllib.request.Request(f"{base_url}/api/tiktok-autopost/acknowledge", data=ack_payload, headers={"Content-Type": "application/json"})
         with urllib.request.urlopen(ack_req) as resp:
             if resp.status == 200:

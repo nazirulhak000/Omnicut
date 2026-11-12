@@ -201,7 +201,9 @@ export function TaskProvider({ children, onNavigateTab, onSelectProductForFlow }
             playCompletionChime();
             setNotificationToast({
               type: 'success',
-              title: 'งานเสร็จสมบูรณ์',
+              // A production chain that made some clips and failed others is
+              // "completed" on the backend but must not read as a clean success.
+              title: t.result?.partial ? 'งานเสร็จบางส่วน' : 'งานเสร็จสมบูรณ์',
               message: t.step_label || t.title,
               task: t,
               time: Date.now()

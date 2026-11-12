@@ -5,7 +5,7 @@ import { Modal, Badge } from './ui';
 import PaginationControls from './PaginationControls';
 import PublicationReviewModal from './PublicationReviewModal.jsx';
 import { useChannel } from '../context/ChannelContext.jsx';
-import { commitRescheduleOverdue, resolveUnpostedQueue, commitScheduleAutofill, copyScheduleTemplate, createScheduleQueue, getScheduleQueue, getScheduleTemplate, prepareScheduleQueue, previewRescheduleOverdue, previewScheduleAutofill, removeScheduleQueue, resetScheduleTemplate, saveScheduleTemplate, updateScheduleQueue } from '../api';
+import { commitFixPriceCaptions, commitRescheduleOverdue, previewFixPriceCaptions, resolveUnpostedQueue, commitScheduleAutofill, copyScheduleTemplate, createScheduleQueue, getScheduleQueue, getScheduleTemplate, prepareScheduleQueue, previewRescheduleOverdue, previewScheduleAutofill, removeScheduleQueue, resetScheduleTemplate, saveScheduleTemplate, updateScheduleQueue } from '../api';
 import { addDays, buildScheduleIso, dateOnly, DEFAULT_PRIMARY_TIMES, estimateQueueCoverage, groupScheduleItems, localParts, mergeScheduleDraft, nextTemplateSlotAfterLatest, parseDateOnly, pickPreparableItems, prepareAllConfirmText, prepareAllSummary, primaryTimeOptions, PROJECT_TIME_ZONE, scheduleTimeOptions, templateForWeek, toLocalDateTime, WEEKDAY_LABELS, weekStartForDate } from '../lib/scheduleQueue';
 import { getStylePreset } from '../lib/stylePresetCatalog';
 import { useChannelDraft } from '../hooks/useChannelDraft.js';
@@ -163,6 +163,12 @@ function defaultTemplateDraft(weekStart) {
   ) }, weekStart);
 }
 
+// "แก้อัตโนมัติแล้วบอก": the server rewrote captions with price wording while queueing; say how many.
+function captionFixNote(response) {
+  const fixed = (response?.items || []).filter((row) => row.caption_fix).length;
+  return fixed ? ` · แก้ caption ที่ติดราคาให้ ${fixed} คลิป` : '';
+}
+
 export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpenCoverStudio, showToast }) {
   const channel = useChannel();
   const [publicationReview, setPublicationReview] = useState(null);
@@ -186,6 +192,9 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   const [templateBusy, setTemplateBusy] = useState(false);
   const [autofillOpen, setAutofillOpen] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [captionFixOpen, setCaptionFixOpen] = useState(false);
+  const [captionFixPlan, setCaptionFixPlan] = useState(null);
+  const [captionFixBusy, setCaptionFixBusy] = useState(false);
   const [reschedulePlan, setReschedulePlan] = useState(null);
   const [rescheduleBusy, setRescheduleBusy] = useState(false);
   const [autofillRange, setAutofillRange] = useState('today');
@@ -466,9 +475,9 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
     if (!clip) throw new Error('คลิปที่เลือกเปลี่ยนแล้ว กรุณาเลือกคลิปใหม่');
     setSaving(true);
     try {
-      await createScheduleQueue(clipToPayload(clip, buildScheduleIso(value.date, value.time)));
+      const created = await createScheduleQueue(clipToPayload(clip, buildScheduleIso(value.date, value.time)));
       setSingleOpen(false);
-      showToast?.('เพิ่มคลิปลงคิวแล้ว');
+      showToast?.(`เพิ่มคลิปลงคิวแล้ว${captionFixNote(created)}`);
       await loadQueue();
     } catch (error) {
       showToast?.(error.response?.data?.detail || error.message || 'เพิ่มคิวไม่สำเร็จ', 'error');
@@ -634,9 +643,9 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
     });
     setSaving(true);
     try {
-      await createScheduleQueue({ items });
+      const created = await createScheduleQueue({ items });
       setBulkOpen(false);
-      showToast?.(`เพิ่มคิว ${items.length} คลิปแล้ว`);
+      showToast?.(`เพิ่มคิว ${items.length} คลิปแล้ว${captionFixNote(created)}`);
       await loadQueue();
     } catch (error) {
       showToast?.(error.response?.data?.detail || error.message || 'เพิ่มคิวชุดไม่สำเร็จ รายการเดิมยังอยู่ครบ', 'error');
@@ -994,10 +1003,11 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
     if (!autofillPreview?.items?.length) return;
     setAutofillBusy(true);
     try {
-      await commitScheduleAutofill({ items: autofillPreview.items });
+      // the preview's state token: the save is refused if the queue changed since this preview (required in strict mode)
+      const created = await commitScheduleAutofill({ items: autofillPreview.items, preview_revision: autofillPreview.preview_revision });
       setAutofillOpen(false);
       setAutofillPreview(null);
-      showToast?.(`จัดคิวอัตโนมัติ ${autofillPreview.items.length} คลิปแล้ว`);
+      showToast?.(`จัดคิวอัตโนมัติ ${autofillPreview.items.length} คลิปแล้ว${captionFixNote(created)}`);
       await loadQueue();
     } catch (error) { showToast?.(errorText(error, 'บันทึก auto-fill ไม่สำเร็จ อาจมีคิวซ้อนกัน'), 'error'); }
     finally { setAutofillBusy(false); }
@@ -1019,6 +1029,8 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
     setBulkOpen(true);
   };
   const overdueCount = useMemo(() => queue.filter((row) => row.needs_reschedule).length, [queue]);
+  // rows the posting guard refuses for price wording (server flag `caption_blocked`)
+  const captionBlockedCount = useMemo(() => queue.filter((row) => row.caption_blocked).length, [queue]);
   const shortTime = (iso) => String(iso || '').replace('T', ' ').slice(0, 16);
 
   // Clips whose time already passed get new template slots. Preview first; the server re-checks every slot when it applies them.
@@ -1060,6 +1072,36 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
       showToast?.(error.response?.data?.detail || error.message, 'error');
     } finally {
       setRescheduleBusy(false);
+    }
+  };
+
+  const openCaptionFix = async () => {
+    setCaptionFixOpen(true);
+    setCaptionFixPlan(null);
+    setCaptionFixBusy(true);
+    try {
+      setCaptionFixPlan(await previewFixPriceCaptions());
+    } catch (error) {
+      showToast?.(error.response?.data?.detail || error.message, 'error');
+      setCaptionFixOpen(false);
+    } finally {
+      setCaptionFixBusy(false);
+    }
+  };
+
+  const confirmCaptionFix = async () => {
+    const items = captionFixPlan?.items || [];
+    if (!items.length) return;
+    setCaptionFixBusy(true);
+    try {
+      const result = await commitFixPriceCaptions(items);
+      showToast?.(`แก้ caption แล้ว ${result.count} คลิป${result.angles_updated ? ` · อัปเดตมุมต้นทาง ${result.angles_updated} มุม` : ''}`);
+      setCaptionFixOpen(false);
+      await loadQueue();
+    } catch (error) {
+      showToast?.(error.response?.data?.detail || error.message, 'error');
+    } finally {
+      setCaptionFixBusy(false);
     }
   };
 
@@ -1117,6 +1159,11 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
               {overdueCount > 0 && (
                 <button type="button" onClick={openReschedule} className="min-h-11 px-3.5 py-2 rounded-xl border border-red-400/30 bg-red-500/10 text-red-200 text-xs font-bold flex items-center gap-1.5 hover:bg-red-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300">
                   <Clock className="w-4 h-4" />จัดเวลาใหม่ที่เลยกำหนด ({overdueCount})
+                </button>
+              )}
+              {captionBlockedCount > 0 && (
+                <button type="button" onClick={openCaptionFix} className="min-h-11 px-3.5 py-2 rounded-xl border border-amber-400/30 bg-amber-500/10 text-amber-100 text-xs font-bold flex items-center gap-1.5 hover:bg-amber-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300">
+                  <AlertTriangle className="w-4 h-4" />แก้ caption ที่ติดราคา ({captionBlockedCount})
                 </button>
               )}
               {(preparableCount > 0 || prepareAllProgress) && (
@@ -2072,6 +2119,37 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
         </div>
       </Modal>
 
+      <Modal isOpen={captionFixOpen} onClose={() => setCaptionFixOpen(false)} title="แก้ caption ที่ติดราคา" subtitle="AI เขียนใหม่ให้ความหมายเดิมโดยไม่มีคำเรื่องราคา/ส่วนลด · ดูก่อนบันทึก · มุมต้นทางที่ยังไม่โพสต์ได้ caption ใหม่ด้วย" maxWidth="max-w-3xl">
+        <div className="space-y-3">
+          {captionFixBusy && !captionFixPlan && <p className="text-xs text-slate-300">AI กำลังเขียน caption ใหม่...</p>}
+          {captionFixPlan && (
+            <>
+              <p className="text-xs text-slate-300">แก้ได้ {captionFixPlan.items.length} คลิป{captionFixPlan.locked_count ? ` · อีก ${captionFixPlan.locked_count} คลิปส่งให้ Extension แล้ว ต้องล้างงานใน Extension ก่อนจึงจะแก้ได้` : ''}</p>
+              <ul className="max-h-[55vh] overflow-y-auto divide-y divide-white/[0.06] rounded-xl border border-white/[0.08]">
+                {captionFixPlan.items.map((row) => (
+                  <li key={row.id} className="space-y-1 px-3 py-2.5 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="min-w-0 flex-1 truncate font-bold text-white">{row.product_name || row.hook_title || 'ไม่ระบุสินค้า'}</span>
+                      <span className="text-slate-400 tabular-nums">{shortTime(row.scheduled_at)}</span>
+                      <span className={row.method === 'ai' ? 'text-cyan-300' : 'text-amber-300'}>{row.method === 'ai' ? 'AI เขียนใหม่' : row.method === 'hashtags' ? 'ตัดแฮชแท็ก' : 'ประโยคกลาง'}</span>
+                    </div>
+                    <p className="text-red-200/80 line-through break-words">{row.from_caption}</p>
+                    <p className="text-emerald-200 break-words">{row.caption}</p>
+                    {row.from_hashtags !== row.hashtags && <p className="text-slate-400 break-words">แฮชแท็ก: <span className="line-through">{row.from_hashtags}</span> → {row.hashtags}</p>}
+                  </li>
+                ))}
+              </ul>
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => setCaptionFixOpen(false)} className="min-h-11 px-3.5 py-2 rounded-xl border border-white/[0.12] text-slate-200 text-xs font-bold">ยกเลิก</button>
+                <button type="button" onClick={confirmCaptionFix} disabled={captionFixBusy || !captionFixPlan.items.length} className="min-h-11 px-3.5 py-2 rounded-xl bg-cyan-400 text-slate-950 text-xs font-black disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300">
+                  {captionFixBusy ? 'กำลังบันทึก...' : `บันทึก caption ใหม่ ${captionFixPlan.items.length} คลิป`}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </Modal>
+
       <Modal isOpen={autofillOpen} onClose={() => setAutofillOpen(false)} title="จัดคิวอัตโนมัติ" subtitle="ดูตัวอย่างก่อนบันทึก · จัดเฉพาะในช่วงวันที่เลือก · ระบบจะใช้คลิปที่ยังไม่อยู่ในคิวเท่านั้น" maxWidth="max-w-5xl">
         <div className="space-y-4">
           <div className="flex flex-wrap gap-2"><button type="button" onClick={() => chooseAutofillRange('today')} className={`px-3 py-2 rounded-xl text-xs font-bold ${autofillRange === 'today' ? 'bg-cyan-400 text-slate-950' : 'border border-white/[0.1] text-slate-200'}`}>วันนี้</button><button type="button" onClick={() => chooseAutofillRange('week')} className={`px-3 py-2 rounded-xl text-xs font-bold ${autofillRange === 'week' ? 'bg-cyan-400 text-slate-950' : 'border border-white/[0.1] text-slate-200'}`}>สัปดาห์นี้</button><button type="button" onClick={() => chooseAutofillRange('custom')} className={`px-3 py-2 rounded-xl text-xs font-bold ${autofillRange === 'custom' ? 'bg-cyan-400 text-slate-950' : 'border border-white/[0.1] text-slate-200'}`}>กำหนดช่วงเอง</button></div>
@@ -2080,6 +2158,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
           {(autofillDateError || autofillLimitError) && <p role="alert" className="text-xs text-red-200">{autofillDateError || autofillLimitError}</p>}
           <div className="flex items-center justify-between gap-3"><p className="text-[11px] text-slate-500">จัดเฉพาะช่วงวันที่เลือกเท่านั้น · ข้ามเวลาที่ผ่านไปแล้วและเวลาที่ถูกใช้ไปแล้ว · ถ้าช่องไม่พอ ระบบจะแจ้งจำนวนที่เหลือ</p><button type="button" disabled={autofillBusy || !availableClips.length || Boolean(autofillDateError || autofillLimitError)} onClick={runAutofillPreview} className="px-4 py-2 rounded-xl bg-cyan-400 text-slate-950 text-xs font-black flex items-center gap-1.5 disabled:opacity-50"><Shuffle className="w-4 h-4" />{autofillBusy ? 'กำลังคำนวณ' : 'สร้างตัวอย่างคิว'}</button></div>
           <div className="rounded-2xl border border-cyan-400/15 bg-cyan-400/[0.03] p-3 max-h-96 overflow-y-auto">{!autofillPreview ? <p className="py-12 text-center text-xs text-slate-500">กดสร้างตัวอย่างเพื่อดูวัน เวลา ลำดับคลิป และเหตุผลการเลือกก่อนบันทึก</p> : autofillPreview.items?.length ? <div className="space-y-1"><p className="text-[11px] text-cyan-200 pb-2">จัดได้ {autofillPreview.items.length} จาก {autofillPreview.requested_count ?? autofillPreview.items.length} คลิปในช่วง {autofillPreview.range_start} ถึง {autofillPreview.range_end}</p>{autofillPreview.analytics?.available ? <p className="text-[11px] text-slate-400 pb-2">อ้างอิงสถิติ {autofillPreview.analytics.sample_size} คลิป · สินค้าเด่น {autofillPreview.analytics.top_products?.[0]?.product_name || '-'} · ช่วงเวลาเด่น {String(autofillPreview.analytics.top_hours?.[0]?.hour ?? '-').padStart(2, '0')}:00 · ความมั่นใจ {autofillPreview.analytics.confidence}</p> : <p className="text-[11px] text-slate-500 pb-2">ยังไม่มีสถิติที่วัดผลเพียงพอ ระบบจึงไม่ฝืนสรุปว่าสินค้าหรือเวลาใดชนะ</p>}{autofillPreview.items.map((item, index) => <div key={`${item.video_path}-${item.scheduled_at}`} className="flex items-center gap-2 py-2 border-b border-white/[0.06] last:border-0"><span className="w-6 h-6 rounded-full bg-cyan-400/15 text-cyan-100 text-[10px] flex items-center justify-center">{index + 1}</span><span className="w-2.5 h-2.5 rounded-full border border-white/30 flex-shrink-0" style={{ backgroundColor: item.hook_color || 'transparent' }} title={`สี Hook ${item.hook_color || 'ไม่ระบุ'}`} aria-label={`สี Hook ${item.hook_color || 'ไม่ระบุ'}`} /><span className="text-xs font-mono text-white whitespace-nowrap">{item.scheduled_at.slice(0, 16).replace('T', ' ')}</span><span className="text-xs text-cyan-100 truncate flex-1">{item.product_name || 'ไม่ระบุสินค้า'} · {item.hook_title || item.project_name || item.video_path}</span></div>)}{autofillPreview.reason && <p className="text-xs text-amber-200 mt-3">{autofillPreview.reason} · เหลืออีก {autofillPreview.skipped_items || 0} คลิปที่ยังไม่ถูกจัด</p>}</div> : <div className="py-10 text-center"><p className="text-sm text-slate-300">ยังจัดคิวไม่ได้</p><p className="text-xs text-slate-500 mt-1">{autofillPreview.reason || 'ไม่มีรายการที่พร้อม'}</p></div>}</div>
+          {autofillPreview?.caption_fixed_count > 0 && <p className="text-xs text-amber-200">caption ที่ติดราคา {autofillPreview.caption_fixed_count} คลิป จะถูกเขียนใหม่ (AI) ตอนบันทึก</p>}
           {autofillPreview?.skipped_invalid?.length > 0 && <p className="text-xs text-red-200">ข้ามไฟล์ที่ตรวจสอบไม่ได้ {autofillPreview.skipped_invalid.length} รายการ</p>}
           {autofillPreview?.skipped_slots > 0 && <p className="text-xs text-amber-200">เว้นช่วงเวลาอีก {autofillPreview.skipped_slots} ช่อง เพราะไม่มีคลิปหรือช่วงเวลาที่ว่าง</p>}
           {autofillPreview?.skipped_repetition > 0 && <p className="text-xs text-amber-200">เว้นคลิปอีก {autofillPreview.skipped_repetition} รายการ เพราะจะทำให้สินค้าหรือสี Hook ซ้ำภายในวันเดียวกัน</p>}

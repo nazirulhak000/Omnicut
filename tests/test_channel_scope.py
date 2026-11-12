@@ -495,7 +495,10 @@ def test_policy_file_shape_and_decisions():
     # channel +1: POST /api/schedule-queue/{item_id}/resolve-deleted (the scheduled post was deleted on TikTok)
     # channel +1: POST /api/schedule-queue/{item_id}/resolve-unposted (the post click never confirmed; the operator verified nothing is on TikTok)
     # channel +1: POST /api/products/{product_id}/production-chain (voice -> scan -> drafts, or render every reviewed draft)
-    assert by_scope == {"channel": 256, "shared": 38, "global": 60}
+    # channel +1: GET /api/tiktok-autopost/linkage-due (scheduled posts whose slot passed, to link from the Content page)
+    # channel +1: POST /api/tiktok-autopost/jobs/{job_id}/content-linkage (close a scheduled post from its Content row)
+    # channel +2: POST /api/schedule-queue/fix-price-captions{,/preview} (rewrite captions the posting guard refuses for price wording)
+    assert by_scope == {"channel": 260, "shared": 38, "global": 60}
     release = table.get("POST", "/api/tiktok-autopost/release")
     assert release.scope == "channel" and release.access == "write" and not release.allow_query_scope
     assert {row.key for row in rows if row.allow_query_scope} == QUERY_SCOPE_ROUTES

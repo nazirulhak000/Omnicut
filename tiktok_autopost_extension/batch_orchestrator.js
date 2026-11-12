@@ -470,8 +470,13 @@
       } else {
         consecutiveUnknown = 0;
         successful += 1;
-        results.push({ clipId: clip.id, clipTitle, mode: targetMode, outcome: finalOutcome, success: true });
-        log(`✅ [${index + 1}/${total}] สำเร็จ: "${clipTitle}" (${finalOutcome})`, 'success');
+        // The post is real but the backend has not recorded it yet (the worker keeps the receipt and resends it):
+        // say so instead of a plain success, so nobody re-posts or trusts the queue before it is recorded.
+        const markError = toastResult?.markError || submitResult?.markError || null;
+        const unrecorded = Boolean(markError);
+        results.push({ clipId: clip.id, clipTitle, mode: targetMode, outcome: finalOutcome, success: true, ...(unrecorded ? { unrecorded: true, markError } : {}) });
+        if (unrecorded) log(`⚠️ [${index + 1}/${total}] สำเร็จ แต่ยังบันทึกลงระบบไม่ได้: "${clipTitle}" (${finalOutcome}) — ${markError} ระบบจะส่งผลเดิมซ้ำให้เอง`, 'warn');
+        else log(`✅ [${index + 1}/${total}] สำเร็จ: "${clipTitle}" (${finalOutcome})`, 'success');
       }
 
       // 10. CALCULATED_JITTER

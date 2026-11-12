@@ -627,6 +627,10 @@ def list_exports(scope: ChannelScope = Depends(get_channel_scope)):
             # Sharpened in place after render: the gallery shows the manual
             # sharpness button as already done for this clip.
             info["tiktok_enhanced"] = auto_sharpen.is_sharpened(export_record, f)
+            # Why the automatic pass failed, so an unsharpened clip says so.
+            sharpen_error = export_record.get("tiktok_sharpen_error")
+            if not info["tiktok_enhanced"] and isinstance(sharpen_error, dict) and sharpen_error.get("reason"):
+                info["tiktok_sharpen_error"] = str(sharpen_error["reason"])
         else:
             # Listing remains usable on a legacy read-only installation;
             # render/mark flows still persist identity before they proceed.
@@ -636,7 +640,11 @@ def list_exports(scope: ChannelScope = Depends(get_channel_scope)):
         exp_id = info.get("export_id")
         q_match = scheduled_by_export.get(exp_id) if exp_id else None
         job_match = jobs_by_export.get(exp_id) if exp_id else None
-        if q_match or job_match:
+        # a clip already recorded as posted (registry, or the scheduled job's publication was linked) stays "posted":
+        # the job's status remains scheduled_on_platform forever, it must not mask the real state
+        already_posted = info.get("export_status") == "posted" or bool(
+            job_match and job_match.get("publication_status") == "published")
+        if (q_match or job_match) and not already_posted:
             is_sched = bool(
                 (q_match and q_match.get("status") == "scheduled_on_platform")
                 or (job_match and job_match.get("status") == "scheduled_on_platform")
@@ -651,7 +659,7 @@ def list_exports(scope: ChannelScope = Depends(get_channel_scope)):
                 info["export_status"] = "scheduled_on_platform"
                 sched_at = (q_match or {}).get("scheduled_at")
                 if not sched_at and job_match and job_match.get("schedule_date"):
-                    sched_at = f"{job_match['schedule_date']}T{job_match.get('schedule_time', '00:00')}:00+07:00"
+                    sched_at = f"{job_match['schedule_date']}T{job_match.get('schedule_time', '00:00')}+07:00"
                 if sched_at:
                     info["scheduled_at"] = sched_at
             elif is_draft:
@@ -1199,7 +1207,9 @@ def _require_latest_export(
     """Prevent a stale version from entering the posting flow (versions of the same channel)."""
     if not product_id or not angle_id:
         return
-    latest = ExportRegistry.latest_for_angle(product_id, angle_id, **_kw(channel_id))
+    latest = ExportRegistry.latest_for_angle(
+        product_id, angle_id, project_name=export_record.get("project_name"),
+        batch=export_record.get("batch"), **_kw(channel_id))
     if latest and latest.get("status") != "posted" and latest.get("id") != export_record.get("id"):
         raise HTTPException(
             status_code=409,
@@ -1276,7 +1286,9 @@ def _mark_posted_impl(req: MarkPostedRequest, scope: ChannelScope, *, posting_jo
     if posting_job is None:
         _require_latest_export(export_record, req.product_id, req.angle_id, channel_id)
     else:
-        latest = ExportRegistry.latest_for_angle(req.product_id, req.angle_id, **_kw(channel_id))
+        latest = ExportRegistry.latest_for_angle(
+            req.product_id, req.angle_id, project_name=export_record.get("project_name"),
+            batch=export_record.get("batch"), **_kw(channel_id))
         superseded_job = bool(latest and latest.get("status") != "posted" and latest["id"] != export_record["id"])
     if posting_job is not None and posting_job.get("queue_id"):
         from scripts.schedule_store import ScheduleQueueStore

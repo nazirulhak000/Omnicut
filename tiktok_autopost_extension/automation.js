@@ -157,13 +157,30 @@ globalThis.OmniAutomation = (() => {
   // its own short bounded poll -- the same low-risk pattern already used
   // for "did the modal open" below, not the continuous-attach pattern that
   // caused the crash.
-  async function waitForUploadStatusBadge(send) {
-    await wait(send, `(() => {
-      const status = document.querySelector('[data-e2e="upload_status_container"] [class*="info-status"]');
-      if (!status) return false;
-      const text = status.innerText || status.textContent || '';
-      return status.className.includes('success') && (text.includes('อัปโหลดแล้ว') || text.toLowerCase().includes('uploaded'));
-    })()`, 'TikTok ยังอัปโหลดวิดีโอไม่เสร็จ -- รอสักครู่แล้วลองใหม่', 900000);
+  // TikTok's own words for an upload that stopped (the status line under the video, Thai and English).
+  const UPLOAD_FAILED_RE = /อัปโหลดไม่สำเร็จ|อัปโหลดล้มเหลว|การอัปโหลดล้มเหลว|upload failed|couldn['’]t upload|could not upload|failed to upload|upload error/i;
+  const UPLOAD_STATUS_SOURCE = `(() => {
+    const box = document.querySelector('[data-e2e="upload_status_container"]');
+    const status = box && box.querySelector('[class*="info-status"]');
+    const boxText = (box ? (box.innerText || box.textContent || '') : '').trim();
+    if (box && (${UPLOAD_FAILED_RE}.test(boxText) || /error|fail/i.test(String(status && status.className || '')))) return {state: 'failed', text: boxText.slice(0, 200)};
+    if (!status) return {state: 'pending'};
+    const text = status.innerText || status.textContent || '';
+    if (status.className.includes('success') && (text.includes('อัปโหลดแล้ว') || text.toLowerCase().includes('uploaded'))) return {state: 'done'};
+    return {state: 'pending'};
+  })()`;
+
+  // Waits for TikTok's "uploaded" badge; an upload TikTok reports as failed stops at once instead of waiting 15 minutes.
+  async function waitForUploadStatusBadge(send, timeout = 900000) {
+    const end = Date.now() + timeout;
+    do {
+      const value = await evaluate(send, UPLOAD_STATUS_SOURCE);
+      // a bare truthy answer (an older page probe or a test double) means "uploaded", as before
+      if ((value && typeof value !== 'object') || value?.state === 'done') return true;
+      if (value?.state === 'failed') throw new Error(`upload_failed: TikTok แจ้งว่าอัปโหลดวิดีโอไม่สำเร็จ (${value.text || 'ไม่มีข้อความ'})`);
+      await new Promise(resolve => setTimeout(resolve, 350));
+    } while (Date.now() < end);
+    throw new Error('TikTok ยังอัปโหลดวิดีโอไม่เสร็จ -- รอสักครู่แล้วลองใหม่');
   }
 
   async function uploadCover(send, coverPath) {
@@ -171,8 +188,9 @@ globalThis.OmniAutomation = (() => {
 
     // 0. See waitForUploadStatusBadge's own comment -- Cover Studio's edit
     // surface can render before the actual image <input> mounts inside it
-    // if opened while the upload is still in flight.
-    await waitForUploadStatusBadge(send);
+    // if opened while the upload is still in flight. Capped below a service-worker event's lifetime: the batch has
+    // already waited for the upload in its own (sliced) step before details are filled.
+    await waitForUploadStatusBadge(send, 240000);
 
     // 1. Check if cover editor modal is already open
     const isModalOpen = await evaluate(send, `(() => {
@@ -429,5 +447,5 @@ globalThis.OmniAutomation = (() => {
     throw new Error('กดบันทึกปกแล้ว แต่ TikTok ยังไม่ปิดหน้าต่าง Cover Studio หลังลองซ้ำ 3 ครั้ง');
   }
 
-  return {evaluate, wait, page, buttonQuery, clickButton, uploadCover, waitForUploadStatusBadge};
+  return {evaluate, wait, page, buttonQuery, clickButton, uploadCover, waitForUploadStatusBadge, UPLOAD_FAILED_RE, UPLOAD_STATUS_SOURCE};
 })();

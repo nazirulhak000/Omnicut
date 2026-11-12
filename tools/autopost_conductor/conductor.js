@@ -1,6 +1,6 @@
 'use strict';
 // One source of truth shared with the extension (price rule, Content-page row matching).
-const { PRICE_RE, PLACEHOLDER_RE, contentReason, rowMatchesClip } = require('../../tiktok_autopost_extension/post_guard.js');
+const { PRICE_RE, PLACEHOLDER_RE, contentReason, rowMatchesClip, slotProblem } = require('../../tiktok_autopost_extension/post_guard.js');
 // Sequential, unattended TikTok posting. One clip at a time, per channel.
 // All TikTok DOM work is delegated to the verified extension worker through
 // `worker.send(action)`; this module owns ordering, safety stops and results.
@@ -41,8 +41,9 @@ function skipReason(clip, { now = Date.now(), allowPriceCaption = false, mode = 
   if (mode !== 'draft') {
     // a draft has no publish time, so only a scheduled post needs a future slot
     if (!clip.schedule_date || !clip.schedule_time) return 'no_schedule';
-    const slot = new Date(`${clip.schedule_date}T${clip.schedule_time}:00`).getTime();
-    if (!Number.isFinite(slot) || slot - now < MIN_LEAD_MS) return 'slot_passed_or_too_close';
+    // Bangkok wall time, 15 minutes to 10 days ahead, 5-minute grid (same guard as the extension)
+    const problem = slotProblem(clip.schedule_date, clip.schedule_time, now);
+    if (problem) return problem === 'slot_invalid' ? 'slot_passed_or_too_close' : problem;
   }
   if (!clip.tiktok_product_id) return 'no_tiktok_product_id';
   const content = contentReason(clip.caption, clip.hashtags, {allowPrice: allowPriceCaption});
@@ -53,9 +54,9 @@ function skipReason(clip, { now = Date.now(), allowPriceCaption = false, mode = 
 // Dry-run never posts, so a slot that already passed is replaced by a synthetic
 // one (2 days ahead, 12:00) just to exercise the TikTok schedule picker.
 function dryRunSlot(now) {
-  const d = new Date(now + 2 * 24 * 3600 * 1000);
+  const d = new Date(now + 2 * 24 * 3600 * 1000 + 7 * 3600 * 1000);   // Bangkok wall date
   const pad = n => String(n).padStart(2, '0');
-  return { date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, time: '12:00' };
+  return { date: `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`, time: '12:00' };
 }
 
 // id -> export record, or null when the registry cannot be read (then prepare is the judge).
@@ -168,7 +169,12 @@ async function runClip(deps, clip, { dryRun = false, channelId = 'main', coverFa
     expectOk(await send('upload-file-only'), 'อัปโหลดไฟล์วิดีโอ');
     await sleep(1200);
     step = 'wait_upload';
-    expectOk(await send('wait-for-upload-only'), 'รออัปโหลดวิดีโอ');
+    // the worker answers in slices ({done:false} = still uploading); a reply without `done` is the old "finished"
+    for (let slice = 0; ; slice += 1) {
+      const waited = expectOk(await send('wait-for-upload-only', { maxMs: 240000 }), 'รออัปโหลดวิดีโอ');
+      if (waited.done !== false) break;
+      if (slice >= 3) throw new Error('TikTok ยังอัปโหลดวิดีโอไม่เสร็จภายใน 15 นาที');
+    }
     step = 'details';
     const details = await send('prepare-details', {
       caption: clip.caption, hashtags: clip.hashtags, productId: clip.tiktok_product_id,

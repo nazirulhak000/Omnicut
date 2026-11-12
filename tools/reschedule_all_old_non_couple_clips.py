@@ -137,7 +137,21 @@ def build_balanced_schedule(candidates: list[dict]) -> list[dict]:
     return ordered
 
 
+RETIRED_MESSAGE = (
+    "สคริปต์นี้ถูกปิดใช้ (2026-11-13, รอบ CLAUDE-AUTOPOST-E2E-FIXES): มันเขียนคิวโพสต์ทั้งก้อนข้ามด่านกันคลิปซ้ำ "
+    "และเคยรีเซ็ตคลิปที่โพสต์แล้วกลับเป็น rendered จนคลิปเดียวกันเข้าคิวซ้ำ ใช้ 'จัดคิวอัตโนมัติ' / "
+    "'จัดเวลาใหม่' ในแอปแทน (POST /api/schedule-queue/auto-fill, /reschedule-overdue)"
+)
+
+
+def _refuse_retired():
+    import sys as _sys
+    print(RETIRED_MESSAGE, file=_sys.stderr)
+    raise SystemExit(2)
+
+
 def main():
+    _refuse_retired()
     print("=" * 72)
     print(" OmniCut Pro Studio: Reschedule All Old Non-Couple Clips")
     print("=" * 72)

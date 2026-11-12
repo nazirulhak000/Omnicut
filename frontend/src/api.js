@@ -345,6 +345,9 @@ export const resetScheduleTemplate = (weekStart) => api.delete(`/schedule-queue/
 export const previewScheduleAutofill = (payload) => api.post('/schedule-queue/auto-fill/preview', payload).then(r => r.data);
 export const commitScheduleAutofill = (payload) => api.post('/schedule-queue/auto-fill', payload).then(r => r.data);
 // Clips whose slot already passed (planned or saved as a TikTok draft): preview the new slots, then apply them all-or-nothing.
+// Queued captions the posting guard refuses for price wording: preview the AI rewrites, then save the reviewed ones.
+export const previewFixPriceCaptions = () => api.post('/schedule-queue/fix-price-captions/preview').then(r => r.data);
+export const commitFixPriceCaptions = (items) => api.post('/schedule-queue/fix-price-captions', { items }).then(r => r.data);
 export const previewRescheduleOverdue = (payload = {}) => api.post('/schedule-queue/reschedule-overdue/preview', payload).then(r => r.data);
 // The post click was attempted but never confirmed and the operator verified on TikTok that nothing was posted (server waits >= 10 min).
 export const resolveUnpostedQueue = (id, evidence) => api.post(`/schedule-queue/${id}/resolve-unposted`, { evidence }).then(r => r.data);

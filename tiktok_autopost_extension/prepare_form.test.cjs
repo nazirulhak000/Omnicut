@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const form=require('./prepare_form.js');
 const guard=require('./post_guard.js');
 const item={export_id:'e1',tiktok_caption:'Feature {value}',tiktok_hashtags:'#test'};
-const values={caption:'Feature works well',hashtags:'#test',intent:'schedule',date:'2030-01-01',time:'12:00'};
+const values={caption:'Feature works well',hashtags:'#test',intent:'schedule',date:'2026-11-15',time:'12:00'};
 const now=Date.parse('2026-11-12T00:00:00Z');
 test('editing a blocked clip preserves the export and creates an explicit schedule snapshot',()=>{
   const result=form.build(item,values,guard,{export_id:'e1'},now);
@@ -14,6 +14,8 @@ test('unresolved caption and missing or passed schedule never prepare',()=>{
   assert.equal(form.build(item,{...values,caption:'Feature {value}'},guard,{},now).code,'placeholder_in_caption');
   assert.equal(form.build(item,{...values,date:''},guard,{},now).code,'no_schedule');
   assert.equal(form.build(item,{...values,date:'2020-01-01'},guard,{},now).code,'slot_passed_or_too_close');
+  assert.equal(form.build(item,{...values,date:'2030-01-01'},guard,{},now).code,'slot_too_far');
+  assert.equal(form.validate(item,{...values,date:'2026-11-30'},guard,{},now).issues[0].field,'Date');
 });
 test('draft is explicit and strips stale schedule; posted or missing export remains blocked',()=>{
   const draft=form.build(item,{...values,intent:'draft'},guard,{},now).item;
@@ -60,4 +62,11 @@ test('structured backend validation errors retain a readable reason and field',(
   assert.equal(form.describeError({detail:'งานเดิมยังไม่เสร็จ',code:'posting_instance_busy'},409),'posting_instance_busy: งานเดิมยังไม่เสร็จ');
   assert.match(form.describeError({detail:[{loc:['body','schedule_time'],msg:'Field required'}]},422),/body.schedule_time: Field required/);
   assert.equal(form.describeError({},503),'HTTP 503');
+});
+
+test('backend slot refusals read as fixed Thai messages', () => {
+  assert.match(form.describeError({code: 'posting_slot_too_far', detail: 'x'}, 422), /10 วัน/);
+  assert.match(form.describeError({detail: {code: 'posting_slot_too_soon'}}, 422), /15 นาที/);
+  assert.match(form.describeError({code: 'posting_schedule_invalid'}, 422), /5 นาที/);
+  assert.equal(form.slotErrorMessage({code: 'other'}), '');
 });

@@ -87,6 +87,8 @@ _HOOK_TEXT_MAX = 200
 # Fingerprint of the file after the automatic in-place TikTok sharpness pass
 # (scripts.auto_sharpen).  Optional like the style fields above.
 TIKTOK_SHARP_FIELD = "tiktok_sharp"
+# Last automatic sharpness failure ({"reason", "at"}); cleared on the next success.
+TIKTOK_SHARP_ERROR_FIELD = "tiktok_sharpen_error"
 
 
 def normalize_style_metadata(raw: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -411,18 +413,36 @@ class ExportRegistry:
         *,
         channel_id: Optional[str] = None,
         all_channels: bool = False,
+        project_name: Optional[str] = None,
+        batch: Optional[int] = None,
     ) -> Optional[Dict[str, Any]]:
         """Return the current file for an angle, preferring Posted evidence.
 
         A Ready/Posted pair with the same filename is a legacy duplicate of
         one export, not two versions. Prefer the Posted copy in that case;
         otherwise use the newest existing file by filesystem mtime.
+
+        ``project_name`` / ``batch`` keep the lookup inside one lot: an angle
+        id can repeat across lots, and without them a lot-2 caller could get
+        lot 1's clip (same filter as the product store's snapshot version).
         """
+        from scripts.product_store import _extract_batch_from_name  # lazy: product_store imports this module
+
+        target_batch = batch
+        if target_batch is None and project_name:
+            target_batch = _extract_batch_from_name(project_name)
         rows = []
         for row in cls.find_for_angle(product_id, angle_id, channel_id=channel_id, all_channels=all_channels):
             raw_path = row.get("path")
             if not raw_path:
                 continue
+            row_proj = row.get("project_name")
+            if project_name and row_proj and row_proj != project_name:
+                continue
+            if target_batch is not None:
+                r_batch = row.get("batch") or _extract_batch_from_name(row_proj) or _extract_batch_from_name(raw_path)
+                if r_batch is not None and r_batch != target_batch:
+                    continue
             path = Path(str(raw_path))
             if not path.is_absolute():
                 path = BASE_DIR / path
@@ -679,6 +699,36 @@ class ExportRegistry:
                     record[TIKTOK_SHARP_FIELD] = dict(marker)
                     record["updated_at"] = _now()
                 elif record.pop(TIKTOK_SHARP_FIELD, None) is not None:
+                    record["updated_at"] = _now()
+                return dict(record)
+
+    @classmethod
+    def set_tiktok_sharpen_error(
+        cls,
+        export_id: Optional[str],
+        error: Optional[Dict[str, Any]],
+        *,
+        channel_id: Optional[str] = None,
+        all_channels: bool = False,
+    ) -> Optional[Dict[str, Any]]:
+        """Record why the automatic sharpness pass failed, or clear it with ``None``.
+
+        The gallery shows it next to the sharpness button so an unsharpened
+        clip is never mistaken for a sharpened one.  Same locking as
+        ``set_tiktok_sharp``.
+        """
+        if not export_id:
+            return None
+        scope = cls._scope(channel_id, all_channels)
+        with cls._metadata_lock:
+            with cls._scoped_mutate(scope) as records:
+                record = next((row for row in records if str(row.get("id")) == str(export_id)), None)
+                if record is None:
+                    return None
+                if error:
+                    record[TIKTOK_SHARP_ERROR_FIELD] = dict(error)
+                    record["updated_at"] = _now()
+                elif record.pop(TIKTOK_SHARP_ERROR_FIELD, None) is not None:
                     record["updated_at"] = _now()
                 return dict(record)
 

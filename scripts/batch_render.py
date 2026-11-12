@@ -941,6 +941,18 @@ class BatchRenderManager:
                 is_draft = not options.get("export_mp4", True)
                 is_rendered = bool(not is_draft and mp4_val)
                 item_b = angle_data.get("batch") if angle_data else item.get("batch")
+
+                if is_rendered:
+                    # Sharpness first so the cover frame comes from the final
+                    # file, and both before the angle reads "rendered": the
+                    # schedule page lists rendered angles as ready to queue,
+                    # so a clip must not show up there while its file is still
+                    # being re-encoded or before it has a cover. Never raise.
+                    ensure_tiktok_sharp(result.get("export_id"), **channel_kwargs)
+                    ensure_default_cover(
+                        result.get("export_id"), product_id=product_id, angle_id=angle_id,
+                        batch=item_b, **channel_kwargs)
+
                 ProductStore.update_angle_status(
                     product_id,
                     angle_id,
@@ -950,15 +962,6 @@ class BatchRenderManager:
                     export_id=result.get("export_id") if is_rendered else None,
                     batch=item_b,
                  **channel_kwargs)
-
-                if is_rendered:
-                    # Sharpness first so the cover frame comes from the final file.
-                    ensure_tiktok_sharp(result.get("export_id"), **channel_kwargs)
-                    # Before complete_job so the cover exists when the UI sees
-                    # the clip as finished. Never raises.
-                    ensure_default_cover(
-                        result.get("export_id"), product_id=product_id, angle_id=angle_id,
-                        batch=item_b, **channel_kwargs)
 
                 render_jobs.complete_job(sub_job_id, result, **channel_kwargs)
                 mark(
@@ -997,7 +1000,9 @@ class BatchRenderManager:
         mark(status="failed", error=str(last_err) if last_err else "เรนเดอร์ไม่สำเร็จ")
         render_jobs.fail_job(sub_job_id, str(last_err) if last_err else "Error", **channel_kwargs)
         try:
-            ProductStore.update_angle_status(product_id, angle_id, "scripted", **channel_kwargs)
+            # Only this lot's angle: an angle id can repeat across lots.
+            item_b = angle_data.get("batch") if angle_data else item.get("batch")
+            ProductStore.update_angle_status(product_id, angle_id, "scripted", batch=item_b, **channel_kwargs)
         except Exception:
             pass
 

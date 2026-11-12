@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import logging
 import random
 import re
 from pathlib import Path
@@ -59,6 +60,7 @@ STATUS_LABELS = {
 }
 
 router = APIRouter(prefix="/api/schedule-queue", tags=["schedule-queue"])
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -138,6 +140,8 @@ class QueueItemPayload(BaseModel):
     caption: str = ""
     hashtags: str = ""
     tiktok_product_id: Optional[str] = None
+    # Filled by the server only (any client value is overwritten): how a price-wording caption was rewritten.
+    caption_fix: Optional[Dict[str, Any]] = None
 
 
 class QueueCreateRequest(BaseModel):
@@ -224,7 +228,8 @@ class AutoFillCommitRequest(BaseModel):
 
 
 class RescheduleOverduePreviewRequest(BaseModel):
-    window_days: int = Field(default=14, ge=1, le=60)
+    # TikTok accepts a scheduled post at most 10 days ahead
+    window_days: int = Field(default=10, ge=1, le=10)
 
 
 class ResolveDraftRequest(BaseModel):
@@ -250,6 +255,7 @@ class RescheduleOverdueCommitRequest(BaseModel):
 
 # A slot must be at least this far ahead to be postable / schedulable on TikTok.
 RESCHEDULE_LEAD = dt.timedelta(minutes=15)
+RESCHEDULE_MAX_LEAD = dt.timedelta(days=10)  # TikTok Studio's scheduling limit
 RESCHEDULABLE_STATUSES = {"planned", "draft_on_platform"}
 
 
@@ -461,7 +467,16 @@ def scheduled_iso(value: dt.datetime) -> str:
 
 
 def sort_records(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    return sorted(records, key=lambda item: (item.get("scheduled_at", ""), item.get("created_at", ""), item.get("id", "")))
+    # a draft saved on TikTok has no slot (scheduled_at None): sort it last instead of crashing the whole list
+    return sorted(records, key=lambda item: (item.get("scheduled_at") is None, str(item.get("scheduled_at") or ""),
+                                             str(item.get("created_at") or ""), str(item.get("id") or "")))
+
+
+def cover_media_url(cover_path: Optional[str]) -> Optional[str]:
+    if not cover_path:
+        return None
+    from urllib.parse import quote
+    return "/api/media/" + quote(str(cover_path).replace("\\", "/"), safe="/")
 
 
 def _resolve_payload_export(payload: QueueItemPayload, channel_id: Optional[str] = None) -> tuple[Path, Optional[str]]:
@@ -497,7 +512,8 @@ def _resolve_payload_export(payload: QueueItemPayload, channel_id: Optional[str]
             raise HTTPException(status_code=409, detail="export_id ไม่ตรงกับไฟล์ที่เลือก")
         if export_record.get("status") == "posted":
             raise HTTPException(status_code=409, detail="คลิปนี้ถูกโพสต์แล้ว ไม่สามารถจัดคิวซ้ำได้")
-        latest = ExportRegistry.latest_for_angle(payload.product_id, payload.angle_id, **_kw(channel_id))
+        latest = ExportRegistry.latest_for_angle(payload.product_id, payload.angle_id, project_name=export_record.get("project_name"),
+                                                 batch=export_record.get("batch"), **_kw(channel_id))
         if latest and latest.get("status") != "posted" and latest.get("id") != export_record.get("id"):
             raise ChannelError(409, "stale_export", "คลิปนี้มี export รุ่นใหม่แล้ว กรุณาเลือกคลิปใหม่ก่อนจัดคิว",
                                action="reselect_export", export_id=export_record.get("id"), latest_export_id=latest.get("id"))
@@ -539,12 +555,36 @@ def _prevalidate_items(items: List[QueueItemPayload], channel_id: Optional[str])
         )
     if first_error is not None:
         raise first_error
-    return prepared
+    return _fix_price_captions(prepared)
+
+
+def _fix_price_captions(prepared: List[tuple]) -> List[tuple]:
+    """Owner rule 2026-11-13: a caption with price/discount wording is rewritten (AI, checked by the posting guard)
+    when it enters the queue, instead of being refused later at posting time. Runs BEFORE the queue transaction:
+    an AI call must never hold the store lock."""
+    from scripts.caption_price_fix import fix_many, needs_fix
+    fixed: List[tuple] = []
+    todo = []
+    for index, (item, path, export_id) in enumerate(prepared):
+        item = item.model_copy(update={"caption_fix": None})
+        fixed.append((item, path, export_id))
+        if needs_fix(item.caption, item.hashtags):
+            todo.append(index)
+    if todo:
+        results = fix_many({"caption": fixed[i][0].caption, "hashtags": fixed[i][0].hashtags,
+                            "product_name": fixed[i][0].product_name} for i in todo)
+        for index, result in zip(todo, results):
+            item, path, export_id = fixed[index]
+            fix = {"from_caption": item.caption, "from_hashtags": item.hashtags, "method": result["method"], "at": now_iso()}
+            fixed[index] = (item.model_copy(update={"caption": result["caption"], "hashtags": result["hashtags"],
+                                                    "caption_fix": fix}), path, export_id)
+    return fixed
 
 
 def _payload_to_record(payload: QueueItemPayload, existing_keys: set, existing_times: set) -> Dict[str, Any]:
     """Compat helper (unscoped): validate + build one row (old single-call API)."""
     path, export_id = _resolve_payload_export(payload)
+    ((payload, path, export_id),) = _fix_price_captions([(payload, path, export_id)])
     return _build_record(payload, path, export_id, existing_keys, existing_times, ScheduleQueueStore.new_owner())
 
 
@@ -567,12 +607,19 @@ def _build_record(
         raise HTTPException(status_code=409, detail=f"มีคลิปอื่นจองเวลา {when:%d/%m/%Y %H:%M} แล้ว")
     cover_path, cover_sha256 = None, None
     covers = ExportCoverBindingStore(BASE_DIR)
-    selected = (covers.get(owner, export_id, format="3:4") or covers.get(owner, export_id, format="9:16")) if export_id else None
+    # an export may carry one saved cover per format (auto covers save both 9:16 and 3:4); the queue posts 3:4 first
+    bound = [b for b in ((covers.get(owner, export_id, format="3:4"), covers.get(owner, export_id, format="9:16"))
+                         if export_id else ()) if b]
+    selected = bound[0] if bound else None
     requested_cover = payload.cover_path or (selected or {}).get("path")
     if requested_cover:
         resolved_cover = covers._path(requested_cover)
-        if selected and resolved_cover != covers._path(selected["path"]):
-            raise ChannelError(409, "export_cover_selection_conflict", "Queue cover differs from the saved export selection; reload before scheduling")
+        if bound:
+            # the client usually sends the 9:16 path it shows; any saved format of this export is the same choice,
+            # and the queue snapshots the 3:4 crop TikTok uses for the profile grid
+            if not any(resolved_cover == covers._path(b["path"]) for b in bound):
+                raise ChannelError(409, "export_cover_selection_conflict", "Queue cover differs from the saved export selection; reload before scheduling")
+            resolved_cover = covers._path(selected["path"])
         relative_cover = resolved_cover.relative_to(BASE_DIR.resolve())
         scoped = relative_cover.parts[:2] == ("05_Covers_Thumbnails", owner)
         legacy_main = owner == "main" and len(relative_cover.parts) == 2 and relative_cover.parts[0] == "05_Covers_Thumbnails"
@@ -600,10 +647,12 @@ def _build_record(
         "hook_color": _resolve_hook_color(payload.style_preset, payload.hook_color),
         "cover_path": cover_path,
         "cover_sha256": cover_sha256,
-        "cover_url": payload.cover_url,
+        # derived from the snapshot path, never from the client: phone and extension must show the same cover
+        "cover_url": cover_media_url(cover_path),
         "caption": payload.caption,
         "hashtags": payload.hashtags,
         "tiktok_product_id": payload.tiktok_product_id,
+        **({"caption_fix": payload.caption_fix} if payload.caption_fix else {}),
         "created_at": created,
         "updated_at": created,
         "extension_prepared_at": None,
@@ -946,9 +995,18 @@ def _auto_fill_preview(req: AutoFillRequest, channel_id: Optional[str] = None) -
             if export_record:
                 if export_record.get("status") == "posted":
                     raise HTTPException(status_code=409, detail="คลิปที่โพสต์แล้วไม่สามารถนำมาจัดคิวซ้ำได้")
-                latest = ExportRegistry.latest_for_angle(clip.product_id, clip.angle_id, **_kw(channel_id))
+                latest = ExportRegistry.latest_for_angle(clip.product_id, clip.angle_id, project_name=export_record.get("project_name"),
+                                                         batch=export_record.get("batch"), **_kw(channel_id))
                 if latest and latest.get("status") != "posted" and latest.get("id") != export_record.get("id"):
                     raise HTTPException(status_code=409, detail="คลิปนี้ไม่ใช่ export เวอร์ชันล่าสุดของมุมนี้")
+                # same cover rule as the save (_build_record): a preview must never list a clip the save will refuse
+                if getattr(clip, "cover_path", None):
+                    covers = ExportCoverBindingStore(BASE_DIR)
+                    owner = export_record.get("channel_id") or channel_id or "main"
+                    bound = [b for b in (covers.get(owner, export_record["id"], format="3:4"),
+                                         covers.get(owner, export_record["id"], format="9:16")) if b]
+                    if bound and not any(covers._path(clip.cover_path) == covers._path(b["path"]) for b in bound):
+                        raise HTTPException(status_code=409, detail="ปกที่ส่งมาไม่ตรงกับปกที่บันทึกไว้ของคลิปนี้ กรุณาโหลดใหม่")
         except (HTTPException, ChannelError) as exc:
             # ChannelError is a Starlette HTTPException, not FastAPI's subclass.
             skipped_invalid.append({"video_path": clip.video_path, "reason": str(exc.detail)})
@@ -1138,7 +1196,13 @@ def _auto_fill_preview(req: AutoFillRequest, channel_id: Optional[str] = None) -
         reason = "เหลือคลิปที่ติดเงื่อนไขกันสินค้าซ้ำหรือสี Hook ซ้ำ จึงไม่ฝืนจัดคิวให้ซ้ำกัน"
     elif skipped_slots:
         reason = "ไม่มีช่วงเวลาหลักที่ว่างพอสำหรับคลิปที่เลือก"
+    # show, before saving, which captions the save will rewrite (same cached result the save uses)
+    from scripts.caption_price_fix import fix_many, needs_fix
+    blocked = [item for item in items if needs_fix(item.get("caption"), item.get("hashtags"))]
+    for item, result in zip(blocked, fix_many(blocked)):
+        item["caption_fix"] = {"caption": result["caption"], "hashtags": result["hashtags"], "method": result["method"]}
     return {
+        "caption_fixed_count": len(blocked),
         "items": items,
         "skipped_slots": skipped_slots,
         "skipped_repetition": skipped_repetition,
@@ -1281,9 +1345,9 @@ def list_queue(
     if status:
         records = [item for item in records if item.get("status") == status]
     if date_from:
-        records = [item for item in records if item.get("scheduled_at", "")[:10] >= date_from]
+        records = [item for item in records if item.get("scheduled_at") and item["scheduled_at"][:10] >= date_from]
     if date_to:
-        records = [item for item in records if item.get("scheduled_at", "")[:10] <= date_to]
+        records = [item for item in records if item.get("scheduled_at") and item["scheduled_at"][:10] <= date_to]
     # Load the export registry ONCE and index it by normalized path, instead
     # of calling ExportRegistry.find_by_path() (an O(registry size) scan
     # that itself calls Path.resolve() per row it checks) once per queue
@@ -1314,8 +1378,113 @@ def list_queue(
         item["needs_reschedule"] = needs_reschedule(item, now)
         if item["needs_reschedule"] and item.get("status") == "draft_on_platform":
             item["status_label"] = "แบบร่างเลยเวลา — ต้องจัดเวลาใหม่"
+        if item.get("status") in CAPTION_FIXABLE_STATUSES and caption_needs_fix(item.get("caption"), item.get("hashtags")):
+            item["caption_blocked"] = "price_in_caption"     # the posting guard would refuse it: offer the batch fix
         enriched.append(item)
     return {"items": enriched, "timezone": "Asia/Bangkok", "status_labels": STATUS_LABELS}
+
+
+CAPTION_FIXABLE_STATUSES = {"planned", "failed"}
+
+
+class CaptionFixItem(BaseModel):
+    id: str
+    from_caption: str = ""
+    from_hashtags: str = ""
+    caption: str
+    hashtags: str = ""
+    method: Optional[str] = None
+
+
+class CaptionFixCommitRequest(BaseModel):
+    items: List[CaptionFixItem] = Field(min_length=1)
+
+
+def caption_needs_fix(caption: Any, hashtags: Any = "") -> bool:
+    from scripts.caption_price_fix import needs_fix
+    return needs_fix(caption, hashtags)
+
+
+@router.post("/fix-price-captions/preview")
+def preview_fix_price_captions(scope: ChannelScope = Depends(get_channel_scope)):
+    """Queued clips the posting guard would refuse for price wording, each with its rewritten caption.
+    Writes nothing. Rows already handed to the extension keep their frozen job and are only counted."""
+    from scripts.caption_price_fix import fix_many
+    channel_id = _channel_of(scope)
+    rows = [r for r in sort_records(ScheduleQueueStore.list_items(**_kw(channel_id)))
+            if caption_needs_fix(r.get("caption"), r.get("hashtags"))]
+    fixable = [r for r in rows if r.get("status") in CAPTION_FIXABLE_STATUSES]
+    results = fix_many(fixable)
+    items = [{"id": r["id"], "scheduled_at": r.get("scheduled_at"), "product_name": r.get("product_name"),
+              "hook_title": r.get("hook_title"), "from_caption": r.get("caption") or "", "from_hashtags": r.get("hashtags") or "",
+              "caption": res["caption"], "hashtags": res["hashtags"], "method": res["method"]}
+             for r, res in zip(fixable, results)]
+    # waiting rows already handed to the extension: their job froze the caption (clear the job first, then fix)
+    locked = sum(1 for r in rows if r.get("status") == "ready_for_extension")
+    return {"items": items, "locked_count": locked}
+
+
+@router.post("/fix-price-captions")
+def commit_fix_price_captions(req: CaptionFixCommitRequest, scope: ChannelScope = Depends(get_channel_scope)):
+    """Save the reviewed captions: only rows still waiting (planned/failed) whose caption is unchanged since the
+    preview; every new caption must pass the posting guard. The product angle the clip came from gets the same caption
+    when it is not posted yet and still carries the old text."""
+    from scripts.content_guard import content_reason
+    channel_id = _channel_of(scope)
+    _guard_writable(scope)
+    if len({i.id for i in req.items}) != len(req.items):
+        raise HTTPException(status_code=422, detail="มีคลิปซ้ำในรายการ")
+    for item in req.items:
+        reason = content_reason(item.caption, item.hashtags)
+        if reason:
+            raise ChannelError(422, "posting_content_blocked", f"caption ใหม่ยังไม่ผ่านตัวกันเนื้อหา ({reason})")
+    stamp = now_iso()
+    changed: List[Dict[str, Any]] = []
+    with ScheduleQueueStore.transaction(**_kw(channel_id)) as records:
+        by_id = {r["id"]: r for r in records}
+        for item in req.items:
+            row = by_id.get(item.id)
+            if row is None:
+                raise _item_not_found(item.id)
+            if row.get("status") not in CAPTION_FIXABLE_STATUSES:
+                raise HTTPException(status_code=409, detail="คลิปนี้ถูกส่งให้ Extension หรือโพสต์แล้ว กรุณาโหลดรายการใหม่")
+            if (row.get("caption") or "") != item.from_caption or (row.get("hashtags") or "") != item.from_hashtags:
+                raise HTTPException(status_code=409, detail="caption เปลี่ยนไปหลังดูตัวอย่าง กรุณาดูตัวอย่างใหม่")
+        for item in req.items:
+            row = by_id[item.id]
+            row["caption_fix"] = {"from_caption": item.from_caption, "from_hashtags": item.from_hashtags,
+                                  "method": item.method or "reviewed", "at": stamp}
+            row["caption"], row["hashtags"], row["updated_at"] = item.caption, item.hashtags, stamp
+            changed.append(dict(row))
+    angles = _sync_fixed_captions_to_angles(changed, channel_id)
+    return {"success": True, "count": len(changed), "angles_updated": angles}
+
+
+def _sync_fixed_captions_to_angles(rows: List[Dict[str, Any]], channel_id: Optional[str]) -> int:
+    """Carry a reviewed caption back to its source angle, so the next render/queue of that angle is clean too."""
+    from scripts.product_store import ProductStore, select_angle
+    updated = 0
+    wanted = [r for r in rows if r.get("product_id") and r.get("angle_id")]
+    if not wanted:
+        return 0
+    try:
+        with ProductStore._scoped_mutate(ProductStore._scope(channel_id)) as products:
+            by_id = {str(p.get("id")): p for p in products}
+            for row in wanted:
+                product = by_id.get(str(row["product_id"]))
+                if not product:
+                    continue
+                angle = select_angle(product.get("angles") or [], row["angle_id"], project_name=row.get("project_name"))
+                if not angle or angle.get("status") == "posted":
+                    continue
+                if angle.get("tiktok_caption") == row["caption_fix"]["from_caption"]:
+                    angle["tiktok_caption"] = row["caption"]
+                    if angle.get("tiktok_hashtags") == row["caption_fix"]["from_hashtags"]:
+                        angle["tiktok_hashtags"] = row["hashtags"]
+                    updated += 1
+    except Exception as exc:  # the queue fix is saved; a missing product must not undo it
+        logger.warning("แก้ caption ของมุมต้นทางไม่สำเร็จ (%s)", type(exc).__name__)
+    return updated
 
 
 @router.post("")
@@ -1475,7 +1644,8 @@ def _plan_reschedule(records: List[Dict[str, Any]], posts: List[Dict[str, Any]],
     context = [r for r in records if r["id"] not in overdue_ids and r.get("status") != "cancelled"]
     products_by_day, colors_by_day = _daily_constraint_sets(context, posts)
     today = now.date()
-    slots = _slot_stream(today, today + dt.timedelta(days=window_days), now + RESCHEDULE_LEAD, 400, channel_id=channel_id)
+    slots = [slot for slot in _slot_stream(today, today + dt.timedelta(days=window_days), now + RESCHEDULE_LEAD, 400, channel_id=channel_id)
+             if slot <= now + RESCHEDULE_MAX_LEAD]
     taken: set = set()
     placed, unplaced = [], []
     for row in overdue:
@@ -1539,6 +1709,8 @@ def commit_reschedule_overdue(req: RescheduleOverdueCommitRequest, scope: Channe
                 raise HTTPException(status_code=409, detail="คลิปนี้ไม่ต้องจัดเวลาใหม่แล้ว (เวลายังไม่เกิน หรือสถานะเปลี่ยนไป) กรุณาโหลดรายการใหม่")
             if parse_scheduled_at(iso) <= now + RESCHEDULE_LEAD:
                 raise HTTPException(status_code=422, detail="เวลาใหม่ต้องอยู่ในอนาคตอย่างน้อย 15 นาที")
+            if parse_scheduled_at(iso) > now + RESCHEDULE_MAX_LEAD:
+                raise HTTPException(status_code=422, detail="TikTok ตั้งเวลาล่วงหน้าได้ไม่เกิน 10 วัน")
         others = [r for r in records if r["id"] not in wanted and r.get("status") != "cancelled"]
         if len(set(wanted.values())) != len(wanted) or any(str(r.get("scheduled_at")) in set(wanted.values()) for r in others):
             raise HTTPException(status_code=409, detail="มีช่องเวลาซ้ำกับคลิปอื่น กรุณาดูตัวอย่างใหม่")

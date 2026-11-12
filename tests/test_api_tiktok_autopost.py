@@ -6,6 +6,10 @@ from scripts.api_server import app
 import scripts.api_tiktok_autopost as tap
 import scripts.media_service as media
 import scripts.api_exports as exports_api
+import datetime as _dt
+
+# TikTok accepts a slot 15 minutes to 10 days ahead: scheduled prepares use tomorrow, not a fixed far date
+D1 = (_dt.datetime.now(_dt.timezone(_dt.timedelta(hours=7))) + _dt.timedelta(days=1)).strftime("%Y-%m-%d")
 
 # Fixture MP4s here are placeholder bytes; the export listing's media gate
 # itself is covered by tests/test_api_exports_listing.py.
@@ -275,7 +279,7 @@ def test_prepare_and_get_pending_with_schedule_time(tmp_path, monkeypatch):
             "product_id": "p123",
             "angle_id": "a456",
             "tiktok_product_id": "1737088044189583209",
-            "schedule_date": "2030-01-02",
+            "schedule_date": D1,
             "schedule_time": "12:30",
         })
         assert res.status_code == 200
@@ -381,10 +385,10 @@ def test_prepare_refuses_intents_that_could_post_live_by_accident(tmp_path):
                                                                       "hashtags": "#t", "tiktok_product_id": "1737088044189583209", **extra})
         for extra, code in [
             ({"schedule_time": "12:30"}, "posting_schedule_not_allowed"),                       # time only (old live-post trap)
-            ({"schedule_date": "2030-01-02"}, "posting_schedule_not_allowed"),                  # date only
+            ({"schedule_date": D1}, "posting_schedule_not_allowed"),                  # date only
             ({"intent": "schedule"}, "posting_schedule_required"),                              # schedule without a time
-            ({"intent": "schedule", "schedule_date": "2030-01-02"}, "posting_schedule_required"),
-            ({"intent": "draft", "schedule_date": "2030-01-02", "schedule_time": "12:30"}, "posting_schedule_not_allowed"),
+            ({"intent": "schedule", "schedule_date": D1}, "posting_schedule_required"),
+            ({"intent": "draft", "schedule_date": D1, "schedule_time": "12:30"}, "posting_schedule_not_allowed"),
             ({"intent": "post_now", "schedule_time": "12:30"}, "posting_schedule_not_allowed"),
             ({"intent": "publish-everything"}, "posting_intent_invalid"),
         ]:
@@ -395,7 +399,7 @@ def test_prepare_refuses_intents_that_could_post_live_by_accident(tmp_path):
         assert ok.status_code == 200, ok.text
         assert client.get("/api/tiktok-autopost/pending").json()["intent"] == "draft"
         client.post("/api/tiktok-autopost/clear", json={"job_id": ok.json()["job_id"]})
-        scheduled = prepare(schedule_date="2030-01-02", schedule_time="12:30")
+        scheduled = prepare(schedule_date=D1, schedule_time="12:30")
         assert scheduled.status_code == 200, scheduled.text
         assert client.get("/api/tiktok-autopost/pending").json()["intent"] == "schedule"   # inferred
         client.post("/api/tiktok-autopost/clear", json={"job_id": scheduled.json()["job_id"]})
@@ -461,7 +465,7 @@ def test_apply_outcome_effects_creates_schedule_queue_item_when_unqueued(tmp_pat
         matched = [r for r in items if r.get("posting_job_id") == "test_unqueued_sched_job_123"]
         assert len(matched) == 1
         assert matched[0]["status"] == "scheduled_on_platform"
-        assert matched[0]["scheduled_at"] == "2026-11-15T12:00:00+07:00"
+        assert matched[0]["scheduled_at"] == "2026-11-15T12:00+07:00"  # same minute form as scheduled_iso()
         assert matched[0]["export_id"] == "exp_test_unqueued_123"
         assert job.get("queue_id") == matched[0]["id"]
     finally:

@@ -78,3 +78,9 @@ test('a heartbeat from a panel that lost the lock does nothing', async () => {
   assert.equal(await lock.beat(storage, 'B', opts), false);
   assert.equal(await lock.beat(storage, 'A', opts), true);
 });
+
+test('C13: the TTL outlives a throttled (once a minute) heartbeat of a hidden window', () => {
+  const lock = require('./run_lock.js');
+  assert.ok(lock.TTL_MS >= 2 * 60 * 1000);
+  assert.equal(lock.isFresh({ owner: 'a', beat: 0 }, 70 * 1000), true);
+});

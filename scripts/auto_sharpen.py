@@ -12,7 +12,10 @@ Rules:
   it, so a re-render to the same path is sharpened again and never shown as
   already done.
 - Failure never propagates: the render that triggered it still succeeds and
-  the unsharpened clip stays exactly as rendered.
+  the unsharpened clip stays exactly as rendered.  The reason is recorded on
+  the export (``tiktok_sharpen_error``) so the gallery says the clip is not
+  sharpened instead of the failure living only in a log line; the next
+  success clears it.
 - ``OMNICUT_AUTO_TIKTOK_SHARP=0`` switches the whole step off.
 """
 from __future__ import annotations
@@ -72,6 +75,7 @@ def ensure_tiktok_sharp(export_id: Optional[str], *, channel_id: Optional[str] =
         outcome = _sharpen(export_id, channel_id)
     except Exception as exc:  # sharpness must never fail the render
         logger.warning("[AutoSharp] ปรับความคมชัดอัตโนมัติไม่สำเร็จ (%s) ใช้ไฟล์เรนเดอร์เดิมต่อ: %s", export_id, exc)
+        _record_error(export_id, channel_id, exc)
         return {"status": "failed", "reason": str(exc)}
     if outcome["status"] == "sharpened":
         logger.info("[AutoSharp] ปรับความคมชัด TikTok ให้ %s แล้ว (%.1f MB)", export_id, outcome["size_bytes"] / 1024 ** 2)
@@ -102,4 +106,22 @@ def _sharpen(export_id: str, channel_id: Optional[str]) -> Dict[str, Any]:
 
     marker = {"at": datetime.datetime.now().isoformat(timespec="seconds"), **fingerprint(video)}
     ExportRegistry.set_tiktok_sharp(export_id, marker, channel_id=channel_id)
+    ExportRegistry.set_tiktok_sharpen_error(export_id, None, channel_id=channel_id)
     return {"status": "sharpened", "size_bytes": marker["size"]}
+
+
+def error_reason(exc: BaseException) -> str:
+    """Short Thai reason shown in the gallery."""
+    if isinstance(exc, PermissionError):
+        return "ไฟล์ถูกเปิดค้างอยู่ จึงแทนที่ด้วยไฟล์คมชัดไม่ได้"
+    if isinstance(exc, TimeoutError):
+        return "ปรับความคมชัดนานเกินกำหนด"
+    return "ปรับความคมชัดไม่สำเร็จ ใช้ไฟล์เรนเดอร์เดิม"
+
+
+def _record_error(export_id: str, channel_id: Optional[str], exc: BaseException) -> None:
+    error = {"reason": error_reason(exc), "at": datetime.datetime.now().astimezone().isoformat(timespec="seconds")}
+    try:
+        ExportRegistry.set_tiktok_sharpen_error(export_id, error, channel_id=channel_id)
+    except Exception as store_exc:  # the render must still succeed
+        logger.warning("[AutoSharp] บันทึกสาเหตุที่ปรับความคมชัดไม่สำเร็จไม่ได้ (%s): %s", export_id, store_exc)

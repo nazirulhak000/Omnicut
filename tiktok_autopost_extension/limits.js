@@ -9,6 +9,9 @@
     SCHEDULE_CAP: 30,                    // TikTok: scheduled posts per account
     DRAFT_CAP: 30,                       // TikTok: drafts per account
     MIN_LEAD_MS: 15 * 60 * 1000,         // a scheduled slot must be at least this far ahead
+    MAX_LEAD_MS: 10 * 24 * 60 * 60 * 1000, // TikTok: a scheduled slot may be at most 10 days ahead
+    SLOT_STEP_MINUTES: 5,                // TikTok's time picker only offers 5-minute steps
+    SLOT_TZ_OFFSET: '+07:00',            // every slot is Asia/Bangkok wall time, whatever the PC's timezone is
     ACCOUNT_REREAD_MS: 15 * 60 * 1000,   // how long a verified TikTok account handle is trusted for one job chain
     MAX_TEXT_CHARS: 4000,                // caption + hashtags
     MAX_HASHTAGS: 30,

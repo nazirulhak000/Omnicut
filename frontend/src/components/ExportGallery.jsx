@@ -1194,6 +1194,11 @@ function ExportActiveWorkbench({
               <span>{sharpMessage}</span>
             </div>
           )}
+          {!alreadySharp && video.tiktok_sharpen_error && (
+            <p className="text-xs text-amber-300" data-testid="sharpen-error">
+              ยังไม่คมชัดระดับ TikTok: {video.tiktok_sharpen_error}
+            </p>
+          )}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 border-t border-white/[0.08]">
             <button
               type="button"

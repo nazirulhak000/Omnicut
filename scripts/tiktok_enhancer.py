@@ -70,6 +70,27 @@ resolve_nvenc_sessions = media_validation.resolve_nvenc_sessions
 NVENC_MAX_SESSIONS = media_validation.NVENC_MAX_SESSIONS
 _NVENC_SESSIONS = media_validation.NVENC_SESSIONS
 
+# Windows refuses to replace a file another process holds open (a gallery
+# preview streaming the clip, antivirus scanning it). Wait a little and retry
+# before giving up; the caller reports the failure instead of swallowing it.
+REPLACE_RETRY_DELAYS = (0.5, 1.0, 1.5, 2.0)
+
+
+def replace_with_retry(src: Path, dst: Path, *, delays=None, sleep=None) -> None:
+    """``os.replace`` that retries on ``PermissionError`` (file in use)."""
+    import time
+    waits = REPLACE_RETRY_DELAYS if delays is None else delays
+    pause = time.sleep if sleep is None else sleep
+    for attempt, wait in enumerate((*waits, None), start=1):
+        try:
+            os.replace(src, dst)
+            return
+        except PermissionError:
+            if wait is None:
+                raise
+            logger.warning("แทนที่ไฟล์ %s ไม่ได้ (ไฟล์ถูกเปิดอยู่) ลองใหม่ครั้งที่ %d ใน %.1f วิ", dst.name, attempt, wait)
+            pause(wait)
+
 
 def probe_audio_codec(input_path: Path) -> Optional[str]:
     """Check if the first audio stream is AAC."""
@@ -204,7 +225,7 @@ def enhance_video_for_tiktok(
                 f"FFmpeg ปรับความคมชัดล้มเหลว (exit {proc.returncode}): {(proc.stderr or '')[-500:]}"
             )
         verify_enhanced_output(src_check, partial)
-        os.replace(partial, out_file)
+        replace_with_retry(partial, out_file)
     finally:
         # Killed/failed/invalid encodes never leave a half-written file behind.
         media_validation.discard_partial(partial)

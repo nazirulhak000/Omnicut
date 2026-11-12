@@ -14,7 +14,7 @@ the browser step (attach/DOM.setFileInputFiles/detach) cannot happen here.
 In-memory, single job at a time, by design: this is a local single-user tool
 run by one person clicking one button at a time, not a queue.
 """
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import json
 import re
@@ -43,6 +43,52 @@ COVERS_DIR = BASE_DIR / "05_Covers_Thumbnails"
 router = APIRouter(prefix="/api/tiktok-autopost", tags=["tiktok-autopost"])
 
 _pending: Optional[dict] = None
+
+PROJECT_TZ = timezone(timedelta(hours=7))
+# TikTok Studio only accepts a scheduled time at least 15 minutes and at most 10 days ahead, on a 5-minute step.
+SCHEDULE_MIN_LEAD = timedelta(minutes=15)
+SCHEDULE_MAX_LEAD = timedelta(days=10)
+
+
+def _now_iso() -> str:
+    from scripts.schedule_store import now_iso
+    return now_iso()
+
+
+def _check_schedule_window(schedule_date: Optional[str], schedule_time: Optional[str], *, now: Optional[datetime] = None) -> None:
+    """Refuse a slot TikTok will reject, before anything is uploaded."""
+    if not schedule_date or not schedule_time:
+        return
+    try:
+        slot = datetime.strptime(f"{schedule_date} {schedule_time}", "%Y-%m-%d %H:%M").replace(tzinfo=PROJECT_TZ)
+    except ValueError:
+        raise ChannelError(422, "posting_schedule_invalid", "วันที่/เวลานัดโพสต์ต้องเป็นรูปแบบ YYYY-MM-DD และ HH:MM")
+    if slot.minute % 5:
+        raise ChannelError(422, "posting_schedule_invalid", "TikTok ตั้งเวลาได้ทีละ 5 นาที (เช่น 10:00, 10:05)")
+    current = now or datetime.now(PROJECT_TZ)
+    if slot < current + SCHEDULE_MIN_LEAD:
+        raise ChannelError(422, "posting_slot_too_soon", "เวลานัดผ่านไปแล้วหรือเหลือไม่ถึง 15 นาที ให้จัดเวลาใหม่ก่อนเตรียมคลิป")
+    if slot > current + SCHEDULE_MAX_LEAD:
+        raise ChannelError(422, "posting_slot_too_far", "TikTok ตั้งเวลาล่วงหน้าได้ไม่เกิน 10 วัน ให้เตรียมคลิปนี้เมื่อใกล้ถึงวัน")
+
+
+def _cover_in_channel(cover_abs: Path, channel_id: str) -> bool:
+    """A cover belongs to a channel when it sits in that channel's folder (main: also the legacy flat folder)."""
+    try:
+        parts = cover_abs.resolve().relative_to(COVERS_DIR.resolve()).parts
+    except ValueError:
+        return False
+    if channel_id != "main":
+        return len(parts) > 1 and parts[0] == channel_id
+    if len(parts) == 1 or parts[0] == "main":
+        return True
+    # main keeps its legacy sub-folders (prototypes...), but never another channel's own folder
+    try:
+        from scripts.channel_store import get_default_store
+        others = {c.get("id") for c in get_default_store().list_channels(include_archived=True)} - {"main"}
+    except Exception:
+        return False
+    return parts[0] not in others
 
 
 def _is_contained(path: Path, root: Path) -> bool:
@@ -161,6 +207,26 @@ def _relative_cover(path: Optional[Path]) -> Optional[str]:
     if not path:
         return None
     return str(path.relative_to(BASE_DIR)).replace("\\", "/")
+
+
+def _relative_cover_safe(raw: Optional[str]) -> Optional[str]:
+    if not raw:
+        return None
+    path = Path(raw)
+    if not path.is_absolute():
+        return str(raw).replace("\\", "/")
+    try:
+        return str(path.resolve().relative_to(BASE_DIR.resolve())).replace("\\", "/")
+    except ValueError:
+        return None
+
+
+def _cover_media_url(rel: Optional[str]) -> Optional[str]:
+    """The one URL form for a cover: always derived from its path, never taken from a client."""
+    if not rel:
+        return None
+    from urllib.parse import quote
+    return "/api/media/" + quote(rel.replace("\\", "/"), safe="/")
 
 
 def _repair_pending_cover() -> None:
@@ -324,7 +390,9 @@ def prepare(req: PrepareRequest, scope: ChannelScope = Depends(get_workflow_scop
     elif req.intent == "publish_draft":
         raise ChannelError(422, "posting_draft_queue_required", "เผยแพร่จากแบบร่างต้องระบุคิว (queue_id) ของแบบร่างนั้น")
     if not req.queue_id:
-        latest_record = ExportRegistry.latest_for_angle(product_id, angle_id, channel_id=channel_id)
+        latest_record = ExportRegistry.latest_for_angle(product_id, angle_id, channel_id=channel_id,
+                                                        project_name=export_record.get("project_name"),
+                                                        batch=export_record.get("batch"))
         if latest_record and latest_record.get("status") != "posted" and latest_record.get("id") != export_record.get("id"):
             raise ChannelError(409, "stale_export", "คลิปนี้มี export รุ่นใหม่แล้ว กรุณาเลือกคลิปใหม่ก่อนเตรียมโพสต์",
                                action="reselect_export", export_id=export_record.get("id"),
@@ -372,7 +440,7 @@ def prepare(req: PrepareRequest, scope: ChannelScope = Depends(get_workflow_scop
         cover_abs = _resolve_under(requested, [COVERS_DIR]) if requested else None
         if hyperframes_package and not req.cover_path and cover_abs and hyperframes_package.get("cover_sha256") != _file_digest(cover_abs):
             raise ChannelError(409, "export_cover_selection_changed", "Frozen HyperFrames package cover changed")
-    if cover_abs and channel_id != "main" and not _is_contained(cover_abs, (COVERS_DIR / channel_id).resolve()):
+    if cover_abs and not _cover_in_channel(cover_abs, channel_id):
         raise ChannelError(404, "resource_not_found", "ไฟล์ปกนี้ไม่อยู่ในช่องของงาน")
     if hyperframes_package is not None and cover_abs:
         raw_cover = selected_cover["path"] if selected_cover else req.cover_path or hyperframes_package.get("cover_path")
@@ -399,6 +467,8 @@ def prepare(req: PrepareRequest, scope: ChannelScope = Depends(get_workflow_scop
     if req.queue_id and queue.get("cover_sha256") and cover_digest != queue["cover_sha256"]:
         raise ChannelError(409, "posting_queue_cover_changed", "Frozen queued cover changed before its posting snapshot")
     intent = _resolve_intent(req)
+    if intent in {"schedule", "publish_draft"}:
+        _check_schedule_window(req.schedule_date, req.schedule_time)
     # the clip's permanent EP number (issued the first time; the same lineage always gets the same one) and its hashtag form
     episode = EpisodeRegistry(BASE_DIR).ensure(channel_id, product_id=product_id, angle_id=angle_id, export_id=export_record["id"])
     final_hashtags = compose_hashtags(req.hashtags, episode["episode_no"])
@@ -438,6 +508,9 @@ def prepare(req: PrepareRequest, scope: ChannelScope = Depends(get_workflow_scop
         if source_readiness.get("slot_fingerprint"):
             payload["source_slot_fingerprint"] = source_readiness["slot_fingerprint"]
     job = _jobs().prepare(channel_id, payload, idempotency_key=req.idempotency_key)
+    for replaced in job.pop("superseded_jobs", None) or []:
+        # the replaced (never-claimed / abandoned) job must not keep its queue row waiting on it
+        _reset_queue_row(scope, replaced)
     _pending = job  # Legacy read cache only; never used to authorize an effect.
     if req.queue_id:
         try:
@@ -453,12 +526,13 @@ def prepare(req: PrepareRequest, scope: ChannelScope = Depends(get_workflow_scop
                         raise ChannelError(409, "posting_queue_changed", "คิวเปลี่ยนสถานะแล้ว จึงไม่ทับงานอื่น")
                     row["draft_job_id"] = job.get("draft_source_job_id") or row.get("draft_job_id")
                 elif row.get("status") not in {"planned", "failed"} and not (
-                        row.get("status") == "ready_for_extension" and row.get("posting_job_id") == job["job_id"]):
+                        row.get("status") == "ready_for_extension" and (
+                            row.get("posting_job_id") == job["job_id"] or _job_is_cancelled(channel_id, row.get("posting_job_id")))):
                     raise ChannelError(409, "posting_queue_changed", "คิวเปลี่ยนสถานะแล้ว จึงไม่ทับงานอื่น")
                 row["status"] = "ready_for_extension"
                 row["posting_job_id"] = job["job_id"]
-                row["extension_prepared_at"] = datetime.now().isoformat()
-                row["updated_at"] = datetime.now().isoformat()
+                row["extension_prepared_at"] = _now_iso()
+                row["updated_at"] = _now_iso()
 
             result = ScheduleQueueStore.update_item(req.queue_id, _mark_ready, channel_id=channel_id)
             if result is None:
@@ -467,6 +541,11 @@ def prepare(req: PrepareRequest, scope: ChannelScope = Depends(get_workflow_scop
             _pending = job
         except Exception as exc:
             _jobs().mark_prepare_effects(channel_id, job["job_id"], error=type(exc).__name__)
+            # An invisible half-prepared job would block every later prepare of this export: retire it.
+            try:
+                _jobs().cancel(channel_id, job["job_id"])
+            except ChannelError:
+                pass
             raise
     return {"success": True, "cover_path": _relative_cover(cover_abs), "job_id": job["job_id"],
             "channel_id": channel_id, "protocol_version": PROTOCOL_VERSION, "revision": job["revision"]}
@@ -484,8 +563,11 @@ def update_cover(req: CoverUpdateRequest, scope: ChannelScope = Depends(get_work
     job = _jobs().get(scope.channel_id, req.job_id) if req.job_id else _jobs().pending(scope.channel_id)
     if job is None:
         raise HTTPException(status_code=404, detail="ยังไม่มีคลิปที่เตรียมไว้")
+    if job.get("queue_id"):
+        # a queued clip posts the cover frozen on its queue row; swapping it here would bypass that snapshot
+        raise ChannelError(409, "posting_queue_cover_frozen", "คลิปจากคิวใช้ปกที่ล็อกไว้ในคิว เปลี่ยนปกในคิวแล้วเตรียมคลิปใหม่")
     cover_abs = _prefer_3x4_cover(_resolve_under(req.cover_path, [COVERS_DIR]))
-    if scope.channel_id != "main" and not _is_contained(cover_abs, (COVERS_DIR / scope.channel_id).resolve()):
+    if not _cover_in_channel(cover_abs, scope.channel_id):
         raise ChannelError(404, "resource_not_found", "ไฟล์ปกนี้ไม่อยู่ในช่องของงาน")
     _jobs().update_cover(scope.channel_id, job["job_id"], str(cover_abs), cover_sha256=_file_digest(cover_abs))
     return {"success": True, "cover_path": str(cover_abs)}
@@ -497,7 +579,21 @@ def get_pending(scope: ChannelScope = Depends(get_workflow_scope)):
     "nothing prepared yet" -- the extension should tell the user to click
     the app's button first rather than silently doing nothing."""
     scope = _actual_scope(scope)
-    job = _jobs().pending(scope.channel_id)
+    job = None
+    for candidate in _jobs().pending_candidates(scope.channel_id):
+        try:
+            _canonical_job(scope, candidate["job_id"], before_action=True)
+        except ChannelError as exc:
+            if exc.code in {"posting_export_changed", "posting_cover_changed"}:
+                # its file changed after preparing: it can never be claimed, so it must not block the jobs behind it
+                continue
+            raise
+        except HTTPException as exc:
+            if exc.status_code in {403, 404}:
+                continue
+            raise
+        job = candidate
+        break
     if job is None and scope.channel_id == "main" and not scope.strict and _pending and not _pending.get("job_id"):
         # Legacy read-only compatibility, never claimable by protocol v2.
         _repair_pending_cover()
@@ -541,8 +637,17 @@ def _reset_queue_row(scope, job):
                 row["status"] = "planned"
                 row.pop("posting_job_id", None)
             row.pop("extension_prepared_at", None)
-            row["updated_at"] = datetime.now().isoformat()
+            row["updated_at"] = _now_iso()
     ScheduleQueueStore.update_item(job["queue_id"], reset, channel_id=scope.channel_id)
+
+
+def _job_is_cancelled(channel_id, job_id) -> bool:
+    if not job_id:
+        return False
+    try:
+        return _jobs().get(channel_id, job_id).get("status") == "cancelled"
+    except ChannelError:
+        return True  # the row points at a job that no longer exists
 
 
 def _actual_scope(scope):
@@ -554,12 +659,26 @@ def _jobs():
     return PostingJobStore(BASE_DIR)
 
 
+_DIGEST_CACHE: dict = {}
+
+
 def _file_digest(path):
+    """SHA-256 of a file, cached by (path, size, mtime): claim/validate/attempt each re-check a 50-100 MB clip.
+    Any rewrite (re-render, sharpen via os.replace) changes mtime, so a changed file is always re-hashed."""
+    path = Path(path)
+    stat = path.stat()
+    key = (str(path.resolve()), stat.st_size, stat.st_mtime_ns)
+    cached = _DIGEST_CACHE.get(key)
+    if cached:
+        return cached
     digest = sha256()
     with path.open("rb") as source:
         for block in iter(lambda: source.read(1024 * 1024), b""):
             digest.update(block)
-    return digest.hexdigest()
+    if len(_DIGEST_CACHE) > 512:
+        _DIGEST_CACHE.clear()
+    _DIGEST_CACHE[key] = digest.hexdigest()
+    return _DIGEST_CACHE[key]
 
 
 def _posting_ready(scope):
@@ -603,6 +722,40 @@ def _validate_request_payload(req, job):
 def capabilities():
     return {"protocol_version": PROTOCOL_VERSION, "durable_jobs": True,
             "job_scoped_ack": True, "account_guard": True}
+
+
+LINKAGE_GRACE = timedelta(minutes=10)
+
+
+@router.get("/linkage-due")
+def linkage_due(scope: ChannelScope = Depends(get_workflow_scope)):
+    """Scheduled posts whose slot passed (+10 min) and that are not yet linked to their TikTok video: the extension
+    looks them up on the Content page (read-only) and closes them via /jobs/{id}/content-linkage."""
+    scope = _actual_scope(scope)
+    from scripts.publication_observations import PublicationObservationStore
+    observations = PublicationObservationStore(BASE_DIR, jobs=_jobs())
+    linked = {row["job_id"] for row in observations.table.scoped_load(scope.channel_id) if row.get("status") == "verified"}
+    now = datetime.now(PROJECT_TZ)
+    items = []
+    for job in _jobs().table.scoped_load(scope.channel_id):
+        if job.get("status") != "scheduled_on_platform" or job["id"] in linked or job.get("publication_observation_id"):
+            continue
+        if not (job.get("schedule_date") and job.get("schedule_time")):
+            continue
+        try:
+            slot = datetime.strptime(f"{job['schedule_date']} {job['schedule_time']}", "%Y-%m-%d %H:%M").replace(tzinfo=PROJECT_TZ)
+        except ValueError:
+            continue
+        if slot + LINKAGE_GRACE > now:
+            continue
+        items.append({"job_id": job["id"], "revision": job["revision"], "export_id": job.get("export_id"),
+                      "caption": job.get("caption") or "", "hashtags": job.get("hashtags") or "",
+                      "episode_no": job.get("episode_no"),
+                      "schedule_date": job["schedule_date"], "schedule_time": job["schedule_time"],
+                      "scheduled_at": slot.isoformat(timespec="minutes"),
+                      "target_handle": job.get("target_handle") or ""})
+    items.sort(key=lambda item: item["scheduled_at"])
+    return {"items": items}
 
 
 @router.get("/jobs/{job_id}")
@@ -688,8 +841,11 @@ def _apply_outcome_effects(scope, job):
             row["status"] = {"published": "posted", "draft_saved": "draft_on_platform"}.get(job["status"], "scheduled_on_platform")
             if job["status"] == "draft_saved":
                 # when the draft was saved: the "check against TikTok" never needs to look further back than this
-                row["draft_saved_at"] = datetime.now().isoformat()
+                row["draft_saved_at"] = _now_iso()
+            if job["status"] == "published":
+                row["posted_at"] = row.get("posted_at") or _now_iso()
             row["posting_job_id"] = job["job_id"]
+            row["updated_at"] = _now_iso()
         # A queue row that no longer exists is not a reason to keep the receipt pending forever: the post itself is
         # recorded on the job and the export; there is simply no row left to update.
         ScheduleQueueStore.update_item(job["queue_id"], apply, channel_id=scope.channel_id)
@@ -699,7 +855,8 @@ def _apply_outcome_effects(scope, job):
         queue_id = new_id()
         sched_iso = None
         if job.get("schedule_date") and job.get("schedule_time"):
-            sched_iso = f"{job['schedule_date']}T{job['schedule_time']}:00+07:00"
+            # same minute-precision form as the queue's scheduled_iso(): slot checks compare these strings
+            sched_iso = f"{job['schedule_date']}T{job['schedule_time']}+07:00"
         norm_video_path = str(job["video_path"]).replace("\\", "/")
         if "04_Exports/" in norm_video_path:
             norm_video_path = norm_video_path[norm_video_path.index("04_Exports/"):]
@@ -715,7 +872,9 @@ def _apply_outcome_effects(scope, job):
             "angle_id": job.get("angle_id"),
             "project_name": (export or {}).get("project_name") or job.get("project_name"),
             "hook_title": (export or {}).get("hook_title") or job.get("hook_title"),
-            "cover_path": job.get("cover_path"),
+            "cover_path": _relative_cover_safe(job.get("cover_path")),
+            "cover_url": _cover_media_url(_relative_cover_safe(job.get("cover_path"))),
+            "cover_sha256": job.get("cover_sha256"),
             "caption": job.get("caption") or "",
             "hashtags": job.get("hashtags") or "",
             "tiktok_product_id": job.get("tiktok_product_id"),
@@ -726,18 +885,23 @@ def _apply_outcome_effects(scope, job):
             "updated_at": now_iso(),
         }
         if job["status"] == "draft_saved":
-            queue_item["draft_saved_at"] = datetime.now().isoformat()
+            queue_item["draft_saved_at"] = now_iso()
         with ScheduleQueueStore.transaction(channel_id=scope.channel_id) as records:
-            existing = next(
-                (r for r in records if r.get("posting_job_id") == job["job_id"]
-                 or (r.get("export_id") == job["export_id"] and r.get("status") in {"scheduled_on_platform", "draft_on_platform"})),
-                None
+            # Any still-open row of this export is THE row of this clip (a second row = a second post later).
+            open_states = {"scheduled_on_platform", "draft_on_platform", "planned", "failed",
+                           "ready_for_extension", "confirmation_unknown"}
+            existing = next((r for r in records if r.get("posting_job_id") == job["job_id"]), None) or next(
+                (r for r in records if r.get("export_id") == job["export_id"] and r.get("status") in open_states),
+                None,
             )
             if existing:
                 existing["status"] = queue_item["status"]
                 existing["posting_job_id"] = job["job_id"]
                 if sched_iso:
                     existing["scheduled_at"] = sched_iso
+                if job["status"] == "draft_saved":
+                    existing["draft_saved_at"] = queue_item["draft_saved_at"]
+                existing["updated_at"] = now_iso()
                 queue_id = existing["id"]
             else:
                 records.append(queue_item)
@@ -767,7 +931,7 @@ def _mirror_unknown_to_queue(scope, job):
             return
         row["status"] = "confirmation_unknown"
         row["posting_job_id"] = job["job_id"]
-        row["updated_at"] = datetime.now().isoformat()
+        row["updated_at"] = _now_iso()
     ScheduleQueueStore.update_item(job["queue_id"], mark, channel_id=scope.channel_id)
 
 

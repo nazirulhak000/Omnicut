@@ -22,6 +22,17 @@ from urllib.parse import urlparse, parse_qs, unquote
 
 VAULT_ROOT = Path(__file__).resolve().parent.parent
 
+
+def _inside_vault(raw) -> "Path | None":
+    """Resolve a client path; None when it escapes the vault (.., absolute elsewhere, drive letters)."""
+    try:
+        candidate = Path(str(raw or ""))
+        candidate = (candidate if candidate.is_absolute() else VAULT_ROOT / candidate).resolve()
+        candidate.relative_to(VAULT_ROOT.resolve())
+        return candidate
+    except (ValueError, OSError):
+        return None
+
 _LOCK = threading.Lock()
 _CURRENT_JOB = None
 
@@ -47,7 +58,11 @@ class PortableRequestHandler(BaseHTTPRequestHandler):
     """Zero-dependency HTTP Handler emulating OmniCut API for TikTok Chrome Extension."""
 
     def _send_cors_headers(self):
-        self.send_header("Access-Control-Allow-Origin", "*")
+        # only the extension and local pages may read this server (it serves files from the vault)
+        origin = self.headers.get("Origin") or ""
+        if origin.startswith("chrome-extension://") or origin.startswith(("http://127.0.0.1", "http://localhost")):
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE, PATCH")
         self.send_header("Access-Control-Allow-Headers", "*")
         self.send_header("Access-Control-Max-Age", "86400")
@@ -239,9 +254,9 @@ class PortableRequestHandler(BaseHTTPRequestHandler):
         # 7. Media Streaming (/api/media/*)
         if path.startswith("/api/media/"):
             rel_media_path = unquote(path.replace("/api/media/", "")).lstrip("/")
-            file_path = VAULT_ROOT / rel_media_path
+            file_path = _inside_vault(rel_media_path)
 
-            if not file_path.exists() or not file_path.is_file():
+            if file_path is None or not file_path.is_file():
                 self._send_json(404, {"detail": "Media file not found"})
                 return
 
@@ -276,15 +291,17 @@ class PortableRequestHandler(BaseHTTPRequestHandler):
             raw_video = body.get("video_path", "")
             raw_cover = body.get("cover_path")
 
-            video_file = Path(raw_video)
-            if not video_file.is_absolute():
-                video_file = VAULT_ROOT / raw_video
+            video_file = _inside_vault(raw_video)
+            if video_file is None or not video_file.is_file():
+                self._send_json(404, {"detail": "ไม่พบไฟล์วิดีโอใน vault"})
+                return
 
             cover_file = None
             if raw_cover:
-                cover_file = Path(raw_cover)
-                if not cover_file.is_absolute():
-                    cover_file = VAULT_ROOT / raw_cover
+                cover_file = _inside_vault(raw_cover)
+                if cover_file is None or not cover_file.is_file():
+                    self._send_json(404, {"detail": "ไม่พบไฟล์ปกใน vault"})
+                    return
 
             job_id = "job_" + uuid.uuid4().hex[:12]
             with _LOCK:
@@ -336,12 +353,29 @@ class PortableRequestHandler(BaseHTTPRequestHandler):
             "/api/tiktok-stats/import",
         ):
             channel_id = self.headers.get("X-OmniCut-Channel", "main")
-            job_id = body.get("job_id") or (_CURRENT_JOB.get("job_id") if _CURRENT_JOB else None)
-            queue_id = body.get("queue_id") or (_CURRENT_JOB.get("queue_id") if _CURRENT_JOB else None)
+            if path == "/api/tiktok-stats/import":
+                # stats are not a posting result: never mark anything posted from here
+                self._send_json(200, {"success": True, "imported": 0})
+                return
+            with _LOCK:
+                current = dict(_CURRENT_JOB) if _CURRENT_JOB else None
+            job_id = body.get("job_id")
+            if not current or not job_id or current.get("job_id") != job_id:
+                self._send_json(404, {"detail": "ไม่พบงานที่ตรงกับผลนี้ จึงไม่บันทึก"})
+                return
+            if not current.get("lease_token") or body.get("lease_token") != current.get("lease_token"):
+                self._send_json(409, {"detail": "สิทธิ์ของ Extension ไม่ตรงกับงาน", "code": "posting_lease_invalid"})
+                return
+            queue_id = current.get("queue_id")
             proof = body.get("proof") or {}
             post_url = body.get("post_url") or body.get("video_url") or proof.get("notice")
             platform_id = body.get("platform_id") or body.get("item_id") or proof.get("platform_post_id")
-            outcome = body.get("outcome", "published")
+            outcome = body.get("outcome")
+            queue_status = {"published": "posted", "scheduled_on_platform": "scheduled_on_platform",
+                            "draft_saved": "draft_on_platform", "confirmation_unknown": "confirmation_unknown"}.get(outcome)
+            if queue_status is None:
+                self._send_json(422, {"detail": "ผลการโพสต์ไม่ถูกต้อง", "code": "posting_outcome_invalid"})
+                return
 
             # Update state.json and queue.json on SSD
             queue_file = VAULT_ROOT / "queue.json"
@@ -350,15 +384,12 @@ class PortableRequestHandler(BaseHTTPRequestHandler):
             states = _load_json(state_file, default={})
             queue_items = _load_json(queue_file, default=[])
 
+            # only the job's own queue row; never "the first row" (that marked an unrelated clip posted)
             target_id = queue_id
-            if not target_id and _CURRENT_JOB and _CURRENT_JOB.get("queue_id"):
-                target_id = _CURRENT_JOB["queue_id"]
-            if not target_id and queue_items:
-                target_id = queue_items[0]["id"]
 
             if target_id:
                 states[target_id] = {
-                    "status": "posted",
+                    "status": queue_status,
                     "uploaded_at": datetime.now(timezone.utc).isoformat(),
                     "post_url": post_url,
                     "post_id": platform_id,
@@ -368,20 +399,21 @@ class PortableRequestHandler(BaseHTTPRequestHandler):
 
                 for q in queue_items:
                     if q["id"] == target_id:
-                        q["status"] = "posted"
-                        q["posted_at"] = states[target_id]["uploaded_at"]
+                        q["status"] = queue_status
+                        if queue_status == "posted":
+                            q["posted_at"] = states[target_id]["uploaded_at"]
                 _save_json_atomic(queue_file, queue_items)
 
             with _LOCK:
-                if _CURRENT_JOB and (_CURRENT_JOB.get("job_id") == job_id or not job_id):
-                    _CURRENT_JOB["status"] = "published"
+                if _CURRENT_JOB and _CURRENT_JOB.get("job_id") == job_id:
+                    _CURRENT_JOB["status"] = outcome
 
             self._send_json(200, {
                 "success": True,
                 "outcome": outcome,
                 "job_id": job_id,
                 "channel_id": channel_id,
-                "status": "published",
+                "status": outcome,
                 "queue_id": target_id,
             })
             return
