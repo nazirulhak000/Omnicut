@@ -1,5 +1,5 @@
-"""scripts/cloud_runner.py — Omnicut Cloud Video Production Engine
-Automates Couple Paper Chat (#5 น้องนุ้ย & พี่บ่าว) video production and HyperFrames rendering on Google Colab / Cloud VPS.
+"""scripts/cloud_runner.py — Omnicut Video Production Engine
+Automates Couple Paper Chat (#5 น้องนุ้ย & พี่บ่าว) video production and HyperFrames rendering.
 """
 from __future__ import annotations
 
@@ -93,7 +93,7 @@ def render_composition_to_mp4(
     log(f"   Target MP4: {out_mp4_path}")
     log(f"   Quality: {quality} | FPS: {fps}")
 
-    # Set puppeteer sandbox args for headless linux/colab
+    # Set puppeteer sandbox args for headless linux
     env = os.environ.copy()
     env["PUPPETEER_ARGS"] = "--no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage"
     env["CHROMIUM_FLAGS"] = "--no-sandbox --disable-setuid-sandbox"

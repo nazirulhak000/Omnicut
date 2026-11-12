@@ -34,7 +34,7 @@ import { TAB_STORAGE_KEY, resolveInitialTab, readTabFromSearch, pushTab, replace
 
 // ── Lazy-loaded view chunks with one retry ──
 
-// After a redeploy (Colab restart) an open tab still references the old
+// After a redeploy (server restart) an open tab still references the old
 
 // hashed chunk names. Retry once, then reload the page once (guarded per
 

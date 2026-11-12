@@ -200,7 +200,6 @@ def get_gdrive_roots() -> List[Path]:
     env_root = os.environ.get("OMNICUT_GDRIVE_EXPORT_ROOT", "").strip()
     if env_root:
         candidates.append(Path(env_root))
-    candidates.append(Path("/content/drive/MyDrive/Omnicut_Exports"))
     candidates.append(Path(r"G:\My Drive\Omnicut_Exports"))
 
     roots: List[Path] = []

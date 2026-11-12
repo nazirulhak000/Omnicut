@@ -10,16 +10,13 @@ logged. Configured -> every request must carry a matching `X-API-Key`
 header (constant-time compare) or gets 401. CORS now reads an explicit
 origin allowlist from CORS_ORIGINS instead of "*".
 
-Remote-access hardening (2026-10-30): the app is exposed through a
-Cloudflare tunnel on Colab. cloudflared connects from 127.0.0.1, and the old
-gate (a) treated ANY request as local when /content existed, google.colab was
-imported or OMNICUT_ALLOW_REMOTE was set, (b) skipped every non-/api path
-(/terminal, /ws, /agy = ttyd root shell) and (c) never saw WebSockets. The
-bypass is deleted; scripts/api_auth.py adds a pure-ASGI gate (http +
+Remote-access hardening (2026-10-30): when the app is exposed through a
+Cloudflare tunnel, cloudflared connects from 127.0.0.1.
+scripts/api_auth.py adds a pure-ASGI gate (http +
 websocket) plus /api/auth/{me,login,logout} with a signed `omnicut_session`
 cookie. Tunnel traffic is recognised by its forward headers (cf-connecting-ip,
 cf-ray, x-forwarded-for, forwarded). The original local/API-key tests below
-are unchanged: no test here asserted the Colab bypass, and local semantics
+are unchanged, and local semantics
 (no key -> open, key -> X-API-Key required on /api/*) are preserved.
 
 Isolated / offline per .agents/rules/testing_standard.md: no real network
@@ -243,10 +240,9 @@ def test_tunnel_request_without_cookie_gets_401(password):
     assert res.json() == {"detail": "ต้องเข้าสู่ระบบก่อน", "login_required": True}
 
 
-def test_colab_and_allow_remote_bypass_is_gone(password, monkeypatch):
-    """Old gate: /content, google.colab or OMNICUT_ALLOW_REMOTE => 'local'."""
+def test_allow_remote_bypass_is_gone(password, monkeypatch):
+    """Old gate: OMNICUT_ALLOW_REMOTE => 'local'."""
     monkeypatch.setenv("OMNICUT_ALLOW_REMOTE", "1")
-    monkeypatch.setitem(_sys.modules, "google.colab", types.ModuleType("google.colab"))
     res = _fresh_client().get("/api/status", headers=TUNNEL)
     assert res.status_code == 401
 
@@ -566,7 +562,7 @@ def test_health_reachable_remotely_without_login():
     assert res.status_code == 200
     body = res.json()
     assert body["ok"] is True
-    assert body["runtime"] in ("colab", "local")
+    assert body["runtime"] == "local"
     assert body["auth_required"] is True
     assert body["started_at"]
     assert body["version"] == app.version
@@ -577,9 +573,8 @@ def test_health_local_reports_no_auth_required():
     assert body["auth_required"] is False
 
 
-def test_health_runtime_detects_colab(monkeypatch):
-    monkeypatch.setitem(_sys.modules, "google.colab", types.ModuleType("google.colab"))
-    assert api_auth.detect_runtime() == "colab"
+def test_health_runtime_detects_local():
+    assert api_auth.detect_runtime() == "local"
 
 
 @pytest.fixture()

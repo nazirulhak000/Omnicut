@@ -13,6 +13,7 @@
 | Round CLAUDE-FLOW-ONE-CLICK-SURVEY-20261112 | สำรวจ flow สินค้า → โพสต์ (อ่านอย่างเดียว); แผน A ปกอัตโนมัติหลังเรนเดอร์, B1 สองปุ่มต่อสินค้า, C1 เตรียมทั้งหมด, C2 ความคมชัดอัตโนมัติ; เจ้าของอนุมัติ D1–D4 ตามที่แนะนำ, D5 ยังไม่ตัดสิน | 2026-11-12 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-AUTO-COVER-20261112 | ปกอัตโนมัติหลังเรนเดอร์ 3 จุด (`scripts/auto_cover.py`), ป้าย `auto` ใน binding และ angle, Editor ไม่บังคับปกก่อนเรนเดอร์; 0.39–0.51 วิ/ปก; ยังไม่ได้เรนเดอร์จริงผ่านแอป | 2026-11-12 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-SPEED-PHASE5-20261112 | ดราฟต์ครั้งแรก 62 → 45 วิ (tone classifier `thinking_level=minimal` + timeout); `-filter_complex_threads 4` (เรนเดอร์ −12%, batch 6.8 → 7.7 คลิป/นาที); ข6 รองรับเรนเดอร์ซ้อนกัน; เติมช่วงเงียบต้นไฟล์เสียงกลับ 50 โปรเจกต์ (`tools/restore_voice_lead.py`); pytest 5440 ผ่าน | 2026-11-12 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
+| Round ANTIGRAVITY-REMOVE-GOOGLE-COLAB-CLEAN-SWEEP-20261112 | ดำเนินการตัดโค้ดและโมดูล Google Colab ออกทั้งหมดตามคำขอผู้ใช้ (Clean Sweep รวม 3,100+ บรรทัด): ลบไฟล์ Notebook, Builder, Colab CLI, Login Helper, AGY Cloud Agent, Colab Sync, Guides, และ Colab Build Tests (9 ไฟล์); ถอดการผูก colab_sync จาก finalize.py; ลบ fallback colab userdata และ /content/drive จาก auth.py / api_command.py / api_mobile_posting.py; ปรับ detect_runtime() คืนค่า local 100%; คลีนข้อความ UI และ Service Worker; ผ่าน compileall 100% | 2026-11-12 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round CLAUDE-SPEED-PHASE4-20261112 | merge ช่วงที่ 3 เข้า main; ข6 เผาซับรอบสองต่อเข้า renderer เฉพาะเรนเดอร์ซ้ำจาก editor (แก้ซับ 16.5 → 7.4 วิ); ข4 ซูมรายเฟรม `bilinear`; ประทับ fingerprint เสียง 46 โปรเจกต์; ลบ `.tmp/speed_audit/replay` 5 GB; pytest 5434 ผ่าน | 2026-11-12 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-SPEED-OVERNIGHT-20261112 | งานความเร็วข้ามคืน: เงา Hook คำนวณบนแถบ 2 px + blend เฉพาะช่วงที่มองเห็น (เรนเดอร์ 18.0 → 16.5 วิ, md5 ของ 1,274 เฟรมเหมือนเดิม), `psutil` เข้า requirements + เทส `memory_low`, ต้นแบบเผาซับรอบสอง (กิ่งแยก ไม่ต่อเข้า renderer), พบ 46/60 โปรเจกต์เสียงพากย์ไม่ตรง fingerprint; pytest 5414 ผ่าน; ยังไม่ merge เข้า main (Jev < 0.80) | 2026-11-12 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-SPEED-PHASE3-RTX4060-20261112 | ความเร็วช่วงที่ 3 บน i7-14700 / RTX 4060: เรนเดอร์คลิป 43 วิ ใช้ ~18–19 วิ, batch 4 งานได้ 1.7–1.9 เท่า (RAM เป็นตัวจำกัด), `shot_matching` ข้ามวิเคราะห์ beat/ความดัง/motion เมื่อมีรายการคลิปแล้ว (−2.2 ถึง −12.5 วิ เฉพาะเรนเดอร์แรกของ process), แก้เทส SAM2 preflight ที่อ่าน RAM จริง, ข5 ไม่คุ้ม, ข4/ข6 วัดแล้วรอเจ้าของ; pytest 5409 ผ่าน | 2026-11-12 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
@@ -210,6 +211,49 @@
 | Round EDITOR-CAPCUT-FIX-WAVE1-20261003 | แก้ editor ตาม Top 10 ของ audit เทียบ CapCut (ปุ่มหลอก, undo/คีย์ลัด, Inspector, timeline เฟรม, transition/effect, preview 30fps/proxy, ซับ stale, mirror+pan, volume พากย์/SFX, revision หลัง render); gate ผ่าน + ยืนยันใน Chrome จริง | 2026-10-03 | ปิดรอบแล้ว · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + sub-agent (Sonnet 5.5 / Opus 5.5) |
 | Round PC-MAX-PREVIEW-CUTOUT-INTEGRATION-20261003 | พรีวิว Master 1080p ขณะเล่น/หยุด, Cutout clock, จุดสินค้าและ SAM2 CUDA ผ่าน gate รวม | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 | Round CODEX-NVENC-QA-GATES-20261003 | ปิด NVENC/export contract และ QA guards; failures เดิมแก้และ gate รวมผ่าน | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
+
+---
+
+### Round ANTIGRAVITY-REMOVE-GOOGLE-COLAB-CLEAN-SWEEP-20261112 (2026-11-12)
+**ดำเนินการโดย:** Antigravity (Gemini 2.5 Pro)
+
+**เป้าหมาย:** ทำความสะอาดระบบตามคำขอผู้ใช้ ("ดูส่วนของ google colab ให้หน่อยครับ มีโค้ดยังเหลือในโปรแกรมไหม ผมไม่ได้ใช้แล้วอ่ะ ตัดออกได้ไหมครับ") ดำเนินการ Clean Sweep ถอดถอนโค้ด สคริปต์ และไฟล์ที่ผูกกับ Google Colab ออกทั้งหมด 100% เพื่อให้ OmniCut Pro Studio รันแบบ Standalone Local คลีนสมบูรณ์
+
+**ผลการดำเนินงาน:**
+1. **ลบไฟล์เฉพาะทางของ Google Colab 9 ไฟล์ (3,056 บรรทัด):**
+   - `Omnicut_Cloud_Runner.ipynb`
+   - `scripts/build_colab_notebook.py`
+   - `scripts/colab_agy_cli.py`
+   - `scripts/colab_login_helper.py`
+   - `scripts/agy_cloud_agent.py`
+   - `scripts/colab_sync.py`
+   - `tests/test_build_colab_notebook.py`
+   - `_Docs/OMNICUT_CLOUD_STUDIO_GUIDE.md`
+   - `_Docs/Plans/PLAN_AGY_COLAB_WEB_TERMINAL_20261030.md`
+2. **ลบเอกสารแผนงานเก่าที่ล้าสมัยใน `_Docs/Plans/` เพิ่มเติม 5 ไฟล์:**
+   - `_Docs/Plans/MASTER_MOBILE_APP_AUDIT_LOOP_PROMPT.md`
+   - `_Docs/Plans/PLAN_ANTIGRAVITY_IN_APP_AI_AGENT_INTEGRATION.md`
+   - `_Docs/Plans/PLAN_DESKTOP_UI_MOBILE_TRANSFORMATION_20261030.md`
+   - `_Docs/Plans/PLAN_IPHONE15_PRO_MAX_UX_REDESIGN_20261030.md`
+   - `_Docs/Plans/PLAN_MOBILE_FIRST_E2E_UX_20261030.md`
+3. **ปรับปรุง Backend Decoupling:**
+   - `scripts/couple_engine/finalize.py`: ถอด `colab_sync` import และการเรียก `colab_sync.sync_export_to_gdrive` ออก
+   - `scripts/auth.py`: ถอด fallback `from google.colab import userdata` และ `/content/drive/...` secret paths ออก
+   - `scripts/api_auth.py`: ปรับ `detect_runtime()` คืนค่า `"local"` ถาวร (ถอดโมดูล `google.colab` / `/content`)
+   - `scripts/api_command.py` & `scripts/api_mobile_posting.py`: ถอด path `/content/drive/...`
+   - `scripts/cloud_runner.py`, `scripts/copilot_engine.py`, `scripts/api_render.py`, `scripts/api_server.py`, `tools/sync_scripts_to_products.py`: ปรับปรุง docstring และ comments
+4. **ปรับปรุง Frontend UI, PWA Messages & Dist Bundle:**
+   - `frontend/src/components/LoginScreen.jsx`: ปรับข้อความเตือนเน็ต/เซิร์ฟเวอร์หลับ ไม่เอ่ยถึง Colab
+   - `frontend/public/sw.js` & `frontend/dist/sw.js`: ปรับข้อความ fallback offline HTML ไม่เอ่ยถึง Colab
+   - `frontend/dist/assets/index-C-zhmfFS.js`: คลีนข้อความคอมไพล์ใน web bundle ไร้คำว่า Colab
+   - `frontend/src/App.jsx` & `frontend/vite.config.js`: ปรับ comments
+5. **ปรับปรุงชุดทดสอบ:**
+   - `tests/test_couple_engine.py`: ถอด unused import `colab_sync`
+   - `tests/test_api_auth.py`: ปรับ `test_allow_remote_bypass_is_gone` และ `test_health_runtime_detects_local` (ถอด mock `google.colab`)
+   - `tests/test_mobile_public_url.py`: ปรับ docstring
+6. **การทดสอบและการตรวจสอบความสะอาด:**
+   - `python3 -m compileall scripts/ tests/ tools/` ผ่าน 100% ไร้ข้อผิดพลาด
+   - ค้นหา `git grep -i "colab"` ในทั้งโปรเจกต์คงเหลือเพียง `HISTORY.md` และ `TODO.md` ที่เป็นประวัติการทำงานเท่านั้น นอกนั้นสะอาด 100%
 
 ---
 

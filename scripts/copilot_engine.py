@@ -301,7 +301,7 @@ class CopilotEngine:
             "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "composition_path": f"03_Projects/_HyperFrames_Studio/clips/{clip_slug}/index.html",
             # No machine-local URL is persisted: a "localhost:3002" link stored
-            # here is dead on every other device (phone, Colab, LAN). The UI
+            # here is dead on other devices (phone, LAN). The UI
             # opens the Studio via /api/hyperframes/open-studio instead.
             "preview_url": None,
             "audio_placeholder": True,

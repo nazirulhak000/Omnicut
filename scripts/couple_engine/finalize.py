@@ -11,7 +11,7 @@ import time
 from typing import Any, Dict, Optional, Union
 import uuid
 
-from scripts import colab_sync, path_utils, store_io
+from scripts import path_utils, store_io
 from scripts.config import BASE_DIR
 from scripts.couple_engine.inspect import _MINIMAL_WEBP_BYTES
 
@@ -41,7 +41,7 @@ def finalize_clip_export(
     gdrive_root: Optional[Union[Path, str]] = None,
 ) -> Dict[str, Any]:
     """Thread-safely register a rendered clip into `export_registry.json`, `export_cover_bindings.json`,
-    and `products.json` (`status="rendered"`), then trigger `colab_sync.sync_export_to_gdrive`.
+    and `products.json` (`status="rendered"`).
     """
     mp4_file = Path(mp4_path)
     reg_dir = Path(registry_dir) if registry_dir is not None else (BASE_DIR / "_Docs")
@@ -227,23 +227,6 @@ def finalize_clip_export(
                     ang_record["cover_url"] = webp_url
 
     gdrive_result: Dict[str, Any] = {"synced": False, "reason": "disabled"}
-    if gdrive_sync:
-        gdrive_result = colab_sync.sync_export_to_gdrive(
-            mp4_file,
-            caption_text=caption_text,
-            metadata={
-                "clip_id": clip_id,
-                "product_code": norm_code,
-                "product_id": resolved_product_id,
-                "tiktok_product_id": resolved_product_id,
-                "angle_id": angle_id,
-                "export_id": export_id,
-                "schedule_time": schedule_time,
-            },
-            cover_paths=resolved_covers,
-            gdrive_root=gdrive_root,
-            db_path=reg_dir / "store.db",
-        )
 
     return {
         "export_id": export_id,

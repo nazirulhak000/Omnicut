@@ -473,7 +473,7 @@ _LOCAL_HOSTNAMES = {"localhost", "127.0.0.1", "::1", "[::1]", "0.0.0.0"}
 def _public_mobile_url(request: Optional[Request], local_ip: str) -> str:
     """Base URL a PHONE can open for mobile / quick-post links.
 
-    Order: ``OMNICUT_PUBLIC_URL`` (e.g. the Colab tunnel
+    Order: ``OMNICUT_PUBLIC_URL`` (e.g. the tunnel
     ``https://studio.nazirulhak.com``) -> the URL this request actually came
     in on (honouring ``x-forwarded-proto`` / ``x-forwarded-host`` from the
     tunnel/proxy) unless that is localhost -> the LAN dev server as a last

@@ -1,10 +1,10 @@
 """
 Remote-access auth for OmniCut Pro Studio: login router + ASGI gate.
 
-Why: on Google Colab the API is exposed publicly through a Cloudflare tunnel
-(cloudflared -> 127.0.0.1:8000). Tunnel traffic looks like loopback, so the
-old "loopback == trusted" rule (plus a blanket Colab bypass) left every route
--- including the ttyd root web shell at /terminal, /ws, /agy -- open to anyone
+Why: when the API is exposed publicly through a Cloudflare tunnel
+(cloudflared -> 127.0.0.1:8000), tunnel traffic looks like loopback, so the
+old "loopback == trusted" rule left every route
+-- including any root web shell at /terminal, /ws, /agy -- open to anyone
 holding the URL.
 
 Pieces:
@@ -439,10 +439,7 @@ _STARTED_AT = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
 def detect_runtime() -> str:
-    """``"colab"`` on Google Colab, else ``"local"`` (informational only --
-    never used for access decisions)."""
-    if "google.colab" in sys.modules or os.path.isdir("/content"):
-        return "colab"
+    """Return runtime environment identifier (default "local")."""
     return "local"
 
 

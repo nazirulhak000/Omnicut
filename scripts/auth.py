@@ -137,8 +137,8 @@ def warn_if_permissive() -> None:
 # Remote access: app password + stateless signed session cookie
 # ======================================================================
 #
-# The backend is reachable publicly through a Cloudflare tunnel when it runs
-# on Google Colab. cloudflared connects to 127.0.0.1:8000, so tunnel traffic
+# The backend can be reachable publicly through a Cloudflare tunnel.
+# cloudflared connects to 127.0.0.1:8000, so tunnel traffic
 # LOOKS like loopback -- the forward headers below are what give it away.
 # Classification rule (see classify_request):
 #   LOCAL  = client host is loopback/"testclient" AND none of the forward
@@ -180,37 +180,6 @@ def get_app_password() -> str:
     val = os.environ.get("OMNICUT_APP_PASSWORD", "").strip()
     if val:
         return val
-
-    # Fallback 1: Google Colab Secrets (userdata)
-    try:
-        from google.colab import userdata
-        # Check full name, trimmed name, and case variants
-        for key in ("OMNICUT_APP_PASSWORD", "OMNICUT_", "omnicut_app_password", "omnicut_password", "APP_PASSWORD"):
-            try:
-                candidate = userdata.get(key)
-                if candidate:
-                    cand_str = str(candidate).strip()
-                    if cand_str:
-                        os.environ["OMNICUT_APP_PASSWORD"] = cand_str
-                        return cand_str
-            except Exception:
-                continue
-    except Exception:
-        pass
-
-    # Fallback 2: Google Drive / local container secret files
-    for path in (
-        Path("/content/drive/MyDrive/Omnicut/.secrets/app_password"),
-        Path("/root/.omnicut_app_password"),
-    ):
-        try:
-            if path.exists():
-                candidate = path.read_text(encoding="utf-8").strip()
-                if candidate:
-                    os.environ["OMNICUT_APP_PASSWORD"] = candidate
-                    return candidate
-        except Exception:
-            pass
 
     return ""
 
@@ -255,8 +224,7 @@ def _session_signing_key() -> Optional[bytes]:
     password = get_app_password()
     if secret:
         # The password digest is mixed into the HKDF info so that rotating the
-        # password still invalidates sessions even with a persisted secret
-        # (the Colab runner stores OMNICUT_SESSION_SECRET in Drive).
+        # password still invalidates sessions even with a persisted secret.
         pw_digest = hashlib.sha256(password.encode("utf-8")).digest() if password else b""
         return _hkdf_sha256(
             secret.encode("utf-8"), b"omnicut-session-salt-v1",

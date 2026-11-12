@@ -29,7 +29,7 @@ function loginErrorMessage(error) {
       ? detail
       : 'ยังไม่ได้ตั้งรหัสผ่านแอปบนเซิร์ฟเวอร์ กรุณาตั้งค่าก่อนเข้าใช้งาน';
   }
-  if (!error?.response) return 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ตรวจสอบอินเทอร์เน็ตหรือสถานะ Colab แล้วลองใหม่';
+  if (!error?.response) return 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ตรวจสอบอินเทอร์เน็ตหรือสถานะเซิร์ฟเวอร์แล้วลองใหม่';
   return typeof detail === 'string' && detail ? detail : `เข้าสู่ระบบไม่สำเร็จ (${status})`;
 }
 
@@ -203,7 +203,7 @@ function UnreachableScreen({ onRetry, retrying }) {
         <div className="space-y-1.5">
           <h1 className="text-xl font-bold text-white">เชื่อมต่อเซิร์ฟเวอร์ไม่ได้</h1>
           <p className="text-sm text-slate-400 leading-relaxed">
-            ตรวจสอบอินเทอร์เน็ต หรือดูว่า Colab ยังทำงานอยู่ แล้วลองเชื่อมต่ออีกครั้ง
+            ตรวจสอบอินเทอร์เน็ต หรือดูว่าเซิร์ฟเวอร์ยังทำงานอยู่ แล้วลองเชื่อมต่ออีกครั้ง
           </p>
         </div>
         <button

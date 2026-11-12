@@ -14,7 +14,6 @@ from typing import Any, Dict, List
 import numpy as np
 import pytest
 
-from scripts import colab_sync
 from scripts.couple_engine import (
     ALLOWED_TTS_MODELS,
     BAO_VOICE_CONFIG,
