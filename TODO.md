@@ -4,14 +4,7 @@
 
 ## รอบปัจจุบัน
 
-- [ ] Round CLAUDE-SPEED-PHASE5-20261112 · ผู้ใช้สั่ง 2026-11-12 "จัดการต่อได้เลย API key ฟรี เทสเต็มที่" ตามแผน 5 ข้อที่เสนอ · กิ่ง `feat/speed-phase5` (commit แล้ว **ยังไม่ merge** — Jev ก่อน commit confidence 0.44 < 0.80, ความเสี่ยง 1.09/4 รอเจ้าของสั่ง) · รายละเอียด: [รายงานหัวข้อ 10](_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md) · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
-  - [x] 1 · ต้นเหตุ `voiceover.wav` 46 ไฟล์: รอบ `ANTIGRAVITY-TRIM-TTS-TAIL-GARBAGE-NOISE-20261108` ตัดเสียงขยะท้ายไฟล์กับไฟล์เดิมโดยไม่ประทับ fingerprint (งานครั้งเดียว) · **พบเพิ่ม:** ต้นไฟล์ถูกตัดด้วย เสียงพูดเริ่มเร็วกว่ามิกซ์/ซับเดิม 0.10–0.27 วิ (ค่ากลาง 0.17) — ไม่ได้แก้ รอเจ้าของตัดสิน
-  - [x] 2 · ข6: เรนเดอร์ timeline เดียวกัน 3 งานพร้อมกันผ่าน (เทสใหม่ + แก้ rename ชนกันบน Windows) · `resume_from=subtitles` ผ่าน pipeline จริง 1.2 + 7.0 วิ
-  - [x] 3 · ดราฟต์ครั้งแรก 62 → 45 วิ: `ScriptToneAnalyzer` ถามด้วย `thinking_level="minimal"` + timeout 12 วิ / รวม 20 วิ (`shot_matching` 21.6–26.7 → 4.6–6.8 วิ)
-  - [x] 4 · Editor: วัด mount / เลือกคลิป / seek ที่ 1–100 คลิป ไม่พบคอขวด ไม่แก้ frontend · ไม่ได้รัน Lighthouse
-  - [x] 5 · Batch: RAM ~2.3 GB ต่องาน ไม่ขึ้นกับ thread · `-filter_complex_threads 4` แทน auto (เฟรม md5 เท่าเดิม): 1 งาน −12% ผ่าน pipeline, 4 งานพร้อมกัน 6.8 → 7.7 คลิป/นาที
-  - [x] 6 · Gate: pytest เต็มชุดไม่รวม `tests/motion_capture` 5440 ผ่าน 22 ข้าม
-  - [ ] 7 · merge เข้า `main` + ลบกิ่ง — รอเจ้าของ
+- [x] Round CLAUDE-SPEED-PHASE5-20261112 · ดราฟต์ครั้งแรก 62 → 45 วิ (ตัวจำแนกโทนถามแบบคิดน้อยสุด + timeout) · `-filter_complex_threads 4` (เรนเดอร์ −12%, batch 6.8 → 7.7 คลิป/นาที, เฟรมเท่าเดิม) · ข6 รองรับเรนเดอร์ซ้อนกัน · ต้นเหตุเสียง 46 โปรเจกต์ = รอบตัดเสียงขยะ 2026-11-08; เติมช่วงเงียบต้นไฟล์กลับ 50 โปรเจกต์ (`tools/restore_voice_lead.py`, ไฟล์เดิมใน `06_Archive/voice_lead_backup/`) · pytest 5440 ผ่าน · merge เข้า `main` แล้ว → [_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md](_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md) หัวข้อ 10, HISTORY.md · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
 
 - [x] Round CLAUDE-SPEED-PHASE4-20261112 · merge ช่วงที่ 3 เข้า `main` · ข6 เผาซับรอบสองต่อเข้า renderer (เฉพาะเรนเดอร์ซ้ำจาก editor: แก้ซับ 16.5 → 7.4 วิ, ปิดด้วย `OMNICUT_SUBTITLE_SECOND_PASS=0`) · ข4 ซูมรายเฟรมใช้ `bilinear` · ประทับ fingerprint เสียง 46 โปรเจกต์ (`tools/restamp_voice_fingerprints.py`) · ลบ `.tmp/speed_audit/replay` 5 GB · pytest 5434 ผ่าน → [_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md](_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md) หัวข้อ 9, HISTORY.md · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
 

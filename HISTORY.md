@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round CLAUDE-SPEED-PHASE5-20261112 | ดราฟต์ครั้งแรก 62 → 45 วิ (tone classifier `thinking_level=minimal` + timeout); `-filter_complex_threads 4` (เรนเดอร์ −12%, batch 6.8 → 7.7 คลิป/นาที); ข6 รองรับเรนเดอร์ซ้อนกัน; เติมช่วงเงียบต้นไฟล์เสียงกลับ 50 โปรเจกต์ (`tools/restore_voice_lead.py`); pytest 5440 ผ่าน | 2026-11-12 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-SPEED-PHASE4-20261112 | merge ช่วงที่ 3 เข้า main; ข6 เผาซับรอบสองต่อเข้า renderer เฉพาะเรนเดอร์ซ้ำจาก editor (แก้ซับ 16.5 → 7.4 วิ); ข4 ซูมรายเฟรม `bilinear`; ประทับ fingerprint เสียง 46 โปรเจกต์; ลบ `.tmp/speed_audit/replay` 5 GB; pytest 5434 ผ่าน | 2026-11-12 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-SPEED-OVERNIGHT-20261112 | งานความเร็วข้ามคืน: เงา Hook คำนวณบนแถบ 2 px + blend เฉพาะช่วงที่มองเห็น (เรนเดอร์ 18.0 → 16.5 วิ, md5 ของ 1,274 เฟรมเหมือนเดิม), `psutil` เข้า requirements + เทส `memory_low`, ต้นแบบเผาซับรอบสอง (กิ่งแยก ไม่ต่อเข้า renderer), พบ 46/60 โปรเจกต์เสียงพากย์ไม่ตรง fingerprint; pytest 5414 ผ่าน; ยังไม่ merge เข้า main (Jev < 0.80) | 2026-11-12 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-SPEED-PHASE3-RTX4060-20261112 | ความเร็วช่วงที่ 3 บน i7-14700 / RTX 4060: เรนเดอร์คลิป 43 วิ ใช้ ~18–19 วิ, batch 4 งานได้ 1.7–1.9 เท่า (RAM เป็นตัวจำกัด), `shot_matching` ข้ามวิเคราะห์ beat/ความดัง/motion เมื่อมีรายการคลิปแล้ว (−2.2 ถึง −12.5 วิ เฉพาะเรนเดอร์แรกของ process), แก้เทส SAM2 preflight ที่อ่าน RAM จริง, ข5 ไม่คุ้ม, ข4/ข6 วัดแล้วรอเจ้าของ; pytest 5409 ผ่าน | 2026-11-12 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
@@ -534,6 +535,18 @@
 
 ---
 ---
+
+## Round CLAUDE-SPEED-PHASE5-20261112 · ดราฟต์ครั้งแรก, thread ของ filter graph, เสียง 46 โปรเจกต์ · ผู้ใช้สั่ง 2026-11-12 "จัดการต่อได้เลย API key ฟรี เทสเต็มที่" แล้วตอบรายงาน "merge เข้า main และข้อสองจัดการได้เลย" · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
+
+- **1 ต้นเหตุเสียง 46 โปรเจกต์:** รอบ `ANTIGRAVITY-TRIM-TTS-TAIL-GARBAGE-NOISE-20261108` รัน `trim_silence_and_tail_artifacts_wav` กับ `voiceover.wav` เดิมเมื่อ 23:00 / 23:07 โดยไม่ประทับ fingerprint (งานครั้งเดียว; โค้ดปัจจุบันตัดเฉพาะเสียงที่สร้างใหม่) · พบเพิ่ม: ต้นไฟล์ถูกตัดด้วย เสียงพูดเริ่มเร็วกว่ามิกซ์/ซับเดิม 0.04–0.27 วิ
+- **แก้ (เจ้าของเลือกข้อ ข):** `tools/restore_voice_lead.py` — วัดตำแหน่งเสียงในมิกซ์เดิมด้วย cross-correlation ของ waveform, เติมช่วงเงียบต้นไฟล์เท่าที่วัดได้, ตรวจซ้ำ (ไม่ตรง = คืนไฟล์เดิม), ประทับ fingerprint ใหม่ผ่าน `finalize_incremental_render` · รันจริง 50 โปรเจกต์ วัดซ้ำ 0.000 ทุกไฟล์ · ไฟล์เดิม 50 ไฟล์ (66 MB) ที่ `06_Archive/voice_lead_backup/` · ข้าม `BLU01-ปัญหาก่อนใช้_1` (มิกซ์เป็นคนละ take, match 0.035) · ลองทางอื่นก่อนแล้วทิ้ง: ปล่อยให้มิกซ์ใหม่จากไฟล์ที่ถูกตัด (ซับจะช้า 5 เฟรม)
+- **2 ข6:** `scripts/video_editor.py` — งานที่ rename ไฟล์กลางไม่ได้เพราะอีกงานกำลังอ่าน (Windows) ใช้ไฟล์ของงานนั้นแทน · เทสเรนเดอร์จริง 3 thread พร้อมกัน · `resume_from=subtitles` ผ่าน pipeline: 1.2 + 7.0 วิ
+- **3 ดราฟต์ครั้งแรก 62 → 45 วิ:** `scripts/script_tone_analyzer.py` — `thinking_level="minimal"` (7–14 วิ → 1.0–1.5 วิ ต่อครั้ง), model ที่ไม่รับค่านี้ (400) ถามซ้ำแบบเดิม, timeout 12 วิ ต่อ request (`retry attempts=1`), รวม 20 วิ แล้วใช้กฎ transition เดิม · `shot_matching` 21.6–26.7 → 4.6–6.8 วิ
+- **4 Editor:** วัด mount 0.4–0.5 วิ, เลือกคลิป 65–117 ms, seek 24–478 ms ที่ 1–100 คลิป, เฟรมตก 0, autosave 10 ms — ไม่แก้ frontend · ไม่ได้รัน Lighthouse
+- **5 Filter thread / batch:** `filter_graph_threads()` — `-filter_complex_threads 4` เมื่อ logical CPU > 8 (เดิม 0 = worker ต่อ CPU), `OMNICUT_FILTER_THREADS` กำหนดเอง · md5 ของ 1,274 เฟรมเท่าเดิม · ผ่าน pipeline สลับ 3 รอบ 20.5 → 18.0 วิ · 4 งานพร้อมกัน 6.8 → 7.7 คลิป/นาที · RAM ~2.3 GB ต่องาน ไม่ขึ้นกับ thread
+- **Gate:** pytest เต็มชุดไม่รวม `tests/motion_capture` 5440 ผ่าน 22 ข้าม (ก่อนเพิ่มเครื่องมือเติมช่วงเงียบ) + เทสเครื่องมือ 4 ข้อ
+- **Jev ก่อน commit:** รอบแรก `commit_merge_no_push` confidence 0.44 → commit บนกิ่ง รอเจ้าของ · รอบสอง (หลังเจ้าของสั่ง merge) `commit_and_merge` 0.89, ความเสี่ยง 0.79/4 (confidence 0.56)
+- **หมายเหตุการวัด:** ช่วงที่วัดเครื่องช้ากว่ากลางคืน ~25% ตัวเลขเรนเดอร์เทียบเฉพาะที่วัดสลับกัน · ไม่ได้ push
 
 ## Round CLAUDE-SPEED-PHASE4-20261112 · ข6 ต่อเข้า renderer, ข4 `bilinear`, ประทับ fingerprint เสียง · ผู้ใช้ตอบรายงานเช้า 2026-11-12 ครบ 5 ข้อ แล้วสั่ง "เสร็จแล้ว merge เข้า main ได้เลย" · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
 
