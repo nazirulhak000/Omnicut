@@ -179,7 +179,7 @@ const LOT_TOOL_BUTTON = 'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-
 
 // Angle panel footer: the next step filled, the rest outlined.
 const ANGLE_PRIMARY_BUTTON = 'flex-1 sm:flex-initial min-h-[44px] sm:min-h-[40px] py-2 px-4 sm:px-5 rounded-xl bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#25F4EE]/15 cursor-pointer active:scale-[0.98] transition-all whitespace-nowrap disabled:opacity-60 disabled:cursor-wait';
-const ANGLE_SECONDARY_BUTTON = 'min-h-[40px] py-2 px-3.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.1] border border-white/[0.12] text-slate-200 text-xs sm:text-sm font-bold whitespace-nowrap transition-colors cursor-pointer disabled:opacity-50';
+const ANGLE_SECONDARY_BUTTON = 'min-h-[40px] 2xl:min-h-[34px] py-2 2xl:py-1.5 px-3.5 2xl:px-2 2xl:text-xs rounded-xl bg-white/[0.04] hover:bg-white/[0.1] border border-white/[0.12] text-slate-200 text-xs sm:text-sm font-bold whitespace-nowrap transition-colors cursor-pointer disabled:opacity-50';
 const STAGE_DOT = {
   posted: 'bg-emerald-400',
   rendered: 'bg-emerald-400',
@@ -531,7 +531,7 @@ function AngleActiveWorkbench({
   };
 
   return (
-    <div className={`border rounded-2xl p-3.5 sm:p-5 shadow-xl space-y-3.5 sm:space-y-4 animate-fadeIn transition-colors 2xl:grid 2xl:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-rows-[auto_auto_auto_1fr] 2xl:items-start 2xl:gap-x-6 ${
+    <div className={`border rounded-2xl p-3.5 sm:p-5 shadow-xl space-y-3.5 sm:space-y-4 animate-fadeIn transition-colors 2xl:grid 2xl:grid-cols-[minmax(0,1fr)_300px] 2xl:grid-rows-[auto_auto_auto_1fr] 2xl:items-start 2xl:gap-x-6 ${
       isLocked
         ? 'bg-[#080B11]/90 border-white/[0.06]'
         : 'bg-[#0A0D14] border-white/[0.08]'
@@ -1019,7 +1019,7 @@ function AngleActiveWorkbench({
 
       </div>
       {/* Side column on wide screens: voice and clips under the next step. */}
-      <div className="min-w-0 space-y-3.5 sm:space-y-4 2xl:col-start-2 2xl:row-start-3 2xl:pl-6 2xl:border-l 2xl:border-white/[0.06]">
+      <div role="group" aria-label="เสียงและคลิปของมุมนี้" className="min-w-0 space-y-3.5 sm:space-y-4 2xl:space-y-3 2xl:col-start-2 2xl:row-start-3 2xl:rounded-b-xl 2xl:bg-white/[0.03] 2xl:px-4 2xl:pb-4 2xl:pt-1">
           <div className="pt-2 border-t border-white/[0.08] 2xl:border-t-0 2xl:pt-0 flex flex-col sm:flex-row 2xl:flex-col sm:items-center 2xl:items-start justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0 text-xs">
               {isGeneratingShotList ? (
@@ -1065,7 +1065,7 @@ function AngleActiveWorkbench({
             )}
           </div>
       {/* 4. Footage Attachment Section */}
-      <div className="space-y-2 pt-2 border-t border-white/[0.08]">
+      <div className="space-y-2 pt-2 border-t border-white/[0.08] 2xl:border-t-0 2xl:pt-0">
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 font-semibold">
           <span className="flex items-center gap-1.5 text-slate-300">
             <Film className="w-3.5 h-3.5 text-[#25F4EE]" />
@@ -1136,7 +1136,8 @@ function AngleActiveWorkbench({
             return (
               <div
                 key={path}
-                className={`flex-shrink-0 flex items-center gap-1.5 py-1 px-2.5 rounded-lg border text-xs font-bold shadow-sm animate-fadeIn ${
+                title={fileName}
+                className={`flex-shrink-0 max-w-full min-w-0 flex items-center gap-1.5 py-1 px-2.5 rounded-lg border text-xs font-bold shadow-sm animate-fadeIn ${
                   isPosted
                     ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
                     : isInProduction
@@ -1144,8 +1145,8 @@ function AngleActiveWorkbench({
                     : 'bg-[#25F4EE]/15 border-[#25F4EE]/40 text-[#25F4EE]'
                 }`}
               >
-                <Film className={`w-3.5 h-3.5 ${isPosted ? 'text-emerald-400' : isInProduction ? 'text-amber-400' : 'text-[#25F4EE]'}`} />
-                <span className="truncate max-w-[160px]">{fileName}</span>
+                <Film className={`w-3.5 h-3.5 flex-shrink-0 ${isPosted ? 'text-emerald-400' : isInProduction ? 'text-amber-400' : 'text-[#25F4EE]'}`} />
+                <span className="min-w-0 truncate max-w-[160px]">{fileName}</span>
                 {cat?.is_indexed ? (
                   <button
                     type="button"
@@ -1153,7 +1154,7 @@ function AngleActiveWorkbench({
                       e.stopPropagation();
                       onOpenSceneCatalog && onOpenSceneCatalog(path, fileName, cat);
                     }}
-                    className="ml-0.5 text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-300 font-bold border border-emerald-500/40 whitespace-nowrap cursor-pointer flex items-center gap-1 transition-all active:scale-95 shadow-xs"
+                    className="flex-shrink-0 ml-0.5 text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-300 font-bold border border-emerald-500/40 whitespace-nowrap cursor-pointer flex items-center gap-1 transition-all active:scale-95 shadow-xs"
                     title={`คลิกเพื่อดูสารบัญฉาก ${cat.scenes_count} ฉาก (ตรวจดูมุมมองและจังหวะตัด)`}
                   >
                     <span>ดู <strong className="font-mono tabular-nums">{cat.scenes_count}</strong> ฉาก</span>
@@ -1167,14 +1168,14 @@ function AngleActiveWorkbench({
                       onIndexSceneCatalog && onIndexSceneCatalog(path);
                     }}
                     disabled={isScanningScenes}
-                    className="ml-0.5 text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 cursor-pointer whitespace-nowrap disabled:opacity-50"
+                    className="flex-shrink-0 ml-0.5 text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 cursor-pointer whitespace-nowrap disabled:opacity-50"
                     title="สแกนสารบัญฉากด้วย Vision AI ทันที"
                   >
                     สแกนฉาก
                   </button>
                 )}
                 {isLocked ? (
-                  <span className="p-0.5 text-slate-400/70 ml-0.5">
+                  <span className="flex-shrink-0 p-0.5 text-slate-400/70 ml-0.5">
                     <Lock className="w-3 h-3" />
                   </span>
                 ) : (
@@ -1184,7 +1185,7 @@ function AngleActiveWorkbench({
                       e.stopPropagation();
                       onToggleVideoForAngle && onToggleVideoForAngle(index, path);
                     }}
-                    className="p-0.5 hover:bg-[#25F4EE]/30 rounded text-[#25F4EE] hover:text-white cursor-pointer ml-0.5 transition-colors"
+                    className="flex-shrink-0 p-0.5 hover:bg-[#25F4EE]/30 rounded text-[#25F4EE] hover:text-white cursor-pointer ml-0.5 transition-colors"
                     title="ยกเลิกการผูกคลิปนี้"
                   >
                     <X className="w-3 h-3" />
@@ -1201,13 +1202,13 @@ function AngleActiveWorkbench({
       <div
         role="group"
         aria-label="ขั้นต่อไปของมุมนี้"
-        className="sticky bottom-0 z-20 -mx-3.5 sm:-mx-5 -mb-3.5 sm:-mb-5 px-3 py-2.5 sm:px-5 sm:py-3 bg-[#0A0D14]/95 backdrop-blur-md border-t border-white/[0.08] rounded-b-2xl flex items-center gap-2 2xl:static 2xl:col-start-2 2xl:row-start-2 2xl:m-0 2xl:p-0 2xl:pl-6 2xl:pb-4 2xl:border-l 2xl:border-l-white/[0.06] 2xl:border-t-0 2xl:border-b 2xl:rounded-none 2xl:bg-transparent 2xl:backdrop-blur-none 2xl:flex-col 2xl:items-stretch"
+        className="sticky bottom-0 z-20 -mx-3.5 sm:-mx-5 -mb-3.5 sm:-mb-5 px-3 py-2.5 sm:px-5 sm:py-3 bg-[#0A0D14]/95 backdrop-blur-md border-t border-white/[0.08] rounded-b-2xl flex items-center gap-2 2xl:static 2xl:col-start-2 2xl:row-start-2 2xl:m-0 2xl:p-4 2xl:pb-3 2xl:border-0 2xl:rounded-none 2xl:rounded-t-xl 2xl:bg-white/[0.03] 2xl:backdrop-blur-none 2xl:shadow-none 2xl:flex-col 2xl:items-stretch"
       >
         <p className="hidden sm:flex items-center gap-2 text-xs text-slate-400 min-w-0 flex-1 2xl:flex-none 2xl:order-1">
           <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STAGE_DOT[step.stage]}`} />
           <span className="truncate">{STAGE_HINT[step.stage]}</span>
         </p>
-        <div className="hidden sm:flex items-center gap-2 flex-shrink-0 2xl:order-3 2xl:flex-col 2xl:items-stretch">
+        <div className="hidden sm:flex items-center gap-2 flex-shrink-0 2xl:order-3 2xl:grid 2xl:grid-cols-2">
           {step.secondary.map((action) => (
             <button
               key={action}
@@ -6180,22 +6181,6 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       />
 
       {/* ── Shot List Modal (แผนถ่ายทำตามสคริปต์) ── */}
-      <ShotListModal
-        isOpen={shotListAngleIdx !== null && !!shotListResult}
-        onClose={() => {
-          setShotListAngleIdx(null);
-          setShotListResult(null);
-          setShotListError(null);
-        }}
-        productId={productData?.id}
-        mobileBaseUrl={mobileBaseUrl}
-        result={shotListResult}
-        onRegenerate={handleRegenerateShotList}
-        regenerating={generatingShotListIdx !== null}
-        error={shotListError}
-        onOpenStoryboard={handleOpenStoryboard}
-      />
-
       {/* ── Manual Storyboard Mapper Modal (กำหนดช็อตด้วยตนเองรายวรรค) ── */}
       <ManualStoryboardModal
         isOpen={Boolean(storyboardAngle)}

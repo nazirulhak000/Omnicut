@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { AlertTriangle, Camera, Clapperboard, Clock, ExternalLink, Film, Loader2, Mic, QrCode, RotateCw, Sparkles, Scissors } from 'lucide-react';
+import { AlertTriangle, Camera, Clapperboard, ExternalLink, Film, Loader2, Mic, QrCode, RotateCw, Scissors } from 'lucide-react';
 import { Modal, Badge, SafeQRCode } from './ui';
 import { toMediaUrl } from '../lib/mediaUrl';
 import { DEFAULT_AD_TONE, DEFAULT_VOICE_PRESET } from '../lib/angleToForm';
@@ -18,6 +18,12 @@ const ROLE_LABELS = {
   feature: { label: 'Feature', variant: 'cyan' },
   cta: { label: 'CTA', variant: 'emerald' },
 };
+
+// "<camera angle> — <action>" as written by scripts/shot_list_builder.py.
+function splitDirection(direction) {
+  const parts = (direction || '').split('—').map((s) => s.trim());
+  return { cameraAngle: parts[0] || '', actionText: parts.length > 1 ? parts.slice(1).join(' — ') : '' };
+}
 
 function formatSeconds(sec) {
   const s = Number(sec) || 0;
@@ -88,7 +94,6 @@ export default function ShotListModal({
     onClose?.();
   };
 
-  const currentVoiceOption = GEMINI_VOICE_OPTIONS.find((v) => v.id === selectedVoice) || GEMINI_VOICE_OPTIONS[0];
 
   return (
     <Modal
@@ -100,161 +105,122 @@ export default function ShotListModal({
     >
       <div className="space-y-4">
         {error && (
-          <div className="p-3.5 rounded-xl bg-[#0D111A] border border-rose-500/30 text-rose-200 text-xs flex items-start gap-2.5">
+          <div role="alert" className="flex items-start gap-2 rounded-lg bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
             <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <strong className="font-bold text-rose-300 block">สังเคราะห์เสียงพากย์ไม่สำเร็จ:</strong>
-              <span className="leading-relaxed">{error}</span>
-            </div>
-          </div>
-        )}
-
-        {onRegenerate && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-[#0D111A] border border-white/[0.08]">
-            <div className="flex items-center gap-2">
-              <Mic className="w-4 h-4 text-[#25F4EE] flex-shrink-0" />
-              <span className="text-xs text-slate-300 font-medium">เสียงพากย์ Gemini TTS:</span>
-              <select
-                value={selectedVoice}
-                onChange={(e) => setSelectedVoice(e.target.value)}
-                disabled={regenerating}
-                className="bg-black/40 border border-white/[0.1] rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-[#25F4EE] transition-colors cursor-pointer"
-              >
-                {GEMINI_VOICE_OPTIONS.map((opt) => (
-                  <option key={opt.id} value={opt.id}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <button
-              type="button"
-              onClick={handleTriggerRegenerate}
-              disabled={regenerating}
-              title="สังเคราะห์เสียงพากย์ Gemini Flash และคำนวณจังหวะ beat ใหม่"
-              className="px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-white border border-white/[0.1] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-wait transition-colors whitespace-nowrap"
-            >
-              {regenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCw className="w-3.5 h-3.5" />}
-              <span>{regenerating ? 'กำลังสร้าง...' : 'สร้างใหม่ด้วยเสียงนี้'}</span>
-            </button>
+            <span className="leading-relaxed"><strong className="font-bold text-rose-300">สังเคราะห์เสียงพากย์ไม่สำเร็จ:</strong> {error}</span>
           </div>
         )}
 
         {result.is_stale && (
-          <div className="p-3 rounded-xl bg-[#0D111A] border border-rose-500/40 text-rose-200 text-xs flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+            <span className="flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0" />
-              <span>
-                <strong className="font-bold">สคริปต์มีการแก้ไขหลังจากสร้างแผนถ่ายนี้:</strong> จังหวะเวลาเสียงพากย์อาจไม่ตรงกับสคริปต์ล่าสุด
-              </span>
-            </div>
+              บทเปลี่ยนหลังสร้างแผนถ่ายนี้ จังหวะเสียงอาจไม่ตรงกับบทล่าสุด
+            </span>
             {onRegenerate && (
               <button
                 type="button"
                 onClick={handleTriggerRegenerate}
                 disabled={regenerating}
-                className="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-100 text-xs font-bold whitespace-nowrap cursor-pointer transition-colors border border-rose-500/30"
+                className="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-100 text-xs font-bold whitespace-nowrap transition-colors disabled:opacity-50"
               >
-                {regenerating ? 'กำลังสร้างใหม่...' : 'อัปเดตแผนถ่าย'}
+                {regenerating ? 'กำลังสร้างใหม่' : 'อัปเดตแผนถ่าย'}
               </button>
             )}
           </div>
         )}
 
-        {voiceAudioPath && (
-          <div className="p-3 rounded-xl bg-[#0D111A] border border-white/[0.08] space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5" /> เสียงนำถ่าย (GUIDE TRACK) — เปิดฟังคลอตอนถ่ายได้เลย
-              </span>
-              {isEdgeTts ? (
-                <span className="text-[10px] text-amber-300 font-bold bg-amber-500/15 px-2.5 py-0.5 rounded-full border border-amber-500/30 flex items-center gap-1">
-                  <AlertTriangle className="w-3 h-3 text-amber-400" />
-                  <span>Edge-TTS (เสียงเดิม)</span>
-                </span>
-              ) : (
-                <span className="text-[10px] text-cyan-300 font-medium bg-cyan-500/10 px-2.5 py-0.5 rounded-full border border-cyan-500/25 flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-[#25F4EE]" />
-                  <span>Gemini: {currentVoiceOption.label.split('—')[0].trim()}</span>
-                </span>
-              )}
-            </div>
-            <audio controls className="w-full h-9" src={toMediaUrl(voiceAudioPath)} />
+        {/* Guide voice: picker, regenerate and player in one surface. */}
+        <section aria-label="เสียงนำถ่าย" className="rounded-xl bg-white/[0.03] p-3 space-y-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <Mic className="w-4 h-4 text-[#25F4EE] flex-shrink-0" />
+            <span className="text-xs font-bold text-slate-200">เสียงนำถ่าย</span>
+            <span className="text-[11px] text-slate-500">เปิดฟังคลอตอนถ่าย</span>
             {isEdgeTts && (
-              <div className="p-2.5 rounded-lg bg-black/40 border border-amber-500/30 text-amber-200 text-xs flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
-                <span>
-                  ไฟล์เสียงนี้ถูกสร้างด้วย <strong className="text-white">Edge-TTS (เสียงเก่า)</strong> — แนะนำให้แตะปุ่ม <strong>"สร้างใหม่ด้วยเสียงนี้"</strong> ด้านบนเพื่อเปลี่ยนเป็นเสียง Gemini TTS
-                </span>
+              <span className="text-[10px] font-bold text-amber-300 bg-amber-500/15 px-2 py-0.5 rounded-full">Edge-TTS เดิม</span>
+            )}
+            {onRegenerate && (
+              <div className="w-full sm:w-auto sm:ml-auto flex items-center gap-2">
+                <select
+                  value={selectedVoice}
+                  onChange={(e) => setSelectedVoice(e.target.value)}
+                  disabled={regenerating}
+                  aria-label="เสียงพากย์ Gemini TTS"
+                  className="min-w-0 flex-1 sm:flex-initial bg-black/40 border border-white/[0.1] rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[#25F4EE] transition-colors cursor-pointer"
+                >
+                  {GEMINI_VOICE_OPTIONS.map((opt) => (
+                    <option key={opt.id} value={opt.id}>{opt.label}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={handleTriggerRegenerate}
+                  disabled={regenerating}
+                  title="สังเคราะห์เสียงพากย์ Gemini Flash และคำนวณจังหวะช็อตใหม่"
+                  className="px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-white text-xs font-bold flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-wait transition-colors whitespace-nowrap"
+                >
+                  {regenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCw className="w-3.5 h-3.5" />}
+                  <span>{regenerating ? 'กำลังสร้าง' : 'สร้างใหม่ด้วยเสียงนี้'}</span>
+                </button>
               </div>
             )}
           </div>
-        )}
+          {voiceAudioPath && <audio controls className="w-full h-9" src={toMediaUrl(voiceAudioPath)} />}
+          {isEdgeTts && (
+            <p className="text-[11px] text-amber-200/90">
+              ไฟล์เสียงนี้สร้างด้วย Edge-TTS เดิม เลือกเสียง Gemini แล้วกด สร้างใหม่ด้วยเสียงนี้
+            </p>
+          )}
+        </section>
 
-        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-amber-200 leading-relaxed">
-          ตั้งกล้อง/มือถือมุมเดียวแล้ว<span className="font-bold">ห้ามขยับตลอดทั้งเทกหลัก</span> —
-          ทำแอคชั่นตามคำแนะนำแต่ละช็อตให้ตรงจังหวะเสียง ส่วนความหลากหลายของภาพ (ซูม/เน้นจังหวะ)
-          ระบบจะใส่ให้อัตโนมัติตอนตัดต่อ
-        </div>
+        <p className="flex items-start gap-2 text-xs text-slate-400 leading-relaxed">
+          <Camera className="w-3.5 h-3.5 text-amber-300 flex-shrink-0 mt-0.5" />
+          <span>
+            ตั้งกล้องมุมเดียวแล้ว<strong className="font-bold text-amber-200">ห้ามขยับตลอดเทกหลัก</strong>
+            {' '}ทำแอคชั่นแต่ละช็อตให้ตรงจังหวะเสียง ซูมและเน้นจังหวะระบบใส่ให้ตอนตัดต่อ
+          </span>
+        </p>
 
-        <div className="space-y-2.5 max-h-[50vh] overflow-y-auto pr-1">
-          {shotList.map((beat) => {
+        {/* Shots as a timeline: time on the left, what to say and do on the right. */}
+        <ol aria-label="ช็อตในแผนถ่าย" className="max-h-[50vh] overflow-y-auto rounded-xl border border-white/[0.06] divide-y divide-white/[0.06]">
+          {shotList.map((beat, i) => {
             const roleMeta = ROLE_LABELS[beat.role] || { label: beat.role, variant: 'slate' };
-            const parts = (beat.camera_direction || '').split('—').map((s) => s.trim());
-            const cameraAngle = parts[0] || '';
-            const actionText = parts.length > 1 ? parts.slice(1).join(' — ') : '';
+            const { cameraAngle, actionText } = splitDirection(beat.camera_direction);
+            const sameCamera = i > 0 && cameraAngle && cameraAngle === splitDirection(shotList[i - 1].camera_direction).cameraAngle;
 
             return (
-              <div
-                key={beat.beat_index}
-                className="p-3.5 rounded-xl bg-[#0D111A] border border-white/[0.08] space-y-2 hover:border-white/[0.15] transition-colors"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-mono text-slate-500">#{beat.beat_index + 1}</span>
-                    <Badge variant={roleMeta.variant} size="sm">{roleMeta.label}</Badge>
-                    {beat.is_separate_clip && (
-                      <Badge variant="purple" size="sm" icon={Film}>แยกคลิป</Badge>
-                    )}
-                  </div>
-                  <span className="text-[11px] font-mono text-slate-400">
-                    {formatSeconds(beat.start)} – {formatSeconds(beat.end)} ({formatSeconds(beat.planned_duration)})
+              <li key={beat.beat_index} className="grid grid-cols-[4.75rem_minmax(0,1fr)] gap-3 px-3 py-3">
+                <div className="space-y-1.5">
+                  <span className="block font-mono text-[11px] tabular-nums text-slate-300">
+                    {formatSeconds(beat.start)}–{formatSeconds(beat.end)}
                   </span>
-                </div>
-
-                <div className="p-2 rounded-lg bg-black/40 border border-white/[0.08]">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">บทพูด / เสียงพากย์</span>
-                  <p className="text-xs text-slate-200 leading-snug">{beat.text}</p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-xs">
-                  {cameraAngle && (
-                    <div className="p-2 rounded-lg bg-black/40 border border-cyan-500/20 text-cyan-200/95 space-y-0.5">
-                      <div className="flex items-center gap-1 text-[10px] font-bold text-[#25F4EE] uppercase tracking-wider">
-                        <Camera className="w-3 h-3" />
-                        <span>มุมกล้อง</span>
-                      </div>
-                      <p className="text-xs leading-relaxed">{cameraAngle}</p>
-                    </div>
-                  )}
-
-                  <div className="p-2 rounded-lg bg-black/40 border border-amber-500/20 text-amber-200/95 space-y-0.5">
-                    <div className="flex items-center gap-1 text-[10px] font-bold text-amber-400 uppercase tracking-wider">
-                      <Clapperboard className="w-3 h-3" />
-                      <span>แอคชั่นการถ่าย</span>
-                    </div>
-                    <p className="text-xs leading-relaxed">{actionText || beat.camera_direction}</p>
+                  <div className="flex flex-wrap items-center gap-1">
+                    <Badge variant={roleMeta.variant} size="sm">{roleMeta.label}</Badge>
+                    {beat.is_separate_clip && <Badge variant="purple" size="sm" icon={Film}>แยกคลิป</Badge>}
                   </div>
                 </div>
-              </div>
+                <div className="min-w-0 space-y-1.5">
+                  <p className="text-sm text-white leading-snug">{beat.text}</p>
+                  <p className="flex items-start gap-1.5 text-xs text-amber-200/90 leading-relaxed">
+                    <Clapperboard className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" aria-label="แอคชั่น" />
+                    <span>{actionText || beat.camera_direction}</span>
+                  </p>
+                  {cameraAngle && (
+                    <p className="flex items-start gap-1.5 text-xs text-slate-400 leading-relaxed">
+                      <Camera className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" aria-label="มุมกล้อง" />
+                      <span>{sameCamera ? 'กล้องมุมเดิม' : cameraAngle}</span>
+                    </p>
+                  )}
+                </div>
+              </li>
             );
           })}
-        </div>
+        </ol>
 
-        <div className="pt-3 border-t border-white/[0.08] space-y-3">
+        <div className="space-y-3">
           {filmingUrl ? (
-            <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-[#0D111A] border border-white/[0.08]">
-              <div className="p-2 bg-white rounded-xl border border-white/20">
+            <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-white/[0.03]">
+              <div className="p-2 bg-white rounded-xl">
                 <SafeQRCode value={filmingUrl} size={150} level="M" />
               </div>
               <p className="text-[11px] text-slate-400 text-center">
@@ -263,18 +229,16 @@ export default function ShotListModal({
               <button
                 type="button"
                 onClick={() => window.open(filmingUrl, '_blank', 'noopener')}
-                className="text-xs text-[#25F4EE] hover:text-[#25F4EE]/80 flex items-center gap-1.5 font-bold cursor-pointer transition-colors"
+                className="text-xs text-[#25F4EE] hover:text-[#25F4EE]/80 flex items-center gap-1.5 font-bold transition-colors"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
-                หรือเปิดหน้ากล้องบนเครื่องนี้เลย (ไม่ต้องสแกน)
+                เปิดหน้ากล้องบนเครื่องนี้ (ไม่ต้องสแกน)
               </button>
             </div>
           ) : (
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[11px] text-slate-500">
-                สแกน QR เพื่อถ่ายในแอปพร้อมไกด์ทีละช็อต ตรงตามแผนด้านบน
-              </span>
-              <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[11px] text-slate-500">ถ่ายด้วยมือถือพร้อมไกด์ทีละช็อตตามแผนนี้</span>
+              <div className="flex flex-wrap items-center gap-2">
                 {onOpenStoryboard && (
                   <button
                     type="button"
@@ -282,27 +246,25 @@ export default function ShotListModal({
                       onClose();
                       onOpenStoryboard(angle);
                     }}
-                    className="px-3 py-1.5 rounded-xl bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+                    className="px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.1] text-slate-200 text-xs font-bold flex items-center gap-1.5 transition-colors"
                   >
                     <Scissors className="w-3.5 h-3.5" />
-                    วางแผนช็อตด้วยตนเอง (Storyboard)
+                    วางแผนช็อตเอง (Storyboard)
                   </button>
                 )}
                 <button
                   type="button"
                   onClick={handleStartSession}
                   disabled={creatingSession}
-                  className="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-wait transition-colors"
+                  className="px-3 py-1.5 rounded-lg bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-xs font-bold flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-wait transition-colors"
                 >
                   {creatingSession ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <QrCode className="w-3.5 h-3.5" />}
-                  เริ่มเซสชันถ่ายทำ (QR)
+                  เริ่มถ่ายด้วยมือถือ (QR)
                 </button>
               </div>
             </div>
           )}
-          {sessionError && (
-            <p className="text-[11px] text-rose-400">{sessionError}</p>
-          )}
+          {sessionError && <p className="text-[11px] text-rose-400">{sessionError}</p>}
         </div>
       </div>
     </Modal>

@@ -13,6 +13,7 @@ from playwright.sync_api import expect
 from tests.motion_capture import test_product_header_metadata_browser as base
 
 CLIP = "D:/raw/fixture_clip.mp4"
+LONG_CLIP = "D:/raw/Essager_100W_FastCharge_Cable_Official_Design_Film_1080p.mp4"
 
 
 def _angle(n, status="scripted", **fields):
@@ -24,7 +25,7 @@ ANGLES = [
     _angle(1),
     _angle(2, selected_videos=[CLIP]),
     _angle(3, selected_videos=[CLIP]),
-    _angle(4, "in_production", selected_videos=[CLIP]),
+    _angle(4, "in_production", selected_videos=[LONG_CLIP]),
     _angle(5, "rendered", selected_videos=[CLIP], video_url="/exports/fixture_5.mp4"),
     _angle(6, "posted", selected_videos=[CLIP], video_url="/exports/fixture_6.mp4", posted_at="2026-11-12T10:00:00"),
 ]
@@ -48,7 +49,30 @@ class _Fixture(base._Fixture):
             route.fulfill(content_type="application/json", headers={"X-OmniCut-Channel": "main"},
                           body=json.dumps({"status": SHOT_LISTS}))
             return
+        if route.request.method == "GET" and path.endswith("/scene-catalogs"):
+            route.fulfill(content_type="application/json", headers={"X-OmniCut-Channel": "main"},
+                          body=json.dumps({"catalogs": {LONG_CLIP: {"is_indexed": True, "scenes_count": 8}}}))
+            return
+        if route.request.method == "GET" and path.endswith("/angles/A3/shot-list"):
+            route.fulfill(content_type="application/json", headers={"X-OmniCut-Channel": "main"},
+                          body=json.dumps(SHOT_LIST_A3))
+            return
         super().api(route)
+
+
+SAME = "กล้องมุมเดิมบนขาตั้ง (ไม่ขยับกล้อง)"
+SHOT_LIST_A3 = {
+    "voice_audio_path": "D:/fixture/voice.wav", "total_duration": 15.0,
+    "voice_params": {"voice_preset": "gemini_fenrir_male_strong", "voice_engine_type": "gemini_tts"},
+    "shot_list": [
+        {"beat_index": 0, "role": "hook", "text": "ช็อตแรก", "start": 0, "end": 5, "planned_duration": 5,
+         "camera_direction": "ตั้งกล้องมุมเฉียง 45° — ถือสินค้าเข้ากล้อง"},
+        {"beat_index": 1, "role": "feature", "text": "ช็อตสอง", "start": 5, "end": 10, "planned_duration": 5,
+         "camera_direction": f"{SAME} — เสียบสายชาร์จ"},
+        {"beat_index": 2, "role": "cta", "text": "ช็อตสาม", "start": 10, "end": 15, "planned_duration": 5,
+         "camera_direction": f"{SAME} — ชี้ตะกร้า"},
+    ],
+}
 
 
 def _with_angles():
@@ -133,10 +157,43 @@ def test_wide_screen_puts_the_next_step_beside_the_script(motion_fixture_url):
             script = page.get_by_text("บรรทัดหนึ่ง").first.bounding_box()
             assert bar["x"] > script["x"] + 400, (bar, script)
             assert bar["y"] < script["y"] + script["height"], (bar, script)
+            # A long clip name with its scene button stays inside the side column.
+            _row(page, 4).click()
+            side = page.get_by_role("group", name="เสียงและคลิปของมุมนี้")
+            expect(side).to_contain_text("Essager_100W")
+            overflow = side.evaluate("""(el) => {
+                const right = el.getBoundingClientRect().right;
+                return [...el.querySelectorAll('*')].filter((c) => c.getBoundingClientRect().right > right + 1).length;
+            }""")
+            assert overflow == 0, overflow
             assert not fixture.page_errors
         with base._product_page(motion_fixture_url, fixture, viewport=(1440, 900)) as page:
             _row(page, 3).click()
             bar = page.get_by_role("group", name="ขั้นต่อไปของมุมนี้").bounding_box()
             assert bar["width"] > 600, bar  # one column below 1536px: the bar spans the panel
+    finally:
+        base.PRODUCTS[0]["angles"] = original
+
+
+def test_shot_list_opens_once_as_a_timeline(motion_fixture_url):
+    original = _with_angles()
+    fixture = _Fixture()
+    try:
+        with base._product_page(motion_fixture_url, fixture) as page:
+            _row(page, 3).click()
+            page.get_by_role("button", name="เปิดเสียงและแผน").click()
+            shots = page.get_by_role("list", name="ช็อตในแผนถ่าย")
+            expect(shots.get_by_role("listitem")).to_have_count(3)
+            expect(page.get_by_role("dialog")).to_have_count(1)  # the page used to stack two copies
+            items = shots.get_by_role("listitem")
+            expect(items.nth(0)).to_contain_text("ถือสินค้าเข้ากล้อง")
+            expect(items.nth(1)).to_contain_text(SAME)
+            expect(items.nth(2)).to_contain_text("กล้องมุมเดิม")
+            expect(items.nth(2)).not_to_contain_text("ขาตั้ง")
+            dialog = page.get_by_role("dialog")
+            expect(dialog.get_by_role("button", name="เริ่มถ่ายด้วยมือถือ (QR)")).to_be_visible()
+            expect(dialog.get_by_role("combobox", name="เสียงพากย์ Gemini TTS")).to_have_value("gemini_fenrir_male_strong")
+            assert fixture.writes == []
+            assert not fixture.page_errors
     finally:
         base.PRODUCTS[0]["angles"] = original
