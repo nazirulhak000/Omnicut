@@ -177,6 +177,48 @@ def _extract_batch_from_name(name: Optional[str]) -> Optional[int]:
     return None
 
 
+def select_angle(
+    angles: List[Dict[str, Any]],
+    angle_id: Optional[str],
+    *,
+    project_name: Optional[str] = None,
+    batch: Optional[int] = None,
+) -> Optional[Dict[str, Any]]:
+    """Pick the one angle ``update_angle_status`` would change.
+
+    An angle id can repeat across lots (batches), so a bare "first angle with
+    this id" lookup can read or change another lot's angle. Same order as
+    ``ProductStore.update_angle_status``: exact batch (given or ``_bN``
+    suffix), then project name / the lot number in it, then the first angle
+    not yet posted, then the first match.
+    """
+    matching = [a for a in angles or [] if (a.get("angle_id") or a.get("id")) == angle_id]
+    if not matching:
+        return None
+    effective_batch = batch
+    if effective_batch is None:
+        suffix = re.search(r"_b(\d+)$", str(angle_id))
+        if suffix:
+            effective_batch = int(suffix.group(1))
+    if effective_batch is not None:
+        for a in matching:
+            if (a.get("batch") or 1) == effective_batch:
+                return a
+    if project_name:
+        for a in matching:
+            if a.get("project_name") == project_name:
+                return a
+        proj_batch = _extract_batch_from_name(project_name)
+        if proj_batch is not None:
+            for a in matching:
+                if (a.get("batch") or 1) == proj_batch:
+                    return a
+    for a in matching:
+        if a.get("status") != "posted" and not a.get("posted_at"):
+            return a
+    return matching[0]
+
+
 def _export_registry_find_by_path(export_records: List[Dict[str, Any]], raw_path: object) -> Optional[Dict[str, Any]]:
     """`ExportRegistry.find_by_path()`, but over a pre-fetched snapshot
     instead of a live call. See `_preferred_registered_export` for why."""

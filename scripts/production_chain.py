@@ -104,6 +104,28 @@ def _has_script(angle: Dict[str, Any]) -> bool:
     return any(str(line).strip() for line in lines)
 
 
+def _angles_in_open_batches(product_id: str) -> set:
+    """Angle keys a draft/render batch still has queued or running.
+
+    A server restart fails the chain task but re-queues its batch_render
+    (task_manager.py keeps batch_render queued), so the batch carries on while
+    the angle still reads "no draft". Pressing the button again must not
+    queue a second draft for the same angle.
+    """
+    from scripts.batch_queue_store import BatchQueueStore
+
+    keys = set()
+    for row in BatchQueueStore.load():
+        if str(row.get("product_id") or "") != str(product_id):
+            continue
+        if row.get("cancelled") or row.get("status") not in ("queued", "processing"):
+            continue
+        for item in row.get("items", []) or []:
+            if item.get("status") in ("queued", "in_production"):
+                keys.add(f"{item.get('angle_id')}_b{item.get('batch') or 1}")
+    return keys
+
+
 def _angles_in_scope(product: Dict[str, Any], batch_index: Optional[int]) -> List[Dict[str, Any]]:
     angles = [a for a in product.get("angles", []) or [] if _angle_id(a)]
     if batch_index is None:
@@ -255,7 +277,9 @@ def _scan_step(task_id: str, product: Dict[str, Any], channel_id: Optional[str],
     report["ok"] = bool(outcome.get("ok")) and not report["not_analyzed"]
     if not report["ok"] and not report["error"]:
         reason = next(iter(report["not_analyzed"].values()), "")
-        report["error"] = f"AI ไม่ได้วิเคราะห์ภาพ {len(report['not_analyzed'])} คลิป: {reason}".rstrip(": ")
+        names = [Path(str(v)).name for v in report["not_analyzed"]]
+        shown = ", ".join(names[:3]) + (f" และอีก {len(names) - 3} คลิป" if len(names) > 3 else "")
+        report["error"] = f"AI ไม่ได้วิเคราะห์ภาพ {len(names)} คลิป ({shown}): {reason}".rstrip(": ")
     return report
 
 
@@ -348,6 +372,15 @@ def run_draft_chain(task_id: str, product_id: str, *, batch_index: Optional[int]
 
     targets = [a for a in _angles_in_scope(product, batch_index)
                if not _is_finished(a) and not _has_draft(a) and _has_script(a)]
+    busy = _angles_in_open_batches(product_id)
+    already_queued = [_angle_ref(a) for a in targets if _angle_key(a) in busy]
+    targets = [a for a in targets if _angle_key(a) not in busy]
+    summary["already_queued"] = already_queued
+    if not targets and already_queued:
+        summary.update(ok=True, stopped_at="already_queued",
+                       message=f"มีดราฟต์ {len(already_queued)} มุมอยู่ในคิวเดิมแล้ว รอคิวนั้นเสร็จ ไม่สร้างซ้ำ",
+                       drafts={"created": [], "failed": []})
+        return summary
     if not targets:
         summary.update(ok=True, message="ไม่มีมุมที่ต้องผลิต — ทุกมุมมีดราฟต์แล้วหรือยังไม่มีสคริปต์",
                        drafts={"created": [], "failed": []})
@@ -394,7 +427,13 @@ def run_draft_chain(task_id: str, product_id: str, *, batch_index: Optional[int]
         parts.append(f"ไม่มีเสียงพากย์ {len(missing)} มุม")
     if scan["missing_files"]:
         parts.append(f"ไม่พบไฟล์คลิป {scan['missing_files']} ไฟล์")
+    if already_queued:
+        parts.append(f"อยู่ในคิวเดิมแล้ว {len(already_queued)} มุม")
     summary.update(ok=made > 0, message=" · ".join(parts))
+    # Some angles made it, some did not: still "completed", but flagged so the
+    # UI never shows it as a clean success.
+    summary["failed_count"] = broken + len(missing)
+    summary["partial"] = made > 0 and summary["failed_count"] > 0
     if not made:
         summary["stopped_at"] = "draft"
         first = drafts["failed"][0]["error"] if drafts["failed"] else ""
@@ -595,6 +634,8 @@ def run_render_chain(task_id: str, product_id: str, *, batch_index: Optional[int
     if left:
         parts.append(f"ข้าม {left} มุม")
     summary.update(ok=made > 0, message=" · ".join(parts))
+    summary["failed_count"] = broken + left
+    summary["partial"] = made > 0 and summary["failed_count"] > 0
     if not made:
         summary["stopped_at"] = "render"
         first = summary["failed"][0]["error"] if summary["failed"] else ""
@@ -638,6 +679,8 @@ def run_full_chain(task_id: str, product_id: str, *, batch_index: Optional[int] 
         parts.append("ดราฟต์ที่ยังไม่ได้เรนเดอร์ใช้ปุ่ม เรนเดอร์ดราฟต์")
     summary.update(ok=bool(render.get("ok")), stopped_at=render.get("stopped_at"),
                    message=" · ".join(part for part in parts if part))
+    summary["failed_count"] = int(draft.get("failed_count") or 0) + int(render.get("failed_count") or 0)
+    summary["partial"] = bool(summary["ok"]) and summary["failed_count"] > 0
     return summary
 
 
@@ -660,7 +703,10 @@ def _run_chain(task_id: str, product_id: str, kind: str, batch_index: Optional[i
                                        channel_id=channel_id, job_scope=job_scope)
         # A cancelled task is already terminal; both calls below leave it alone.
         if summary["ok"]:
-            TaskManager.complete_task(task_id, result=summary, step_label=summary["message"], target_id=product_id)
+            label = summary["message"]
+            if summary.get("partial"):
+                label = f"เสร็จบางส่วน · {label}"
+            TaskManager.complete_task(task_id, result=summary, step_label=label, target_id=product_id)
         else:
             TaskManager.fail_task(task_id, summary["message"], step_label=f"{KIND_LABEL[kind]}ไม่จบ")
     except Exception as err:
