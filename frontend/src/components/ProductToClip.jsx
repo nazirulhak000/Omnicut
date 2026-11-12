@@ -4,7 +4,7 @@ import {
   AlertCircle, ArrowRight, Upload, Trash2, RefreshCw, Plus, Film, Video,
   ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Package, Rocket, FolderOpen, X,
   Search, LayoutGrid, Filter, Play, Lock, Edit3, Replace, Columns, List,
-  ShoppingBag, ShieldCheck, Database, Zap, Layers, Eye, EyeOff, CheckCircle2, Tag,
+  ShoppingBag, ShieldCheck, Database, Zap, Layers, Eye, EyeOff, Tag,
   Volume2, Mic, AlertTriangle, VolumeX, Scissors, MoreHorizontal, Info, Kanban
 } from 'lucide-react';
 import {
@@ -35,6 +35,7 @@ import { DEFAULT_VOICE_PRESET, normalizeAdTone } from '../lib/angleToForm.js';
 import { getRecommendedStyleForAngle } from '../lib/stylePresetCatalog';
 import { resolveHistoryTargetId, resolveSelectedProduct } from '../lib/productSelection';
 import { buildProjectName } from '../lib/projectName';
+import { angleNextStep, angleStage, angleActionLabel, STAGE_LABEL, STAGE_HINT } from '../lib/angleNextStep.js';
 import {
   CHAIN_LABEL, CHAIN_TASK_TYPE, chainConfirmText, chainFollowUp, chainStartError, chainTargets,
   findProductTask, taskPercent,
@@ -175,6 +176,19 @@ const PRODUCT_MENU_ITEM = 'w-full flex items-center gap-2 px-2.5 py-2 rounded-lg
 const LOT_PRIMARY_BUTTON = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-xs font-bold disabled:opacity-50';
 const LOT_SECONDARY_BUTTON = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 border border-white/[0.12] text-xs font-bold disabled:opacity-50';
 const LOT_TOOL_BUTTON = 'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold disabled:opacity-50';
+
+// Angle panel footer: the next step filled, the rest outlined.
+const ANGLE_PRIMARY_BUTTON = 'flex-1 sm:flex-initial min-h-[44px] sm:min-h-[40px] py-2 px-4 sm:px-5 rounded-xl bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#25F4EE]/15 cursor-pointer active:scale-[0.98] transition-all whitespace-nowrap disabled:opacity-60 disabled:cursor-wait';
+const ANGLE_SECONDARY_BUTTON = 'min-h-[40px] py-2 px-3.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.1] border border-white/[0.12] text-slate-200 text-xs sm:text-sm font-bold whitespace-nowrap transition-colors cursor-pointer disabled:opacity-50';
+const STAGE_DOT = {
+  posted: 'bg-emerald-400',
+  rendered: 'bg-emerald-400',
+  drafted: 'bg-amber-400',
+  needs_clips: 'bg-slate-500',
+  needs_voice: 'bg-slate-400',
+  ready_to_draft: 'bg-[#25F4EE]',
+};
+const BUSY_LABEL = { draft: 'กำลังสร้างดราฟต์', voice: 'กำลังเตรียมเสียง' };
 
 /** One labelled cluster of the lot panel; renders nothing when it has no tools. */
 function LotToolGroup({ label, children }) {
@@ -324,359 +338,68 @@ function ProductCard({ product, isSelected, onSelect, onDoubleClick, onToggleHid
   );
 }
 // ═══════════════════════════════════════════════════════════════════════
-// [ANGLE SIDEBAR ITEM] (Left Column in Split Studio View)
+// [ANGLE LIST ROW] (angle list of the split studio view, desktop and phone)
 // ═══════════════════════════════════════════════════════════════════════
-// 4-phase pipeline definition for sidebar dot indicators
-// 4-phase pipeline definition for sidebar dot indicators
+const STAGE_CHIP = {
+  posted: 'text-emerald-300 bg-emerald-500/10 border-emerald-500/25',
+  rendered: 'text-emerald-300 bg-emerald-500/10 border-emerald-500/25',
+  drafted: 'text-amber-300 bg-amber-500/10 border-amber-500/25',
+  needs_clips: 'text-slate-400 bg-white/[0.04] border-white/[0.08]',
+  needs_voice: 'text-slate-300 bg-white/[0.04] border-white/[0.08]',
+  ready_to_draft: 'text-[#25F4EE] bg-[#25F4EE]/10 border-[#25F4EE]/25',
+};
+const STAGE_WARN_CHIP = 'text-amber-300 bg-amber-500/10 border-amber-500/25';
 
-const PIPELINE_PHASES = [
-  { key: 'scripted', label: 'สคริปต์พร้อม', short: 'สคริปต์' },
-  { key: 'in_production', label: 'กำลังตัดต่อ', short: 'ตัดต่อ' },
-  { key: 'rendered', label: 'ตัดต่อเสร็จ', short: 'เสร็จ' },
-  { key: 'posted', label: 'โพสต์แล้ว', short: 'โพสต์' },
-];
-
-function resolvePhaseIndex(angle) {
-
-  const curStatus = angle.status || 'scripted';
-  const isRendered = (curStatus === 'rendered' || curStatus === 'posted') && !!angle.video_url;
-  const isInProduction = curStatus === 'in_production';
-  if (curStatus === 'posted') return 3;
-  if (isRendered) return 2;
-  if (isInProduction) return 1;
-  return 0;
+function angleSelectedVideos(angle) {
+  return angle.selected_videos || (angle.selected_video ? [angle.selected_video] : []);
 }
 
-function PhaseDots({ angle, compact = false }) {
-  const activeIdx = resolvePhaseIndex(angle);
-  const currentPhase = PIPELINE_PHASES[activeIdx];
-
-  return (
-    <div
-      className="inline-flex items-center gap-1.5 py-0.5 px-1.5 rounded-full bg-black/40 border border-white/[0.06]"
-      title={`สถานะกระบวนการ: ${currentPhase.label} (สเต็ป ${activeIdx + 1}/4)`}
-    >
-      <div className="flex items-center gap-1">
-        {PIPELINE_PHASES.map((phase, i) => {
-          const isCurrent = i === activeIdx;
-          const isPassed = i < activeIdx;
-
-          return (
-            <div key={phase.key} className="flex items-center">
-              {/* Connector line between dots */}
-              {i > 0 && (
-                <div
-                  className={`h-0.5 w-1.5 sm:w-2 transition-colors duration-300 ${
-                    isPassed || isCurrent ? 'bg-emerald-500/70' : 'bg-white/[0.08]'
-                  }`}
-                />
-              )}
-              {/* Dot */}
-              <div className="relative flex items-center justify-center">
-                <span
-                  className={`rounded-full transition-all duration-300 ${
-                    isCurrent
-                      ? 'w-2 h-2 bg-emerald-400 ring-2 ring-emerald-400/30 scale-110 z-10'
-                      : isPassed
-                      ? 'w-1.5 h-1.5 bg-emerald-500/80'
-                      : 'w-1.5 h-1.5 bg-white/[0.12]'
-                  }`}
-                />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      {!compact && (
-        <span className={`text-[9px] font-bold ml-0.5 ${
-          activeIdx === 3 ? 'text-emerald-300'
-          : activeIdx === 2 ? 'text-cyan-300'
-          : activeIdx === 1 ? 'text-amber-300'
-          : 'text-slate-400'
-        }`}>
-          {currentPhase.short}
-        </span>
-      )}
-    </div>
-  );
-}
-
-function AngleSidebarItem({
-  angle,
-  index,
-  isSelected,
-  onSelect,
-  onPreviewExportVideo,
-  shotListInfo,
-  onGenerateShotList,
-  onOpenShotList,
-  isGeneratingShotList = false,
-  onDeleteAngle,
-  projectName,
-}) {
-
-  const curStatus = angle.status || 'scripted';
-  const isRendered = (curStatus === 'rendered' || curStatus === 'posted') && !!angle.video_url;
-  const isInProduction = curStatus === 'in_production';
-  const isLocked = curStatus === 'posted' || isInProduction || isRendered;
-
-  const phaseIdx = resolvePhaseIndex(angle);
-
-  const selectedVideos = angle.selected_videos || (angle.selected_video ? [angle.selected_video] : []);
-  const hasShotList = shotListInfo?.has_shot_list;
-  const isStaleShotList = shotListInfo?.is_stale;
-  const isEdgeTtsShotList = shotListInfo?.is_edge_tts;
-
-  return (
-    <div
-      onClick={onSelect}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          onSelect();
-        }
-      }}
-      role="button"
-      tabIndex={0}
-      aria-current={isSelected ? 'true' : undefined}
-      className={`p-2.5 rounded-xl border transition-all cursor-pointer text-left group relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/60 ${
-        isSelected
-          ? 'bg-[#25F4EE]/[0.08] border-[#25F4EE]/60 shadow-md shadow-[#25F4EE]/10 ring-1 ring-[#25F4EE]/30'
-          : 'bg-[#0A0D14] border-white/[0.08] hover:border-white/[0.16] hover:bg-white/[0.02]'
-      }`}
-    >
-      {/* Active Indicator Bar on left edge */}
-      {isSelected && (
-        <div className="absolute left-0 top-2 bottom-2 w-1 bg-[#25F4EE] rounded-r-full shadow-xs" />
-      )}
-
-      <div className="flex items-start gap-2.5">
-        {/* Number Badge */}
-        <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold font-mono tabular-nums flex-shrink-0 mt-0.5 ${
-          isSelected
-            ? 'bg-[#25F4EE] text-slate-950 font-bold shadow-sm'
-            : 'bg-white/[0.05] text-slate-400 border border-white/[0.08]'
-        }`}>
-          {index + 1}
-        </span>
-
-        {/* Title + Phase Dots + Badges */}
-        <div className="min-w-0 flex-1 space-y-1.5">
-          {/* Row 1: Name + 4-Phase Stepper */}
-          <div className="flex items-center justify-between gap-2">
-            <span className={`text-xs font-bold truncate ${isSelected ? 'text-white' : 'text-slate-200'}`}>
-              {angle.angle_name}
-            </span>
-            <div className="flex-shrink-0">
-              <PhaseDots angle={angle} />
-            </div>
-          </div>
-
-          {/* Row 2: Content Type Badges + Shot List Badge */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <ContentTypeBadges angle={angle} compact />
-
-            {/* Shot List Status Badge */}
-            {hasShotList ? (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpenShotList ? onOpenShotList(index) : (onGenerateShotList && onGenerateShotList(index));
-                }}
-                className={`inline-flex items-center gap-1 min-h-6 text-[10px] font-bold px-2 py-0.5 rounded-md border transition-all cursor-pointer ${
-                  isEdgeTtsShotList
-                    ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-400/40 ring-1 ring-amber-400/30 shadow-xs'
-                    : isStaleShotList
-                      ? 'bg-orange-500/15 hover:bg-orange-500/25 text-orange-300 border-orange-400/40 ring-1 ring-orange-400/20'
-                      : 'bg-indigo-500/15 hover:bg-indigo-500/25 text-cyan-300 border-indigo-400/40 ring-1 ring-indigo-400/20 shadow-xs'
-                }`}
-                title={isEdgeTtsShotList
-                  ? 'แผนถ่ายนี้สร้างด้วย Edge-TTS เดิม — คลิกเพื่อเปิดดูและอัปเกรดเป็น Gemini TTS'
-                  : isStaleShotList
-                    ? 'บทเปลี่ยนหลังจากสร้างแผนถ่าย — คลิกเพื่อตรวจหรืออัปเดต'
-                    : `มีแผนถ่ายพร้อมแล้ว (${getVoicePresetFullLabel(shotListInfo?.voice_preset)}) — คลิกเพื่อเปิดดูแผนถ่าย`}
-              >
-                {isEdgeTtsShotList ? (
-                  <>
-                    <AlertTriangle className="w-2.5 h-2.5 text-amber-300 flex-shrink-0" />
-                    <span>เสียงเดิม Edge-TTS</span>
-                  </>
-                ) : isStaleShotList ? (
-                  <>
-                    <Clapperboard className="w-2.5 h-2.5 flex-shrink-0" />
-                    <span>แผนถ่ายเก่า (บทเปลี่ยน)</span>
-                  </>
-                ) : (
-                  <>
-                    <Mic className="w-2.5 h-2.5 text-cyan-300 flex-shrink-0" />
-                    <span>เสียง Gemini ({getVoicePresetShortName(shotListInfo?.voice_preset)})</span>
-                  </>
-                )}
-              </button>
-            ) : (
-              !isLocked && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onGenerateShotList && onGenerateShotList(index);
-                  }}
-                  disabled={isGeneratingShotList}
-                  className="inline-flex items-center gap-1 min-h-6 text-[10px] font-bold px-2 py-0.5 rounded-md bg-white/[0.04] hover:bg-amber-500/15 text-slate-400 hover:text-amber-200 border border-white/[0.08] hover:border-amber-500/30 transition-all cursor-pointer disabled:opacity-50"
-                  title="ยังไม่มีแผนถ่าย — คลิกเพื่อสร้างแผนถ่ายสำหรับมุมนี้"
-                >
-                  {isGeneratingShotList ? (
-                    <Loader2 className="w-2.5 h-2.5 animate-spin text-amber-400" />
-                  ) : (
-                    <Clapperboard className="w-2.5 h-2.5 text-amber-400/70" />
-                  )}
-                  <span>สร้างแผนถ่าย</span>
-                </button>
-              )
-            )}
-          </div>
-
-          {/* Row 3: Hook preview */}
-          {angle.hook_title && (
-            <p className="text-[11px] text-slate-400 truncate">
-              "{angle.hook_title}"
-            </p>
-          )}
-
-          {/* Row 3b: angle_id + projected project name */}
-          <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-            {/* angle_id chip — ยืนยันว่า ID ไม่ซ้ำ */}
-            {angle.angle_id && (
-              <span
-                className="inline-flex items-center gap-1 text-[9px] font-mono font-bold tabular-nums px-1.5 py-0.5 rounded-md bg-[#25F4EE]/10 text-[#25F4EE]/80 border border-[#25F4EE]/20"
-                title={`angle_id = ${angle.angle_id} (batch ${angle.batch || 1})`}
-              >
-                <Tag className="w-2 h-2 flex-shrink-0" />
-                {angle.angle_id}{angle.batch && angle.batch > 1 ? `_b${angle.batch}` : ''}
-              </span>
-            )}
-            {/* timeline project name — แสดงเฉพาะเมื่อสคริปต์เข้าไทม์ไลน์แล้วจริง */}
-            {angle.project_name && (
-              <span
-                className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 border border-indigo-500/25 truncate max-w-[140px]"
-                title={`โปรเจกต์ในไทม์ไลน์: ${angle.project_name}`}
-              >
-                <FolderOpen className="w-2 h-2 flex-shrink-0" />
-                {angle.project_name}
-              </span>
-            )}
-          </div>
-
-          {/* Row 4: Footer — footage tag + delete button + preview button */}
-          <div className="flex items-center justify-between pt-0.5 text-[10px]">
-            <div className="flex items-center gap-2.5">
-              {selectedVideos.length > 0 ? (
-                <span className="inline-flex items-center gap-1 text-[#25F4EE] font-medium">
-                  <Film className="w-2.5 h-2.5" />
-                  <span><strong className="font-mono tabular-nums">{selectedVideos.length}</strong> คลิป</span>
-                </span>
-              ) : (
-                <span className="text-slate-500 italic">ยังไม่ได้เลือกคลิป</span>
-              )}
-
-              {onDeleteAngle && angle.status !== 'posted' && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDeleteAngle(angle, index);
-                  }}
-                  className="hidden opacity-0 group-hover:opacity-100 hover:!opacity-100 px-1.5 py-0.5 rounded-md text-slate-500 hover:text-rose-400 hover:bg-rose-500/15 transition-all cursor-pointer items-center gap-1"
-                  title="ลบสคริปต์มุมนี้"
-                >
-                  <Trash2 className="w-3 h-3" />
-                  <span className="text-[10px] font-medium">ลบสคริปต์</span>
-                </button>
-              )}
-            </div>
-
-            {isRendered && angle.video_url && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onPreviewExportVideo && onPreviewExportVideo(angle);
-                }}
-                className="hidden p-1 px-1.5 rounded bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/30 items-center gap-1 transition-colors"
-                title="ดูคลิปที่ Export แล้ว"
-              >
-                <Play className="w-2.5 h-2.5 fill-cyan-300" />
-                <span className="text-[10px] font-bold">ดูคลิป</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-// ═══════════════════════════════════════════════════════════════════════
-// [ANGLE MOBILE PILL] (Horizontal Swipeable Tab for iPhone 15 PM)
-// ═══════════════════════════════════════════════════════════════════════
-
-function AngleMobilePill({ angle, index, isSelected, onSelect, shotListInfo }) {
-
-  const selectedVideos = angle.selected_videos || (angle.selected_video ? [angle.selected_video] : []);
-  const hasShotList = shotListInfo?.has_shot_list;
+/** One row of the angle list: number, title, hook and where the angle stands. */
+function AngleListRow({ angle, index, isSelected, onSelect, shotListInfo }) {
+  const stage = angleStage(angle, { selectedCount: angleSelectedVideos(angle).length, shotListInfo });
+  const stale = stage === 'ready_to_draft' && shotListInfo?.is_stale;
+  const edgeTts = stage === 'needs_voice' && shotListInfo?.is_edge_tts;
+  const chipText = stale ? 'แผนถ่ายเก่า' : edgeTts ? 'เสียงเดิม' : STAGE_LABEL[stage];
+  const chipTitle = stale
+    ? 'บทเปลี่ยนหลังสร้างแผนถ่าย ควรสร้างเสียงใหม่'
+    : edgeTts
+      ? 'แผนถ่ายนี้ใช้เสียง Edge-TTS เดิม ควรอัปเกรดเป็น Gemini'
+      : STAGE_HINT[stage];
 
   return (
     <button
       type="button"
-      onClick={() => {
-        try { navigator.vibrate?.(10); } catch {}
-        onSelect();
-      }}
-      className={`w-full min-h-[50px] px-3.5 py-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/60 ${
+      onClick={onSelect}
+      aria-current={isSelected ? 'true' : undefined}
+      className={`w-full min-h-[56px] px-2.5 py-2 rounded-xl border text-left flex items-center gap-2.5 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/60 ${
         isSelected
-          ? 'bg-[#25F4EE]/15 border-[#25F4EE] shadow-md shadow-cyan-950/30 ring-1 ring-[#25F4EE]/40'
-          : 'bg-[#0A0D14] border-white/[0.08] hover:border-white/[0.16] text-slate-300'
+          ? 'bg-[#25F4EE]/[0.08] border-[#25F4EE]/60'
+          : 'bg-[#0A0D14] border-white/[0.08] hover:border-white/[0.16] hover:bg-white/[0.02]'
       }`}
     >
-      <span className={`w-5 h-5 rounded-lg flex items-center justify-center text-[11px] font-bold font-mono tabular-nums flex-shrink-0 ${
+      <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold font-mono tabular-nums flex-shrink-0 ${
         isSelected
-          ? 'bg-[#25F4EE] text-slate-950 font-bold shadow-sm'
-          : 'bg-white/[0.08] text-slate-400'
+          ? 'bg-[#25F4EE] text-slate-950'
+          : 'bg-white/[0.05] text-slate-400 border border-white/[0.08]'
       }`}>
         {index + 1}
       </span>
-
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          <PhaseDots angle={angle} compact={true} />
-          <span className={`text-xs font-bold truncate ${isSelected ? 'text-white' : 'text-slate-300'}`}>
-            {angle.angle_name}
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5 mt-0.5">
-          <ContentTypeBadges angle={angle} compact />
-          {hasShotList && (
-            <span className={`inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded border ${
-              shotListInfo?.is_edge_tts
-                ? 'text-amber-300 bg-amber-500/15 border-amber-500/30'
-                : 'text-cyan-300 bg-indigo-500/15 border-indigo-500/30'
-            }`}>
-              {shotListInfo?.is_edge_tts ? (
-                <span>เสียง Edge</span>
-              ) : (
-                <span>เสียง {getVoicePresetShortName(shotListInfo?.voice_preset)}</span>
-              )}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5">
-          {selectedVideos.length > 0 ? (
-            <span className="text-[#25F4EE] font-medium"><strong className="font-mono tabular-nums">{selectedVideos.length}</strong> คลิป</span>
-          ) : (
-            <span className="text-slate-500">ไม่มีคลิป</span>
-          )}
-        </div>
-      </div>
+      <span className="min-w-0 flex-1">
+        <span className={`block text-xs font-bold truncate ${isSelected ? 'text-white' : 'text-slate-200'}`}>
+          {angle.angle_name}
+        </span>
+        {angle.hook_title && (
+          <span className="block text-[11px] text-slate-400 truncate mt-0.5">{angle.hook_title}</span>
+        )}
+      </span>
+      <span
+        title={chipTitle}
+        className={`flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${
+          stale || edgeTts ? STAGE_WARN_CHIP : STAGE_CHIP[stage]
+        }`}
+      >
+        {chipText}
+      </span>
     </button>
   );
 }
@@ -704,6 +427,8 @@ function AngleActiveWorkbench({
 
   const [isEditing, setIsEditing] = useState(false);
   const [showMoreTools, setShowMoreTools] = useState(false);
+  const [stepMenuOpen, setStepMenuOpen] = useState(false);
+  const stepMenuButtonRef = useRef(null);
   const [editText, setEditText] = useState('');
   const [editHook, setEditHook] = useState(angle.hook_title || '');
 
@@ -779,16 +504,41 @@ function AngleActiveWorkbench({
     : 'bg-white/[0.05] text-slate-400 border-white/[0.08]';
 
   const selectedVideos = angle.selected_videos || (angle.selected_video ? [angle.selected_video] : []);
+  const step = angleNextStep(angle, { selectedCount: selectedVideos.length, shotListInfo });
+  const edgeTts = Boolean(shotListInfo?.is_edge_tts);
+  const actionBusy = (action) => (action === 'draft' && draftingAngleId === angle.angle_id)
+    || (action === 'voice' && isGeneratingShotList);
+  const runAngleAction = (action) => {
+    switch (action) {
+      case 'watch': onPreviewExportVideo && onPreviewExportVideo(angle); break;
+      case 'gallery': onGoToGallery && onGoToGallery(angle.export_id || angle.video_url || angle.project_name); break;
+      case 'clone': onCloneAngle && onCloneAngle(angle, index); break;
+      case 'timeline':
+        if (onOpenInTimeline) onOpenInTimeline(angle, index);
+        else onSendToStudio(angle, index);
+        break;
+      case 'recut':
+      case 'studio': onSendToStudio(angle, index); break;
+      case 'tracker': onSendToTracker && onSendToTracker(angle, index); break;
+      case 'pick_clips': onOpenMediaPicker && onOpenMediaPicker(index); break;
+      case 'voice': onGenerateShotList && onGenerateShotList(index); break;
+      case 'draft':
+        if (onQuickDraft) onQuickDraft(angle, index);
+        else onSendToStudio(angle, index);
+        break;
+      default: break;
+    }
+  };
 
   return (
-    <div className={`border rounded-2xl p-3.5 sm:p-5 shadow-xl space-y-3.5 sm:space-y-4 animate-fadeIn transition-colors ${
+    <div className={`border rounded-2xl p-3.5 sm:p-5 shadow-xl space-y-3.5 sm:space-y-4 animate-fadeIn transition-colors 2xl:grid 2xl:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-rows-[auto_auto_auto_1fr] 2xl:items-start 2xl:gap-x-6 ${
       isLocked
         ? 'bg-[#080B11]/90 border-white/[0.06]'
         : 'bg-[#0A0D14] border-white/[0.08]'
     }`}>
       {/* 1. Header Bar */}
-      <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-2.5 pb-3 border-b border-white/[0.08]">
-        <div className="flex items-center gap-2 min-w-0">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pb-3 border-b border-white/[0.08] 2xl:col-span-2">
+        <div className="flex items-center gap-2 min-w-0 w-full sm:w-auto sm:flex-1">
           <span className={`w-6 h-6 sm:w-7 sm:h-7 rounded-xl font-bold font-mono tabular-nums text-xs flex items-center justify-center shadow-sm flex-shrink-0 ${
             isLocked
               ? 'bg-slate-800 text-slate-400 border border-white/[0.08]'
@@ -804,6 +554,7 @@ function AngleActiveWorkbench({
           <span className={`text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full border flex-shrink-0 ${statusColor}`}>
             {statusLabel}
           </span>
+          <span className="hidden md:inline-flex flex-shrink-0"><ContentTypeBadges angle={angle} compact /></span>
           {/* angle_id chip — ยืนยันว่า ID ไม่ซ้ำ */}
           {angle.angle_id && (
             <span
@@ -818,7 +569,7 @@ function AngleActiveWorkbench({
 
         {/* Project name in timeline — แสดงเฉพาะเมื่อมีโปรเจกต์ในไทม์ไลน์แล้วจริง */}
         {angle.project_name && (
-          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+          <div className="w-full order-last flex items-center gap-1.5 flex-wrap">
             <span className="text-[10px] text-slate-500">โปรเจกต์ในไทม์ไลน์:</span>
             <span
               className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 border border-indigo-500/25 font-mono tabular-nums"
@@ -831,7 +582,7 @@ function AngleActiveWorkbench({
         )}
 
         {/* Action icons */}
-        <div className="flex items-center gap-1.5 self-end xs:self-auto flex-shrink-0">
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5">
           {!isEditing && !isLocked && (
             <button
               type="button"
@@ -957,6 +708,7 @@ function AngleActiveWorkbench({
         </div>
       </div>
 
+      <div className="min-w-0 space-y-3.5 sm:space-y-4 2xl:col-start-1 2xl:row-start-2 2xl:row-span-3">
       {/* Consolidated script context: one surface instead of nested status cards. */}
       <section className="border-y border-white/[0.08] divide-y divide-white/[0.06]" aria-label="ข้อมูล Hook และเสียงนำถ่าย">
           <div className="py-3 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
@@ -1022,50 +774,6 @@ function AngleActiveWorkbench({
             )}
           </div>
 
-          <div className="py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0 text-xs">
-              {isGeneratingShotList ? (
-                <Loader2 className="w-4 h-4 text-[#25F4EE] animate-spin flex-shrink-0" />
-              ) : shotListInfo?.is_edge_tts ? (
-                <AlertTriangle className="w-4 h-4 text-amber-300 flex-shrink-0" />
-              ) : shotListInfo?.has_shot_list ? (
-                <Mic className="w-4 h-4 text-[#25F4EE] flex-shrink-0" />
-              ) : (
-                <VolumeX className="w-4 h-4 text-slate-500 flex-shrink-0" />
-              )}
-              <span className="font-bold text-slate-200 whitespace-nowrap">เสียงนำถ่าย</span>
-              <span className={`truncate ${
-                shotListInfo?.is_edge_tts
-                  ? 'text-amber-300'
-                  : shotListInfo?.has_shot_list
-                    ? 'text-slate-400'
-                    : 'text-slate-500'
-              }`}>
-                {isGeneratingShotList
-                  ? 'กำลังเตรียมเสียงและแผนถ่าย'
-                  : shotListInfo?.is_edge_tts
-                    ? 'Edge-TTS เดิม ควรอัปเกรดก่อนสร้างดราฟต์'
-                    : shotListInfo?.has_shot_list
-                      ? `${getVoicePresetFullLabel(shotListInfo?.voice_preset)}${shotListInfo?.is_stale ? ' · บทเปลี่ยน ควรสร้างเสียงใหม่' : ' · พร้อมใช้งาน'}`
-                      : 'ยังไม่ได้สร้าง'}
-              </span>
-            </div>
-
-            {(!isLocked || shotListInfo?.has_shot_list) && (
-              <button
-                type="button"
-                onClick={() => onGenerateShotList && onGenerateShotList(index)}
-                disabled={isGeneratingShotList}
-                className="self-end sm:self-auto px-2.5 py-1 rounded-md text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/[0.06] disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/60"
-              >
-                {shotListInfo?.is_edge_tts
-                  ? 'อัปเกรดเสียง'
-                  : shotListInfo?.has_shot_list
-                    ? 'เปิดเสียงและแผน'
-                    : 'สร้างเสียงและแผน'}
-              </button>
-            )}
-          </div>
       </section>
       {/* Locked Notice Banner */}
       {isLocked && (
@@ -1309,9 +1017,56 @@ function AngleActiveWorkbench({
         </div>
       )}
 
+      </div>
+      {/* Side column on wide screens: voice and clips under the next step. */}
+      <div className="min-w-0 space-y-3.5 sm:space-y-4 2xl:col-start-2 2xl:row-start-3 2xl:pl-6 2xl:border-l 2xl:border-white/[0.06]">
+          <div className="pt-2 border-t border-white/[0.08] 2xl:border-t-0 2xl:pt-0 flex flex-col sm:flex-row 2xl:flex-col sm:items-center 2xl:items-start justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0 text-xs">
+              {isGeneratingShotList ? (
+                <Loader2 className="w-4 h-4 text-[#25F4EE] animate-spin flex-shrink-0" />
+              ) : shotListInfo?.is_edge_tts ? (
+                <AlertTriangle className="w-4 h-4 text-amber-300 flex-shrink-0" />
+              ) : shotListInfo?.has_shot_list ? (
+                <Mic className="w-4 h-4 text-[#25F4EE] flex-shrink-0" />
+              ) : (
+                <VolumeX className="w-4 h-4 text-slate-500 flex-shrink-0" />
+              )}
+              <span className="font-bold text-slate-200 whitespace-nowrap">เสียงนำถ่าย</span>
+              <span className={`truncate ${
+                shotListInfo?.is_edge_tts
+                  ? 'text-amber-300'
+                  : shotListInfo?.has_shot_list
+                    ? 'text-slate-400'
+                    : 'text-slate-500'
+              }`}>
+                {isGeneratingShotList
+                  ? 'กำลังเตรียมเสียงและแผนถ่าย'
+                  : shotListInfo?.is_edge_tts
+                    ? 'Edge-TTS เดิม ควรอัปเกรดก่อนสร้างดราฟต์'
+                    : shotListInfo?.has_shot_list
+                      ? `${getVoicePresetFullLabel(shotListInfo?.voice_preset)}${shotListInfo?.is_stale ? ' · บทเปลี่ยน ควรสร้างเสียงใหม่' : ' · พร้อมใช้งาน'}`
+                      : 'ยังไม่ได้สร้าง'}
+              </span>
+            </div>
+
+            {(!isLocked || shotListInfo?.has_shot_list) && (
+              <button
+                type="button"
+                onClick={() => onGenerateShotList && onGenerateShotList(index)}
+                disabled={isGeneratingShotList}
+                className="self-end sm:self-auto 2xl:self-start 2xl:-ml-2.5 px-2.5 py-1 rounded-md text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/[0.06] disabled:opacity-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/60"
+              >
+                {shotListInfo?.is_edge_tts
+                  ? 'อัปเกรดเสียง'
+                  : shotListInfo?.has_shot_list
+                    ? 'เปิดเสียงและแผน'
+                    : 'สร้างเสียงและแผน'}
+              </button>
+            )}
+          </div>
       {/* 4. Footage Attachment Section */}
       <div className="space-y-2 pt-2 border-t border-white/[0.08]">
-        <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 font-semibold">
           <span className="flex items-center gap-1.5 text-slate-300">
             <Film className="w-3.5 h-3.5 text-[#25F4EE]" />
             <span>คลิปดิบที่แนบกับมุมนี้:</span>
@@ -1343,7 +1098,7 @@ function AngleActiveWorkbench({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+        <div className="flex items-center gap-2 overflow-x-auto 2xl:overflow-visible 2xl:flex-wrap no-scrollbar py-1">
           {isPosted ? (
             <div
               className="flex-shrink-0 flex items-center gap-1.5 py-1.5 px-3 rounded-lg border text-xs font-bold bg-emerald-500/10 border-emerald-500/30 text-emerald-300 select-none cursor-not-allowed"
@@ -1360,23 +1115,20 @@ function AngleActiveWorkbench({
               <Lock className="w-3.5 h-3.5 text-amber-400" />
               <span>คลิปในไทม์ไลน์ (<strong className="font-mono tabular-nums">{selectedVideos.length}</strong>)</span>
             </div>
-          ) : (
+          ) : selectedVideos.length > 0 ? (
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onOpenMediaPicker && onOpenMediaPicker(index);
               }}
-              className={`flex-shrink-0 flex items-center gap-1.5 py-1.5 px-3.5 rounded-lg border text-xs font-bold transition-all cursor-pointer shadow-sm active:scale-95 ${
-                selectedVideos.length > 0
-                  ? 'bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border-[#25F4EE]/40 text-[#25F4EE]'
-                  : 'bg-amber-500/15 hover:bg-amber-500/25 border-amber-500/50 text-amber-300 animate-pulse'
-              }`}
+              className="flex-shrink-0 flex items-center gap-1.5 py-1.5 px-3 rounded-lg border border-white/[0.1] bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 text-xs font-bold transition-colors"
+              title={`เลือกจากคลังคลิปของสินค้า (${videos.length} คลิป)`}
             >
               <FolderOpen className="w-3.5 h-3.5" />
-              <span>{selectedVideos.length > 0 ? `เปลี่ยน/เลือกคลิป` : `เลือกคลิป`} (<strong className="font-mono tabular-nums">{videos.length}</strong>)</span>
+              <span>เปลี่ยนคลิป</span>
             </button>
-          )}
+          ) : null}
           {selectedVideos.map(path => {
             const fileName = path.split(/[/\\]/).pop();
             const cat = sceneCatalogsMap[path];
@@ -1444,306 +1196,77 @@ function AngleActiveWorkbench({
         </div>
       </div>
 
-      {/* 5. Production Action Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 border-t border-white/[0.08]">
-        {isPosted ? (
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-            {angle.video_url && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onPreviewExportVideo && onPreviewExportVideo(angle);
-                }}
-                className="flex-1 sm:flex-initial py-3 sm:py-2.5 px-4 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 hover:text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
-                title="เปิดดูวิดีโอที่โพสต์แล้วบน TikTok"
+      </div>
+      {/* 5. Next step: one filled button for the step that moves this angle forward. */}
+      <div
+        role="group"
+        aria-label="ขั้นต่อไปของมุมนี้"
+        className="sticky bottom-0 z-20 -mx-3.5 sm:-mx-5 -mb-3.5 sm:-mb-5 px-3 py-2.5 sm:px-5 sm:py-3 bg-[#0A0D14]/95 backdrop-blur-md border-t border-white/[0.08] rounded-b-2xl flex items-center gap-2 2xl:static 2xl:col-start-2 2xl:row-start-2 2xl:m-0 2xl:p-0 2xl:pl-6 2xl:pb-4 2xl:border-l 2xl:border-l-white/[0.06] 2xl:border-t-0 2xl:border-b 2xl:rounded-none 2xl:bg-transparent 2xl:backdrop-blur-none 2xl:flex-col 2xl:items-stretch"
+      >
+        <p className="hidden sm:flex items-center gap-2 text-xs text-slate-400 min-w-0 flex-1 2xl:flex-none 2xl:order-1">
+          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${STAGE_DOT[step.stage]}`} />
+          <span className="truncate">{STAGE_HINT[step.stage]}</span>
+        </p>
+        <div className="hidden sm:flex items-center gap-2 flex-shrink-0 2xl:order-3 2xl:flex-col 2xl:items-stretch">
+          {step.secondary.map((action) => (
+            <button
+              key={action}
+              type="button"
+              onClick={(e) => { e.stopPropagation(); runAngleAction(action); }}
+              disabled={actionBusy(action)}
+              className={ANGLE_SECONDARY_BUTTON}
+            >
+              {angleActionLabel(action, step.stage, { edgeTts })}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); runAngleAction(step.primary); }}
+          disabled={actionBusy(step.primary)}
+          className={`${ANGLE_PRIMARY_BUTTON} 2xl:order-2`}
+        >
+          {actionBusy(step.primary) && <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />}
+          <span>{actionBusy(step.primary) ? BUSY_LABEL[step.primary] : angleActionLabel(step.primary, step.stage, { edgeTts })}</span>
+          {!actionBusy(step.primary) && <ArrowRight className="w-4 h-4 flex-shrink-0" />}
+        </button>
+        {step.secondary.length > 0 && (
+          <div className="sm:hidden flex-shrink-0">
+            <button
+              ref={stepMenuButtonRef}
+              type="button"
+              onClick={() => setStepMenuOpen((open) => !open)}
+              aria-expanded={stepMenuOpen}
+              aria-haspopup="menu"
+              aria-label="ทางเลือกอื่นของมุมนี้"
+              className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.12] text-slate-200"
+            >
+              <MoreHorizontal className="w-4 h-4" />
+            </button>
+            {stepMenuOpen && (
+              <PopoverPanel
+                anchorRef={stepMenuButtonRef}
+                onClose={() => setStepMenuOpen(false)}
+                role="menu"
+                aria-label="ทางเลือกอื่นของมุมนี้"
+                className="min-w-[200px] p-1 rounded-xl bg-[#0D111A] border border-white/[0.12] shadow-2xl"
               >
-                <Film className="w-4 h-4 text-cyan-400" />
-                <span>ดูคลิปที่โพสต์แล้ว</span>
-              </button>
+                {step.secondary.map((action) => (
+                  <button
+                    key={action}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => { setStepMenuOpen(false); runAngleAction(action); }}
+                    disabled={actionBusy(action)}
+                    className={PRODUCT_MENU_ITEM}
+                  >
+                    {angleActionLabel(action, step.stage, { edgeTts })}
+                  </button>
+                ))}
+              </PopoverPanel>
             )}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onCloneAngle && onCloneAngle(angle, index);
-              }}
-              className="flex-1 sm:flex-initial py-3 sm:py-2.5 px-4 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.12] text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all"
-              title="คัดลอกสคริปต์นี้เป็นฉบับใหม่เพื่อตัดต่อใหม่โดยไม่กระทบคลิปเดิม"
-            >
-              <CopyPlus className="w-4 h-4 text-[#25F4EE]" />
-              <span>ทำซ้ำเพื่อตัดคลิปใหม่</span>
-            </button>
-          </div>
-        ) : isRendered ? (
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-            {angle.video_url && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onPreviewExportVideo && onPreviewExportVideo(angle);
-                }}
-                className="py-3 sm:py-2.5 px-4 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 hover:text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
-              >
-                <Film className="w-4 h-4 text-cyan-400" />
-                <span>ดูคลิปที่ Export แล้ว</span>
-              </button>
-            )}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (onOpenInTimeline) {
-                    onOpenInTimeline(angle, index);
-                  } else {
-                    onSendToStudio(angle, index);
-                  }
-                }}
-                className="flex-1 sm:flex-initial py-3 sm:py-2.5 px-5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-md shadow-emerald-500/15 cursor-pointer active:scale-95 transition-all"
-              >
-                <Play className="w-4 h-4 fill-slate-950 text-slate-950" />
-                <span>เปิดดูในไทม์ไลน์</span>
-                <ArrowRight className="w-3.5 h-3.5 text-slate-950/80" />
-              </button>
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); onSendToStudio(angle, index); }}
-                className="py-3 sm:py-2.5 px-3.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 text-xs font-medium flex items-center justify-center gap-1.5 border border-white/[0.1] cursor-pointer"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>ตัดใหม่</span>
-              </button>
-            </div>
-          </div>
-        ) : isInProduction ? (
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (onOpenInTimeline) {
-                  onOpenInTimeline(angle, index);
-                } else {
-                  onSendToStudio(angle, index);
-                }
-              }}
-              className="flex-1 sm:flex-initial py-3 sm:py-2.5 px-5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-md shadow-amber-500/15 cursor-pointer active:scale-95 transition-all"
-            >
-              <Play className="w-4 h-4 fill-slate-950 text-slate-950" />
-              <span>เปิดทำต่อในไทม์ไลน์</span>
-              <ArrowRight className="w-3.5 h-3.5 text-slate-950/80" />
-            </button>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onSendToStudio(angle, index); }}
-              className="py-3 sm:py-2.5 px-3.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 text-xs font-medium flex items-center justify-center gap-1.5 border border-white/[0.1] cursor-pointer"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>ตัดใหม่</span>
-            </button>
-          </div>
-        ) : selectedVideos.length === 0 ? (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenMediaPicker && onOpenMediaPicker(index);
-            }}
-            className="w-full sm:w-auto min-h-[48px] py-3 sm:py-2.5 px-5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-md cursor-pointer active:scale-[0.98] transition-all"
-          >
-            <FolderOpen className="w-4 h-4 text-amber-400" />
-            <span>เลือกคลิปก่อนส่งตัดต่อ</span>
-            <ArrowRight className="w-3.5 h-3.5 text-amber-400/80" />
-          </button>
-        ) : (
-          <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts) onSendToStudio(angle, index);
-                else onGenerateShotList && onGenerateShotList(index);
-              }}
-              className={`order-2 w-full sm:w-auto min-h-[48px] py-3 sm:py-2.5 px-5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] transition-all ${
-                shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts
-                  ? 'bg-white/[0.06] hover:bg-white/[0.12] text-slate-200 border border-white/[0.12]'
-                  : 'bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 shadow-lg shadow-[#25F4EE]/15'
-              }`}
-            >
-              {shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts
-                ? <Clapperboard className="w-4 h-4" />
-                : <Mic className="w-4 h-4" />}
-              <span>{shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts ? 'ตั้งค่าก่อนส่ง' : 'เตรียมเสียงและแผนถ่าย'}</span>
-            </button>
-
-            {Boolean(shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts) && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onQuickDraft ? onQuickDraft(angle, index) : onSendToStudio(angle, index);
-                }}
-                disabled={draftingAngleId === angle.angle_id}
-                className="order-1 w-full sm:w-auto min-h-[48px] py-3 sm:py-2.5 px-5 rounded-xl bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 border border-[#25F4EE]/50 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#25F4EE]/15 cursor-pointer active:scale-[0.98] transition-all disabled:opacity-50"
-                title="1-Click Quick Draft: สร้างดราฟต์ไทม์ไลน์อัตโนมัติตามสไตล์ของมุมนี้และเปิดเข้าสู่ไทม์ไลน์ทันที"
-              >
-                {draftingAngleId === angle.angle_id ? (
-                  <>
-                    <Loader2 className="w-4 h-4 text-white animate-spin" />
-                    <span>กำลังสร้างดราฟต์...</span>
-                  </>
-                ) : (
-                  <>
-                    <Zap className="w-4 h-4" />
-                    <span>สร้างดราฟต์ 1-Click</span>
-                  </>
-                )}
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenStoryboard && onOpenStoryboard(angle, index);
-              }}
-              className={`hidden w-full sm:w-auto py-3 sm:py-2.5 px-4 rounded-xl border text-xs sm:text-sm font-bold items-center justify-center gap-2 shadow-sm cursor-pointer active:scale-95 transition-all ${
-                angle.manual_shot_map?.length > 0
-                  ? 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border-emerald-500/40 shadow-xs'
-                  : 'bg-cyan-500/15 hover:bg-cyan-500/25 border-cyan-500/35 text-cyan-300'
-              }`}
-              title="กำหนดช็อตวิดีโอด้วยตนเองรายวรรคบทพูด (Manual Storyboard Mapper)"
-            >
-              <Scissors className="w-4 h-4" />
-              <span>{angle.manual_shot_map?.length > 0 ? `ล็อกช็อต (${angle.manual_shot_map.length} วรรค)` : 'วางแผนช็อตรายวรรค'}</span>
-            </button>
           </div>
         )}
-      </div>
-      {/* 6. Sticky Primary Action Bar (Flow Continuity Bridges: 1 -> 2 & 1 -> 3) */}
-      <div className="sticky bottom-0 z-20 -mx-3.5 sm:-mx-5 -mb-3.5 sm:-mb-5 p-3 sm:p-4 bg-[#0A0D14]/95 backdrop-blur-md border-t border-white/[0.08] rounded-b-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shadow-2xl">
-        <div className="flex items-center gap-2 text-xs text-slate-400 min-w-0">
-          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isPosted ? 'bg-emerald-400' : isRendered ? 'bg-emerald-400' : isInProduction ? 'bg-amber-400 animate-pulse' : 'bg-[#25F4EE] animate-pulse'}`} />
-          <span className="font-semibold text-slate-300 flex-shrink-0">{isPosted ? 'สถานะ:' : isRendered ? 'สถานะ:' : isInProduction ? 'สถานะ:' : 'มุมที่เลือก:'}</span>
-          <span className="text-white font-bold truncate">{isPosted ? 'โพสต์แล้ว' : isRendered ? 'เรนเดอร์เสร็จแล้ว' : isInProduction ? 'กำลังตัดต่อ' : (angle.hook_title || angle.angle_name)}</span>
-        </div>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-shrink-0">
-          {isRendered ? (
-            <>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (onGoToGallery) onGoToGallery(angle.export_id || angle.video_url || angle.project_name);
-                }}
-                className="min-h-[44px] py-2.5 px-4 sm:px-5 rounded-xl bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#25F4EE]/20 cursor-pointer active:scale-95 transition-all whitespace-nowrap"
-                title="เปิดคลิปนี้ใน Export Gallery (เมนู 4) เพื่อเตรียมโพสต์"
-              >
-                <span>เปิดใน Export Gallery (เมนู 4)</span>
-                <ArrowRight className="w-4 h-4 text-slate-950 flex-shrink-0" />
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (onOpenInTimeline) onOpenInTimeline(angle, index);
-                  else onSendToStudio(angle, index);
-                }}
-                className="min-h-[44px] py-2.5 px-3.5 sm:px-4 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] border border-white/[0.12] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition-all whitespace-nowrap"
-              >
-                <Play className="w-4 h-4 fill-white text-white flex-shrink-0" />
-                <span>เปิดดูในไทม์ไลน์</span>
-              </button>
-            </>
-          ) : isInProduction ? (
-            <>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (onOpenInTimeline) onOpenInTimeline(angle, index);
-                  else onSendToStudio(angle, index);
-                }}
-                className="min-h-[44px] py-2.5 px-4 sm:px-5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer active:scale-95 transition-all whitespace-nowrap"
-              >
-                <Play className="w-4 h-4 fill-slate-950 text-slate-950 flex-shrink-0" />
-                <span>เปิดทำต่อในไทม์ไลน์</span>
-                <ArrowRight className="w-3.5 h-3.5 text-slate-950/80 flex-shrink-0" />
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSendToTracker && onSendToTracker(angle, index);
-                }}
-                className="min-h-[44px] py-2.5 px-3.5 sm:px-4 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] border border-white/[0.12] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition-all whitespace-nowrap"
-                title="ดูความคืบหน้าใน Tracker (เมนู 2)"
-              >
-                <Kanban className="w-4 h-4 text-[#25F4EE] flex-shrink-0" />
-                <span>ดูใน Tracker (เมนู 2)</span>
-              </button>
-            </>
-          ) : isPosted ? (
-            <>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (onGoToGallery) onGoToGallery(angle.export_id || angle.video_url || angle.project_name);
-                }}
-                className="min-h-[44px] py-2.5 px-4 sm:px-5 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] border border-white/[0.12] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition-all whitespace-nowrap"
-              >
-                <span>เปิดใน Export Gallery (เมนู 4)</span>
-                <ArrowRight className="w-4 h-4 text-white flex-shrink-0" />
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCloneAngle && onCloneAngle(angle, index);
-                }}
-                className="min-h-[44px] py-2.5 px-3.5 sm:px-4 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] border border-white/[0.12] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition-all whitespace-nowrap"
-              >
-                <CopyPlus className="w-4 h-4 text-[#25F4EE] flex-shrink-0" />
-                <span>ทำซ้ำเพื่อตัดคลิปใหม่</span>
-              </button>
-            </>
-          ) : (
-            <>
-              {/* Primary CTA (Accent นีออน): ส่งมุมนี้เข้าสู่กระบวนการถ่ายทำ (Tracker) */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSendToTracker && onSendToTracker(angle, index);
-                }}
-                className="min-h-[44px] py-2.5 px-4 sm:px-5 rounded-xl bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#25F4EE]/20 cursor-pointer active:scale-95 transition-all whitespace-nowrap"
-                title="บันทึกและส่งมุมมองนี้เข้าสู่ขั้นตอนการถ่ายทำบน Tracker (เมนู 2)"
-              >
-                <span>ส่งมุมนี้เข้าสู่กระบวนการถ่ายทำ (Tracker)</span>
-                <ArrowRight className="w-4 h-4 text-slate-950 flex-shrink-0" />
-              </button>
-              {/* Secondary CTA: เปิดตัดต่อทันที (Editor) */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (selectedVideos.length === 0) {
-                    onOpenMediaPicker && onOpenMediaPicker(index);
-                  } else {
-                    onSendToStudio && onSendToStudio(angle, index);
-                  }
-                }}
-                className="min-h-[44px] py-2.5 px-3.5 sm:px-4 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] border border-white/[0.12] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 cursor-pointer active:scale-95 transition-all whitespace-nowrap"
-                title={selectedVideos.length === 0 ? "เลือกคลิปดิบก่อนเปิดหน้าตัดต่อ" : "เปิดตัดต่อมุมนี้ใน Editor ทันที"}
-              >
-                <Clapperboard className="w-4 h-4 text-slate-300 flex-shrink-0" />
-                <span>เปิดตัดต่อทันที (Editor)</span>
-              </button>
-            </>
-          )}
-        </div>
       </div>
     </div>
   );
@@ -2599,6 +2122,16 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const [viewMode, setViewMode] = useState('split'); // 'split' | 'accordion'
   const [productMenuOpen, setProductMenuOpen] = useState(false);
   const productMenuButtonRef = useRef(null);
+  const angleWorkbenchRef = useRef(null);
+  // On a phone the angle panel sits under the list: picking an angle brings it into view.
+  const selectAngleOnPhone = (angleIdx) => {
+    try { navigator.vibrate?.(10); } catch { /* not supported */ }
+    setOpenAngleIdx(angleIdx);
+    requestAnimationFrame(() => {
+      const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+      angleWorkbenchRef.current?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+    });
+  };
 
   const hiddenProductsCount = useMemo(() => {
     return (historyList || []).filter(p => !!p.is_hidden).length;
@@ -5150,50 +4683,6 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         <div className="space-y-4">
           {/* ──── STEP 2: Script Lab & Footage Selection ──── */}
           <div className="space-y-3">
-            <section aria-label="สถานะเวิร์กโฟลว์" className="rounded-2xl glass-panel overflow-hidden">
-              <div className="px-3.5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.06]">
-
-                <div>
-                  <h2 className="text-sm font-bold text-white">พื้นที่ทำงานสคริปต์</h2>
-                  <p className="text-[11px] text-slate-500 mt-0.5">เลือกสคริปต์ทางซ้าย แล้วทำขั้นตอนถัดไปทางขวา</p>
-                </div>
-                <span className="text-xs text-slate-400">
-                  โพสต์แล้ว <strong className="text-emerald-300 font-mono tabular-nums">{postedAngles}/{totalAngles}</strong> คลิป
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 divide-x divide-y xl:divide-y-0 divide-white/[0.06]">
-                {[
-                  { label: 'บทพร้อม', value: totalAngles, icon: Sparkles },
-                  { label: 'คลิปพร้อม', value: attachedAngleCount, icon: Film },
-                  { label: 'เสียงพร้อม', value: audioReadyAngleCount, icon: Mic },
-                  { label: 'ฉากพร้อม', value: sceneReadyAngleCount, icon: Eye },
-                  { label: 'ดราฟต์', value: draftAngleCount, icon: Clapperboard },
-                  { label: 'โพสต์แล้ว', value: postedAngles, icon: CheckCircle2 },
-                ].map((step) => {
-                  const StepIcon = step.icon;
-                  const complete = totalAngles > 0 && step.value >= totalAngles;
-
-                  return (
-                    <div key={step.label} className="px-3 py-2.5 flex items-center gap-2 min-w-0">
-                      <span className={`w-7 h-7 rounded-lg flex items-center justify-center border ${
-                        complete
-                          ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-300'
-                          : 'bg-white/[0.03] border-white/[0.08] text-slate-500'
-                      }`}>
-                        <StepIcon className="w-3.5 h-3.5" />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-[10px] text-slate-500 truncate">{step.label}</p>
-                        <p className={`text-xs font-bold font-mono tabular-nums ${complete ? 'text-emerald-300' : 'text-slate-200'}`}>
-                          {step.value}/{totalAngles}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
 
             <section className="rounded-2xl glass-tile p-2.5 sm:p-3 space-y-2.5">
               <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-2.5">
@@ -5352,6 +4841,32 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   </div>
                 </div>
               )}
+              <ul aria-label="ความคืบหน้าของสินค้านี้" className="grid grid-cols-5 gap-2 sm:gap-4 pt-2.5 border-t border-white/[0.06]">
+                {[
+                  { label: 'คลิป', value: attachedAngleCount },
+                  { label: 'เสียง', value: audioReadyAngleCount },
+                  { label: 'ฉาก', value: sceneReadyAngleCount },
+                  { label: 'ดราฟต์', value: draftAngleCount },
+                  { label: 'โพสต์', value: postedAngles },
+                ].map((step) => {
+                  const complete = totalAngles > 0 && step.value >= totalAngles;
+                  const pct = totalAngles > 0 ? Math.min(100, Math.round((step.value / totalAngles) * 100)) : 0;
+
+                  return (
+                    <li key={step.label} className="min-w-0">
+                      <div className="flex flex-wrap items-baseline justify-between gap-x-1 text-[11px]">
+                        <span className="text-slate-400">{step.label}</span>
+                        <span className={`font-mono font-bold tabular-nums ${complete ? 'text-emerald-300' : 'text-slate-200'}`}>
+                          {step.value}/{totalAngles}
+                        </span>
+                      </div>
+                      <div className="mt-1 h-1 rounded-full bg-white/[0.06] overflow-hidden" aria-hidden="true">
+                        <div className={`h-full rounded-full ${complete ? 'bg-emerald-400' : 'bg-[#25F4EE]/70'}`} style={{ width: `${pct}%` }} />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
             </section>
 
             <div className="hidden flex-col sm:flex-row sm:items-center justify-between gap-2.5 px-1">
@@ -5810,12 +5325,12 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   ) : (
                     <div className="grid gap-1.5 max-h-56 overflow-y-auto pr-1 no-scrollbar">
                       {displayedAngles.map((ang) => (
-                        <AngleMobilePill
+                        <AngleListRow
                           key={`${ang.angle_id || ang.id || 'ang'}_b${ang.batch || 1}_${ang.originalIndex}`}
                           angle={ang}
                           index={ang.originalIndex}
                           isSelected={activeAngleIdx === ang.originalIndex}
-                          onSelect={() => setOpenAngleIdx(ang.originalIndex)}
+                          onSelect={() => selectAngleOnPhone(ang.originalIndex)}
                           shotListInfo={getShotListInfoForAngle(ang)}
                         />
                       ))}
@@ -5824,7 +5339,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                 </div>
 
                 {/* DESKTOP (lg+): compact navigation list (4 cols) */}
-                <div className="hidden lg:block lg:col-span-4 space-y-2 lg:max-h-[calc(100vh-210px)] lg:overflow-y-auto pr-1 no-scrollbar">
+                <div className="hidden lg:block lg:col-span-4 space-y-1.5 lg:max-h-[calc(100vh-210px)] lg:overflow-y-auto pr-1 no-scrollbar">
                   {displayedAngles.length === 0 ? (
                     <div className="p-6 text-center rounded-2xl bg-white/[0.02] border border-white/[0.06] text-slate-400 text-xs space-y-2">
                       <p>ไม่มีสคริปต์ที่ตรงกับตัวกรองปัจจุบัน</p>
@@ -5840,33 +5355,20 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                     </div>
                   ) : (
                     displayedAngles.map((ang) => (
-                      <AngleSidebarItem
+                      <AngleListRow
                         key={`${ang.angle_id || ang.id || 'ang'}_b${ang.batch || 1}_${ang.originalIndex}`}
                         angle={ang}
                         index={ang.originalIndex}
                         isSelected={activeAngleIdx === ang.originalIndex}
                         onSelect={() => setOpenAngleIdx(ang.originalIndex)}
-                        onPreviewExportVideo={(a) => setPreviewExportAngle(a)}
                         shotListInfo={getShotListInfoForAngle(ang)}
-                        onGenerateShotList={handleGenerateShotList}
-                        onOpenShotList={handleGenerateShotList}
-                        isGeneratingShotList={generatingShotListIdx === ang.originalIndex}
-                        onDeleteAngle={handleDeleteAngleClick}
-                        projectName={buildProjectName({
-                          productName: productData?.name || '',
-                          angle: ang,
-                          angleIndex: ang.originalIndex,
-                          existingProjects: knownProjects,
-                          productCode: productData?.product_code || '',
-                          batch: ang.batch,
-                        })}
                       />
                     ))
                   )}
                 </div>
 
                 {/* Right Column (Active Workbench / 7 cols sticky) */}
-                <div className="lg:col-span-8 lg:sticky lg:top-4">
+                <div ref={angleWorkbenchRef} className="lg:col-span-8 lg:sticky lg:top-4 scroll-mt-16">
                   {angles[activeAngleIdx] ? (
                     <AngleActiveWorkbench
                       angle={angles[activeAngleIdx]}
