@@ -26,15 +26,28 @@
   }
 
   function isReadyToPost(item) {
-    return item?.angle_status === 'rendered' && item.is_latest !== false && !isPostedClip(item);
+    return (
+      item?.angle_status === 'rendered' &&
+      item.is_latest !== false &&
+      !isPostedClip(item) &&
+      !item?.scheduled_on_platform &&
+      !item?.is_scheduled_on_platform
+    );
   }
 
   function buildExtensionClipList(exportsItems = [], queueItems = []) {
     const exportsList = Array.isArray(exportsItems) ? exportsItems : [];
     const queueList = Array.isArray(queueItems) ? queueItems : [];
     const postedKeys = new Set(exportsList.filter(isPostedClip).map(clipKey).filter(Boolean));
+    const consumedKeys = new Set([
+      ...postedKeys,
+      ...queueList
+        .filter((item) => item?.status === 'scheduled_on_platform' || item?.status === 'posted')
+        .map(clipKey)
+        .filter(Boolean),
+    ]);
     const scheduled = queueList
-      .filter((item) => ACTIVE_QUEUE_STATUSES.has(item?.status) && !isPostedClip(item) && !postedKeys.has(clipKey(item)))
+      .filter((item) => ACTIVE_QUEUE_STATUSES.has(item?.status) && !isPostedClip(item) && !consumedKeys.has(clipKey(item)))
       .map((item) => ({
         ...item,
         rel_path: item.rel_path || item.video_path,
@@ -45,7 +58,7 @@
     const scheduledKeys = new Set(scheduled.map(clipKey).filter(Boolean));
     const unscheduled = exportsList
       .filter(isReadyToPost)
-      .filter((item) => !scheduledKeys.has(clipKey(item)));
+      .filter((item) => !scheduledKeys.has(clipKey(item)) && !consumedKeys.has(clipKey(item)));
     return [...scheduled, ...unscheduled];
   }
 

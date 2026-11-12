@@ -50,3 +50,36 @@ def test_invalid_and_partial_exports_are_not_registered_as_rendered(isolated_exp
     assert registered.get("20261109_good_hook_v1.mp4", {}).get("status") == "rendered"
     for bad in ("20261109_cut_hook_v1.mp4", "20261109_fake_hook_v1.mp4", "20261109_busy_hook_v1.partial.mp4"):
         assert bad not in registered, f"{bad} must not be auto-registered"
+
+
+def test_scheduled_on_platform_export_is_tagged_in_list_exports(isolated_exports):  # noqa: F811
+    tmp_path = isolated_exports
+    _seed_products(tmp_path, [])
+    exports_dir = tmp_path / "04_Exports" / "Ready_to_post"
+
+    clip = _real_clip(exports_dir / "20261109_sched_hook_v1.mp4")
+    reg = export_registry.ExportRegistry.ensure(clip, status="rendered")
+
+    from scripts.schedule_store import ScheduleQueueStore
+    with ScheduleQueueStore.transaction(channel_id="main") as records:
+        records.append({
+            "id": "q_sched_test",
+            "channel_id": "main",
+            "export_id": reg["id"],
+            "video_path": str(clip),
+            "status": "scheduled_on_platform",
+            "scheduled_at": "2026-11-15T09:00:00+07:00",
+        })
+
+    try:
+        result = api_exports.list_exports()
+        matched = next((item for item in result["exports"] if item["name"] == "20261109_sched_hook_v1.mp4"), None)
+        assert matched is not None
+        assert matched.get("scheduled_on_platform") is True
+        assert matched.get("is_scheduled_on_platform") is True
+        assert matched.get("export_status") == "scheduled_on_platform"
+        assert matched.get("scheduled_at") == "2026-11-15T09:00:00+07:00"
+    finally:
+        with ScheduleQueueStore.transaction(channel_id="main") as records:
+            records[:] = [r for r in records if r.get("id") != "q_sched_test"]
+

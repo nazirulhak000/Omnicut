@@ -1434,6 +1434,7 @@ async function loadExports() {
   // list for backwards compatibility.
 
   let scheduled = [];
+  let allQueueRaw = [];
 
   try {
 
@@ -1443,37 +1444,22 @@ async function loadExports() {
 
       const queueData = await queueRes.json();
 
-      scheduled = (queueData.items || [])
-
-        .filter((item) => ['planned', 'ready_for_extension', 'awaiting_post', 'failed', 'draft_on_platform'].includes(item.status))
-
-        .map((item) => ({
-
-          ...item,
-
-          rel_path: item.video_path,
-
-          export_id: item.export_id,
-
-          name: item.project_name || item.video_path,
-
-          product_name: item.product_name,
-
-          hook_title: item.hook_title,
-
-          tiktok_caption: item.caption,
-
-          tiktok_hashtags: item.hashtags,
-
-          tiktok_product_id: item.tiktok_product_id,
-
-          cover_url: item.cover_url || (item.cover_path ? `/api/media/${item.cover_path}` : null),
-
-          thumbnail_url: item.cover_url || (item.cover_path ? `/api/media/${item.cover_path}` : null),
-
-          ...queueScheduleParts(item.scheduled_at),
-
-        }));
+      allQueueRaw = (queueData.items || []).map((item) => ({
+        ...item,
+        rel_path: item.video_path,
+        export_id: item.export_id,
+        name: item.project_name || item.video_path,
+        product_name: item.product_name,
+        hook_title: item.hook_title,
+        tiktok_caption: item.caption,
+        tiktok_hashtags: item.hashtags,
+        tiktok_product_id: item.tiktok_product_id,
+        cover_url: item.cover_url || (item.cover_path ? `/api/media/${item.cover_path}` : null),
+        thumbnail_url: item.cover_url || (item.cover_path ? `/api/media/${item.cover_path}` : null),
+        ...queueScheduleParts(item.scheduled_at),
+      }));
+      scheduled = allQueueRaw
+        .filter((item) => ['planned', 'ready_for_extension', 'awaiting_post', 'failed', 'draft_on_platform'].includes(item.status));
 
     }
 
@@ -1487,7 +1473,7 @@ async function loadExports() {
 
   // Build the final list: scheduled queue items first, then unqueued exports.
 
-  allClips = buildExtensionClipList(items, scheduled).map((item) => ({
+  allClips = buildExtensionClipList(items, allQueueRaw).map((item) => ({
 
     ...item,
 

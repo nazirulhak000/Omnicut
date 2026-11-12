@@ -83,6 +83,29 @@ def test_backfill_numbers_are_explicit_and_unused_and_the_counter_follows_them(r
     assert reg.next_number("main") == 501
 
 
+def test_counter_self_heals_when_lagging_behind_existing_episodes(tmp_path):
+    reg = EpisodeRegistry(tmp_path)
+    # Manually populate episodes up to 10 with a stale counter set to next=3
+    with reg.table.scoped_mutate("main") as rows:
+        rows.append({"id": "main:counter", "channel_id": "main", "kind": "counter", "next": 3})
+        for i in range(1, 11):
+            rows.append({
+                "id": f"main:ep:{i}",
+                "channel_id": "main",
+                "kind": "episode",
+                "episode_no": i,
+                "lineage_key": f"export:old-{i}",
+                "export_ids": [f"old-{i}"],
+                "source": "backfill",
+                "assigned_at": "2026-11-10T00:00:00"
+            })
+    # Stale next was 3, but highest episode is 10. ensure() must self-heal to 11 and NOT raise duplicate id.
+    ep = reg.ensure("main", export_id="fresh-clip")
+    assert ep["episode_no"] == 11
+    assert ep["id"] == "main:ep:11"
+    assert reg.next_number("main") == 12
+
+
 def test_hashtag_form_is_idempotent_and_refuses_another_clips_number():
     assert compose_hashtags("#a #b", 1731) == "#a #b #EP1731"
     assert compose_hashtags("#a #b #EP1731", 1731) == "#a #b #EP1731"

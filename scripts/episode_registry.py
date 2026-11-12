@@ -74,7 +74,8 @@ class EpisodeRegistry:
     def _counter(self, rows, channel_id: str) -> Dict[str, Any]:
         row = next((r for r in rows if r["id"] == self._counter_id(channel_id)), None)
         if row is None:
-            row = {"id": self._counter_id(channel_id), "channel_id": channel_id, "kind": "counter", "next": DEFAULT_FIRST_NUMBER}
+            top = max((r["episode_no"] for r in self._episodes(rows)), default=0)
+            row = {"id": self._counter_id(channel_id), "channel_id": channel_id, "kind": "counter", "next": max(DEFAULT_FIRST_NUMBER, top + 1)}
             rows.append(row)
         return row
 
@@ -86,7 +87,9 @@ class EpisodeRegistry:
     def next_number(self, channel_id: str) -> int:
         rows = self.table.scoped_load(channel_id)
         counter = next((r for r in rows if r["id"] == self._counter_id(channel_id)), None)
-        return int(counter["next"]) if counter else DEFAULT_FIRST_NUMBER
+        top = max((r["episode_no"] for r in self._episodes(rows)), default=0)
+        cur = int(counter["next"]) if counter else DEFAULT_FIRST_NUMBER
+        return max(cur, top + 1)
 
     def list(self, channel_id: str) -> List[Dict[str, Any]]:
         return sorted((deepcopy(r) for r in self._episodes(self.table.scoped_load(channel_id))), key=lambda r: r["episode_no"])
@@ -120,14 +123,15 @@ class EpisodeRegistry:
                     found["export_ids"].append(export_id)
                 return deepcopy(found)
             counter = self._counter(rows, channel_id)
+            top = max((r["episode_no"] for r in episodes), default=0)
             if number is None:
-                number = int(counter["next"])
+                number = max(int(counter["next"]), top + 1)
                 counter["next"] = number + 1
             else:
                 number = int(number)
                 if any(r["episode_no"] == number for r in episodes):
                     raise ChannelError(409, "episode_number_taken", f"เลข EP{number} ถูกใช้แล้ว")
-                counter["next"] = max(int(counter["next"]), number + 1)
+                counter["next"] = max(int(counter["next"]), number + 1, top + 1)
             row = {"id": f"{channel_id}:ep:{number}", "channel_id": channel_id, "kind": "episode", "episode_no": number,
                    "lineage_key": key, "product_id": product_id, "angle_id": angle_id,
                    "export_ids": [export_id] if export_id else [], "source": source, "assigned_at": self.clock()}

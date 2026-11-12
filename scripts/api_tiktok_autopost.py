@@ -693,6 +693,59 @@ def _apply_outcome_effects(scope, job):
         # A queue row that no longer exists is not a reason to keep the receipt pending forever: the post itself is
         # recorded on the job and the export; there is simply no row left to update.
         ScheduleQueueStore.update_item(job["queue_id"], apply, channel_id=scope.channel_id)
+    elif job["status"] in {"scheduled_on_platform", "draft_saved"}:
+        from scripts.schedule_store import ScheduleQueueStore, new_id, now_iso
+        owner = ScheduleQueueStore.new_owner(channel_id=scope.channel_id)
+        queue_id = new_id()
+        sched_iso = None
+        if job.get("schedule_date") and job.get("schedule_time"):
+            sched_iso = f"{job['schedule_date']}T{job['schedule_time']}:00+07:00"
+        norm_video_path = str(job["video_path"]).replace("\\", "/")
+        if "04_Exports/" in norm_video_path:
+            norm_video_path = norm_video_path[norm_video_path.index("04_Exports/"):]
+        queue_item = {
+            "id": queue_id,
+            "owner": owner,
+            "channel_id": scope.channel_id,
+            "export_id": job["export_id"],
+            "video_path": norm_video_path,
+            "video_key": f"export:{job['export_id']}",
+            "product_id": job.get("product_id"),
+            "product_name": job.get("product_name"),
+            "angle_id": job.get("angle_id"),
+            "project_name": (export or {}).get("project_name") or job.get("project_name"),
+            "hook_title": (export or {}).get("hook_title") or job.get("hook_title"),
+            "cover_path": job.get("cover_path"),
+            "caption": job.get("caption") or "",
+            "hashtags": job.get("hashtags") or "",
+            "tiktok_product_id": job.get("tiktok_product_id"),
+            "status": "scheduled_on_platform" if job["status"] == "scheduled_on_platform" else "draft_on_platform",
+            "scheduled_at": sched_iso,
+            "posting_job_id": job["job_id"],
+            "created_at": now_iso(),
+            "updated_at": now_iso(),
+        }
+        if job["status"] == "draft_saved":
+            queue_item["draft_saved_at"] = datetime.now().isoformat()
+        with ScheduleQueueStore.transaction(channel_id=scope.channel_id) as records:
+            existing = next(
+                (r for r in records if r.get("posting_job_id") == job["job_id"]
+                 or (r.get("export_id") == job["export_id"] and r.get("status") in {"scheduled_on_platform", "draft_on_platform"})),
+                None
+            )
+            if existing:
+                existing["status"] = queue_item["status"]
+                existing["posting_job_id"] = job["job_id"]
+                if sched_iso:
+                    existing["scheduled_at"] = sched_iso
+                queue_id = existing["id"]
+            else:
+                records.append(queue_item)
+        with _jobs().table.scoped_mutate(scope.channel_id) as job_rows:
+            target_job = next((r for r in job_rows if r["id"] == job["job_id"]), None)
+            if target_job:
+                target_job["queue_id"] = queue_id
+        job["queue_id"] = queue_id
     if job.get("intent") == "publish_draft" and job.get("draft_source_job_id") and job["status"] in {"published", "scheduled_on_platform"}:
         # the draft was consumed by this publication: retire its job record (idempotent, never touches a non-draft job)
         try:

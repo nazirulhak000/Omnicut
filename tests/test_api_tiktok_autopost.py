@@ -425,3 +425,49 @@ def test_prepare_refuses_blocked_caption_text(tmp_path):
     finally:
         dummy_video.unlink(missing_ok=True)
         tap._pending = None
+
+
+def test_apply_outcome_effects_creates_schedule_queue_item_when_unqueued(tmp_path):
+    """When an unqueued export is scheduled on TikTok, outcome effects must auto-register a queue row."""
+    from scripts.schedule_store import ScheduleQueueStore
+    from scripts.channel_scope import ChannelScope
+
+    scope = ChannelScope("main", "default", False)
+    job = {
+        "job_id": "test_unqueued_sched_job_123",
+        "export_id": "exp_test_unqueued_123",
+        "product_id": "prod_test",
+        "product_name": "Test Product",
+        "angle_id": "angle_test",
+        "video_path": "04_Exports/Ready_to_post/test_vid.mp4",
+        "caption": "Test Caption",
+        "hashtags": "#test",
+        "schedule_date": "2026-11-15",
+        "schedule_time": "12:00",
+        "status": "scheduled_on_platform",
+        "effects_applied": False,
+        "queue_id": None,
+    }
+
+    # Seed job into _jobs()
+    import scripts.api_tiktok_autopost as tap_mod
+    orig_canonical = tap_mod._canonical_job
+    tap_mod._canonical_job = lambda sc, jid: (job, {"project_name": "PROJ-1", "hook_title": "Hook 1", "path": job["video_path"]})
+    with tap_mod._jobs().table.scoped_mutate("main") as rows:
+        rows.append({"id": job["job_id"], "job_id": job["job_id"], "channel_id": "main", "status": "scheduled_on_platform", "effects_applied": False})
+    try:
+        tap_mod._apply_outcome_effects(scope, job)
+        items = ScheduleQueueStore.list_items(channel_id="main")
+        matched = [r for r in items if r.get("posting_job_id") == "test_unqueued_sched_job_123"]
+        assert len(matched) == 1
+        assert matched[0]["status"] == "scheduled_on_platform"
+        assert matched[0]["scheduled_at"] == "2026-11-15T12:00:00+07:00"
+        assert matched[0]["export_id"] == "exp_test_unqueued_123"
+        assert job.get("queue_id") == matched[0]["id"]
+    finally:
+        tap_mod._canonical_job = orig_canonical
+        with ScheduleQueueStore.transaction(channel_id="main") as records:
+            records[:] = [r for r in records if r.get("posting_job_id") != "test_unqueued_sched_job_123"]
+        with tap_mod._jobs().table.scoped_mutate("main") as rows:
+            rows[:] = [r for r in rows if r.get("id") != "test_unqueued_sched_job_123"]
+

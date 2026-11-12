@@ -7657,7 +7657,7 @@
       },
       {
         "event": "cancel",
-        "at": 1794236824.1045697
+        "at": 1794422805.5350354
       }
     ]
   },
@@ -8113,6 +8113,204 @@
     },
     "receipt_hash": "004492626e50f229545ba3a2a9a61c1e68651b752a250526dcb18366cf9f6071",
     "publish_attempted_at": 1794161939.344856,
+    "attempted_source_account": "@rizanntry"
+  },
+  {
+    "video_path": "D:\\Programmer\\All Project\\Omnicut\\04_Exports\\Ready_to_post\\20261015_ess02-pov-s06_v1.mp4",
+    "export_id": "exp_c2e2ad9013e846ec965e4b86c00439ce",
+    "cover_path": "D:\\Programmer\\All Project\\Omnicut\\05_Covers_Thumbnails\\20261015_ess02-pov-s06_v1_cover_3x4.jpg",
+    "caption": "POV: หัวชาร์จตัวเท่าอิฐบล็อก เบียดปลั๊กชาวบ้าน! หัวชาร์จจิ๋วตัวจบ Essager PD 30W ชาร์จไวสะใจ ไม่ร้อน ปลอดภัย 6 ชั้น พิกัดในตะกร้าเหลืองเลย 👇",
+    "hashtags": "#Essager #หัวชาร์จเร็ว #หัวชาร์จไอโฟน #TikTokป้ายยา #พิกัดในตะกร้า #EP1",
+    "episode_no": 1,
+    "product_id": "9505b042d58640f5aa58015bb86be097",
+    "angle_id": "ang_ess30w_06",
+    "tiktok_product_id": "1731216936089584763",
+    "product_name": "หัวชาร์จเร็ว Essager PD 30W",
+    "schedule_date": null,
+    "schedule_time": null,
+    "intent": "post_now",
+    "queue_id": null,
+    "target_handle": "@rizanntry",
+    "channel_revision": 4,
+    "account_binding": {
+      "status": "verified",
+      "verified_handle": "@rizanntry",
+      "verified_at": "2026-10-10T18:23:52Z"
+    },
+    "strict_mode": false,
+    "video_sha256": "56312813d0b96c16eacedf831a732143ba7a1b701bda3dbfb9b41994bd93c86d",
+    "cover_sha256": "d3757714b77e868e994301eb43864cf26c08bb4a7cb764555d293b76e6c20b4c",
+    "id": "304f7361abf25fb93f3f4471734b4dfb",
+    "job_id": "304f7361abf25fb93f3f4471734b4dfb",
+    "channel_id": "main",
+    "protocol_version": 2,
+    "payload_hash": "0d9ffd371f26db696c3718f9ea20ace0026e97e53359809bf1e99b289a31b94f",
+    "prepared_payload_hash": "0d9ffd371f26db696c3718f9ea20ace0026e97e53359809bf1e99b289a31b94f",
+    "payload_fields": [
+      "video_path",
+      "export_id",
+      "cover_path",
+      "caption",
+      "hashtags",
+      "episode_no",
+      "product_id",
+      "angle_id",
+      "tiktok_product_id",
+      "product_name",
+      "schedule_date",
+      "schedule_time",
+      "intent",
+      "queue_id",
+      "target_handle",
+      "channel_revision",
+      "account_binding",
+      "strict_mode",
+      "video_sha256",
+      "cover_sha256"
+    ],
+    "idempotency_key": "0d9ffd371f26db696c3718f9ea20ace0026e97e53359809bf1e99b289a31b94f",
+    "status": "cancelled",
+    "revision": 3,
+    "lease_owner": "9226c1db-8813-4a1e-afb1-e2da2b082ff2",
+    "lease_token": "m6p7v5bSeaL1LjseCE1A6061d5Jwx9ZthO-Yx3lhPAI",
+    "lease_expires_at": 1794337796.6660168,
+    "attempt": 0,
+    "created_at": 1794337496.3187506,
+    "updated_at": 1794337669.3118343,
+    "effects_applied": false,
+    "prepare_effects_applied": true,
+    "audit": [
+      {
+        "event": "prepare",
+        "at": 1794337496.3187764
+      },
+      {
+        "event": "claim",
+        "at": 1794337496.6660545,
+        "lease_owner": "9226c1db-8813-4a1e-afb1-e2da2b082ff2"
+      },
+      {
+        "event": "release",
+        "at": 1794337669.3118382,
+        "lease_owner": "9226c1db-8813-4a1e-afb1-e2da2b082ff2",
+        "forced": false
+      }
+    ]
+  },
+  {
+    "video_path": "D:\\Programmer\\All Project\\Omnicut\\04_Exports\\Ready_to_post\\ESS06-ปัญหาก่อนใช้_1_20261111_020441.mp4",
+    "export_id": "exp_5d8ebba8ccfd4fef85dc501619c4fa27",
+    "cover_path": null,
+    "caption": "บอกลาปัญหาพอร์ตชาร์จหลวม! อัปเกรดความสะดวกด้วย ESSAGER สายชาร์จแม่เหล็ก 240W ชาร์จไว กันฝุ่น พิกัดในตะกร้าเลย 👇",
+    "hashtags": "#นายหน้าtiktok #สายชาร์จแม่เหล็ก #ESSAGER #รีวิวไอที #tiktokป้ายยา #พิกัดในตะกร้า #EP2",
+    "episode_no": 2,
+    "product_id": "fb77e97e611e4e059b943b5512e8cb82",
+    "angle_id": "pain_point",
+    "tiktok_product_id": "1736368206850393211",
+    "product_name": "สายชาร์จแม่เหล็ก ESSAGER PD 240W",
+    "schedule_date": null,
+    "schedule_time": null,
+    "intent": "post_now",
+    "queue_id": null,
+    "target_handle": "@rizanntry",
+    "channel_revision": 4,
+    "account_binding": {
+      "status": "verified",
+      "verified_handle": "@rizanntry",
+      "verified_at": "2026-10-10T18:23:52Z"
+    },
+    "strict_mode": false,
+    "video_sha256": "7b6e7cc2deab946dc3897e9a6d567ffcc8540fc2e941f5044d32d80acca71fff",
+    "cover_sha256": null,
+    "id": "6aa3f764f9f4e9b3f790d16982b663cc",
+    "job_id": "6aa3f764f9f4e9b3f790d16982b663cc",
+    "channel_id": "main",
+    "protocol_version": 2,
+    "payload_hash": "f6a0813983528b1ef5f448ef81a419a34f43962efa966ce188fdabd9ceb047d7",
+    "prepared_payload_hash": "f6a0813983528b1ef5f448ef81a419a34f43962efa966ce188fdabd9ceb047d7",
+    "payload_fields": [
+      "video_path",
+      "export_id",
+      "cover_path",
+      "caption",
+      "hashtags",
+      "episode_no",
+      "product_id",
+      "angle_id",
+      "tiktok_product_id",
+      "product_name",
+      "schedule_date",
+      "schedule_time",
+      "intent",
+      "queue_id",
+      "target_handle",
+      "channel_revision",
+      "account_binding",
+      "strict_mode",
+      "video_sha256",
+      "cover_sha256"
+    ],
+    "idempotency_key": "f6a0813983528b1ef5f448ef81a419a34f43962efa966ce188fdabd9ceb047d7",
+    "status": "published",
+    "revision": 6,
+    "lease_owner": "9226c1db-8813-4a1e-afb1-e2da2b082ff2",
+    "lease_token": "2KZqGKfK2wrN9pjC5JrjhxyEyAcvRiJdZBOllebVABk",
+    "lease_expires_at": 1794338146.1395087,
+    "attempt": 1,
+    "created_at": 1794337697.0316255,
+    "updated_at": 1794337900.4842138,
+    "effects_applied": true,
+    "prepare_effects_applied": true,
+    "audit": [
+      {
+        "event": "prepare",
+        "at": 1794337697.0316398
+      },
+      {
+        "event": "claim",
+        "at": 1794337697.1419442,
+        "lease_owner": "9226c1db-8813-4a1e-afb1-e2da2b082ff2"
+      },
+      {
+        "event": "account_check",
+        "at": 1794337704.8209777,
+        "source_account": "@rizanntry",
+        "account_verified": true,
+        "warning": null
+      },
+      {
+        "event": "account_check",
+        "at": 1794337843.8536422,
+        "source_account": "@rizanntry",
+        "account_verified": true,
+        "warning": null
+      },
+      {
+        "event": "account_check",
+        "at": 1794337846.139513,
+        "source_account": "@rizanntry",
+        "account_verified": true,
+        "warning": null
+      },
+      {
+        "event": "reconcile",
+        "at": 1794337900.4842367,
+        "outcome": "published",
+        "source_account": "@rizanntry",
+        "account_verified": true,
+        "warning": null
+      }
+    ],
+    "receipt": {
+      "outcome": "published",
+      "source_account": "@rizanntry",
+      "proof": {
+        "kind": "manual_user_confirmation",
+        "notice": "User confirmed posting on TikTok Studio"
+      }
+    },
+    "receipt_hash": "004492626e50f229545ba3a2a9a61c1e68651b752a250526dcb18366cf9f6071",
+    "publish_attempted_at": 1794337900.4842138,
     "attempted_source_account": "@rizanntry"
   },
   {
@@ -25619,5 +25817,210 @@
       }
     },
     "receipt_hash": "b7e7f3b7f32535a99525cdf65b3e8c2b284b3e3151cbf66cedafb208696e1b75"
+  },
+  {
+    "video_path": "D:\\Programmer\\All Project\\Omnicut\\04_Exports\\Ready_to_post\\COD01-ปัญหาก่อนใช้_1_20261111_020407.mp4",
+    "export_id": "exp_eaf2bd3587b94690a942c0956e784786",
+    "cover_path": null,
+    "caption": "บอกลาอาการเจ็บหู! อัปเกรดชีวิตด้วย หูฟังเปิดหู MONSTER AC530 หูฟัง Open-Ear ใส่สบาย เบสแน่น พิกัดในตะกร้าเลย 👇",
+    "hashtags": "#นายหน้าtiktok #รีวิวหูฟัง #MONSTERAC530 #หูฟังเปิดหู #EP178",
+    "episode_no": 178,
+    "product_id": "8ebd5ef6dc2545398dc1b771aedda50d",
+    "angle_id": "pain_point",
+    "tiktok_product_id": null,
+    "product_name": "หูฟังเปิดหู MONSTER AC530",
+    "schedule_date": "2026-11-12",
+    "schedule_time": "06:40",
+    "intent": "schedule",
+    "queue_id": null,
+    "target_handle": "@rizanntry",
+    "channel_revision": 4,
+    "account_binding": {
+      "status": "verified",
+      "verified_handle": "@rizanntry",
+      "verified_at": "2026-10-10T18:23:52Z"
+    },
+    "strict_mode": false,
+    "video_sha256": "8219127689b8b2ef1adc3f15362f045c4951563ec972e889a461402d1f40379a",
+    "cover_sha256": null,
+    "id": "fb7cc8dc85e513b66d6a0632d737cf8f",
+    "job_id": "fb7cc8dc85e513b66d6a0632d737cf8f",
+    "channel_id": "main",
+    "protocol_version": 2,
+    "payload_hash": "f6c62c299c0ca7bccb1e5736353e4d7b03d97aa55291092af8a040db35dcd3a9",
+    "prepared_payload_hash": "f6c62c299c0ca7bccb1e5736353e4d7b03d97aa55291092af8a040db35dcd3a9",
+    "payload_fields": [
+      "video_path",
+      "export_id",
+      "cover_path",
+      "caption",
+      "hashtags",
+      "episode_no",
+      "product_id",
+      "angle_id",
+      "tiktok_product_id",
+      "product_name",
+      "schedule_date",
+      "schedule_time",
+      "intent",
+      "queue_id",
+      "target_handle",
+      "channel_revision",
+      "account_binding",
+      "strict_mode",
+      "video_sha256",
+      "cover_sha256"
+    ],
+    "idempotency_key": "f6c62c299c0ca7bccb1e5736353e4d7b03d97aa55291092af8a040db35dcd3a9",
+    "status": "cancelled",
+    "revision": 2,
+    "lease_owner": null,
+    "lease_token": null,
+    "lease_expires_at": null,
+    "attempt": 0,
+    "created_at": 1794422533.6797836,
+    "updated_at": 1794422533.6797836,
+    "effects_applied": false,
+    "prepare_effects_applied": true,
+    "audit": [
+      {
+        "event": "prepare",
+        "at": 1794422533.6798036
+      },
+      {
+        "event": "cancel",
+        "at": 1794422846.1795948
+      }
+    ]
+  },
+  {
+    "video_path": "D:\\Programmer\\All Project\\Omnicut\\04_Exports\\Ready_to_post\\COD01-ปัญหาก่อนใช้_1_20261111_020407.mp4",
+    "export_id": "exp_eaf2bd3587b94690a942c0956e784786",
+    "cover_path": null,
+    "caption": "บอกลาอาการเจ็บหู! อัปเกรดชีวิตด้วย หูฟังเปิดหู MONSTER AC530 หูฟัง Open-Ear ใส่สบาย เบสแน่น พิกัดในตะกร้าเลย 👇",
+    "hashtags": "#นายหน้าtiktok #รีวิวหูฟัง #MONSTERAC530 #หูฟังเปิดหู #tiktokป้ายยา #EP178",
+    "episode_no": 178,
+    "product_id": "8ebd5ef6dc2545398dc1b771aedda50d",
+    "angle_id": "pain_point",
+    "tiktok_product_id": "1732243733305525897",
+    "product_name": "หูฟังเปิดหู MONSTER AC530",
+    "schedule_date": "2026-11-12",
+    "schedule_time": "06:40",
+    "intent": "schedule",
+    "queue_id": "eb4c861ebe824eb4bee93ce49ef1180e",
+    "target_handle": "@rizanntry",
+    "channel_revision": 4,
+    "account_binding": {
+      "status": "verified",
+      "verified_handle": "@rizanntry",
+      "verified_at": "2026-10-10T18:23:52Z"
+    },
+    "strict_mode": false,
+    "video_sha256": "8219127689b8b2ef1adc3f15362f045c4951563ec972e889a461402d1f40379a",
+    "cover_sha256": null,
+    "id": "0725436abd533439ca26a7bd15ed0534",
+    "job_id": "0725436abd533439ca26a7bd15ed0534",
+    "channel_id": "main",
+    "protocol_version": 2,
+    "payload_hash": "6902f0f649d7d39b95cf2e9e6814f276eac99c14575cfc50edea96af91304b0d",
+    "prepared_payload_hash": "6902f0f649d7d39b95cf2e9e6814f276eac99c14575cfc50edea96af91304b0d",
+    "payload_fields": [
+      "video_path",
+      "export_id",
+      "cover_path",
+      "caption",
+      "hashtags",
+      "episode_no",
+      "product_id",
+      "angle_id",
+      "tiktok_product_id",
+      "product_name",
+      "schedule_date",
+      "schedule_time",
+      "intent",
+      "queue_id",
+      "target_handle",
+      "channel_revision",
+      "account_binding",
+      "strict_mode",
+      "video_sha256",
+      "cover_sha256"
+    ],
+    "idempotency_key": "6902f0f649d7d39b95cf2e9e6814f276eac99c14575cfc50edea96af91304b0d",
+    "status": "scheduled_on_platform",
+    "revision": 8,
+    "lease_owner": "9226c1db-8813-4a1e-afb1-e2da2b082ff2",
+    "lease_token": "EuCUCG-BCikF40ywS_RW9DsDKE63oXM9eO0nvxO4GBU",
+    "lease_expires_at": 1794423256.229901,
+    "attempt": 1,
+    "created_at": 1794422846.5562332,
+    "updated_at": 1794422998.5275064,
+    "effects_applied": true,
+    "prepare_effects_applied": true,
+    "audit": [
+      {
+        "event": "prepare",
+        "at": 1794422846.5562754
+      },
+      {
+        "event": "claim",
+        "at": 1794422846.760389,
+        "lease_owner": "9226c1db-8813-4a1e-afb1-e2da2b082ff2"
+      },
+      {
+        "event": "account_check",
+        "at": 1794422856.817935,
+        "source_account": "@rizanntry",
+        "account_verified": true,
+        "warning": null
+      },
+      {
+        "event": "account_check",
+        "at": 1794422920.0301235,
+        "source_account": "@rizanntry",
+        "account_verified": true,
+        "warning": null
+      },
+      {
+        "event": "account_check",
+        "at": 1794422924.0454934,
+        "source_account": "@rizanntry",
+        "account_verified": true,
+        "warning": null
+      },
+      {
+        "event": "account_check",
+        "at": 1794422938.7373734,
+        "source_account": "@rizanntry",
+        "account_verified": true,
+        "warning": null
+      },
+      {
+        "event": "account_check",
+        "at": 1794422956.2299123,
+        "source_account": "@rizanntry",
+        "account_verified": true,
+        "warning": null
+      },
+      {
+        "event": "reconcile",
+        "at": 1794422998.5275147,
+        "outcome": "scheduled_on_platform",
+        "source_account": "@rizanntry",
+        "account_verified": true,
+        "warning": null
+      }
+    ],
+    "receipt": {
+      "outcome": "scheduled_on_platform",
+      "source_account": "@rizanntry",
+      "proof": {
+        "kind": "manual_user_confirmation",
+        "notice": "User confirmed posting on TikTok Studio"
+      }
+    },
+    "receipt_hash": "bc1052beb018596c5deb3869bc8677285a4ad9f889ac6dfc38c2b93cf39cb21b",
+    "publish_attempted_at": 1794422998.5275064,
+    "attempted_source_account": "@rizanntry"
   }
 ]

@@ -124,3 +124,24 @@ test('a clip whose slot passed says it needs a new time (a draft keeps being a d
   assert.deepEqual(getExtensionStatus(overduePlanned), { kind: 'overdue', label: 'เลยเวลา — ต้องจัดเวลาใหม่' });
   assert.equal(getExtensionStatus({ is_scheduled: true, is_draft: true, needs_reschedule: false }).kind, 'draft');
 });
+
+test('scheduled_on_platform exports are excluded from unscheduled and never shown in waiting to post', () => {
+  const exportsItems = [
+    { export_id: 'e-sched', rel_path: '04_Exports/Ready_to_post/sched.mp4', angle_status: 'rendered', is_latest: true },
+    { export_id: 'e-flagged', rel_path: '04_Exports/Ready_to_post/flagged.mp4', angle_status: 'rendered', is_latest: true, scheduled_on_platform: true },
+    { export_id: 'e-ready', rel_path: '04_Exports/Ready_to_post/ready.mp4', angle_status: 'rendered', is_latest: true },
+  ];
+  const queueItems = [
+    { id: 'q-done', status: 'scheduled_on_platform', export_id: 'e-sched', video_path: '04_Exports/Ready_to_post/sched.mp4' },
+    { id: 'q-plan', status: 'planned', export_id: 'e-plan', video_path: '04_Exports/Ready_to_post/plan.mp4' },
+  ];
+  assert.equal(isReadyToPost(exportsItems[1]), false, 'flagged scheduled_on_platform export is not ready to post');
+  assert.equal(isReadyToPost(exportsItems[2]), true, 'normal rendered export is ready to post');
+
+  const clips = buildExtensionClipList(exportsItems, queueItems);
+  const byExportId = Object.fromEntries(clips.map((c) => [c.export_id, c]));
+  assert.equal(byExportId['e-sched'], undefined, 'scheduled_on_platform queue clip must not leak into unscheduled');
+  assert.equal(byExportId['e-flagged'], undefined, 'scheduled_on_platform flagged export must not leak into unscheduled');
+  assert.ok(byExportId['e-ready'], 'unposted ready clip is listed');
+  assert.ok(byExportId['e-plan'], 'planned queue clip is listed');
+});

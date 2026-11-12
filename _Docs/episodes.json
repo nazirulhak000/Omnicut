@@ -1,37 +1,37 @@
 [
   {
+    "id": "main:counter",
+    "channel_id": "main",
+    "kind": "counter",
+    "next": 179
+  },
+  {
     "id": "main:ep:1",
     "channel_id": "main",
     "kind": "episode",
     "episode_no": 1,
-    "lineage_key": "angle:20260905182956_2:pain_point",
-    "product_id": "20260905182956_2",
-    "angle_id": "pain_point",
+    "lineage_key": "angle:9505b042d58640f5aa58015bb86be097:ang_ess30w_06",
+    "product_id": "9505b042d58640f5aa58015bb86be097",
+    "angle_id": "ang_ess30w_06",
     "export_ids": [
-      "exp_e4b94fe473ba4537af6d5b414d72d8d3"
+      "exp_c2e2ad9013e846ec965e4b86c00439ce"
     ],
-    "source": "backfill",
-    "assigned_at": "2026-11-10T23:00:22"
-  },
-  {
-    "id": "main:counter",
-    "channel_id": "main",
-    "kind": "counter",
-    "next": 178
+    "source": "new",
+    "assigned_at": "2026-11-11T02:04:56"
   },
   {
     "id": "main:ep:2",
     "channel_id": "main",
     "kind": "episode",
     "episode_no": 2,
-    "lineage_key": "angle:e8c50275ed5d4748a046603377e8a216:unboxing",
-    "product_id": "e8c50275ed5d4748a046603377e8a216",
-    "angle_id": "unboxing",
+    "lineage_key": "angle:fb77e97e611e4e059b943b5512e8cb82:pain_point",
+    "product_id": "fb77e97e611e4e059b943b5512e8cb82",
+    "angle_id": "pain_point",
     "export_ids": [
-      "exp_05ebea3745d74275912c9e7aaef0d6bd"
+      "exp_5d8ebba8ccfd4fef85dc501619c4fa27"
     ],
-    "source": "backfill",
-    "assigned_at": "2026-11-10T23:00:22"
+    "source": "new",
+    "assigned_at": "2026-11-11T02:08:16"
   },
   {
     "id": "main:ep:3",
@@ -2483,5 +2483,19 @@
     ],
     "source": "new",
     "assigned_at": "2026-11-10T23:29:38"
+  },
+  {
+    "id": "main:ep:178",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 178,
+    "lineage_key": "angle:8ebd5ef6dc2545398dc1b771aedda50d:pain_point",
+    "product_id": "8ebd5ef6dc2545398dc1b771aedda50d",
+    "angle_id": "pain_point",
+    "export_ids": [
+      "exp_eaf2bd3587b94690a942c0956e784786"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-12T01:42:13"
   }
 ]

@@ -382,6 +382,27 @@ def list_exports(scope: ChannelScope = Depends(get_channel_scope)):
     except Exception as registry_err:
         print(f"[api_exports] WARNING: could not load export registry: {registry_err}")
 
+    scheduled_by_export: Dict[str, Dict[str, Any]] = {}
+    try:
+        from scripts.schedule_store import ScheduleQueueStore
+        for q_row in ScheduleQueueStore.list_items(**_kw(channel_id)):
+            exp_id = q_row.get("export_id")
+            if exp_id and q_row.get("status") in {"scheduled_on_platform", "draft_on_platform"}:
+                scheduled_by_export[exp_id] = q_row
+    except Exception as q_err:
+        print(f"[api_exports] WARNING: could not load schedule queue: {q_err}")
+
+    jobs_by_export: Dict[str, Dict[str, Any]] = {}
+    try:
+        from scripts.posting_jobs import PostingJobStore
+        p_store = PostingJobStore(BASE_DIR)
+        for job_row in p_store.table.scoped_load(channel_id or "main"):
+            exp_id = job_row.get("export_id")
+            if exp_id and job_row.get("status") in {"scheduled_on_platform", "draft_saved"}:
+                jobs_by_export[exp_id] = job_row
+    except Exception as j_err:
+        print(f"[api_exports] WARNING: could not load posting jobs: {j_err}")
+
     # Discover namespaced outputs by their scoped registry identity. Never
     # recursively import unregistered files from another channel's directory.
     candidates = {f.resolve(): f for f in files}
@@ -611,6 +632,32 @@ def list_exports(scope: ChannelScope = Depends(get_channel_scope)):
             # render/mark flows still persist identity before they proceed.
             info["export_id"] = None
             info["export_status"] = "posted" if is_posted else "rendered"
+
+        exp_id = info.get("export_id")
+        q_match = scheduled_by_export.get(exp_id) if exp_id else None
+        job_match = jobs_by_export.get(exp_id) if exp_id else None
+        if q_match or job_match:
+            is_sched = bool(
+                (q_match and q_match.get("status") == "scheduled_on_platform")
+                or (job_match and job_match.get("status") == "scheduled_on_platform")
+            )
+            is_draft = bool(
+                (q_match and q_match.get("status") == "draft_on_platform")
+                or (job_match and job_match.get("status") == "draft_saved")
+            )
+            if is_sched:
+                info["scheduled_on_platform"] = True
+                info["is_scheduled_on_platform"] = True
+                info["export_status"] = "scheduled_on_platform"
+                sched_at = (q_match or {}).get("scheduled_at")
+                if not sched_at and job_match and job_match.get("schedule_date"):
+                    sched_at = f"{job_match['schedule_date']}T{job_match.get('schedule_time', '00:00')}:00+07:00"
+                if sched_at:
+                    info["scheduled_at"] = sched_at
+            elif is_draft:
+                info["draft_on_platform"] = True
+                info["is_draft_on_platform"] = True
+                info["export_status"] = "draft_on_platform"
         if not info.get("cover_path"):
             project_name = (matched_angle or {}).get("project_name") or matched_proj_name
             project_cover = _find_project_cover(project_name)

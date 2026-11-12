@@ -10,12 +10,14 @@
 | Round CLAUDE-AUTO-SHARPEN-20261112 | ความคมชัด TikTok อัตโนมัติหลังเรนเดอร์ทุกทาง (reroll / Editor / batch) แบบทับไฟล์เดิม ก่อนสร้างปก; `scripts/auto_sharpen.py` + ธง `tiktok_sharp` บน export record; Gallery และปุ่มเดิมรู้จากธง; ยังไม่ได้ตรวจกับเรนเดอร์สินค้าจริง | 2026-11-12 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-PRODUCTION-CHAIN-20261112 | สองปุ่มต่อสินค้า: `ผลิตถึงดราฟต์` (เสียง → สแกนฉาก → ดราฟต์ หยุดให้ตรวจ) และ `เรนเดอร์และเข้าคิว` (เรนเดอร์จากค่าที่ Editor บันทึก → เปิด preview จัดคิว); `scripts/production_chain.py` + route ใหม่ 1 ตัว; ยังไม่ได้กดกับสินค้าจริง | 2026-11-12 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-PREPARE-ALL-20261112 | ปุ่ม `เตรียมทั้งหมด (N)` ในตารางโพสต์: ส่งคิว `planned` ที่ยังไม่เลยเวลา (ตามตัวกรองบนจอ) ให้ Extension ทีละคิวผ่าน route เดิม; ไม่แตะ backend; ยังไม่ได้ลองกับคิวจริง | 2026-11-12 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
-| Round CLAUDE-FLOW-ONE-CLICK-SURVEY-20261112 | สำรวจ flow สินค้า → โพสต์ (อ่านอย่างเดียว); แผน A ปกอัตโนมัติหลังเรนเดอร์, B1 สองปุ่มต่อสินค้า, C1 เตรียมทั้งหมด, C2 ความคมชัดอัตโนมัติ; เจ้าของอนุมัติ D1–D4 ตามที่แนะนำ, D5 ยังไม่ตัดสิน | 2026-11-12 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-AUTO-COVER-20261112 | ปกอัตโนมัติหลังเรนเดอร์ 3 จุด (`scripts/auto_cover.py`), ป้าย `auto` ใน binding และ angle, Editor ไม่บังคับปกก่อนเรนเดอร์; 0.39–0.51 วิ/ปก; ยังไม่ได้เรนเดอร์จริงผ่านแอป | 2026-11-12 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
+| Round CLAUDE-FLOW-ONE-CLICK-SURVEY-20261112 | สำรวจ flow สินค้า → โพสต์ (อ่านอย่างเดียว); แผน A ปกอัตโนมัติหลังเรนเดอร์, B1 สองปุ่มต่อสินค้า, C1 เตรียมทั้งหมด, C2 ความคมชัดอัตโนมัติ; เจ้าของอนุมัติ D1–D4 ตามที่แนะนำ, D5 ยังไม่ตัดสิน | 2026-11-12 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-SPEED-PHASE5-20261112 | ดราฟต์ครั้งแรก 62 → 45 วิ (tone classifier `thinking_level=minimal` + timeout); `-filter_complex_threads 4` (เรนเดอร์ −12%, batch 6.8 → 7.7 คลิป/นาที); ข6 รองรับเรนเดอร์ซ้อนกัน; เติมช่วงเงียบต้นไฟล์เสียงกลับ 50 โปรเจกต์ (`tools/restore_voice_lead.py`); pytest 5440 ผ่าน | 2026-11-12 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round ANTIGRAVITY-REMOVE-GOOGLE-COLAB-CLEAN-SWEEP-20261112 | ดำเนินการตัดโค้ดและโมดูล Google Colab ออกทั้งหมดตามคำขอผู้ใช้ (Clean Sweep รวม 3,100+ บรรทัด): ลบไฟล์ Notebook, Builder, Colab CLI, Login Helper, AGY Cloud Agent, Colab Sync, Guides, และ Colab Build Tests (9 ไฟล์); ถอดการผูก colab_sync จาก finalize.py; ลบ fallback colab userdata และ /content/drive จาก auth.py / api_command.py / api_mobile_posting.py; ปรับ detect_runtime() คืนค่า local 100%; คลีนข้อความ UI และ Service Worker; ผ่าน compileall 100% | 2026-11-12 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round CLAUDE-SPEED-PHASE4-20261112 | merge ช่วงที่ 3 เข้า main; ข6 เผาซับรอบสองต่อเข้า renderer เฉพาะเรนเดอร์ซ้ำจาก editor (แก้ซับ 16.5 → 7.4 วิ); ข4 ซูมรายเฟรม `bilinear`; ประทับ fingerprint เสียง 46 โปรเจกต์; ลบ `.tmp/speed_audit/replay` 5 GB; pytest 5434 ผ่าน | 2026-11-12 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CLAUDE-SPEED-OVERNIGHT-20261112 | งานความเร็วข้ามคืน: เงา Hook คำนวณบนแถบ 2 px + blend เฉพาะช่วงที่มองเห็น (เรนเดอร์ 18.0 → 16.5 วิ, md5 ของ 1,274 เฟรมเหมือนเดิม), `psutil` เข้า requirements + เทส `memory_low`, ต้นแบบเผาซับรอบสอง (กิ่งแยก ไม่ต่อเข้า renderer), พบ 46/60 โปรเจกต์เสียงพากย์ไม่ตรง fingerprint; pytest 5414 ผ่าน; ยังไม่ merge เข้า main (Jev < 0.80) | 2026-11-12 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
+| Round ANTIGRAVITY-FIX-AUTOPOST-SCHEDULED-STATUS-SYNC-20261112 | แก้ไขปัญหาวิดีโอที่โพสต์/ตั้งเวลาบน TikTok Studio แล้ว (scheduled_on_platform) แต่ยังค้างอยู่ในแท็บ "รอโพสต์" ใน extension: auto-register unqueued schedule เข้า ScheduleQueueStore, enrich /api/exports ด้วย scheduled_on_platform, และตัด consumed/scheduled clips ออกจาก unscheduled 100% | 2026-11-12 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) |
+| Round ANTIGRAVITY-FIX-AUTOPOST-PREPARE-EPISODE-COLLISION-20261112 | แก้ไขปัญหาเตรียมคลิปไม่สำเร็จ (ValueError: duplicate record id) จาก counter next ใน episodes.json ค้างต่ำกว่าเลข EP จริง (next: 3 vs EP177) พร้อม self-healing guard ใน EpisodeRegistry.ensure | 2026-11-12 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) |
 | Round CLAUDE-SPEED-PHASE3-RTX4060-20261112 | ความเร็วช่วงที่ 3 บน i7-14700 / RTX 4060: เรนเดอร์คลิป 43 วิ ใช้ ~18–19 วิ, batch 4 งานได้ 1.7–1.9 เท่า (RAM เป็นตัวจำกัด), `shot_matching` ข้ามวิเคราะห์ beat/ความดัง/motion เมื่อมีรายการคลิปแล้ว (−2.2 ถึง −12.5 วิ เฉพาะเรนเดอร์แรกของ process), แก้เทส SAM2 preflight ที่อ่าน RAM จริง, ข5 ไม่คุ้ม, ข4/ข6 วัดแล้วรอเจ้าของ; pytest 5409 ผ่าน | 2026-11-12 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round CODEX-AUTOPOST-PREPARE-ACK-20261112 | 0.10.5 รอ backend prepare/claim ก่อนปิด dialog, inline errors/retry และ old-job handoff; Node 272/272, real sidebar mouse tests 38/38, backend read-only 27/27 compatibility | 2026-11-12 | ดำเนินการโดย: Codex (GPT-6) |
 | Round CODEX-AUTOPOST-PREPARE-SAVE-FEEDBACK-20261112 | 0.10.4 ฟอร์ม autosave/บันทึกข้อมูลใน extension แยกคลิป/ช่อง, restore หลัง reload, แจ้ง placeholder และวันที่/เวลา; Node 270/270, sidebar 33/33, backend read-only 27/27 compatibility | 2026-11-12 | ดำเนินการโดย: Codex (GPT-6) |
@@ -211,6 +213,41 @@
 | Round EDITOR-CAPCUT-FIX-WAVE1-20261003 | แก้ editor ตาม Top 10 ของ audit เทียบ CapCut (ปุ่มหลอก, undo/คีย์ลัด, Inspector, timeline เฟรม, transition/effect, preview 30fps/proxy, ซับ stale, mirror+pan, volume พากย์/SFX, revision หลัง render); gate ผ่าน + ยืนยันใน Chrome จริง | 2026-10-03 | ปิดรอบแล้ว · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + sub-agent (Sonnet 5.5 / Opus 5.5) |
 | Round PC-MAX-PREVIEW-CUTOUT-INTEGRATION-20261003 | พรีวิว Master 1080p ขณะเล่น/หยุด, Cutout clock, จุดสินค้าและ SAM2 CUDA ผ่าน gate รวม | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 | Round CODEX-NVENC-QA-GATES-20261003 | ปิด NVENC/export contract และ QA guards; failures เดิมแก้และ gate รวมผ่าน | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
+
+---
+
+### Round ANTIGRAVITY-FIX-AUTOPOST-SCHEDULED-STATUS-SYNC-20261112 (2026-11-12)
+**ดำเนินการโดย:** Antigravity (Gemini 3.8 Flash High)
+
+**เป้าหมาย:** แก้ไขปัญหาวิดีโอที่โพสต์หรือตั้งเวลาบน TikTok Studio แล้ว (scheduled_on_platform) แต่สถานะในระบบไม่ซิงก์ ทำให้ยังคงแสดงอยู่ในแท็บ "รอโพสต์ (35)" พร้อมปุ่มแดง "เตรียมคลิปต่อ ->" ใน Extension Sidepanel (พบในกรณีคลิป MONSTER AC530 `COD01-ปัญหาก่อนใช้_1` ที่ผู้ใช้ตั้งเวลาสำหรับ 12 Nov, 6:40 am)
+
+**สาเหตุทางสถาปัตยกรรม:**
+1. **Unqueued Jobs Missing Queue Registration:** เมื่อคลิปถูกกด "เตรียมคลิปต่อ" โดยตรงจากรายการ export ที่ยังไม่ได้เข้าคิว (`job.queue_id == None`) เมื่องานจบสถานะเป็น `scheduled_on_platform` ใน `_apply_outcome_effects` ระบบไม่ได้สร้างหรือบันทึกข้อมูลลง `ScheduleQueueStore` ทำให้ในคิวไม่มีแถวระบุสถานะของคลิปนี้
+2. **Missing Export Scheduled Metadata:** ฝั่ง `/api/exports` ไม่เคยตรวจสอบสถานะ `PostingJobStore` หรือ `ScheduleQueueStore` ทำให้ตอบกลับเฉพาะสถานะ `rendered` และ `is_posted: False` เสมอ
+3. **Leaking into Unscheduled in Extension:** ใน `clip_state.js` ฟังก์ชัน `buildExtensionClipList` นำ exports ที่ยังไม่โพสต์ (`!is_posted`) มาจัดเป็น `unscheduled` หากไม่อยู่ใน `scheduledKeys` แต่เนื่องจาก `scheduledKeys` คิดเฉพาะงานที่ยังต้องอัปโหลด (`ACTIVE_QUEUE_STATUSES`) และคลิปที่ตั้งเวลาแล้วบน TikTok (`scheduled_on_platform`) ไม่ควรถูกอัปโหลดซ้ำ จึงไม่ถูกใส่ใน `scheduledKeys` ส่งผลให้คลิปหลุดเข้าไปอยู่ใน `unscheduled` และถูก Extension นับเป็น "รอโพสต์" ตลอดกาล
+4. **Premature Queue Pre-Filtering:** ใน `sidepanel.js` ทำการกรองเอา `scheduled_on_platform` ทิ้งไปก่อนส่งให้ `buildExtensionClipList` ทำให้ตัวจัดการ lifecycle ของคลิปไม่รับรู้ว่าคลิปนี้ถูกตั้งเวลาบน TikTok แล้ว
+
+**วิธีแก้ไข:**
+1. **ซ่อมแซมสถานะคลิป MONSTER AC530 ทันที:**
+   - บันทึกแถวใหม่ใน `ScheduleQueueStore` (`_Docs/schedule_queue.json` และ `_Docs/store.db`) มี `id: "eb4c861ebe824eb4bee93ce49ef1180e"`, `status: "scheduled_on_platform"`, `scheduled_at: "2026-11-12T06:40:00+07:00"`, `posting_job_id: "0725436abd533439ca26a7bd15ed0534"`
+   - ผูก `queue_id` ใน `posting_jobs.json` ตรงกัน
+2. **ปรับปรุง `scripts/api_tiktok_autopost.py` (`_apply_outcome_effects`):**
+   - เมื่อ unqueued export ได้รับการยืนยันเป็น `scheduled_on_platform` หรือ `draft_saved` ระบบจะ auto-register ลงใน `ScheduleQueueStore` พร้อม snapshot ข้อมูลสินค้า, hook, caption, เวลาโพสต์, และผูก `queue_id` บน job ทันทีโดยอัตโนมัติ
+3. **ปรับปรุง `scripts/api_exports.py` (`list_exports`):**
+   - โหลด snapshot งานโพสต์และคิวที่ active เพื่อจับคู่กับ export แต่ละตัว หากมีสถานะ `scheduled_on_platform` ให้ติด flag `scheduled_on_platform: True`, `is_scheduled_on_platform: True` พร้อม `scheduled_at`
+4. **ปรับปรุง `tiktok_autopost_extension/clip_state.js` & `sidepanel.js`:**
+   - ใน `clip_state.js`: ปรับ `isReadyToPost` ให้คืนค่า `false` สำหรับคลิปที่ `scheduled_on_platform: true`
+   - ใน `buildExtensionClipList`: สร้าง `consumedKeys` รวมคีย์ของทั้ง `posted` และ `scheduled_on_platform` เพื่อป้องกันไม่ให้คลิปที่อยู่บน TikTok แล้วหลุดเข้าไปใน `unscheduled` เด็ดขาด
+   - ใน `sidepanel.js`: ส่งรายการคิวทั้งหมด (`allQueueRaw`) เข้าสู่ `buildExtensionClipList` เพื่อให้รับรู้ทั้งสถานะ scheduled และ consumed อย่างถูกต้อง
+5. **Regression Tests:**
+   - เพิ่ม `test_apply_outcome_effects_creates_schedule_queue_item_when_unqueued` ใน `tests/test_api_tiktok_autopost.py`
+   - เพิ่ม `test_scheduled_on_platform_export_is_tagged_in_list_exports` ใน `tests/test_api_exports_listing.py`
+   - เพิ่ม unit test ใน `tiktok_autopost_extension/clip_state.test.cjs` ยืนยันว่าคลิป `scheduled_on_platform` จะไม่แสดงใน unscheduled
+
+**ผลการทดสอบ (Verification):**
+- Pytest suite: 53/53 passed 100% (ใน `test_api_tiktok_autopost.py`, `test_api_exports_listing.py`, `test_schedule_queue.py`, `test_episode_registry.py`)
+- Node extension suite: 234/234 passed 100%
+- ตรวจสอบผ่าน live API: คลิป MONSTER AC530 `COD01-ปัญหาก่อนใช้_1` มี `scheduled_on_platform: True`, `export_status: "scheduled_on_platform"` และหลุดออกจากแท็บ "รอโพสต์" ของ extension เรียบร้อย 100%
 
 ---
 
@@ -617,14 +654,6 @@
 - **Jev:** เริ่มงาน 0.76 / เลือกคิว 0.69 (< 0.80 → ถามเจ้าของ) · ก่อน commit: commit_and_merge 0.70, คุณภาพการตรวจ 0.59 (< 0.80 → เพิ่ม browser test ทางหยุดกลางคัน แล้วถามเจ้าของ) · **เจ้าของตัดสิน 2026-11-12:** commit + merge เลย
 - **ปิดงาน:** merge เข้า `main` ลบกิ่ง `feat/prepare-all` · ไม่ push
 
-## Round CLAUDE-FLOW-ONE-CLICK-SURVEY-20261112 · สำรวจ flow สินค้า → โพสต์ และแผนลดขั้นตอน · ผู้ใช้สั่ง 2026-11-12 "เริ่มตามแผนได้เลย" แล้วตอบแผน "ตามที่แนะนำได้เลย" · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
-
-- **ขอบเขต:** อ่านโค้ดอย่างเดียว ไม่แก้โค้ด · จำนวนคลิกมาจากการอ่านโค้ด ยังไม่ได้นับบนจอจริง
-- **ที่พบ:** ทุกขั้นมี endpoint และส่วนใหญ่มีแบบ batch แล้ว · ไม่มีจุดใดสร้างปกหลังเรนเดอร์ · Editor ห้ามเรนเดอร์จนกว่าจะบันทึกปก แต่ batch render ไม่มีด่านนี้ คลิปจึงออกมาไม่มีปก · ตัวเลือกเฟรมปก (`recommended_cover_timestamp`) มีอยู่แล้วแต่ถูกเรียกเฉพาะตอนเปิด Cover Studio · ความคมชัด TikTok สร้าง export ใหม่และปกไม่ตามไป · เตรียมคิวให้ Extension ต้องกดทีละรายการ
-- **แผน:** [_Docs/Plans/ONE_CLICK_FLOW_PLAN_20261112.md](_Docs/Plans/ONE_CLICK_FLOW_PLAN_20261112.md) — A ปกอัตโนมัติหลังเรนเดอร์ + ผ่อนด่านปก Editor · B1 สองปุ่มต่อสินค้า มีจุดตรวจคั่น · C1 ปุ่มเตรียมทั้งหมดในตารางโพสต์ · C2 ความคมชัดอัตโนมัติ
-- **Jev (ก่อนเสนอ):** ขั้นต่อไป = เสนอเจ้าของ 0.98 · ความครบของแผน 0.62 (< 0.80 → ให้เจ้าของตัดสิน)
-- **เจ้าของตัดสิน 2026-11-12:** D1 ทำ A และผ่อนด่านปก · D2 เฟรมสะอาด 9:16 + 3:4 ไม่มีข้อความ Hook · D3 B1 · D4 ทำ C1 · D5 ยังไม่ตัดสิน (C2 รอ) · ลำดับ A → C1 → B1 แต่ละงานแยกรอบและกิ่งของตัวเอง
-
 ## Round CLAUDE-AUTO-COVER-20261112 · ปกอัตโนมัติหลังเรนเดอร์ + ผ่อนด่านปกใน Editor (งาน A ของแผน one-click) · ผู้ใช้สั่ง 2026-11-12 "ตามที่แนะนำได้เลย" · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
 
 - **ที่ทำ (backend):** `scripts/auto_cover.py::ensure_default_cover(export_id, …)` — เฟรมจาก `recommended_cover_timestamp` (ไม่มีคำแนะนำ = 1.0 วิ), `render_pro_cover` เฟรมสะอาด 9:16 + 3:4 ไม่มีข้อความ, เก็บใน `05_Covers_Thumbnails/<channel>/<uuid>/`, ผูกกับ export (`ExportCoverBindingStore.save(source="auto")`) และ angle (`cover_source="auto"`) · ปกที่คนบันทึก (binding หรือ angle) ไม่ถูกแทน · ปกอัตโนมัติสร้างใหม่เฉพาะเมื่อวิดีโอใหม่กว่าปก · ล้มเหลวคืน `failed` ไม่ทำให้เรนเดอร์ล้ม · ปิดด้วย `OMNICUT_AUTO_COVER=0` · เรียกหลังเรนเดอร์สำเร็จ 3 จุด: `batch_render.py`, `api_render.py`, `api_phase1.py` (เรนเดอร์จาก Editor)
@@ -635,6 +664,14 @@
 - **ข้อจำกัดที่รู้:** เฟรมมาจากคลิปที่เรนเดอร์แล้ว จึงอาจมี Hook/ซับติดมา และ 3:4 อาจตัดบรรทัด Hook บน · เรนเดอร์ซ้ำที่ได้ export ใหม่ขณะ angle มีปกคนเลือก = คงปกเดิม ไม่สร้าง binding ให้ export ใหม่ (พฤติกรรมเดิม) · export เก่าที่ไม่มี `channel_id` ได้ปกที่ angle แต่ไม่มี binding · ไฟล์ปกอัตโนมัติรุ่นเก่าไม่ถูกลบ
 - **Jev:** เริ่มงาน 0.94 · รวมจุดเรียกที่ 3 0.96 · รัน ffmpeg probe 0.98 · ก่อน commit: commit_and_merge 0.97 → 0.86, คุณภาพการตรวจ 0.71 → 0.61 (< 0.80 → ถามเจ้าของ) · **เจ้าของตัดสิน 2026-11-12:** commit + merge เลย · D5 "ใช้ความคมชัด TikTok ทุกคลิป" → ทำ C2 หลัง B1
 - **ปิดงาน:** merge เข้า `main` ลบกิ่ง `feat/auto-cover` · ไม่ push
+
+## Round CLAUDE-FLOW-ONE-CLICK-SURVEY-20261112 · สำรวจ flow สินค้า → โพสต์ และแผนลดขั้นตอน · ผู้ใช้สั่ง 2026-11-12 "เริ่มตามแผนได้เลย" แล้วตอบแผน "ตามที่แนะนำได้เลย" · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
+
+- **ขอบเขต:** อ่านโค้ดอย่างเดียว ไม่แก้โค้ด · จำนวนคลิกมาจากการอ่านโค้ด ยังไม่ได้นับบนจอจริง
+- **ที่พบ:** ทุกขั้นมี endpoint และส่วนใหญ่มีแบบ batch แล้ว · ไม่มีจุดใดสร้างปกหลังเรนเดอร์ · Editor ห้ามเรนเดอร์จนกว่าจะบันทึกปก แต่ batch render ไม่มีด่านนี้ คลิปจึงออกมาไม่มีปก · ตัวเลือกเฟรมปก (`recommended_cover_timestamp`) มีอยู่แล้วแต่ถูกเรียกเฉพาะตอนเปิด Cover Studio · ความคมชัด TikTok สร้าง export ใหม่และปกไม่ตามไป · เตรียมคิวให้ Extension ต้องกดทีละรายการ
+- **แผน:** [_Docs/Plans/ONE_CLICK_FLOW_PLAN_20261112.md](_Docs/Plans/ONE_CLICK_FLOW_PLAN_20261112.md) — A ปกอัตโนมัติหลังเรนเดอร์ + ผ่อนด่านปก Editor · B1 สองปุ่มต่อสินค้า มีจุดตรวจคั่น · C1 ปุ่มเตรียมทั้งหมดในตารางโพสต์ · C2 ความคมชัดอัตโนมัติ
+- **Jev (ก่อนเสนอ):** ขั้นต่อไป = เสนอเจ้าของ 0.98 · ความครบของแผน 0.62 (< 0.80 → ให้เจ้าของตัดสิน)
+- **เจ้าของตัดสิน 2026-11-12:** D1 ทำ A และผ่อนด่านปก · D2 เฟรมสะอาด 9:16 + 3:4 ไม่มีข้อความ Hook · D3 B1 · D4 ทำ C1 · D5 ยังไม่ตัดสิน (C2 รอ) · ลำดับ A → C1 → B1 แต่ละงานแยกรอบและกิ่งของตัวเอง
 
 ## Round CLAUDE-SPEED-PHASE5-20261112 · ดราฟต์ครั้งแรก, thread ของ filter graph, เสียง 46 โปรเจกต์ · ผู้ใช้สั่ง 2026-11-12 "จัดการต่อได้เลย API key ฟรี เทสเต็มที่" แล้วตอบรายงาน "merge เข้า main และข้อสองจัดการได้เลย" · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
 
