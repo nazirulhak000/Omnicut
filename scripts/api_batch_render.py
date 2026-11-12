@@ -33,6 +33,25 @@ class BatchRenderRequest(BaseModel):
     angle_project_names: Optional[Dict[str, str]] = None
 
 
+def batch_render_options(req: BatchRenderRequest) -> Dict[str, Any]:
+    """Options a batch is created with; the production chain builds its draft
+    batches through the same function so both start from the same defaults."""
+    return {
+        "voice_gender": req.voice_gender,
+        "voice_rate": req.voice_rate,
+        "voice_mode": req.voice_mode,
+        "voice_preset": req.voice_preset,
+        "style_preset": req.style_preset,
+        "font_name": req.font_name,
+        "bilingual_subtitles": req.bilingual_subtitles,
+        "use_ai_vision": req.use_ai_vision,
+        "export_mp4": req.export_mp4,
+        "project_name": req.project_name,
+        "angle_project_names": req.angle_project_names or {},
+        "batch_index": req.batch_index,
+    }
+
+
 @router.post("")
 def start_batch_render(req: BatchRenderRequest, scope: ChannelScope = Depends(get_workflow_scope)) -> Dict[str, Any]:
     """Starts a background batch rendering job for multiple angles of a product."""
@@ -43,24 +62,10 @@ def start_batch_render(req: BatchRenderRequest, scope: ChannelScope = Depends(ge
             if req.export_mp4 and not (scope.is_implicit_default and not scope.strict):
                 require_final_ready(scope)
             require_record_owner(scope, ProductStore.get(req.product_id, **channel_kwargs), resource_label="สินค้า")
-        options = {
-            "voice_gender": req.voice_gender,
-            "voice_rate": req.voice_rate,
-            "voice_mode": req.voice_mode,
-            "voice_preset": req.voice_preset,
-            "style_preset": req.style_preset,
-            "font_name": req.font_name,
-            "bilingual_subtitles": req.bilingual_subtitles,
-            "use_ai_vision": req.use_ai_vision,
-            "export_mp4": req.export_mp4,
-            "project_name": req.project_name,
-            "angle_project_names": req.angle_project_names or {},
-            "batch_index": req.batch_index,
-        }
         res = BatchRenderManager.create_batch(
             product_id=req.product_id,
             angle_ids=req.angle_ids,
-            options=options,
+            options=batch_render_options(req),
             **channel_kwargs,
             job_scope=capture_job_scope(scope) if isinstance(scope, ChannelScope) else None,
         )

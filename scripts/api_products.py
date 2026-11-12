@@ -827,6 +827,120 @@ def set_default_videos_endpoint(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+def collect_canonical_videos(prod_obj: Dict[str, Any], specific_video: Optional[str] = None) -> List[str]:
+    """Footage attached to a product, each file once (relative spelling preferred)."""
+    raw_candidates = []
+    if specific_video:
+        raw_candidates.append(specific_video)
+    else:
+        for v in prod_obj.get("default_videos", []) or []:
+            if v:
+                raw_candidates.append(v)
+        for a in prod_obj.get("angles", []) or []:
+            for v in a.get("selected_videos", []) or []:
+                if v:
+                    raw_candidates.append(v)
+            if a.get("selected_video"):
+                raw_candidates.append(a.get("selected_video"))
+        for v in prod_obj.get("videos", []) or []:
+            v_p = v.get("path") if isinstance(v, dict) else str(v)
+            if v_p:
+                raw_candidates.append(v_p)
+
+    canonical_map = {}
+    for v in raw_candidates:
+        try:
+            v_p = Path(v)
+            if not v_p.is_absolute():
+                v_p = BASE_DIR / v
+            resolved_key = str(v_p.resolve()).lower()
+            if resolved_key not in canonical_map:
+                canonical_map[resolved_key] = v
+            else:
+                existing = canonical_map[resolved_key]
+                # If existing is absolute and new v is relative (e.g. starts with 01_Raw), prefer relative
+                if Path(existing).is_absolute() and not Path(v).is_absolute():
+                    canonical_map[resolved_key] = v
+        except Exception:
+            if v not in canonical_map.values():
+                canonical_map[v] = v
+    return list(canonical_map.values())
+
+
+def run_scene_scan(task_id: str, videos_to_index: List[str], force: bool = False) -> Dict[str, Any]:
+    """Scan footage into the Scene Catalog and finish the given task.
+
+    Runs in the caller's thread: the /index-scenes route hands it to a
+    background worker, the production chain calls it as one of its steps.
+    Returns ``{"ok", "indexed", "not_analyzed", "total_scenes", "error"}`` so
+    a caller can decide what to do next without reading the task back.
+    """
+    from scripts.gemini_vision_matcher import GeminiVisionMatcher, summarize_catalog_scan
+    from scripts.video_editor import VideoEditor
+
+    indexed_results: Dict[str, Any] = {}
+    not_analyzed: Dict[str, Any] = {}
+    try:
+        total = len(videos_to_index)
+        TaskManager.update_progress(task_id, 0.05, f"เริ่มสแกนสารบัญฉาก {total} คลิป...")
+        for idx, v_rel in enumerate(videos_to_index):
+            v_full = Path(v_rel)
+            if not v_full.is_absolute():
+                v_full = BASE_DIR / v_rel
+            if not v_full.exists():
+                continue
+
+            clip_name = v_full.name
+            progress_val = 0.1 + (0.85 * (idx / max(1, total)))
+            TaskManager.update_progress(
+                task_id,
+                progress_val,
+                f"กำลังสแกนคลิป ({idx + 1}/{total}): {clip_name}..."
+            )
+
+            info = VideoEditor.get_media_info(str(v_full))
+            dur = float(info.get("duration") or 60.0)
+            catalog = GeminiVisionMatcher.index_raw_video_catalog(
+                raw_video_path=str(v_full),
+                raw_duration=dur,
+                force=force
+            )
+            if GeminiVisionMatcher.is_fallback_catalog(catalog):
+                # Placeholder slices, not a scan of this video: never
+                # report them as indexed scenes.
+                not_analyzed[v_rel] = GeminiVisionMatcher.fallback_reason_th(catalog)
+            elif catalog:
+                indexed_results[v_rel] = {
+                    "is_indexed": True,
+                    "scenes_count": len(catalog.get("scenes", [])),
+                    "is_spin_footage": catalog.get("is_spin_footage", False),
+                    "summary": catalog.get("summary", ""),
+                    "scenes": catalog.get("scenes", []),
+                }
+
+        outcome = summarize_catalog_scan(indexed_results, not_analyzed)
+        if not outcome["ok"]:
+            TaskManager.fail_task(task_id, outcome["error"], step_label=outcome["step_label"])
+        else:
+            TaskManager.complete_task(
+                task_id,
+                result={"indexed": indexed_results, "total_scenes": outcome["total_scenes"],
+                        "not_analyzed": not_analyzed},
+                step_label=outcome["step_label"],
+            )
+        return {
+            "ok": bool(outcome["ok"]),
+            "indexed": indexed_results,
+            "not_analyzed": not_analyzed,
+            "total_scenes": outcome.get("total_scenes", 0),
+            "error": outcome.get("error") or "",
+        }
+    except Exception as e:
+        TaskManager.fail_task(task_id, str(e), step_label="สแกนสารบัญฉากล้มเหลว")
+        return {"ok": False, "indexed": indexed_results, "not_analyzed": not_analyzed,
+                "total_scenes": 0, "error": str(e)}
+
+
 @router.get("/api/products/{product_id}/scene-catalogs")
 def get_scene_catalogs(
     product_id: str, video_path: Optional[str] = None, scope: ChannelScope = Depends(get_channel_scope)
@@ -838,45 +952,7 @@ def get_scene_catalogs(
         _raise_if_foreign(product_id, scope.channel_id)
         raise HTTPException(status_code=404, detail="Product not found")
 
-    def _collect_canonical_videos(prod_obj, specific_video=None) -> List[str]:
-        raw_candidates = []
-        if specific_video:
-            raw_candidates.append(specific_video)
-        else:
-            for v in prod_obj.get("default_videos", []) or []:
-                if v:
-                    raw_candidates.append(v)
-            for a in prod_obj.get("angles", []) or []:
-                for v in a.get("selected_videos", []) or []:
-                    if v:
-                        raw_candidates.append(v)
-                if a.get("selected_video"):
-                    raw_candidates.append(a.get("selected_video"))
-            for v in prod_obj.get("videos", []) or []:
-                v_p = v.get("path") if isinstance(v, dict) else str(v)
-                if v_p:
-                    raw_candidates.append(v_p)
-
-        canonical_map = {}
-        for v in raw_candidates:
-            try:
-                v_p = Path(v)
-                if not v_p.is_absolute():
-                    v_p = BASE_DIR / v
-                resolved_key = str(v_p.resolve()).lower()
-                if resolved_key not in canonical_map:
-                    canonical_map[resolved_key] = v
-                else:
-                    existing = canonical_map[resolved_key]
-                    # If existing is absolute and new v is relative (e.g. starts with 01_Raw), prefer relative
-                    if Path(existing).is_absolute() and not Path(v).is_absolute():
-                        canonical_map[resolved_key] = v
-            except Exception:
-                if v not in canonical_map.values():
-                    canonical_map[v] = v
-        return list(canonical_map.values())
-
-    videos_to_check = _collect_canonical_videos(prod, video_path)
+    videos_to_check = collect_canonical_videos(prod, video_path)
 
     results = {}
     for v_rel in videos_to_check:
@@ -911,7 +987,6 @@ def index_scenes_endpoint(
     product_id: str, payload: Dict[str, Any], scope: ChannelScope = Depends(get_channel_scope)
 ):
     """Indexes raw video(s) into Scene Catalog using Gemini Vision."""
-    from scripts.gemini_vision_matcher import GeminiVisionMatcher, summarize_catalog_scan
     _guard_writable(scope)
     _guard_body_channel(payload, scope)
     prod = ProductStore.get(product_id, channel_id=scope.channel_id)
@@ -922,42 +997,7 @@ def index_scenes_endpoint(
     video_path = payload.get("video_path")
     force = bool(payload.get("force", False))
 
-    raw_candidates = []
-    if video_path:
-        raw_candidates.append(video_path)
-    else:
-        for v in prod.get("default_videos", []) or []:
-            if v:
-                raw_candidates.append(v)
-        for a in prod.get("angles", []) or []:
-            for v in a.get("selected_videos", []) or []:
-                if v:
-                    raw_candidates.append(v)
-            if a.get("selected_video"):
-                raw_candidates.append(a.get("selected_video"))
-        for v in prod.get("videos", []) or []:
-            v_p = v.get("path") if isinstance(v, dict) else str(v)
-            if v_p:
-                raw_candidates.append(v_p)
-
-    canonical_map = {}
-    for v in raw_candidates:
-        try:
-            v_p = Path(v)
-            if not v_p.is_absolute():
-                v_p = BASE_DIR / v
-            resolved_key = str(v_p.resolve()).lower()
-            if resolved_key not in canonical_map:
-                canonical_map[resolved_key] = v
-            else:
-                existing = canonical_map[resolved_key]
-                if Path(existing).is_absolute() and not Path(v).is_absolute():
-                    canonical_map[resolved_key] = v
-        except Exception:
-            if v not in canonical_map.values():
-                canonical_map[v] = v
-
-    videos_to_index = list(canonical_map.values())
+    videos_to_index = collect_canonical_videos(prod, video_path)
 
     if not videos_to_index:
         raise HTTPException(status_code=400, detail="ไม่พบคลิปดิบที่แนบไว้สำหรับสแกน")
@@ -986,62 +1026,7 @@ def index_scenes_endpoint(
     )
     task_id = task["id"]
 
-    def _worker():
-        try:
-            TaskManager.update_progress(task_id, 0.05, f"เริ่มสแกนสารบัญฉาก {num_clips} คลิป...")
-            indexed_results = {}
-            not_analyzed = {}
-            from scripts.video_editor import VideoEditor
-            total = len(videos_to_index)
-            for idx, v_rel in enumerate(videos_to_index):
-                v_full = Path(v_rel)
-                if not v_full.is_absolute():
-                    v_full = BASE_DIR / v_rel
-                if not v_full.exists():
-                    continue
-
-                clip_name = v_full.name
-                progress_val = 0.1 + (0.85 * (idx / max(1, total)))
-                TaskManager.update_progress(
-                    task_id,
-                    progress_val,
-                    f"กำลังสแกนคลิป ({idx + 1}/{total}): {clip_name}..."
-                )
-
-                info = VideoEditor.get_media_info(str(v_full))
-                dur = float(info.get("duration") or 60.0)
-                catalog = GeminiVisionMatcher.index_raw_video_catalog(
-                    raw_video_path=str(v_full),
-                    raw_duration=dur,
-                    force=force
-                )
-                if GeminiVisionMatcher.is_fallback_catalog(catalog):
-                    # Placeholder slices, not a scan of this video: never
-                    # report them as indexed scenes.
-                    not_analyzed[v_rel] = GeminiVisionMatcher.fallback_reason_th(catalog)
-                elif catalog:
-                    indexed_results[v_rel] = {
-                        "is_indexed": True,
-                        "scenes_count": len(catalog.get("scenes", [])),
-                        "is_spin_footage": catalog.get("is_spin_footage", False),
-                        "summary": catalog.get("summary", ""),
-                        "scenes": catalog.get("scenes", []),
-                    }
-
-            outcome = summarize_catalog_scan(indexed_results, not_analyzed)
-            if not outcome["ok"]:
-                TaskManager.fail_task(task_id, outcome["error"], step_label=outcome["step_label"])
-                return
-            TaskManager.complete_task(
-                task_id,
-                result={"indexed": indexed_results, "total_scenes": outcome["total_scenes"],
-                        "not_analyzed": not_analyzed},
-                step_label=outcome["step_label"],
-            )
-        except Exception as e:
-            TaskManager.fail_task(task_id, str(e), step_label="สแกนสารบัญฉากล้มเหลว")
-
-    TaskManager.run_in_background(_worker)
+    TaskManager.run_in_background(lambda: run_scene_scan(task_id, videos_to_index, force=force))
 
     return {
         "success": True,

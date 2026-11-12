@@ -1263,6 +1263,22 @@ def _guard_stale_cutout_payload(params: Dict[str, Any], manifest: Dict[str, Any]
     )
 
 
+def resolve_sticker_badge_path(badge: Any) -> str:
+    """Path of a badge chosen by name, or "" when there is none (or it is gone).
+
+    Shared by /reroll and the production chain, so a render started without
+    the Editor open resolves the saved badge exactly as the Editor's does.
+    """
+    if not badge:
+        return ""
+    candidate = STICKERS_DIR / badge
+    if candidate.exists():
+        return str(candidate)
+    if (BASE_DIR / badge).exists():
+        return str(BASE_DIR / badge)
+    return ""
+
+
 def _execute_reroll(job_id: str, project_name: str, stage: str, overrides: Dict[str, Any], job_scope: Optional[Dict[str, Any]] = None) -> None:
     from scripts.pipeline import TikTokAutoCutterPipeline
     from scripts import config
@@ -1613,15 +1629,7 @@ def trigger_reroll(req: RerollRequest, background_tasks: BackgroundTasks, channe
     # already in the manifest would survive. "" survives the merge and reads as
     # falsy where the renderer checks it.
     if "sticker_badge" in overrides:
-        badge = overrides.pop("sticker_badge")
-        resolved = ""
-        if badge:
-            candidate = STICKERS_DIR / badge
-            if candidate.exists():
-                resolved = str(candidate)
-            elif (BASE_DIR / badge).exists():
-                resolved = str(BASE_DIR / badge)
-        overrides["sticker_path"] = resolved
+        overrides["sticker_path"] = resolve_sticker_badge_path(overrides.pop("sticker_badge"))
 
     job_id = str(uuid.uuid4())
     part_label = "เรนเดอร์วิดีโอ" if req.part in ("subtitles", "bgm", "video") else f"สุ่มใหม่: {req.part}"

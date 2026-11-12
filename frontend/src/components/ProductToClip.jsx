@@ -13,9 +13,9 @@ import {
   getSceneCatalogs, indexSceneCatalogs, deleteProduct, deleteProductAngle,
   uploadFile, resolveTiktokProductId, rerollAngleScript,
   generateShotList, getShotList, getShotListStatus, getTaskStatus,
-  generateProductBatch, batchGenerateAudio, startBatchDraft, getBatchRenderStatus
+  generateProductBatch, batchGenerateAudio, startBatchDraft, getBatchRenderStatus, startProductionChain
 } from '../api';
-import { Modal, Toast, Button, Badge, Input, Textarea, ConfirmModal, PageHeader } from './ui';
+import { Modal, Toast, Button, Badge, Input, Textarea, ConfirmModal, PageHeader, confirmDialog } from './ui';
 import MediaPickerModal from './MediaPickerModal';
 import FindReplaceModal from './FindReplaceModal';
 import ProductMetadataModal from './ProductMetadataModal';
@@ -35,6 +35,10 @@ import { DEFAULT_VOICE_PRESET, normalizeAdTone } from '../lib/angleToForm.js';
 import { getRecommendedStyleForAngle } from '../lib/stylePresetCatalog';
 import { resolveHistoryTargetId, resolveSelectedProduct } from '../lib/productSelection';
 import { buildProjectName } from '../lib/projectName';
+import {
+  CHAIN_LABEL, CHAIN_TASK_TYPE, chainConfirmText, chainFollowUp, chainStartError, chainTargets,
+  findProductTask, requestScheduleAutofill, taskPercent,
+} from '../lib/productionChain';
 
 const GEMINI_VOICE_OPTIONS = [
   { id: 'gemini_puck_male_hype', label: 'Puck — ชายพลังสูง TikTok' },
@@ -2531,7 +2535,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   const [openAngleIdx, setOpenAngleIdx] = useState(0); // Accordion: which angle is expanded
   const [previewExportAngle, setPreviewExportAngle] = useState(null); // Dialog: preview exported MP4 video
   const { toastMessage, toastType, toastDuration, showToast, hideToast } = useToast();
-  const { refreshTrigger, toggleActivityDrawer, activeTasks, pollTasks } = useTaskManager();
+  const { refreshTrigger, toggleActivityDrawer, tasks, activeTasks, pollTasks, cancelTask } = useTaskManager();
 
   // Collect all known project names across this product to avoid collisions across batches
   const knownProjects = useMemo(() => {
@@ -4150,11 +4154,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
 
   // Active batch audio background task for this product
   const batchAudioTask = useMemo(() => {
-    return (activeTasks || []).find(t =>
-      t.task_type === 'batch_generate_audio' &&
-      t.metadata?.product_id === productData?.id &&
-      t.status === 'running'
-    );
+    return findProductTask(activeTasks, productData?.id, ['batch_generate_audio']);
   }, [activeTasks, productData?.id]);
 
   // Target angles in current scope (either selected batch or all batches)
@@ -4330,10 +4330,9 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
 
   // Active batch draft background task for this product
   const batchDraftTask = useMemo(() => {
-    return (activeTasks || []).find(t =>
-      (t.task_type === 'batch_draft' || (t.task_type === 'batch_render' && (t.payload?.is_draft || t.metadata?.is_draft))) &&
-      (t.metadata?.product_id === productData?.id || t.payload?.product_id === productData?.id) &&
-      t.status === 'running'
+    return findProductTask(
+      activeTasks, productData?.id, ['batch_draft', 'batch_render'],
+      (t) => t.type === 'batch_draft' || Boolean(t.payload?.is_draft),
     );
   }, [activeTasks, productData?.id]);
   useEffect(() => {
@@ -4355,10 +4354,87 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
         if (current) selectProduct(current);
       }).catch(() => {});
       workspaceData?.invalidateTrackerData?.();
-      showToast('สร้างดราฟต์ไทม์ไลน์เสร็จสมบูรณ์ ทุกมุมพร้อมเปิดทำต่อในไทม์ไลน์แล้ว!', 'success');
     }
     prevBatchDraftTaskStatusRef.current = batchDraftTask ? 'running' : null;
   }, [batchDraftTask, productData?.id]);
+
+  // ── Production chain: one button to the drafts, one from reviewed drafts to the queue ──
+  const [startingChainKind, setStartingChainKind] = useState(null);
+  const chainTask = useMemo(
+    () => findProductTask(activeTasks, productData?.id, [CHAIN_TASK_TYPE]),
+    [activeTasks, productData?.id],
+  );
+  const chainCounts = useMemo(() => chainTargets(angles, selectedBatch), [angles, selectedBatch]);
+  const chainPercent = taskPercent(chainTask);
+
+  // The chain this page is following, so its ending is handled once -- even
+  // when it ends between two polls and never shows up as running here.
+  const followedChainRef = useRef(null);
+  useEffect(() => {
+    const productId = productData?.id;
+    if (chainTask) {
+      followedChainRef.current = { id: chainTask.id, productId };
+      return;
+    }
+    const followed = followedChainRef.current;
+    if (!followed) return;
+    if (followed.productId !== productId) {
+      followedChainRef.current = null;
+      return;
+    }
+    const followUp = chainFollowUp((tasks || []).find((t) => t.id === followed.id));
+    if (!followUp.refresh) return;
+    followedChainRef.current = null;
+    readProducts({ force: true }).then(res => {
+      const current = (res.products || []).find(p => p.id === productId);
+      if (current) selectProduct(current);
+    }).catch(() => {});
+    getShotListStatus(productId).then(res => setShotListStatusMap(res.status || {})).catch(() => {});
+    refreshSceneCatalogs();
+    workspaceData?.invalidateTrackerData?.();
+    if (followUp.openSchedule && onGoToTracker) {
+      // Rendered clips are ready: open the schedule on its auto-fill preview.
+      // Nothing is queued until the owner confirms there.
+      requestScheduleAutofill(window.sessionStorage);
+      try { window.localStorage.setItem('capcut_tracker_view_mode', 'schedule'); } catch { /* keeps the last view */ }
+      onGoToTracker();
+    }
+  }, [chainTask, tasks, productData?.id]);
+
+  const handleStartChain = async (kind) => {
+    const productId = productData?.id;
+    const count = chainCounts[kind];
+    if (!productId || !count || startingChainKind) return;
+    if (!(await confirmDialog(chainConfirmText(kind, count)))) return;
+    setStartingChainKind(kind);
+    try {
+      const res = await startProductionChain(productId, {
+        kind,
+        batch_index: selectedBatch !== 'all' ? selectedBatch : null,
+        voice_preset: selectedVoicePreset,
+      });
+      if (res?.task_id) followedChainRef.current = { id: res.task_id, productId };
+      showToast(`เริ่ม${CHAIN_LABEL[kind]} ${count} มุมในเบื้องหลังแล้ว`, 'info');
+      pollTasks();
+    } catch (err) {
+      console.error('Production chain failed to start:', err);
+      showToast(`เริ่ม${CHAIN_LABEL[kind]}ไม่ได้: ${chainStartError(err)}`, 'error');
+      pollTasks();
+    } finally {
+      setStartingChainKind(null);
+    }
+  };
+
+  // One-step buttons step back to an outline while a chain button leads the row.
+  const manualStepButtonClass = (chainCounts.draft > 0 || chainCounts.render > 0)
+    ? 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 border border-white/[0.12] text-xs font-bold disabled:opacity-50'
+    : 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-xs font-bold disabled:opacity-50';
+
+  const handleCancelChain = async () => {
+    if (!chainTask) return;
+    if (!(await confirmDialog(`ยกเลิก${CHAIN_LABEL[chainTask.payload?.kind] || 'งานผลิตต่อเนื่อง'}หรือไม่? งานที่เสร็จไปแล้วยังอยู่ครบ`))) return;
+    await cancelTask(chainTask.id);
+  };
 
   const handleBatchCreateDraft = async () => {
     if (!productData?.id) return;
@@ -5142,23 +5218,42 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
 
                 <div className="flex items-center justify-between sm:justify-end gap-2 flex-wrap">
 
-                  {batchAudioTask || batchDraftTask ? (
+                  {!chainTask && chainCounts.draft > 0 && (
+                    <button type="button" data-testid="production-chain-draft" onClick={() => handleStartChain('draft')} disabled={Boolean(startingChainKind) || Boolean(batchAudioTask) || Boolean(batchDraftTask)} title="เตรียมเสียงพากย์ สแกนฉาก และสร้างดราฟต์ต่อเนื่องกัน แล้วหยุดให้ตรวจใน Editor" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-xs font-bold disabled:opacity-50">
+                      {startingChainKind === 'draft' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                      <span>{CHAIN_LABEL.draft} (<strong className="font-mono tabular-nums">{chainCounts.draft}</strong>)</span>
+                    </button>
+                  )}
+                  {!chainTask && chainCounts.render > 0 && (
+                    <button type="button" data-testid="production-chain-render" onClick={() => handleStartChain('render')} disabled={Boolean(startingChainKind) || Boolean(batchDraftTask)} title="เรนเดอร์ดราฟต์ที่ตรวจแล้วตามค่าที่บันทึกใน Editor แล้วเปิดหน้าจัดคิวโพสต์" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-xs font-bold disabled:opacity-50">
+                      {startingChainKind === 'render' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                      <span>{CHAIN_LABEL.render} (<strong className="font-mono tabular-nums">{chainCounts.render}</strong>)</span>
+                    </button>
+                  )}
+                  {chainTask ? (
+                    <div data-testid="production-chain-progress" role="status" className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-cyan-500/10 text-cyan-200 border border-cyan-500/25 text-xs font-bold">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin flex-shrink-0" />
+                      <span className="max-w-[260px] sm:max-w-sm truncate" title={chainTask.step_label || ''}>{CHAIN_LABEL[chainTask.payload?.kind] || 'กำลังผลิต'} · {chainTask.step_label || 'รอเริ่มงาน'}</span>
+                      {chainPercent !== null && <span className="font-mono tabular-nums text-cyan-100">{chainPercent}%</span>}
+                      <button type="button" onClick={handleCancelChain} className="pl-2 border-l border-cyan-500/25 text-slate-300 hover:text-white">ยกเลิก</button>
+                    </div>
+                  ) : batchAudioTask || batchDraftTask ? (
                     <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-cyan-500/10 text-cyan-200 border border-cyan-500/25 text-xs font-bold">
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>{batchAudioTask?.step || batchDraftTask?.step || 'กำลังประมวลผล...'}</span>
+                      <span>{batchAudioTask?.step_label || batchDraftTask?.step_label || 'กำลังประมวลผล...'}</span>
                     </div>
                   ) : missingAudioCount > 0 ? (
-                    <button type="button" onClick={handleBatchGenerateAudio} disabled={isStartingBatchAudio} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-xs font-bold disabled:opacity-50">
+                    <button type="button" onClick={handleBatchGenerateAudio} disabled={isStartingBatchAudio} className={manualStepButtonClass}>
                       {isStartingBatchAudio ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Volume2 className="w-3.5 h-3.5" />}
                       <span>เตรียมเสียง (<strong className="font-mono tabular-nums">{missingAudioCount}</strong>)</span>
                     </button>
                   ) : unindexedVideosCount > 0 ? (
-                    <button type="button" onClick={() => handleIndexSceneCatalog()} disabled={isScanningScenes} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-xs font-bold disabled:opacity-50">
+                    <button type="button" onClick={() => handleIndexSceneCatalog()} disabled={isScanningScenes} className={manualStepButtonClass}>
                       {isScanningScenes ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
                       <span>สแกนฉาก (<strong className="font-mono tabular-nums">{unindexedVideosCount}</strong>)</span>
                     </button>
                   ) : readyForDraftAngles.length > 0 ? (
-                    <button type="button" onClick={handleBatchCreateDraft} disabled={isStartingBatchDraft} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-xs font-bold disabled:opacity-50">
+                    <button type="button" onClick={handleBatchCreateDraft} disabled={isStartingBatchDraft} className={manualStepButtonClass}>
                       {isStartingBatchDraft ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
                       <span>สร้างดราฟต์ทุกมุม (<strong className="font-mono tabular-nums">{readyForDraftAngles.length}</strong>)</span>
                     </button>
@@ -5471,14 +5566,14 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                     <div className="flex items-center gap-2.5 bg-indigo-950/60 px-3 py-1.5 rounded-lg border border-indigo-500/30">
                       <Loader2 className="w-4 h-4 text-indigo-400 animate-spin flex-shrink-0" />
                       <div className="flex flex-col">
-                        <span className="text-xs text-indigo-200 font-medium leading-tight max-w-[240px] sm:max-w-xs truncate" title={batchAudioTask.step}>
-                          {batchAudioTask.step || 'กำลังเตรียมเสียงพากย์...'}
+                        <span className="text-xs text-indigo-200 font-medium leading-tight max-w-[240px] sm:max-w-xs truncate" title={batchAudioTask.step_label}>
+                          {batchAudioTask.step_label || 'กำลังเตรียมเสียงพากย์...'}
                         </span>
-                        {typeof batchAudioTask.progress === 'number' && (
+                        {taskPercent(batchAudioTask) !== null && (
                           <div className="w-full bg-slate-800 rounded-full h-1 mt-1 overflow-hidden">
                             <div
                               className="bg-gradient-to-r from-indigo-500 to-cyan-400 h-1 transition-all duration-300"
-                              style={{ width: `${Math.max(5, batchAudioTask.progress)}%` }}
+                              style={{ width: `${Math.max(5, taskPercent(batchAudioTask))}%` }}
                             />
                           </div>
                         )}
@@ -5528,14 +5623,14 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                     <div className="flex items-center gap-2.5 bg-emerald-950/60 px-3 py-1.5 rounded-lg border border-emerald-500/30">
                       <Loader2 className="w-4 h-4 text-emerald-400 animate-spin flex-shrink-0" />
                       <div className="flex flex-col">
-                        <span className="text-xs text-emerald-200 font-medium leading-tight max-w-[240px] sm:max-w-xs truncate" title={batchDraftTask.step}>
-                          {batchDraftTask.step || 'กำลังสร้างดราฟต์ไทม์ไลน์...'}
+                        <span className="text-xs text-emerald-200 font-medium leading-tight max-w-[240px] sm:max-w-xs truncate" title={batchDraftTask.step_label}>
+                          {batchDraftTask.step_label || 'กำลังสร้างดราฟต์ไทม์ไลน์...'}
                         </span>
-                        {typeof batchDraftTask.progress === 'number' && (
+                        {taskPercent(batchDraftTask) !== null && (
                           <div className="w-full bg-slate-800 rounded-full h-1 mt-1 overflow-hidden">
                             <div
                               className="bg-gradient-to-r from-emerald-500 to-teal-400 h-1 transition-all duration-300"
-                              style={{ width: `${Math.max(5, batchDraftTask.progress)}%` }}
+                              style={{ width: `${Math.max(5, taskPercent(batchDraftTask))}%` }}
                             />
                           </div>
                         )}

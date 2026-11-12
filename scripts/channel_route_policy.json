@@ -2447,6 +2447,21 @@
     },
     {
       "method": "POST",
+      "path": "/api/products/{product_id}/production-chain",
+      "scope": "channel",
+      "allow_query_scope": false,
+      "access": "read_write",
+      "risk": "major",
+      "resource_params": [
+        "product_id",
+        "kind",
+        "batch_index",
+        "voice_preset"
+      ],
+      "module": "scripts.production_chain"
+    },
+    {
+      "method": "POST",
       "path": "/api/products/{product_id}/refresh-source",
       "scope": "channel",
       "allow_query_scope": false,

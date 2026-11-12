@@ -257,6 +257,9 @@ export const startRender = (data) => api.post('/render', {
 export const getRenderStatus = (jobId) => api.get(`/render/status/${jobId}`, { timeout: 15000 }).then(r => r.data);
 export const startBatchRender = (payload) => api.post('/render/batch', payload).then(r => r.data);
 export const startBatchDraft = (payload) => api.post('/render/batch', { ...payload, export_mp4: false }).then(r => r.data);
+// kind 'draft' = voice -> scene scan -> drafts (stops for review);
+// kind 'render' = render every reviewed draft from what the Editor saved.
+export const startProductionChain = (productId, payload) => api.post(`/products/${productId}/production-chain`, payload).then(r => r.data);
 export const getBatchRenderStatus = (batchId) => api.get(`/render/batch/${batchId}`).then(r => r.data);
 export const startBackgroundIsolation = (payload) =>
   api.post('/background-isolation/process', payload, { timeout: 120000 }).then(r => r.data);

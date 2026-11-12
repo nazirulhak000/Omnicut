@@ -170,6 +170,18 @@ def get_shot_list(product_id: str, angle_id: str, batch: Optional[int] = None, s
     return res
 
 
+def shot_list_voice_engine(record: Dict[str, Any]) -> tuple:
+    """(engine, preset, is_edge_tts) of a stored shot list.
+
+    A record voiced by Edge-TTS (or with no preset) does not count as a
+    prepared voice; /shot-list-status and the production chain both ask here.
+    """
+    vp = record.get("voice_params") or {}
+    preset = vp.get("voice_preset")
+    engine = vp.get("voice_engine_type") or ("gemini_tts" if preset else "edge_tts")
+    return engine, preset, (engine == "edge_tts" or not preset)
+
+
 @router.get("/api/products/{product_id}/shot-list-status")
 def get_shot_list_status(product_id: str, scope: ChannelScope = Depends(get_workflow_scope)):
     """Returns a map of angle_id → {has_shot_list, is_stale} for all angles
@@ -194,10 +206,7 @@ def get_shot_list_status(product_id: str, scope: ChannelScope = Depends(get_work
             current_script = "\n".join(str(l).strip() for l in lines if str(l).strip())
             cached_script = str(record.get("custom_script") or "").strip()
             is_stale = bool(current_script and cached_script and current_script != cached_script)
-            vp = record.get("voice_params") or {}
-            engine = vp.get("voice_engine_type") or ("gemini_tts" if vp.get("voice_preset") else "edge_tts")
-            preset = vp.get("voice_preset")
-            is_edge = (engine == "edge_tts" or not preset)
+            engine, preset, is_edge = shot_list_voice_engine(record)
             item_status = {
                 "has_shot_list": True,
                 "is_stale": is_stale,
@@ -247,6 +256,17 @@ def _execute_batch_generate_audio_worker(
         angles = product.get("angles", [])
         if batch_index is not None:
             angles = [a for a in angles if a.get("batch") == batch_index]
+
+        # Optional narrowing used by the production chain: only these angles
+        # (keyed "<angle_id>_b<batch>", as /shot-list-status keys them), so a
+        # draft that already exists does not get its voice replaced.
+        angle_keys = payload.get("angle_keys")
+        if angle_keys is not None:
+            wanted = {str(key) for key in angle_keys}
+            angles = [
+                a for a in angles
+                if f"{a.get('angle_id') or a.get('id')}_b{a.get('batch') or 1}" in wanted
+            ]
 
         # Filter angles that have script lines and are still active. force_regenerate
         # only bypasses cached audio; it must never touch completed clips.

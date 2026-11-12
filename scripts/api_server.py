@@ -93,6 +93,7 @@ from scripts.api_copilot import router as copilot_router
 # Native Antigravity In-App AI Agent
 from scripts.agent.api_agent import router as agent_router
 from scripts.api_couple_production import router as couple_production_router
+from scripts.production_chain import router as production_chain_router
 from scripts.api_intake import router as intake_router
 from scripts.api_review import router as review_router
 from scripts.api_mobile_posting import router as mobile_posting_router
@@ -370,6 +371,7 @@ app.include_router(channels_router)
 app.include_router(copilot_router)
 app.include_router(agent_router)
 app.include_router(couple_production_router)
+app.include_router(production_chain_router)
 app.include_router(intake_router)
 app.include_router(review_router)
 app.include_router(mobile_posting_router)

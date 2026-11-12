@@ -10,6 +10,7 @@ import { addDays, buildScheduleIso, dateOnly, DEFAULT_PRIMARY_TIMES, estimateQue
 import { getStylePreset } from '../lib/stylePresetCatalog';
 import { useChannelDraft } from '../hooks/useChannelDraft.js';
 import { toMediaUrl, toThumbUrl } from '../lib/mediaUrl.js';
+import { consumeScheduleAutofill } from '../lib/productionChain.js';
 
 const STATUS_LABELS = {
   planned: 'รอจัดส่ง',
@@ -273,6 +274,11 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   };
 
   useEffect(() => { loadQueue(); }, []);
+  // Arriving from a product's render chain: open the auto-fill preview on
+  // today's range. It only previews -- nothing is queued until confirmed.
+  useEffect(() => {
+    if (consumeScheduleAutofill(window.sessionStorage)) setAutofillOpen(true);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
