@@ -26,6 +26,11 @@ TONE_CACHE_FILE = ASSETS_DIR / ".tone_cache.json"
 # lock and the file is published atomically (audit S3-16).
 _CACHE_LOCK = threading.Lock()
 
+# This call only refines which cuts get a stronger transition, and the caller
+# has a heuristic for when it returns nothing, so it must never hold a render.
+TONE_REQUEST_TIMEOUT_S = 12.0   # one request
+TONE_TOTAL_BUDGET_S = 20.0      # all keys and models together
+
 # Load .env if present -- same pattern as gemini_vision_matcher.py, needed
 # when this module is imported before anything else has loaded it.
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -88,6 +93,34 @@ class ScriptToneAnalyzer:
             cache[key] = value
             cls._save_cache(cache)
 
+    @staticmethod
+    def _request_settings():
+        """(http_options, fast_config) for the classification call; either may be None on an old SDK.
+
+        The flash models think by default: 950-2300 thinking tokens and 7-14 s
+        for five labels, against 1.0-1.5 s with thinking at its minimum
+        (measured 2026-11-12; same labels on the sample). A request also had
+        no time limit, and a 503 was seen to hold a render for 36 s.
+        """
+        try:
+            from google.genai import types as genai_types
+        except Exception:
+            return None, None
+        try:
+            http_options = genai_types.HttpOptions(
+                timeout=int(TONE_REQUEST_TIMEOUT_S * 1000),
+                retry_options=genai_types.HttpRetryOptions(attempts=1),
+            )
+        except Exception:
+            http_options = None
+        try:
+            fast_config = genai_types.GenerateContentConfig(
+                thinking_config=genai_types.ThinkingConfig(thinking_level="minimal")
+            )
+        except Exception:
+            fast_config = None
+        return http_options, fast_config
+
     @classmethod
     def classify_tone_shifts(cls, group_texts: List[str]) -> List[str]:
         """
@@ -147,22 +180,39 @@ class ScriptToneAnalyzer:
                 "gemini-2.5-flash-lite",
                 "gemini-2.5-flash",
             ]
+            http_options, fast_config = cls._request_settings()
+            deadline = time.monotonic() + TONE_TOTAL_BUDGET_S
             response = None
             for key_idx, cur_key in enumerate(api_keys, 1):
-                client = genai.Client(api_key=cur_key)
+                client = (
+                    genai.Client(api_key=cur_key, http_options=http_options)
+                    if http_options is not None else genai.Client(api_key=cur_key)
+                )
                 key_rate_limited = False
                 for model_name in models_to_try:
-                    try:
-                        response = client.models.generate_content(model=model_name, contents=[prompt])
-                        if response and response.text:
+                    if time.monotonic() >= deadline:
+                        print("   ⚠️ [ToneAnalyzer] เกินเวลาที่กำหนด — ใช้กฎ transition เดิมแทน")
+                        return []
+                    # Without the fast setting first only when the SDK or the
+                    # model rejects it (400); any other failure moves on.
+                    for config in ([fast_config, None] if fast_config is not None else [None]):
+                        try:
+                            kwargs = {"config": config} if config is not None else {}
+                            response = client.models.generate_content(
+                                model=model_name, contents=[prompt], **kwargs
+                            )
                             break
-                    except Exception as err:
-                        err_str = str(err)
-                        if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
-                            key_rate_limited = True
-                            print(f"   ⚠️ [ToneAnalyzer] Rate limit on Key #{key_idx} ({model_name}) — switching to next key...")
+                        except Exception as err:
+                            err_str = str(err)
+                            if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                                key_rate_limited = True
+                                print(f"   ⚠️ [ToneAnalyzer] Rate limit on Key #{key_idx} ({model_name}) — switching to next key...")
+                                break
+                            if config is not None and ("400" in err_str or "INVALID_ARGUMENT" in err_str):
+                                continue
                             break
-                        continue
+                    if key_rate_limited or (response and response.text):
+                        break
                 if response and response.text:
                     break
                 if key_rate_limited:

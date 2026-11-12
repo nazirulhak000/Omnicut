@@ -76,10 +76,21 @@ def test_short_synthetic_video_exports_at_30_fps(tmp_path, monkeypatch):
     assert Fraction(probe["avg_frame_rate"]) == 30
 
 
-def test_renderer_enables_auto_filter_threading_for_complex_graphs():
-    """The CPU filter graph may scale independently of the chosen encoder."""
+def test_renderer_sizes_the_filter_graph_pool_for_complex_graphs(monkeypatch):
+    """The CPU filter graph is threaded independently of the chosen encoder:
+    a small fixed pool on many-core machines (measured faster than one worker
+    per CPU, same frames), ffmpeg's own sizing on small ones."""
+    from scripts import video_editor
+
     source = (Path(__file__).parents[1] / "scripts" / "video_editor.py").read_text(encoding="utf-8")
-    assert '"-filter_complex_threads", "0"' in source
+    assert '"-filter_complex_threads", filter_graph_threads()' in source
+    monkeypatch.delenv("OMNICUT_FILTER_THREADS", raising=False)
+    monkeypatch.setattr(video_editor.os, "cpu_count", lambda: 28)
+    assert video_editor.filter_graph_threads() == "4"
+    monkeypatch.setattr(video_editor.os, "cpu_count", lambda: 8)
+    assert video_editor.filter_graph_threads() == "0"
+    monkeypatch.setenv("OMNICUT_FILTER_THREADS", "2")
+    assert video_editor.filter_graph_threads() == "2"
 
 
 @pytest.mark.render_regression

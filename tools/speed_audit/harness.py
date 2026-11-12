@@ -232,6 +232,9 @@ def main():
     ap.add_argument("--allow-tts", action="store_true",
                     help="rerender only: let the voice stage call the TTS API (blocked by default)")
     ap.add_argument("--target-duration", type=int, default=60)
+    ap.add_argument("--fresh", action="store_true",
+                    help="rerender only: first-draft run -- same inputs as <project> but a new project named "
+                         "<label>, no saved clip list, every stage runs (calls the TTS and Gemini APIs)")
     args = ap.parse_args()
 
     if args.mode == "rerender":
@@ -240,7 +243,11 @@ def main():
         kwargs["export_mp4"] = not args.no_export
         if args.resume_from:
             kwargs["resume_from"] = args.resume_from
-        run_pipeline(label, kwargs, allow_tts=args.allow_tts)
+        if args.fresh:
+            for key in ("clip_list", "transitions", "resume_from"):
+                kwargs.pop(key, None)
+            kwargs["project_name"] = label
+        run_pipeline(label, kwargs, allow_tts=args.allow_tts or args.fresh)
     else:
         label = args.a
         kwargs = dict(

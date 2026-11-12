@@ -286,3 +286,55 @@ def test_only_a_rerender_of_an_existing_project_asks_for_the_second_pass():
     assert 'if getattr(ctx, "resume_from", None):\n                assemble_kwargs["subtitle_second_pass_enabled"] = True' in source
     parameter = inspect.signature(VideoEditor.assemble_tiktok_video).parameters["subtitle_second_pass_enabled"]
     assert parameter.default is False
+
+
+@pytest.mark.render_regression
+@needs_ffmpeg
+def test_two_renders_of_one_timeline_at_the_same_moment_both_finish(tmp_path, monkeypatch):
+    """Both reach the same key before either has written the intermediate."""
+    import threading
+    from scripts.video_editor import VideoEditor
+
+    monkeypatch.setenv("OMNICUT_ENCODER", "cpu")
+    monkeypatch.delenv(sp.ENV_SWITCH, raising=False)
+    cache = tmp_path / "cache"
+    monkeypatch.setattr(sp, "cache_dir", lambda: cache)
+
+    source = tmp_path / "source.mp4"
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "testsrc2=s=270x480:r=30:d=4",
+                    "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", str(source)], check=True)
+    audio = tmp_path / "mixed_audio.wav"
+    with wave.open(str(audio), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(48000)
+        w.writeframes(b"\x00\x00" * 48000 * 3)
+    ass = tmp_path / "subtitles.ass"
+    ass.write_text(ASS_HEAD + "Dialogue: 0,0:00:00.00,0:00:02.00,Default,,0,0,0,,SAME\n", encoding="utf-8")
+    clips = [{"source_path": str(source), "trim_start": 0.0, "trim_end": 2.0}]
+
+    start = threading.Barrier(3)
+    errors = []
+
+    def render(name):
+        try:
+            start.wait(timeout=30)
+            VideoEditor.assemble_tiktok_video(
+                raw_video_paths=[str(source)], total_duration=2.0, mixed_audio_path=str(audio),
+                ass_subtitle_path=str(ass), output_mp4_path=str(tmp_path / name), clip_list=clips,
+                subtitle_second_pass_enabled=True,
+            )
+        except BaseException as exc:  # noqa: BLE001 - reported by the assert below
+            errors.append(repr(exc))
+
+    workers = [threading.Thread(target=render, args=(f"out_{i}.mp4",)) for i in range(3)]
+    for worker in workers:
+        worker.start()
+    for worker in workers:
+        worker.join(timeout=300)
+
+    assert errors == []
+    assert len(list(cache.glob("pre_subtitles_*.mp4"))) == 1, "one finished intermediate, no leftovers"
+    md5s = {_frames_md5(tmp_path / f"out_{i}.mp4") for i in range(3)}
+    assert len(md5s) == 1
+    assert all(_probe(tmp_path / f"out_{i}.mp4", "nb_read_frames", "v:0") == "60" for i in range(3))

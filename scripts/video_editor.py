@@ -1322,6 +1322,23 @@ def framing_filters(media_info: Dict[str, Any], scaled_w: int, scaled_h: int,
     return f"crop={w}:{h}:{x}:{y},scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:flags=lanczos,setsar=1"
 
 
+def filter_graph_threads() -> str:
+    """Value for ffmpeg's -filter_complex_threads.
+
+    0 lets ffmpeg start one worker per logical CPU. On a 28-thread machine
+    that was slower than a small fixed pool for the same frames (md5 of all
+    1,274 frames identical): one 42.5 s render 18.7 s -> 15.6 s with 4, and
+    four renders at once 6.8 -> 7.7 clips/min (2026-11-12, i7-14700). Even a
+    single worker (17.0 s) beat one-per-CPU there. Machines with 8 logical
+    CPUs or fewer were not measured and keep ffmpeg's own sizing.
+    OMNICUT_FILTER_THREADS overrides both.
+    """
+    forced = os.environ.get("OMNICUT_FILTER_THREADS", "").strip()
+    if forced.isdigit():
+        return forced
+    return "4" if (os.cpu_count() or 0) > 8 else "0"
+
+
 def encoder_args(profile: Dict[str, Any]) -> List[str]:
     """ffmpeg output args for the fastest encoder this machine can use."""
     hw = hardware_encoder()
@@ -2882,9 +2899,8 @@ class VideoEditor:
         encode_timeout = media_validation.encode_timeout_for(total_duration, floor=300.0)
 
         # Complex filter graphs (scale/crop/transitions/ASS/overlays) are
-        # still CPU work even when AMF encodes on the GPU. Let FFmpeg size
-        # that graph's worker pool to the machine instead of serialising it.
-        ffmpeg_head = ["ffmpeg", "-y", "-threads", "0", "-filter_complex_threads", "0"]
+        # still CPU work even when the GPU encodes; see filter_graph_threads().
+        ffmpeg_head = ["ffmpeg", "-y", "-threads", "0", "-filter_complex_threads", filter_graph_threads()]
         audio_codec_args = ["-c:a", "aac", "-b:a", "192k"]
 
         def _run_final_encode(codec_args: List[str]) -> None:
@@ -2929,7 +2945,18 @@ class VideoEditor:
                     codec_args, audio_codec_args, str(target_fps), str(total_duration), pass1_target,
                 )
                 _run_encode(pass1_cmd, second_pass_split.pre_graph, pass1_target, progress_span=(0.0, 0.72))
-                os.replace(pass1_target, intermediate)
+                try:
+                    os.replace(pass1_target, intermediate)
+                except OSError:
+                    # Another render of the same timeline finished first and
+                    # ffmpeg is reading its file (Windows refuses the rename).
+                    # Both encodes came from one command, so use that one.
+                    if subtitle_second_pass.find_reusable(cache, key) is None:
+                        raise
+                    try:
+                        pass1_target.unlink()
+                    except OSError:
+                        pass
                 burn_span = (0.72, 1.0)
             else:
                 print(f"♻️ ใช้ภาพใต้ซับจากรอบก่อน ({intermediate.name}) — เผาซับอย่างเดียว")
