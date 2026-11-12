@@ -224,23 +224,30 @@
    - `tests/test_build_colab_notebook.py`
    - `_Docs/OMNICUT_CLOUD_STUDIO_GUIDE.md`
    - `_Docs/Plans/PLAN_AGY_COLAB_WEB_TERMINAL_20261030.md`
-2. **ปรับปรุง Backend Decoupling:**
+2. **ลบเอกสารแผนงานเก่าที่ล้าสมัยใน `_Docs/Plans/` เพิ่มเติม 5 ไฟล์:**
+   - `_Docs/Plans/MASTER_MOBILE_APP_AUDIT_LOOP_PROMPT.md`
+   - `_Docs/Plans/PLAN_ANTIGRAVITY_IN_APP_AI_AGENT_INTEGRATION.md`
+   - `_Docs/Plans/PLAN_DESKTOP_UI_MOBILE_TRANSFORMATION_20261030.md`
+   - `_Docs/Plans/PLAN_IPHONE15_PRO_MAX_UX_REDESIGN_20261030.md`
+   - `_Docs/Plans/PLAN_MOBILE_FIRST_E2E_UX_20261030.md`
+3. **ปรับปรุง Backend Decoupling:**
    - `scripts/couple_engine/finalize.py`: ถอด `colab_sync` import และการเรียก `colab_sync.sync_export_to_gdrive` ออก
    - `scripts/auth.py`: ถอด fallback `from google.colab import userdata` และ `/content/drive/...` secret paths ออก
    - `scripts/api_auth.py`: ปรับ `detect_runtime()` คืนค่า `"local"` ถาวร (ถอดโมดูล `google.colab` / `/content`)
    - `scripts/api_command.py` & `scripts/api_mobile_posting.py`: ถอด path `/content/drive/...`
    - `scripts/cloud_runner.py`, `scripts/copilot_engine.py`, `scripts/api_render.py`, `scripts/api_server.py`, `tools/sync_scripts_to_products.py`: ปรับปรุง docstring และ comments
-3. **ปรับปรุง Frontend UI & PWA Messages:**
+4. **ปรับปรุง Frontend UI, PWA Messages & Dist Bundle:**
    - `frontend/src/components/LoginScreen.jsx`: ปรับข้อความเตือนเน็ต/เซิร์ฟเวอร์หลับ ไม่เอ่ยถึง Colab
    - `frontend/public/sw.js` & `frontend/dist/sw.js`: ปรับข้อความ fallback offline HTML ไม่เอ่ยถึง Colab
+   - `frontend/dist/assets/index-C-zhmfFS.js`: คลีนข้อความคอมไพล์ใน web bundle ไร้คำว่า Colab
    - `frontend/src/App.jsx` & `frontend/vite.config.js`: ปรับ comments
-4. **ปรับปรุงชุดทดสอบ:**
+5. **ปรับปรุงชุดทดสอบ:**
    - `tests/test_couple_engine.py`: ถอด unused import `colab_sync`
    - `tests/test_api_auth.py`: ปรับ `test_allow_remote_bypass_is_gone` และ `test_health_runtime_detects_local` (ถอด mock `google.colab`)
    - `tests/test_mobile_public_url.py`: ปรับ docstring
-5. **การทดสอบ:**
-   - `python3 -m compileall scripts/ tests/` ผ่าน 100% ไร้ข้อผิดพลาด
-   - ค้นหา `git grep -i "colab"` ในซอร์สโค้ดไม่พบคำตกค้าง 100%
+6. **การทดสอบและการตรวจสอบความสะอาด:**
+   - `python3 -m compileall scripts/ tests/ tools/` ผ่าน 100% ไร้ข้อผิดพลาด
+   - ค้นหา `git grep -i "colab"` ในทั้งโปรเจกต์คงเหลือเพียง `HISTORY.md` และ `TODO.md` ที่เป็นประวัติการทำงานเท่านั้น นอกนั้นสะอาด 100%
 
 ---
 

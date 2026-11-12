@@ -4,7 +4,7 @@
 
 ## รอบปัจจุบัน
 
-- [x] Round ANTIGRAVITY-REMOVE-GOOGLE-COLAB-CLEAN-SWEEP-20261112 · ดำเนินการตัดโค้ดและโมดูล Google Colab ออกทั้งหมดตามคำขอผู้ใช้ (Clean Sweep 3,100+ บรรทัด: ลบ 9 ไฟล์เฉพาะของ Colab, decouple finalize.py/auth.py/api_auth.py, คลีน UI และ Service Worker, ผ่าน compileall 100%) → ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+- [x] Round ANTIGRAVITY-REMOVE-GOOGLE-COLAB-CLEAN-SWEEP-20261112 · ดำเนินการตัดโค้ดและโมดูล Google Colab ออกทั้งหมดตามคำขอผู้ใช้ (Clean Sweep รวม 14 ไฟล์: ลบ 9 ไฟล์เฉพาะของ Colab + ลบ 5 แผนงานเก่าที่ล้าสมัยใน _Docs/Plans/, decouple finalize.py/auth.py/api_auth.py, คลีน UI, Service Worker และ Dist Bundle, ผ่าน compileall 100%) → ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 
 
 
