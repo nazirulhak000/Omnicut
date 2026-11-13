@@ -4,6 +4,7 @@ import { Modal, Badge, SafeQRCode } from './ui';
 import { toMediaUrl } from '../lib/mediaUrl';
 import { DEFAULT_AD_TONE, DEFAULT_VOICE_PRESET } from '../lib/angleToForm';
 import { createRecordingSession } from '../api';
+import GoogleFlowModal from './GoogleFlowModal';
 
 const GEMINI_VOICE_OPTIONS = [
   { id: 'gemini_puck_male_hype', label: 'Puck — ชายพลังสูง สไตล์ TikTok' },
@@ -42,6 +43,7 @@ export default function ShotListModal({
   const [creatingSession, setCreatingSession] = useState(false);
   const [filmingUrl, setFilmingUrl] = useState(null);
   const [sessionError, setSessionError] = useState(null);
+  const [flowOpen, setFlowOpen] = useState(false);
 
   const engineType = result?.voice_params?.voice_engine_type || result?.angle?.voice_engine_type;
   const isEdgeTts = engineType === 'edge_tts' || (!result?.voice_params?.voice_preset && !result?.angle?.voice_preset);
@@ -290,6 +292,14 @@ export default function ShotListModal({
                 )}
                 <button
                   type="button"
+                  onClick={() => setFlowOpen(true)}
+                  className="px-3 py-1.5 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <Film className="w-3.5 h-3.5" />
+                  สร้าง B-roll (Google Flow)
+                </button>
+                <button
+                  type="button"
                   onClick={handleStartSession}
                   disabled={creatingSession}
                   className="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-wait transition-colors"
@@ -305,6 +315,12 @@ export default function ShotListModal({
           )}
         </div>
       </div>
+      <GoogleFlowModal
+        isOpen={flowOpen}
+        onClose={() => setFlowOpen(false)}
+        productId={productId}
+        productName={angle?.title || ''}
+      />
     </Modal>
   );
 }

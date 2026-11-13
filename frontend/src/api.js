@@ -857,5 +857,15 @@ export const executeArchive = (payload) => api.post('/archive/execute', payload,
 export const restoreArchivedClip = (exportId) => api.post('/archive/restore', { export_id: exportId }).then(r => r.data);
 export const revealInExplorer = (targetPath) => api.post('/archive/reveal', { target_path: targetPath }).then(r => r.data);
 
+// ── Google Flow (Veo) Video Generation APIs ──
+export const getFlowStatus = (detailed = false) => api.get('/flow/status', { params: { detailed } }).then(r => r.data);
+export const startFlowService = () => api.post('/flow/service/start').then(r => r.data);
+export const getFlowPresets = () => api.get('/flow/presets').then(r => r.data);
+export const expandFlowPrompt = (payload) => api.post('/flow/prompt/expand', payload).then(r => r.data);
+export const generateFlowVideo = (payload) => api.post('/flow/generate', payload).then(r => r.data);
+export const getFlowJobs = (productId) => api.get('/flow/jobs', { params: { product_id: productId } }).then(r => r.data);
+export const getFlowJob = (jobId) => api.get(`/flow/jobs/${encodeURIComponent(jobId)}`).then(r => r.data);
+export const ingestFlowClip = (payload) => api.post('/flow/ingest', payload).then(r => r.data);
+
 export default api;
 
