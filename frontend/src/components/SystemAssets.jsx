@@ -157,7 +157,7 @@ export default function SystemAssets({
               คลังทรัพยากร & ระบบตัดต่อ (System & Assets Hub)
             </h2>
             <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
-              ศูนย์รวมเสียงเอฟเฟกต์ SFX • เพลง BGM • ฟอนต์สไตล์ TikTok • ป้ายสติกเกอร์ • โทนสี LUTs และการเชื่อมต่อ CapCut
+              ศูนย์รวมเสียงเอฟเฟกต์ SFX • เพลง BGM • ฟอนต์สไตล์ TikTok • ป้ายสติกเกอร์ และโทนสี LUTs
             </p>
           </div>
         </div>
@@ -433,7 +433,7 @@ export default function SystemAssets({
                 ทดสอบพิมพ์ข้อความตัวอย่างเพื่อดูการแสดงผลฟอนต์จริงสดๆ:
               </span>
               <span className="text-sm text-slate-400 font-normal">
-                ฟอนต์ทั้งหมดถูกแพ็กรวมใน CapCut และ FFmpeg อัตโนมัติ
+                ฟอนต์ทั้งหมดถูกแพ็กรวมในระบบและ FFmpeg อัตโนมัติ
               </span>
             </div>
             <input
@@ -586,7 +586,7 @@ export default function SystemAssets({
         </div>
       )}
 
-      {/* TAB CONTENT: 6. SYSTEM DIRECTORIES & CAPCUT MANAGER */}
+      {/* TAB CONTENT: 6. SYSTEM DIRECTORIES & STUDIO MANAGER */}
       {activeAssetTab === 'system' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           {/* Storage Directory Explorer */}
@@ -602,7 +602,6 @@ export default function SystemAssets({
                 { title: '01_Raw (ฟุตเทจจัดเก็บถาวร)', desc: 'คลิปสินค้าต้นฉบับคุณภาพสูง', key: 'raw', path: status?.directories?.raw },
                 { title: '02_Assets (SFX / เพลง / ฟอนต์)', desc: 'คลังของแต่งคลิปและเสียงประกอบทั้งหมด', key: 'assets', path: status?.directories?.assets },
                 { title: '04_Exports (วิดีโอพร้อมโพสต์)', desc: 'ไฟล์ .MP4 9:16 ที่ตัดต่อเสร็จแล้ว', key: 'exports', path: status?.directories?.exports },
-                { title: 'CapCut PC Projects Draft', desc: 'โฟลเดอร์โปรเจกต์ของแอป CapCut Desktop', key: 'capcut', path: status?.directories?.capcut }
               ].map((dir, idx) => (
                 <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-black/40 border border-white/[0.06] gap-3">
                   <div className="min-w-0 flex-1">
@@ -629,12 +628,12 @@ export default function SystemAssets({
             </button>
           </div>
 
-          {/* System Health & CapCut Integration Info */}
+          {/* System Health & Studio Engine Info */}
           <div className="p-5 space-y-4 flex flex-col justify-between glass-card">
             <div>
               <h3 className="text-sm font-bold text-white flex items-center gap-2 pb-2 border-b border-white/[0.08]">
                 <Settings className="w-4 h-4 text-[#25F4EE]" />
-                สถานะระบบและการเชื่อมต่อ CapCut
+                สถานะเอนจินระบบตัดต่อ (Studio Engine)
               </h3>
 
               <div className="space-y-3 mt-3 text-xs">
@@ -654,10 +653,10 @@ export default function SystemAssets({
                 <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 flex items-center justify-between">
                   <span className="font-bold flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    CapCut PC Draft Sync
+                    In-App Studio Engine
                   </span>
                   <span className="text-sm font-mono font-bold bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 rounded text-emerald-300">
-                    {status?.capcut_synced ? 'Synced' : 'Configured'}
+                    Native 9:16 Ready
                   </span>
                 </div>
 

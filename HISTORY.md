@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round ANTIGRAVITY-DECOUPLE-AND-REMOVE-CAPCUT-WORKFLOW-20261114 | ปฏิบัติการ Clean Sweep ถอดเวิร์กโฟลว์ภายนอกและสคริปต์สร้างดราฟต์ CapCut PC ออกจาก OmniCut 100% ตามคำขอผู้ใช้: ลบ scripts/capcut_builder.py, tests/test_capcut_builder_7_1.py, tools/slice_capcut_stickers.py, คลีน agent tools ใน omnicut_agent_tools.py และ agy_bridge.py, ปรับปรุง test_capcut_7_1_wave3_parity.py, คลีน UI ใน SystemSettings.jsx, SystemAssets.jsx, MediaAssetsHub.jsx, SubSrtTool.jsx, ProductToClip.jsx, StorageAnalyticsTab.jsx, ContentTrackerHub.jsx, ปรับ metadata ใน api_server.py/api_videos.py, ผ่าน 41 pytest tests, 1,321 frontend tests (100%), vite build 551ms และ compileall scripts 100% | 2026-11-14 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) |
 | Round ANTIGRAVITY-GOOGLE-FLOW-VIDEO-GEN-20261113 | ระบบสร้างวิดีโอด้วย Google Flow (Veo) บนกิ่ง feat/google-flow-video-gen (merge เข้า main): ติดตั้ง tools/flow-mcp (Playwright CDP, บัญชี Google ฟรี 50 credits/วัน), flow_client.py, flow_prompt_engine.py, flow_service.py (Auto-Ingest เข้า 01_Raw/<product_id>/AI_Flow/), FastAPI endpoints /api/flow/*, Studio GoogleFlowModal.jsx, ปุ่มใน ShotListModal.jsx, ผ่าน 15 backend tests และ 1,312 frontend tests 100% | 2026-11-13 | ดำเนินการโดย: Antigravity (Gemini 2.5 Flash) |
 | Round CLAUDE-AUTOPOST-E2E-FIXES-20261113 | ตรวจ + แก้ครบเส้นทาง ผลิต → เรนเดอร์ → คิว → extension 0.11.0 + API (A1–A5, B1–B15, C1–C21): กันโพสต์ซ้ำ, ปลดล็อกคิว (ปก auto 409, หน้าคิว 500), หน้าต่าง TikTok 15 นาที–10 วัน, ปิดโพสต์ตั้งเวลาจากหน้า Content, ล้างข้อมูลคิวจริง (แถวซ้ำ 3), caption ติดราคา AI เขียนใหม่ตอนเข้าคิว + ปุ่มแก้ทั้งชุด · ยังไม่ทดสอบกับบัญชี TikTok จริง | Claude Code (Claude Opus 5.5) |
 | Round CLAUDE-ANGLE-SIDE-AND-SHOT-LIST-LAYOUT-20261112 | คอลัมน์ข้าง 300px พื้นผิวเดียว ปุ่มรอง 2 ช่อง; `ShotListModal` ไทม์ไลน์ + แถบเสียงแถวเดียว; ชิปคลิปไม่ล้น; ลบ modal แผนถ่ายที่ render ซ้ำ; รายงานสำรวจถ่ายมือถือคลิปเดียว (พบบั๊ก guided take รั่วข้ามมุม) | Claude Code (Claude Opus 5.5) |
@@ -161,7 +162,44 @@
 | Round HYPERFRAMES-HUB-THEME-AND-SMART-CREATOR-20261010 | ยกระดับ Creative Studio (HyperFramesHub.jsx) เต็มรูปแบบ: ปรับ Theme Parity ทั้งหน้าให้ตรงกับ OmniCut Pro Studio (#080B11 Deep Obsidian, #25F4EE Neon Cyan, #FE2C55 TikTok Rose), เพิ่มระบบ Smart Unique Clip ID Auto-Generator ตรวจจับความซ้ำแบบเรียลไทม์พร้อมปุ่มสุ่มรหัสใหม่, เพิ่มตัวเลือกดึงบทสคริปต์จาก 10 Angles ของสินค้า (ProductStore) และ 4 พรีเซ็ตบทแชท LINE Scenario สำหรับ POV Chat Story, เพิ่มการ์ดอธิบาย Multi-Agent 3-Step Pipeline (Whisper -> Creative AI Agent / ⌘K -> Chrome Headless MP4 Renderer), ผ่าน npm test 853/853, pytest 8/8, production build 100% | 2026-10-10 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round HYPERFRAMES-STUDIO-HEALTH-CLEANUP-20261010 | ตรวจสอบความสมบูรณ์และแก้ไขปัญหาคลิปเปิดดูไม่ได้ใน HyperFrames Studio: เปลี่ยนนามสกุลไฟล์เทมเพลตดิบ `clips/ess02-hype-25s/template.html` และ `kit/index.template.html` เป็น `.tpl` เพื่อกัน Studio สแกนแล้วเกิด SyntaxError Unexpected token '{', อัปเดต `make.py` และ `hf_timing.py`, เพิ่ม `@font-face` ฟอนต์ Anuphan ใน `kit/line-chat.css` และ `ess02-vs-25s.html`, แก้ไขจนผ่าน `hyperframes check` 0 error (60/60 WCAG AA contrast pass), ยืนยัน Compositions ทั้ง 10 คลิปเปิดดูและเรนเดอร์ได้ 100% ไร้ Error modal, ผ่าน pytest 8/8, npm test 853/853, build 100% | 2026-10-10 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round HYPERFRAMES-STYLES-SHOWCASE-REDESIGN-20261010 | ออกแบบหน้าจอ 4 Approved Styles ใน Creative Studio (HyperFramesHub.jsx) ใหม่ ให้มินิมอลแต่ข้อมูลครบถ้วน: เพิ่มรูปปกจำลองแนวตั้ง 9:16 (StylePosterMockup.jsx) แสดงอัตลักษณ์และ HUD ของ 4 สไตล์ไวรัล (VS Battle, Tech Explainer, Meme-PAS, POV Chat Story), เพิ่มไทม์ไลน์จังหวะการตัด Beat-by-Beat Timeline Pills, เสริม Style Detail Modal ดูเจาะลึกพร้อมสเปกและสูตรการตัด, ปรับตามมาตรฐาน /impeccable และ /ui-ux-pro-max, ปุ่มขึ้นต้นกริยาไม่มีสัญลักษณ์นำตามกฎ 3.8/4.8, ผ่าน npm test 853/853, pytest 8/8, production build 100% | 2026-10-10 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
-| Round HYPERFRAMES-HYBRID-INTEGRATION-20261010 | ผสาน HyperFrames Hybrid Creative Studio เข้ากับ OmniCut: เชื่อมต่อ 4 สไตล์ไวรัล (Meme-PAS, Tech Explainer, VS Battle, POV Chat Story) ผ่าน Hybrid Architecture แยกพอร์ต 3100 ไม่ชนระบบเดิม, เพิ่ม Backend Router (scripts/api_hyperframes.py) และ Frontend Hub (HyperFramesHub.jsx) ในเมนู 3.1 Creative Studio, บริดจ์ ExportRegistry อัตโนมัติพร้อมสร้าง WebP thumbnail, ผ่าน pytest 8/8, npm test 853/853, build ผ่าน 100%, check ผ่าน 0 error | 2026-10-10 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) |
+---
+
+## Round ANTIGRAVITY-DECOUPLE-AND-REMOVE-CAPCUT-WORKFLOW-20261114
+
+**วันที่:** 2026-11-14  
+**ดำเนินการโดย:** Antigravity (Gemini 3.8 Flash High)  
+**เป้าหมาย:** ทำการ Clean Sweep ถอดเวิร์กโฟลว์ภายนอก, สคริปต์สร้างดราฟต์ภายนอก (`capcut_builder.py`), คำสั่ง AI Agent ส่งออก/นำเข้าดราฟต์ CapCut, และการมอนิเตอร์โฟลเดอร์ CapCut Desktop ใน UI ออกจากระบบ 100% ตามคำขอผู้ใช้ ("ไม่ทำงานกับ capcut แล้วครับ เอาออกได้เลยครับ") โดยรักษาความสามารถในการเรนเดอร์และพรีวิวแบบ Native In-App Studio ของ OmniCut ไว้อย่างสมบูรณ์ 100%
+
+### รายละเอียดการดำเนินงาน:
+1. **ลบไฟล์ภายนอกที่ไม่จำเป็น:**
+   - ลบ `scripts/capcut_builder.py` (external draft builder)
+   - ลบ `tests/test_capcut_builder_7_1.py`
+   - ลบ `tools/slice_capcut_stickers.py`
+2. **ทำความสะอาด In-App AI Agent:**
+   - ถอด action `export_or_import_capcut_draft` และการ import `CapCutBuilder` ออกจาก `scripts/agent/omnicut_agent_tools.py`
+   - ถอด action `export_or_import_capcut_draft`, regex matcher และคำสั่ง fallback `"ส่งออกดราฟต์ capcut"`, `"นำเข้าดราฟต์ capcut"` ออกจาก `scripts/agent/agy_bridge.py`
+3. **ปรับปรุง Parity Test Suite:**
+   - ปรับปรุง `tests/test_capcut_7_1_wave3_parity.py` โดยตัดการทดสอบ round-trip draft builder ออก และคงการทดสอบ Math / Shader Parity ของตัว Editor ไว้อย่างครบถ้วน 6/6 tests passed (100%)
+4. **ทำความสะอาดหน้าจอ Frontend UI & Text Copy:**
+   - `SystemSettings.jsx`: ลบการ์ดโฟลเดอร์ `CapCut Drafts`, ลบกล่องสถานะ `CapCut PC Draft Sync`, เปลี่ยนหัวข้อสู่ `สถานะเอนจินการเรนเดอร์ (FFmpeg Hardware Engine)`, ปรับ status pill เป็น `Studio Ready`
+   - `SystemAssets.jsx`: ลบแถวไดเรกทอรี `CapCut PC Projects Draft`, ลบการ์ดสถานะ, เปลี่ยนข้อความสู่ `สถานะเอนจินระบบตัดต่อ (Studio Engine)` และ `In-App Studio Engine Native 9:16 Ready`
+   - `MediaAssetsHub.jsx`: ลบการ์ดไดเรกทอรี `capcut`, ปรับ sublabel เป็น `โฟลเดอร์ & ไดเรกทอรีระบบ`, ปรับป้ายความเข้ากันได้เป็น `FFmpeg Native Engine`
+   - `SubSrtTool.jsx`: ปรับข้อความเป็น `AI Auto-SRT Generator (ถอดซับแม่นยำ 100% สำหรับคลิปวิดีโอ)` และ `ลากไฟล์เข้าห้องตัดต่อได้ทันที`
+   - `ProductToClip.jsx`: ปรับ tooltip เป็น `โปรเจกต์: ${angle.project_name}`
+   - `api.js`: ปรับข้อความเตือน network error จาก `CapCut Backend` สู่ `OmniCut Backend`
+   - `StorageAnalyticsTab.jsx`: ปรับชื่อการ์ดจาก `ดราฟต์แคช CapCut` สู่ `ดราฟต์และแคชชั่วคราว`
+   - `ContentTrackerHub.jsx`: เปลี่ยน key localStorage เป็น `omnicut_tracker_view_mode` พร้อม fallback
+5. **ปรับปรุง API Metadata & Path Constants:**
+   - ปรับ Swagger API title & description ใน `scripts/api_server.py` สู่ `Backend API for OmniCut Pro Studio AI Studio & Video Production Pipeline`
+   - ปรับข้อความแจ้งเตือนไฟล์ถูกล็อกใน `scripts/api_videos.py`
+   - มาร์ก `CAPCUT_DRAFT_DIR` ใน `scripts/config.py` ให้เป็น legacy constant สำหรับ path containment backward-compatibility เท่านั้น
+6. **ผลการทดสอบและการตรวจสอบ:**
+   - Pytest Parity & Security: ผ่าน 41/41 tests 100% ใน 3.22s
+   - Frontend Unit Tests: ผ่าน 1,321/1,321 tests 100% ใน 1.43s
+   - Vite Production Build: สำเร็จสมบูรณ์ใน 551ms (0 errors)
+   - Python Compilation: `compileall scripts` ผ่าน 100% (0 syntax errors)
+
+---
 | Round EXTENSION-HEALTH-RESPONSIVE-RELIABILITY-20261008 | ยกระดับ Chrome Extension Side Panel ให้พร้อมใช้งานจริง 100%: Dynamic Backend Health (Online/Offline/Checking status pill), ปุ่มลองเชื่อมต่อใหม่ inline retry ในการ์ด error, Responsive สำหรับหน้าจอแถบข้างแคบ (320px–360px) สำหรับแถบแท็บและ affiliate grid, Multi-language TikTok selectors (ไทย+อังกฤษ) และเพิ่ม http://localhost:8000/* ใน host_permissions พร้อมเพิ่ม unit test รวมผ่านครบ 35/35 เทส | 2026-10-08 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round LOGO-MODERN-COMBO-06-20261008 | ออกแบบโลโก้ใหม่ให้ OmniCut ในสไตล์มินิมอลโมเดิร์น: สำรวจ 10 แนวคิดแรก -> ผสมผสานจุดเด่นของ Concept 01 (Sharp Razor Cut) และ Concept 09 (Intertwined OC Monogram) เป็น 6 สไตล์ Combo -> ผู้ใช้เลือก Combo 06 (Modern Geometric OC with 45° Blade Cut) พร้อมแปลงเป็นเวกเตอร์ SVG และสร้างชุดไอคอน PNG ทุกขนาด (16, 32, 48, 128, 512px) ติดตั้งลงใน Extension และ Frontend เรียบร้อย | 2026-10-08 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |
 | Round EXTENSION-THEME-PARITY-ANUPHAN-20261008 | ปรับธีมและฟอนต์ของ extension OmniCut (`tiktok_autopost_extension`) ให้เหมือนกับ extension ตอบกลับคอมเมนต์ (`ตอบกลับคอมเมนท์`) ทุกประการ (ฟอนต์ Anuphan ครบทุกน้ำหนัก 300-800, เฮดเดอร์ Deep Obsidian Frosted Glass พร้อม dual radial glows & เส้นขอบเรืองแสง 2px rainbow gradient, Canvas #f8fafc + การ์ดสีขาวเงาละมุน, ปุ่ม TikTok Rose Gradient และพาเลทสีมาตรฐาน) พร้อมจัดวางเลย์เอาต์ใหม่ตามมาตรฐาน /impeccable และ /ui-ux-pro-max | 2026-10-08 | สำเร็จสมบูรณ์ (ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)) |

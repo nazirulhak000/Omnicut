@@ -112,7 +112,7 @@ def asset_relative_path(value: str | Path, *, data_assets_root: Path | None = No
 for p in [INBOX_DIR, RAW_DIR, ASSETS_DIR, PROJECTS_DIR, EXPORTS_DIR, COVERS_DIR, ARCHIVE_DIR, FONTS_DIR, SFX_DIR, MUSIC_DIR, STICKERS_DIR, LUTS_DIR, EFFECTS_DIR]:
     p.mkdir(parents=True, exist_ok=True)
 
-# CapCut Draft Directory on Windows
+# Legacy Draft Directory on Windows (kept for backward-compatible path containment only)
 LOCALAPPDATA = os.environ.get("LOCALAPPDATA", "")
 CAPCUT_DRAFT_DIR = Path(LOCALAPPDATA) / "CapCut" / "User Data" / "Projects" / "com.lveditor.draft"
 

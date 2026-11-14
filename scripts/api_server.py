@@ -1,5 +1,5 @@
 """
-FastAPI Backend Server for OmniCut Pro Studio AI & CapCut Pipeline.
+FastAPI Backend Server for OmniCut Pro Studio AI Pipeline.
 Provides REST APIs, video/audio streaming with byte-range support, and SSE progress updates.
 This root module configures the FastAPI application, mounts modular routers, and runs the server.
 """
@@ -208,7 +208,7 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(
     title="OmniCut Pro Studio API",
-    description="Backend API for OmniCut Pro Studio AI & CapCut Desktop Generator",
+    description="Backend API for OmniCut Pro Studio AI Studio & Video Production Pipeline",
     version="2.0.0",
     lifespan=lifespan,
 )

@@ -14,11 +14,9 @@ from scripts.agent.omnicut_agent_tools import (
     apply_pro_color_grade,
     apply_smart_camera_9_16,
     apply_viral_transitions,
-    export_or_import_capcut_draft,
     load_project_manifest,
     normalize_project_audio_lufs,
 )
-from scripts.capcut_builder import CapCutBuilder, import_capcut_draft_to_manifest
 from scripts.tiktok_enhancer import capcut_splendor_vibrance_saturation
 from scripts.video_editor import (
     CAPCUT_DECODE_BALANCE_LIMIT,
@@ -174,42 +172,6 @@ def test_w3_4_high_speed_transitions_and_camera_shake_parity():
     assert abs(p_updated["transition_duration"] - js_out["updated"]["transition_duration"]) < 1e-6
 
 
-def test_w3_5_two_way_capcut_7_1_draft_round_trip():
-    builder = CapCutBuilder(project_name="ROUNDTRIP_TEST")
-    original_clips = [
-        {"id": "clip_001", "source_path": "shot1.mp4", "trim_start": 1.25, "trim_end": 4.75, "duration": 3.5, "speed": 1.0, "zoom": 1.25},
-        {"id": "clip_002", "source_path": "shot2.mp4", "trim_start": 0.50, "trim_end": 3.50, "duration": 2.0, "speed": 1.5, "zoom": 1.10},
-    ]
-    original_cues = [
-        {"id": "cue_001", "start": 0.2, "end": 1.8, "text": "พัดลมไอเย็นตัวตึง"},
-        {"id": "cue_002", "start": 2.0, "end": 4.5, "text": "ลมแรงสะใจ ประหยัดไฟ"},
-    ]
-    original_stickers = [
-        {"id": "stk_001", "badge_type": "BEST_SELLER", "path": "best_seller.png", "start": 0.5, "end": 3.0, "scale": 1.15, "x": 0.82, "y": 0.22}
-    ]
-    draft_json = builder._create_draft_content(
-        video_path=Path("shot1.mp4"),
-        audio_path=Path("voiceover.wav"),
-        cues=original_cues,
-        total_dur_us=5_500_000,
-        clips=original_clips,
-        stickers=original_stickers,
-    )
-    assert draft_json["version"] == 360000
-    assert draft_json["new_version"] == "144.0.0"
-
-    reimported = import_capcut_draft_to_manifest(draft_json, base_manifest={"project_name": "ROUNDTRIP_TEST"})
-    assert len(reimported["clip_list"]) == 2
-    assert abs(reimported["clip_list"][0]["trim_start"] - 1.25) < 1e-3
-    assert abs(reimported["clip_list"][0]["duration"] - 3.5) < 1e-3
-    assert abs(reimported["clip_list"][0]["zoom"] - 1.25) < 1e-3
-    assert abs(reimported["clip_list"][1]["speed"] - 1.5) < 1e-3
-    assert len(reimported["cues"]) == 2
-    assert reimported["cues"][0]["text"] == "พัดลมไอเย็นตัวตึง"
-    assert len(reimported["stickers"]) == 1
-    assert reimported["stickers"][0]["badge_type"] == "BEST_SELLER"
-
-
 def test_w3_6_in_app_ai_agent_capcut_7_1_tools_isolated(tmp_path, monkeypatch):
     proj_name = "TEST_W3_AGENT_PROJ"
     proj_dir = tmp_path / proj_name
@@ -253,20 +215,9 @@ def test_w3_6_in_app_ai_agent_capcut_7_1_tools_isolated(tmp_path, monkeypatch):
     res_trans = apply_action(viral_trans)
     assert res_trans["success"] is True
 
-    # 5. Export & Import CapCut 7.1 Draft
-    exp_prop = export_or_import_capcut_draft(proj_name, mode="export")
-    res_exp = apply_action(exp_prop)
-    assert res_exp["success"] is True
-    assert Path(res_exp["draft_content_path"]).is_file()
-
-    imp_prop = export_or_import_capcut_draft(proj_name, mode="import")
-    res_imp = apply_action(imp_prop)
-    assert res_imp["success"] is True
-
     final_manifest = load_project_manifest(proj_name)
     assert final_manifest["target_lufs"] == -14.0
     assert final_manifest["voice_clarity"] is True
-    assert "capcut_7_1_import" in final_manifest
 
 
 def test_w3_7_decode_balance_limit_and_frame_budget_guard():

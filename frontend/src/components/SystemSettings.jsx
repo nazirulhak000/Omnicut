@@ -275,7 +275,7 @@ export default function SystemSettings({
     {
       id: 'paths',
       name: 'โฟลเดอร์ & ที่จัดเก็บ',
-      desc: 'เข้าถึงโฟลเดอร์ไฟล์ดิบ, Assets, Projects และ CapCut PC',
+      desc: 'เข้าถึงโฟลเดอร์ไฟล์ดิบ, Assets, Projects และ Exports',
       icon: Folder,
       color: 'text-amber-400',
       badge: 'Storage',
@@ -284,7 +284,7 @@ export default function SystemSettings({
     {
       id: 'engine',
       name: 'สถานะ AI & ระบบ',
-      desc: 'ตรวจสอบ FFmpeg, Gemini Flash Engine และการเชื่อมโยง CapCut Draft',
+      desc: 'ตรวจสอบ FFmpeg และ Gemini Flash Engine',
       icon: Cpu,
       color: 'text-emerald-400',
       badge: 'System Core',
@@ -309,7 +309,6 @@ export default function SystemSettings({
     { id: 'assets', label: '02_Assets (มีเดียส่วนกลาง)', icon: Layers, color: 'text-purple-400' },
     { id: 'projects', label: '03_Projects (ไฟล์โปรเจกต์/ดราฟต์)', icon: Folder, color: 'text-amber-400' },
     { id: 'exports', label: '04_Exports (วิดีโอที่ตัดเสร็จ)', icon: CheckCircle2, color: 'text-emerald-400' },
-    { id: 'capcut', label: 'CapCut Drafts (โฟลเดอร์ CapCut PC)', icon: HardDrive, color: 'text-pink-400' },
   ];
 
   // ── Render Specific Section Workbench Content ──
@@ -847,7 +846,7 @@ export default function SystemSettings({
             <div className="p-4 sm:p-5 space-y-3.5 bg-[#0A0D14] border border-white/[0.08] rounded-2xl shadow-sm">
               <h2 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2 pb-2 border-b border-white/[0.08]">
                 <Settings className="w-4 h-4 text-[#25F4EE]" />
-                สถานะการเรนเดอร์และ CapCut PC Integration
+                สถานะเอนจินการเรนเดอร์ (FFmpeg Hardware Engine)
               </h2>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
@@ -861,15 +860,13 @@ export default function SystemSettings({
                   </span>
                 </div>
 
-                <div className={`p-3 rounded-xl border flex flex-col justify-between space-y-1 ${status?.capcut_synced ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-black/40 border-white/[0.06] text-slate-300'}`}>
+                <div className="p-3 rounded-xl border flex flex-col justify-between space-y-1 bg-emerald-500/10 border-emerald-500/30 text-emerald-300">
                   <span className="font-bold flex items-center gap-1.5">
-                    {status?.capcut_synced
-                      ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                      : <Layers className="w-3.5 h-3.5 text-slate-400" />}
-                    CapCut PC Draft Sync
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    In-App Studio Engine
                   </span>
-                  <span className={`text-xs font-mono font-bold ${status?.capcut_synced ? 'text-emerald-300' : 'text-slate-400'}`}>
-                    {!status ? UNKNOWN_STATUS : status.capcut_synced ? 'พบโฟลเดอร์ดราฟต์' : 'ไม่พบโฟลเดอร์ดราฟต์'}
+                  <span className="text-xs font-mono font-bold text-emerald-300">
+                    Native 9:16 Ready
                   </span>
                 </div>
 
@@ -1212,10 +1209,10 @@ export default function SystemSettings({
             {/* System Status Pill */}
             <div className="flex items-center gap-1.5 bg-black/40 px-2.5 py-1.5 rounded-xl border border-white/[0.08] text-xs">
               {(() => {
-                const tone = activeTab === 'channels' || !status ? 'unknown' : status.capcut_synced ? 'ok' : 'warn';
+                const tone = activeTab === 'channels' || !status ? 'unknown' : 'ok';
                 const label = activeTab === 'channels'
                   ? 'ตั้งค่าช่อง'
-                  : !status ? UNKNOWN_STATUS : status.capcut_synced ? 'CapCut Synced' : 'ไม่พบ CapCut';
+                  : !status ? UNKNOWN_STATUS : 'Studio Ready';
                 return (
                   <>
                     <span className={`w-2 h-2 rounded-full ${DOT_TONES[tone]}`} />

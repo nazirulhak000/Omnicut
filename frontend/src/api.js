@@ -159,7 +159,7 @@ api.interceptors.response.use(
     if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
       friendlyMessage = 'การเชื่อมต่อใช้เวลานานเกินกำหนด (Network Timeout) กรุณาตรวจสอบและลองใหม่อีกครั้ง';
     } else if (error.code === 'ERR_NETWORK' || !error.response) {
-      friendlyMessage = 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ CapCut Backend ได้ กรุณาตรวจสอบว่าเซิร์ฟเวอร์ทำงานอยู่';
+      friendlyMessage = 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ OmniCut Backend ได้ กรุณาตรวจสอบว่าเซิร์ฟเวอร์ทำงานอยู่';
     } else if (error.response) {
       const status = error.response.status;
       const detail = error.response.data?.detail || error.response.data?.message;

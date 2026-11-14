@@ -573,7 +573,7 @@ function AngleActiveWorkbench({
             <span className="text-[10px] text-slate-500">โปรเจกต์ในไทม์ไลน์:</span>
             <span
               className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 border border-indigo-500/25 font-mono tabular-nums"
-              title={`โปรเจกต์ CapCut: ${angle.project_name}`}
+              title={`โปรเจกต์: ${angle.project_name}`}
             >
               <FolderOpen className="w-3 h-3" />
               {angle.project_name}

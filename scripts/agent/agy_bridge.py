@@ -16,11 +16,9 @@ from pathlib import Path
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from scripts.agent.omnicut_agent_tools import (
-    apply_capcut_color_grade,
     apply_pro_color_grade,
     apply_smart_camera_9_16,
     apply_viral_transitions,
-    export_or_import_capcut_draft,
     get_timeline_summary,
     normalize_project_audio_lufs,
     propose_audio_mix,
@@ -47,9 +45,8 @@ AGENT_SYSTEM_PROMPT = """คุณคือ Antigravity AI Co-Producer & Video E
 - [ACTION:audio_mix voice=<ระดับ> sfx=<ระดับ> bgm=<ระดับ>] เช่น [ACTION:audio_mix voice=1.0 sfx=0.28 bgm=0.12]
 - [ACTION:subtitle_style font=<ชื่อฟอนต์> scale=<สเกล> color=<รหัสสี>] เช่น [ACTION:subtitle_style font=Mali-Bold scale=1.0 color=#FFFFFF]
 - [ACTION:apply_smart_camera_9_16 preset=<slow_push|slow_pull|pan_left|pan_right> easing=<hero_in|montage|bullet_stop>]
-- [ACTION:apply_capcut_color_grade shadows=<0.25> highlights=<-0.15> vibrance=<0.35> vignette=<0.20>]
+- [ACTION:apply_pro_color_grade shadows=<0.25> highlights=<-0.15> vibrance=<0.35> vignette=<0.20>]
 - [ACTION:normalize_project_audio_lufs target_lufs=<-14.0> voice_clarity=<true>]
-- [ACTION:export_or_import_capcut_draft mode=<export|import>]
 
 ตอบเป็นภาษาไทยอย่างมืออาชีพ กระชับ ตรงประเด็น และเป็นกันเองสไตล์ Pair Programming Pro Editor
 """
@@ -158,11 +155,6 @@ def parse_action_proposals(text: str, project_name: str) -> List[Dict[str, Any]]
         du = float(m.group(2)) if m.group(2) else 0.4
         proposals.append(apply_viral_transitions(project_name, transition_name=tr, duration=du))
 
-    # 8. Match export_or_import_capcut_draft
-    for m in re.finditer(r"\[ACTION:export_or_import_capcut_draft(?:\s+mode=(export|import))?\]", text, re.IGNORECASE):
-        mode = (m.group(1) or "export").lower()
-        proposals.append(export_or_import_capcut_draft(project_name, mode=mode))
-
     # Deterministic fallback when prompt explicitly asks for In-App NLE Studio tools
     if not proposals:
         low = text.lower()
@@ -174,10 +166,6 @@ def parse_action_proposals(text: str, project_name: str) -> List[Dict[str, Any]]
             proposals.append(normalize_project_audio_lufs(project_name))
         elif "ใส่ทรานซิชันไวรัล" in text or "viral_transition" in low or "ทรานซิชัน" in text:
             proposals.append(apply_viral_transitions(project_name))
-        elif "ส่งออกดราฟต์ capcut" in low:
-            proposals.append(export_or_import_capcut_draft(project_name, mode="export"))
-        elif "นำเข้าดราฟต์ capcut" in low:
-            proposals.append(export_or_import_capcut_draft(project_name, mode="import"))
 
     return proposals
 

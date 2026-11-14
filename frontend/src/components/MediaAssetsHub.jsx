@@ -431,9 +431,9 @@ export default function MediaAssetsHub({ status }) {
     {
       id: 'system',
       label: 'ไดเรกทอรีระบบ',
-      sublabel: 'โฟลเดอร์ & CapCut Drafts',
+      sublabel: 'โฟลเดอร์ & ไดเรกทอรีระบบ',
       icon: Folder,
-      count: 6,
+      count: 5,
       color: 'text-cyan-400',
       borderColor: 'border-cyan-500/40',
       activeBg: 'bg-cyan-500/10',
@@ -482,14 +482,6 @@ export default function MediaAssetsHub({ status }) {
       path: status?.directories?.exports || '04_Exports',
       icon: CheckCircle2,
       color: 'text-emerald-400'
-    },
-    {
-      id: 'capcut',
-      name: 'CapCut Drafts',
-      desc: 'โฟลเดอร์โปรเจกต์ของ CapCut PC (draft_content.json)',
-      path: status?.directories?.capcut || 'CapCut Drafts',
-      icon: HardDrive,
-      color: 'text-pink-400'
     },
   ], [status]);
 
@@ -586,7 +578,7 @@ export default function MediaAssetsHub({ status }) {
           <>
             {/* Description */}
             <p className="text-xs text-slate-400 leading-relaxed break-words pt-2 border-t border-white/[0.06]">
-              ศูนย์รวมเสียงเอฟเฟกต์ SFX • เพลง BGM • ฟอนต์สไตล์ TikTok • ป้าย 3D Badges • โทนสี LUTs และโฟลเดอร์ CapCut
+              ศูนย์รวมเสียงเอฟเฟกต์ SFX • เพลง BGM • ฟอนต์สไตล์ TikTok • ป้าย 3D Badges และโทนสี LUTs
             </p>
 
             {/* Responsive Category Nav Pills (iPhone 15 PM Touch Snap + Desktop Grid) */}
@@ -1321,7 +1313,7 @@ export default function MediaAssetsHub({ status }) {
                       </div>
                       <div className="p-2.5 rounded-xl bg-black/40 border border-white/[0.06]">
                         <span className="text-[10px] text-slate-400 block">ความเข้ากันได้</span>
-                        <span className="text-emerald-300 font-mono font-bold block mt-0.5">FFmpeg / CapCut PC</span>
+                        <span className="text-emerald-300 font-mono font-bold block mt-0.5">FFmpeg Native Engine</span>
                       </div>
                     </div>
                   </div>

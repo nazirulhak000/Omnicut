@@ -61,7 +61,7 @@ export default function SubSrtTool({ videos = [], selectedVideo }) {
           </div>
           <div>
             <h2 className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
-              AI Auto-SRT Generator (ถอดซับแม่นยำ 100% สไตล์ CapCut)
+              AI Auto-SRT Generator (ถอดซับแม่นยำ 100% สำหรับคลิปวิดีโอ)
             </h2>
             <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
               ขับเคลื่อนด้วย <code>faster-whisper + PyThaiNLP</code> — ถอดเสียงตรงเป๊ะ ไม่เดาเวลา ตัดแบ่งท่อนคำสั้นพอดีจอ พร้อมคำแปลภาษาอังกฤษ
@@ -245,7 +245,7 @@ export default function SubSrtTool({ videos = [], selectedVideo }) {
             <div className="py-20 text-center space-y-2">
               <FileText className="w-10 h-10 mx-auto text-slate-500" />
               <p className="text-xs text-slate-400 font-medium">กดปุ่ม "เริ่มถอดเสียง" เพื่อสร้างไฟล์ซับไตเติล</p>
-              <p className="text-sm text-slate-500">ลากไฟล์เข้า CapCut ได้ทันที</p>
+              <p className="text-sm text-slate-500">ลากไฟล์เข้าห้องตัดต่อได้ทันที</p>
             </div>
           )}
         </div>

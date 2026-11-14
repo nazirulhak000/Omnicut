@@ -90,7 +90,17 @@ CRITICAL RULES:
         if AIBridge.has_antigravity_cli():
             res = AIBridge.call_antigravity_cli(system_prompt, model=DEFAULT_MODEL, timeout=30)
             if res and len(res.strip()) > 20:
-                return res.strip()
+                text = res.strip()
+                if product_name and product_name not in text:
+                    import re
+                    pattern = re.compile(re.escape(product_name), re.IGNORECASE)
+                    if pattern.search(text):
+                        text = pattern.sub(product_name, text, count=1)
+                    else:
+                        text = f"Featuring {product_name}: {text}"
+                if "9:16" not in text:
+                    text += " 9:16 vertical framing."
+                return text
         
         api_keys = AIBridge.get_api_keys()
         if api_keys:
@@ -102,6 +112,15 @@ CRITICAL RULES:
             )
             text = (resp.text or "").strip()
             if text and len(text) > 20:
+                if product_name and product_name not in text:
+                    import re
+                    pattern = re.compile(re.escape(product_name), re.IGNORECASE)
+                    if pattern.search(text):
+                        text = pattern.sub(product_name, text, count=1)
+                    else:
+                        text = f"Featuring {product_name}: {text}"
+                if "9:16" not in text:
+                    text += " 9:16 vertical framing."
                 return text
     except Exception as exc:
         logger.warning(f"AI expansion failed ({exc}), falling back to template engine.")

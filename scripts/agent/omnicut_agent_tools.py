@@ -323,25 +323,6 @@ def normalize_project_audio_lufs(
     }
 
 
-def export_or_import_capcut_draft(
-    project_name: str,
-    mode: str = "export",
-) -> Dict[str, Any]:
-    """Proposes exporting or importing a CapCut Desktop v7.1.0 draft (version 360000 / 144.0.0) (W3.6)."""
-    clean_mode = "import" if str(mode).lower() == "import" else "export"
-    label = "นำเข้าดราฟต์ CapCut 7.1 เข้าไทม์ไลน์" if clean_mode == "import" else "ส่งออกดราฟต์ CapCut 7.1 (Schema 360000)"
-    return {
-        "action_id": f"act_ccdraft_{int(time.time()*1000)}",
-        "action_type": "export_or_import_capcut_draft",
-        "title": label,
-        "description": f"โหมด: {clean_mode.upper()} | โปรเจกต์: {project_name} (CapCut v7.1.0 / 144.0.0)",
-        "payload": {
-            "project_name": project_name,
-            "mode": clean_mode,
-        },
-    }
-
-
 def apply_action(action: Dict[str, Any]) -> Dict[str, Any]:
     """Executes a previously proposed action proposal upon user approval."""
     action_type = action.get("action_type")
@@ -490,57 +471,6 @@ def apply_action(action: Dict[str, Any]) -> Dict[str, Any]:
             "message": f"ปรับระดับเสียงมาตรฐาน {manifest['target_lufs']} LUFS และเปิดเสียงใสตัดนอยส์เรียบร้อยแล้ว",
             "manifest": get_timeline_summary(project_name),
         }
-
-    elif action_type == "export_or_import_capcut_draft":
-        from scripts.capcut_builder import CapCutBuilder, import_capcut_draft_to_manifest
-
-        mode = str(payload.get("mode", "export")).lower()
-        proj_dir = _resolve_project_path(project_name).parent
-        draft_dir = proj_dir / "capcut_draft_7_1"
-        draft_dir.mkdir(parents=True, exist_ok=True)
-        content_file = draft_dir / "draft_content.json"
-
-        builder = CapCutBuilder(project_name=project_name, draft_root=proj_dir)
-        cues = manifest.get("cues") or manifest.get("micro_cues") or []
-        clips = manifest.get("clip_list") or []
-        stickers = manifest.get("stickers") or []
-        duration = float(manifest.get("audio_duration") or manifest.get("total_duration") or 15.0)
-
-        if mode == "import" and content_file.is_file():
-            draft_data = json.loads(content_file.read_text(encoding="utf-8"))
-            updated = import_capcut_draft_to_manifest(draft_data, base_manifest=manifest)
-            save_project_manifest(project_name, updated)
-            return {
-                "success": True,
-                "message": f"นำเข้าดราฟต์ CapCut 7.1 กลับเข้าโปรเจกต์ {project_name} สำเร็จแล้ว",
-                "draft_content_path": str(content_file),
-                "manifest": get_timeline_summary(project_name),
-            }
-        else:
-            draft_data = builder._create_draft_content(
-                video_path=Path("video.mp4"),
-                audio_path=Path("voiceover.wav"),
-                cues=cues,
-                total_dur_us=int(max(1.0, duration) * 1_000_000),
-                clips=clips,
-                stickers=stickers,
-            )
-            if content_file.is_file():
-                # AGENTS.md rule 3: never overwrite a CapCut draft without a backup.
-                backup_file = content_file.with_name(
-                    f"{content_file.name}.{time.strftime('%Y%m%d_%H%M%S')}.bak"
-                )
-                shutil.copy2(content_file, backup_file)
-            content_file.write_text(json.dumps(draft_data, ensure_ascii=False, indent=2), encoding="utf-8")
-            if mode == "import":
-                updated = import_capcut_draft_to_manifest(draft_data, base_manifest=manifest)
-                save_project_manifest(project_name, updated)
-            return {
-                "success": True,
-                "message": f"ส่งออกดราฟต์ CapCut 7.1 สำหรับ {project_name} สำเร็จแล้ว",
-                "draft_content_path": str(content_file),
-                "manifest": get_timeline_summary(project_name),
-            }
 
     else:
         raise ValueError(f"Unsupported action type: {action_type}")

@@ -4,7 +4,7 @@
 
 ## รอบปัจจุบัน
 
-- [ ] Round ANTIGRAVITY-NATIVE-GOOGLE-FLOW-E2E-20261114 · แผนงานสถาปัตยกรรมระบบสร้างวิดีโอ AI Google Flow (Veo) แบบไร้รอยต่อ จบใน OmniCut Studio 100% (Auto-Daemon, Per-shot Prompt Synthesis, Shot List 1-Click Gen, Auto-Ingest & Auto-Slotting ลง CapCut Draft) · ดูแผนงานละเอียดที่ [_Docs/Plans/PLAN_OMNICUT_NATIVE_GOOGLE_FLOW_E2E_20261114.md](_Docs/Plans/PLAN_OMNICUT_NATIVE_GOOGLE_FLOW_E2E_20261114.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+- [x] Round ANTIGRAVITY-NATIVE-GOOGLE-FLOW-E2E-20261114 · ระบบสร้างวิดีโอ AI Google Flow (Veo) แบบไร้รอยต่อ จบใน OmniCut Studio 100% (Auto-Daemon, Per-shot Prompt Synthesis, Shot List 1-Click Gen, Auto-Ingest & Auto-Slotting ลง OmniCut Studio Timeline) · ขับเคลื่อนด้วย Swarm 4 ทีม (@backend, @frontend, @pipeline, @verifier) · ดูแผนงานละเอียดที่ [_Docs/Plans/PLAN_OMNICUT_NATIVE_GOOGLE_FLOW_E2E_20261114.md](_Docs/Plans/PLAN_OMNICUT_NATIVE_GOOGLE_FLOW_E2E_20261114.md) และ [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
 
 - [x] Round ANTIGRAVITY-GOOGLE-FLOW-VIDEO-GEN-20261113 · ระบบสร้างวิดีโอด้วย Google Flow (Veo) บนกิ่ง `feat/google-flow-video-gen` (merge เข้า `main` แล้ว) · ขับเคลื่อนด้วย `tools/flow-mcp` (Playwright CDP, บัญชี Google ฟรี 50 credits/วัน) + Backend Ingest + AI Cinematic Prompts + Studio Review Modal · ดูแผนงานที่ [_Docs/Plans/PLAN_GOOGLE_FLOW_VIDEO_GEN_20261113.md](_Docs/Plans/PLAN_GOOGLE_FLOW_VIDEO_GEN_20261113.md) และ [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 2.5 Flash)
 

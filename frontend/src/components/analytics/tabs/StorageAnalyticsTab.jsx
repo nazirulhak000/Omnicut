@@ -147,9 +147,9 @@ export default function StorageAnalyticsTab() {
           badgeColor={drive.used_percentage > 85 ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'}
         />
         <MetricKpiCard
-          title="ดราฟต์แคช CapCut"
+          title="ดราฟต์และแคชชั่วคราว"
           value={`${capcut_draft_gb} GB`}
-          subtitle="ไฟล์งานและพรีวิวใน CapCut PC"
+          subtitle="ไฟล์แคชพรีวิวและดราฟต์เก่า"
           icon={Folder}
           accentColor="text-amber-400"
         />

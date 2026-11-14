@@ -1114,7 +1114,7 @@ export default function ContentTrackerHub({
   const [activePhase, setActivePhase] = useState('all'); // 'all' | 'scripted' | 'in_production' | ...
   const [viewMode, setViewMode] = useState(() => {
     try {
-      return localStorage.getItem('capcut_tracker_view_mode') || 'kanban';
+      return localStorage.getItem('omnicut_tracker_view_mode') || localStorage.getItem('capcut_tracker_view_mode') || 'kanban';
     } catch {
       return 'kanban';
     }
@@ -1319,7 +1319,7 @@ export default function ContentTrackerHub({
   const handleSwitchViewMode = (mode) => {
     setViewMode(mode);
     try {
-      localStorage.setItem('capcut_tracker_view_mode', mode);
+      localStorage.setItem('omnicut_tracker_view_mode', mode);
     } catch {
       // ignore
     }
