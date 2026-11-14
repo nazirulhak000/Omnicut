@@ -12,6 +12,8 @@ from pydantic import BaseModel, Field
 from scripts.flow_client import get_flow_client, FlowClientError
 from scripts.flow_prompt_engine import (
     expand_prompt_with_gemini,
+    bundle_flow_context,
+    bundle_flow_batch_contexts,
     CAMERA_TECHNIQUES,
     LIGHTING_PRESETS,
 )
@@ -28,6 +30,39 @@ class PromptExpandRequest(BaseModel):
     product_specs: Optional[Dict[str, Any]] = None
     technique: str = "orbit"
     lighting: str = "studio_clean"
+
+
+class ContextBundleRequest(BaseModel):
+    product_id: str
+    beat_text: str
+    camera_direction: str = "orbit"
+    lighting: str = "studio_clean"
+    product_name: Optional[str] = None
+    product_specs: Optional[Dict[str, Any]] = None
+    aspect_ratio: str = "9:16"
+    duration: int = 8
+    download_quality: str = "original"
+    max_credits: int = 25
+
+
+class ShotItem(BaseModel):
+    beat_text: Optional[str] = None
+    prompt: Optional[str] = None
+    camera_direction: Optional[str] = "orbit"
+    lighting: Optional[str] = "studio_clean"
+    aspect_ratio: Optional[str] = "9:16"
+    duration: Optional[int] = 8
+    reference_images: Optional[List[str]] = None
+    first_frame: Optional[str] = None
+    max_credits: Optional[int] = 25
+    download_quality: Optional[str] = "original"
+
+
+class BatchGenerateRequest(BaseModel):
+    product_id: str
+    shots: List[ShotItem]
+    project_name: Optional[str] = None
+    auto_bundle: bool = True
 
 
 class SceneItem(BaseModel):
@@ -57,10 +92,10 @@ class IngestRequest(BaseModel):
 
 
 @router.get("/status")
-def get_status(detailed: bool = False):
-    """Checks flow-mcp service and Google Flow web session."""
+def get_status(detailed: bool = False, auto_start: bool = True):
+    """Checks flow-mcp service and Google Flow web session with auto-start daemon."""
     service = get_flow_service()
-    return service.get_status(detailed=detailed)
+    return service.get_status(detailed=detailed, auto_start=auto_start)
 
 
 @router.post("/service/start")
@@ -90,6 +125,48 @@ def get_presets():
             for k, v in LIGHTING_PRESETS.items()
         ],
     }
+
+
+@router.post("/context/bundle")
+def bundle_context(req: ContextBundleRequest):
+    """Bundles product info, auto-picks reference image, and expands cinematic prompt with Gemini Flash."""
+    try:
+        bundled = bundle_flow_context(
+            product_id=req.product_id,
+            beat_text=req.beat_text,
+            camera_direction=req.camera_direction,
+            lighting=req.lighting,
+            product_name=req.product_name,
+            product_specs=req.product_specs,
+            aspect_ratio=req.aspect_ratio,
+            duration=req.duration,
+            download_quality=req.download_quality,
+            max_credits=req.max_credits,
+        )
+        return {"ok": True, "scene": bundled}
+    except Exception as e:
+        logger.error(f"Context bundle error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/batch-generate")
+def batch_generate(req: BatchGenerateRequest):
+    """Dispatches batch generation for multiple shots with background polling and auto-ingest."""
+    service = get_flow_service()
+    try:
+        shots_data = [s.model_dump(exclude_none=True) for s in req.shots]
+        res = service.dispatch_batch_generation(
+            product_id=req.product_id,
+            shots=shots_data,
+            project_name=req.project_name,
+            auto_bundle=req.auto_bundle,
+        )
+        return {"ok": True, **res}
+    except FlowClientError as e:
+        raise HTTPException(status_code=502, detail=f"Flow engine error: {e}")
+    except Exception as e:
+        logger.error(f"Batch generation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/prompt/expand")
