@@ -933,6 +933,14 @@ class ShotMatchingStage:
         cues = ctx.cues
         micro_cues = ctx.micro_cues
 
+        # Auto-integrate AI Flow B-roll clips if available for this product (Architecture §3.4.1)
+        if ctx.product_id:
+            try:
+                from scripts.shot_matching import integrate_flow_into_pipeline_context
+                integrate_flow_into_pipeline_context(ctx)
+            except Exception:
+                pass
+
         # If source is still images, generate 9:16 Ken-Burns motion video footage first
         if ctx.is_image_source and ctx.image_files and ctx.project_dir:
             ctx.notify("🖼️ [Image Motion] สร้างวิดีโอ 9:16 Motion Slideshow จากรูปภาพสินค้า...", 0.70)
