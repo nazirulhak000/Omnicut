@@ -1,11 +1,13 @@
-import React, { memo, useState, useCallback } from 'react';
+import React, { memo, useState, useCallback, useEffect } from 'react';
 import {
   Rocket, Layers, Scissors, FolderDown, Palette, Settings,
-  Keyboard, WifiOff, RefreshCw, Package, BarChart3
+  Keyboard, WifiOff, RefreshCw, Package, BarChart3, Zap
 } from 'lucide-react';
 
 import { ActivityIndicatorButton } from './ActivityCenter';
 import EditorChannelSelector from './editor/EditorChannelSelector.jsx';
+import GoogleFlowModal from './GoogleFlowModal.jsx';
+import { getFlowStatus } from '../api';
 
 const TAB_CONFIG = {
   flow: {
@@ -75,17 +77,17 @@ const TAB_CONFIG = {
 
 export default memo(function Topbar({
   activeTab = 'flow',
-  setActiveTab,
+  _setActiveTab,
   status,
-  uiFont = 'font-anuphan',
-  uiScale = 'normal',
-  setUiScale,
-  setUiFont,
+  _uiFont = 'font-anuphan',
+  _uiScale = 'normal',
+  _setUiScale,
+  _setUiFont,
   onOpenShortcuts,
   onRefresh,
   activeProductContext,
-  exportsCount = 0,
-  videosCount = 0
+  _exportsCount = 0,
+  _videosCount = 0
 }) {
   const isOnline = status?.status === 'online';
   const currentTab = TAB_CONFIG[activeTab] || TAB_CONFIG.flow;
@@ -96,13 +98,35 @@ export default memo(function Topbar({
   ));
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Google Flow Real-Time Status & Credit State
+  const [flowStatus, setFlowStatus] = useState(null);
+  const [flowModalOpen, setFlowModalOpen] = useState(false);
+
+  const fetchFlowStatus = useCallback(async () => {
+    try {
+      const data = await getFlowStatus(false);
+      setFlowStatus(data);
+    } catch {
+      setFlowStatus({ service_online: false, credits_remaining: 0 });
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchFlowStatus();
+    const interval = setInterval(fetchFlowStatus, 30000);
+    return () => clearInterval(interval);
+  }, [fetchFlowStatus]);
+
   const handleRefreshWithPing = useCallback(async () => {
     try { navigator.vibrate?.(10); } catch {}
     if (!onRefresh) return;
     setIsRefreshing(true);
     const start = performance.now();
     try {
-      await onRefresh();
+      await Promise.allSettled([
+        onRefresh(),
+        fetchFlowStatus(),
+      ]);
       const elapsed = Math.max(1, Math.round(performance.now() - start));
       setLatencyMs(elapsed);
     } catch {
@@ -110,7 +134,7 @@ export default memo(function Topbar({
     } finally {
       setIsRefreshing(false);
     }
-  }, [onRefresh]);
+  }, [onRefresh, fetchFlowStatus]);
 
   const handleStatusKeyDown = useCallback((e) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -118,6 +142,13 @@ export default memo(function Topbar({
       handleRefreshWithPing();
     }
   }, [handleRefreshWithPing]);
+
+  const handleFlowKeyDown = useCallback((e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      setFlowModalOpen(true);
+    }
+  }, []);
 
   return (
     <header className="h-[calc(44px+env(safe-area-inset-top))] md:h-[56px] flex-shrink-0 bg-[#0A0D14]/90 backdrop-blur-md border-b border-white/[0.08] shadow-sm flex flex-nowrap md:flex-wrap items-center justify-between gap-2 px-2.5 sm:px-6 pt-[env(safe-area-inset-top)] md:pt-0 z-20 sticky top-0 w-full min-w-0 transition-colors">
@@ -195,12 +226,52 @@ export default memo(function Topbar({
           <kbd aria-hidden="true" className="hidden lg:inline px-1.5 py-0.2 rounded bg-white/[0.08] border border-white/[0.1] text-xs text-slate-400 font-mono">?</kbd>
         </button>
 
+        {/* ── Google Flow (Veo AI) Real-Time Status & Credit Badge ── */}
+        <div
+          onClick={() => setFlowModalOpen(true)}
+          onKeyDown={handleFlowKeyDown}
+          role="button"
+          tabIndex={0}
+          title={
+            flowStatus?.service_online
+              ? `Google Flow (Veo AI): ออนไลน์พร้อมใช้งาน · เครดิตคงเหลือ: ${flowStatus.credits_remaining !== undefined ? flowStatus.credits_remaining : 50} cr (แตะเพื่อจัดการ)`
+              : 'Google Flow (Veo AI): ออฟไลน์ · แตะเพื่อเปิดระบบหรือจัดการสตูดิโอ'
+          }
+          className={`flex items-center justify-center gap-1.5 min-h-11 sm:min-h-0 sm:h-9 px-2 sm:px-2.5 rounded-xl text-xs font-semibold border cursor-pointer active:scale-95 transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70 ${
+            flowStatus?.service_online
+              ? 'bg-purple-500/10 hover:bg-purple-500/20 text-purple-200 border-purple-500/30'
+              : 'bg-white/[0.04] hover:bg-white/[0.08] text-slate-400 border-white/[0.08]'
+          }`}
+        >
+          <span className="sr-only">
+            {flowStatus?.service_online
+              ? `สถานะ Google Flow ออนไลน์ เครดิตคงเหลือ ${flowStatus.credits_remaining || 50} เครดิต แตะเพื่อเปิดสตูดิโอ`
+              : 'สถานะ Google Flow ออฟไลน์ แตะเพื่อเปิดสตูดิโอ'}
+          </span>
+
+          <Zap className={`w-3.5 h-3.5 flex-shrink-0 ${flowStatus?.service_online ? 'text-amber-400 fill-amber-400' : 'text-slate-500'}`} />
+
+          {flowStatus?.service_online ? (
+            <>
+              <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0 shadow-[0_0_8px_rgba(52,211,153,0.7)] animate-pulse" />
+              <span className="font-mono tabular-nums text-emerald-300">
+                <span className="hidden sm:inline">Flow: </span>{flowStatus.credits_remaining !== undefined ? flowStatus.credits_remaining : 50} cr
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-500 flex-shrink-0" />
+              <span className="font-mono text-slate-400 text-[11px]">Flow: Off</span>
+            </>
+          )}
+        </div>
+
         {/* Server Connection Status Badge */}
         <div
           onClick={handleRefreshWithPing}
           onKeyDown={handleStatusKeyDown}
           role="button"
-          tabIndex={0}
+          tabIndex={0}
           title={isOnline ? `ระบบออนไลน์พร้อมใช้งาน ${latencyMs ? `(${latencyMs}ms)` : ''} (แตะเพื่อรีเฟรช)` : "ขาดการเชื่อมต่อ (แตะเพื่อรีเฟรชเชื่อมต่อใหม่)"}
           className={`flex items-center justify-center gap-1.5 min-h-11 sm:min-h-0 sm:h-9 px-2.5 sm:px-3 rounded-xl text-xs font-semibold border cursor-pointer active:scale-95 transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70 ${
             isOnline
@@ -229,6 +300,19 @@ export default memo(function Topbar({
           )}
         </div>
       </div>
+
+      {/* Global Google Flow Modal triggered from Topbar */}
+      {flowModalOpen && (
+        <GoogleFlowModal
+          isOpen={flowModalOpen}
+          onClose={() => {
+            setFlowModalOpen(false);
+            fetchFlowStatus();
+          }}
+          productId={activeProductContext?.productId}
+          productName={activeProductContext?.productName || ''}
+        />
+      )}
     </header>
   );
 });
