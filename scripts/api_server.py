@@ -180,6 +180,21 @@ def recover_startup_work() -> dict[str, int]:
         print(f"[CoupleJobs] startup recovery skipped: {exc}")
         recovered["couple_jobs"] = 0
 
+    try:
+        from scripts.flow_client import get_flow_client
+        from scripts.flow_service import get_flow_service
+        flow_client = get_flow_client()
+        flow_service = get_flow_service()
+        flow_online = flow_client.ensure_service_running(timeout=3.0)
+        pending_jobs = flow_service.recover_pending_jobs() if hasattr(flow_service, "recover_pending_jobs") else 0
+        recovered["flow_service"] = 1 if flow_online else 0
+        recovered["flow_pending_jobs"] = pending_jobs
+        if flow_online:
+            print(f"[FlowMCP] service daemon active on port {flow_client.host} (recovered {pending_jobs} jobs)")
+    except Exception as exc:
+        print(f"[FlowMCP] startup launch/recovery skipped: {exc}")
+        recovered["flow_service"] = 0
+
     return recovered
 
 

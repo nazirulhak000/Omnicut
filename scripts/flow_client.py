@@ -32,6 +32,8 @@ class FlowClientError(Exception):
 
 
 class FlowClient:
+    _daemon_proc: Optional[subprocess.Popen] = None
+
     def __init__(self, host: str = FLOW_MCP_HOST, token_file: Path = TOKEN_FILE):
         self.host = host.rstrip("/")
         self.token_file = token_file
@@ -46,7 +48,7 @@ class FlowClient:
         return ""
 
     def is_healthy(self, timeout: float = 2.0) -> bool:
-        """Checks if flow-mcp HTTP service is alive."""
+        """Checks if flow-mcp HTTP service is alive and healthy."""
         url = f"{self.host}/api/health"
         req = urllib.request.Request(url, headers={"User-Agent": "OmniCut-FlowClient"})
         try:
@@ -58,8 +60,34 @@ class FlowClient:
             return False
         return False
 
-    def _post(self, endpoint: str, payload: Optional[Dict[str, Any]] = None, timeout: float = 45.0) -> Dict[str, Any]:
-        """Makes an authenticated POST request to flow-mcp."""
+    def ensure_service_running(self, timeout: float = 6.0) -> bool:
+        """
+        Auto-starts flow-mcp service daemon headless if not running,
+        with health checking and auto-recovery.
+        Returns True if service is healthy.
+        """
+        if self.is_healthy():
+            return True
+
+        logger.info("flow-mcp service not detected on port %s; auto-starting headless daemon...", FLOW_MCP_PORT)
+        try:
+            self.start_service_daemon()
+        except Exception as e:
+            logger.warning("Failed to launch flow-mcp daemon: %s", e)
+            return False
+
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            time.sleep(0.5)
+            if self.is_healthy(timeout=1.0):
+                logger.info("flow-mcp daemon successfully started and healthy.")
+                return True
+
+        logger.warning("flow-mcp daemon started but failed health check within %.1fs.", timeout)
+        return False
+
+    def _post(self, endpoint: str, payload: Optional[Dict[str, Any]] = None, timeout: float = 45.0, retry_recovery: bool = True) -> Dict[str, Any]:
+        """Makes an authenticated POST request to flow-mcp with auto-recovery."""
         token = self.get_token()
         headers = {
             "Content-Type": "application/json",
@@ -85,6 +113,12 @@ class FlowClient:
             except json.JSONDecodeError:
                 raise FlowClientError(f"HTTP {e.code}: {err_msg}")
         except urllib.error.URLError as e:
+            # Auto-recovery: if connection refused, try starting the daemon once
+            if retry_recovery and endpoint not in ("status", "health"):
+                logger.info("Connection lost to flow-mcp; attempting auto-recovery...")
+                if self.ensure_service_running(timeout=5.0):
+                    return self._post(endpoint, payload=payload, timeout=timeout, retry_recovery=False)
+
             logger.error(f"Cannot connect to flow-mcp service at {self.host}: {e.reason}")
             raise FlowClientError(f"Cannot connect to flow-mcp at {self.host}: {e.reason}")
 
@@ -158,23 +192,48 @@ class FlowClient:
         except Exception as e:
             raise FlowClientError(f"Failed to upload reference {file_path}: {e}")
 
-    @staticmethod
-    def start_service_daemon() -> subprocess.Popen:
-        """Starts the flow-mcp service in background if not running."""
+    @classmethod
+    def start_service_daemon(cls) -> subprocess.Popen:
+        """Starts the flow-mcp service in background headlessly (no CMD popups) if not running."""
         node_bin = "node"
         entrypoint = FLOW_MCP_DIR / "dist" / "studio.js"
+        working_dir = FLOW_MCP_DIR
+
+        # Fallback check if running from a different clone/worktree
         if not entrypoint.exists():
-            raise FileNotFoundError(f"flow-mcp not built. Missing {entrypoint}")
+            alt_dir = Path("D:/Programmer/All Project/Omnicut/tools/flow-mcp")
+            if (alt_dir / "dist" / "studio.js").exists():
+                entrypoint = alt_dir / "dist" / "studio.js"
+                working_dir = alt_dir
+            else:
+                raise FileNotFoundError(f"flow-mcp not built. Missing {entrypoint}")
+
+        creationflags = 0
+        startupinfo = None
+        if os.name == "nt":
+            creationflags = (
+                getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+                | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200)
+            )
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = subprocess.SW_HIDE
+
+        env = os.environ.copy()
+        env["FLOW_MCP_PORT"] = str(FLOW_MCP_PORT)
 
         proc = subprocess.Popen(
             [node_bin, str(entrypoint)],
-            cwd=str(FLOW_MCP_DIR),
+            cwd=str(working_dir),
+            stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0,
+            creationflags=creationflags,
+            startupinfo=startupinfo,
+            env=env,
         )
-        # Give it a brief moment to boot
-        time.sleep(1.5)
+        cls._daemon_proc = proc
+        time.sleep(1.2)
         return proc
 
 
