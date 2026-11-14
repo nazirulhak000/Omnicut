@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round ANTIGRAVITY-GOOGLE-FLOW-VIDEO-GEN-20261113 | ระบบสร้างวิดีโอด้วย Google Flow (Veo) บนกิ่ง feat/google-flow-video-gen (merge เข้า main): ติดตั้ง tools/flow-mcp (Playwright CDP, บัญชี Google ฟรี 50 credits/วัน), flow_client.py, flow_prompt_engine.py, flow_service.py (Auto-Ingest เข้า 01_Raw/<product_id>/AI_Flow/), FastAPI endpoints /api/flow/*, Studio GoogleFlowModal.jsx, ปุ่มใน ShotListModal.jsx, ผ่าน 15 backend tests และ 1,312 frontend tests 100% | 2026-11-13 | ดำเนินการโดย: Antigravity (Gemini 2.5 Flash) |
 | Round CLAUDE-AUTOPOST-E2E-FIXES-20261113 | ตรวจ + แก้ครบเส้นทาง ผลิต → เรนเดอร์ → คิว → extension 0.11.0 + API (A1–A5, B1–B15, C1–C21): กันโพสต์ซ้ำ, ปลดล็อกคิว (ปก auto 409, หน้าคิว 500), หน้าต่าง TikTok 15 นาที–10 วัน, ปิดโพสต์ตั้งเวลาจากหน้า Content, ล้างข้อมูลคิวจริง (แถวซ้ำ 3), caption ติดราคา AI เขียนใหม่ตอนเข้าคิว + ปุ่มแก้ทั้งชุด · ยังไม่ทดสอบกับบัญชี TikTok จริง | Claude Code (Claude Opus 5.5) |
 | Round CLAUDE-ANGLE-SIDE-AND-SHOT-LIST-LAYOUT-20261112 | คอลัมน์ข้าง 300px พื้นผิวเดียว ปุ่มรอง 2 ช่อง; `ShotListModal` ไทม์ไลน์ + แถบเสียงแถวเดียว; ชิปคลิปไม่ล้น; ลบ modal แผนถ่ายที่ render ซ้ำ; รายงานสำรวจถ่ายมือถือคลิปเดียว (พบบั๊ก guided take รั่วข้ามมุม) | Claude Code (Claude Opus 5.5) |
 | Round CLAUDE-PRODUCT-ANGLE-AREA-LAYOUT-PLAN-20261112 | แผงมุม: ปุ่มหลักตามสถานะ (`lib/angleNextStep.js`), Tracker เป็นปุ่มรอง; รายการมุมแถวกระชับ + ชิปสถานะ; แผงสถานะ → แถบความคืบหน้าในการ์ดล็อต; มือถือแถบปุ่มแถวเดียว; จอ ≥1536px คอลัมน์ข้าง | Claude Code (Claude Opus 5.5) |
@@ -638,6 +639,38 @@
 4. **Vite Production Build:** รัน `npm test --prefix frontend` ผ่าน 1,257/1,257 tests (100%) และ `npm run build --prefix frontend` อัปเดต `frontend/dist` ให้ FastAPI เสิร์ฟผลลัพธ์ล่าสุดทันที
 
 ---
+---
+
+## Round ANTIGRAVITY-GOOGLE-FLOW-VIDEO-GEN-20261113 · ระบบสร้างวิดีโอด้วย Google Flow (Veo) · ผู้ใช้สั่ง "การเจนวิดีโอ ด้วย google flow ... /grill-me" → "เริ่มขั้นตอนได้เลยครับ" → "push to main on github" · ดำเนินการโดย: Antigravity (Gemini 2.5 Flash)
+
+### 1. เป้าหมายและผลลัพธ์
+* เปิดความสามารถให้ OmniCut Pro Studio สร้างวิดีโอ B-roll และฉากเคลื่อนไหวของสินค้าด้วย **Google Flow** (ขับเคลื่อนด้วยโมเดล Google Veo) โดยใช้โควตาฟรีประจำวัน 50 Credits/วัน ของ Google Account โดยไม่ต้องเสียค่าบริการ Google Cloud API
+* ขับเคลื่อนเบื้องหลังด้วย **`tools/flow-mcp/`** ผ่าน Chrome DevTools Protocol (CDP) และ Chrome Profile ถาวร (`~/.flow-mcp/chrome-profile`) ไม่ต้องทำ Chrome Extension แยก และข้ามปัญหา Google Login/2FA ได้ 100%
+* มีระบบ Auto-Ingest คลิปที่เจนเสร็จแล้วเข้า `01_Raw/<product_id>/AI_Flow/` อัตโนมัติ
+
+### 2. สิ่งที่ทำ
+* **Core Engine (`tools/flow-mcp/`):**
+  * ติดตั้งและคอมไพล์ TypeScript เรียบร้อย (`playwright-core` + Chrome DevTools Protocol)
+  * เพิ่ม `Flow Login.cmd` สำหรับเปิด Chrome เพื่อล็อกอิน Google Account ครั้งเดียวและเก็บ session ถาวร
+* **Backend Integration (`scripts/`):**
+  * `scripts/flow_client.py`: ไคลเอนต์สื่อสารกับ REST API ของ flow-mcp (Port 8787)
+  * `scripts/flow_prompt_engine.py`: ตัวแปลงช็อตไทยเป็น Cinematic English Prompts สำหรับ Veo/Flow ผ่าน Gemini Flash อัตโนมัติ (มุมกล้อง Orbit/Macro/Dolly + แสงสตูดิโอ + 9:16)
+  * `scripts/flow_service.py`: จัดการคิวงาน (`_Docs/flow_jobs.json`) และระบบ Auto-Ingest คลิปเข้า `01_Raw/<product_id>/AI_Flow/`
+  * `scripts/api_flow.py`: เพิ่ม FastAPI Endpoints (`/api/flow/status`, `/api/flow/service/start`, `/api/flow/presets`, `/api/flow/prompt/expand`, `/api/flow/generate`, `/api/flow/jobs`, `/api/flow/ingest`)
+  * `scripts/api_server.py`: ติดตั้ง router `flow_router`
+* **Studio UI (`frontend/`):**
+  * `frontend/src/api.js`: เพิ่ม API functions สำหรับ Google Flow
+  * `frontend/src/components/GoogleFlowModal.jsx`: หน้าต่างสั่งเจนวิดีโอ (Text-to-Video / Image-to-Video, ปรับมุมกล้อง, แสง, ขยาย Prompt, ดูคิวงาน, และปุ่มกดนำเข้าคลิป)
+  * `frontend/src/components/ShotListModal.jsx`: เพิ่มปุ่ม `สร้าง B-roll (Google Flow)`
+  * Rebuild `frontend/dist` สำเร็จ 100%
+* **การทดสอบ:**
+  * `tests/test_flow_prompt_engine.py`: 3 tests ผ่าน
+  * `tests/test_flow_client.py`: 6 tests ผ่าน
+  * `tests/test_flow_service.py`: 2 tests ผ่าน
+  * `tests/test_api_flow.py`: 4 tests ผ่าน
+  * รวม Python tests: ผ่าน 15 / 15 (100% PASS)
+  * รวม Frontend unit tests: ผ่าน 1,312 / 1,312 (100% PASS)
+
 ---
 
 ## Round CLAUDE-ANGLE-SIDE-AND-SHOT-LIST-LAYOUT-20261112 · คอลัมน์ข้างแผงมุม + modal แผนถ่าย + สำรวจถ่ายมือถือคลิปเดียว · ผู้ใช้สั่ง 2026-11-12 พร้อมภาพจอ 1920px · ดำเนินการโดย: Claude Code (Claude Opus 5.5)
