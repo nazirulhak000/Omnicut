@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round ANTIGRAVITY-GOOGLE-FLOW-VIDEO-GEN-20261113 | ระบบสร้างวิดีโอด้วย Google Flow (Veo) บนกิ่ง feat/google-flow-video-gen (merge เข้า main): ติดตั้ง tools/flow-mcp (Playwright CDP, บัญชี Google ฟรี 50 credits/วัน), flow_client.py, flow_prompt_engine.py, flow_service.py (Auto-Ingest เข้า 01_Raw/<product_id>/AI_Flow/), FastAPI endpoints /api/flow/*, Studio GoogleFlowModal.jsx, ปุ่มใน ShotListModal.jsx, ผ่าน 15 backend tests และ 1,312 frontend tests 100% | 2026-11-13 | ดำเนินการโดย: Antigravity (Gemini 2.5 Flash) |
 | Round CLAUDE-ONE-PRESS-RENDER-PLAN-20261112 | ปุ่มเดียวผลิตจนเรนเดอร์เสร็จ (chain `full`, เรนเดอร์เฉพาะดราฟต์ที่สร้างในรอบ), `เรนเดอร์ดราฟต์` ไม่เปิดตารางโพสต์, แถบล็อตมีปุ่มหลักปุ่มเดียว + แผงจัดกลุ่มตามลำดับงาน | Claude Code (Claude Opus 5.5) |
 | Round CLAUDE-PRODUCT-HEADER-METADATA-LAYOUT-20261112 | บั๊กสเปก `{key,value}`/`{name,value}` ขึ้น `[object Object]` + บันทึกทับ → แสดง `ชื่อ: ค่า` บันทึกกลับรูปเดิม; ปุ่มของสินค้าข้างชื่อ, ค้นหาเห็นตลอด, เมนู ⋯; modal ตัดส่วนซ้ำ ปุ่มบันทึกติดล่าง | Claude Code (Claude Opus 5.5) |
 | Round CLAUDE-AUTO-SHARPEN-20261112 | ความคมชัด TikTok อัตโนมัติหลังเรนเดอร์ทุกทาง (reroll / Editor / batch) แบบทับไฟล์เดิม ก่อนสร้างปก; `scripts/auto_sharpen.py` + ธง `tiktok_sharp` บน export record; Gallery และปุ่มเดิมรู้จากธง; ยังไม่ได้ตรวจกับเรนเดอร์สินค้าจริง | 2026-11-12 | ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
@@ -622,6 +623,38 @@
 4. **Vite Production Build:** รัน `npm test --prefix frontend` ผ่าน 1,257/1,257 tests (100%) และ `npm run build --prefix frontend` อัปเดต `frontend/dist` ให้ FastAPI เสิร์ฟผลลัพธ์ล่าสุดทันที
 
 ---
+---
+
+## Round ANTIGRAVITY-GOOGLE-FLOW-VIDEO-GEN-20261113 · ระบบสร้างวิดีโอด้วย Google Flow (Veo) · ผู้ใช้สั่ง "การเจนวิดีโอ ด้วย google flow ... /grill-me" → "เริ่มขั้นตอนได้เลยครับ" → "push to main on github" · ดำเนินการโดย: Antigravity (Gemini 2.5 Flash)
+
+### 1. เป้าหมายและผลลัพธ์
+* เปิดความสามารถให้ OmniCut Pro Studio สร้างวิดีโอ B-roll และฉากเคลื่อนไหวของสินค้าด้วย **Google Flow** (ขับเคลื่อนด้วยโมเดล Google Veo) โดยใช้โควตาฟรีประจำวัน 50 Credits/วัน ของ Google Account โดยไม่ต้องเสียค่าบริการ Google Cloud API
+* ขับเคลื่อนเบื้องหลังด้วย **`tools/flow-mcp/`** ผ่าน Chrome DevTools Protocol (CDP) และ Chrome Profile ถาวร (`~/.flow-mcp/chrome-profile`) ไม่ต้องทำ Chrome Extension แยก และข้ามปัญหา Google Login/2FA ได้ 100%
+* มีระบบ Auto-Ingest คลิปที่เจนเสร็จแล้วเข้า `01_Raw/<product_id>/AI_Flow/` อัตโนมัติ
+
+### 2. สิ่งที่ทำ
+* **Core Engine (`tools/flow-mcp/`):**
+  * ติดตั้งและคอมไพล์ TypeScript เรียบร้อย (`playwright-core` + Chrome DevTools Protocol)
+  * เพิ่ม `Flow Login.cmd` สำหรับเปิด Chrome เพื่อล็อกอิน Google Account ครั้งเดียวและเก็บ session ถาวร
+* **Backend Integration (`scripts/`):**
+  * `scripts/flow_client.py`: ไคลเอนต์สื่อสารกับ REST API ของ flow-mcp (Port 8787)
+  * `scripts/flow_prompt_engine.py`: ตัวแปลงช็อตไทยเป็น Cinematic English Prompts สำหรับ Veo/Flow ผ่าน Gemini Flash อัตโนมัติ (มุมกล้อง Orbit/Macro/Dolly + แสงสตูดิโอ + 9:16)
+  * `scripts/flow_service.py`: จัดการคิวงาน (`_Docs/flow_jobs.json`) และระบบ Auto-Ingest คลิปเข้า `01_Raw/<product_id>/AI_Flow/`
+  * `scripts/api_flow.py`: เพิ่ม FastAPI Endpoints (`/api/flow/status`, `/api/flow/service/start`, `/api/flow/presets`, `/api/flow/prompt/expand`, `/api/flow/generate`, `/api/flow/jobs`, `/api/flow/ingest`)
+  * `scripts/api_server.py`: ติดตั้ง router `flow_router`
+* **Studio UI (`frontend/`):**
+  * `frontend/src/api.js`: เพิ่ม API functions สำหรับ Google Flow
+  * `frontend/src/components/GoogleFlowModal.jsx`: หน้าต่างสั่งเจนวิดีโอ (Text-to-Video / Image-to-Video, ปรับมุมกล้อง, แสง, ขยาย Prompt, ดูคิวงาน, และปุ่มกดนำเข้าคลิป)
+  * `frontend/src/components/ShotListModal.jsx`: เพิ่มปุ่ม `สร้าง B-roll (Google Flow)`
+  * Rebuild `frontend/dist` สำเร็จ 100%
+* **การทดสอบ:**
+  * `tests/test_flow_prompt_engine.py`: 3 tests ผ่าน
+  * `tests/test_flow_client.py`: 6 tests ผ่าน
+  * `tests/test_flow_service.py`: 2 tests ผ่าน
+  * `tests/test_api_flow.py`: 4 tests ผ่าน
+  * รวม Python tests: ผ่าน 15 / 15 (100% PASS)
+  * รวม Frontend unit tests: ผ่าน 1,312 / 1,312 (100% PASS)
+
 ---
 
 ## Round CLAUDE-ONE-PRESS-RENDER-PLAN-20261112 · ปุ่มเดียว ผลิต → เรนเดอร์ (ไม่จัดคิวโพสต์) + แถบเครื่องมือล็อต · ผู้ใช้สั่ง 2026-11-12 "ทำแผนเรื่องนี้ต่อได้ไหม" → "จัดการได้เลย" → `/impeccable` จัดแถบ · ดำเนินการโดย: Claude Code (Claude Opus 5.5)

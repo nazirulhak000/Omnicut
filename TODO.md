@@ -4,7 +4,7 @@
 
 ## รอบปัจจุบัน
 
-- [ ] Round ANTIGRAVITY-GOOGLE-FLOW-VIDEO-GEN-20261113 · ระบบสร้างวิดีโอด้วย Google Flow (Veo) บนกิ่ง `feat/google-flow-video-gen` · ขับเคลื่อนด้วย `tools/flow-mcp` (Playwright CDP, บัญชี Google ฟรี 50 credits/วัน) + Backend Ingest + AI Cinematic Prompts + Studio Review Modal · ดูแผนงานที่ [_Docs/Plans/PLAN_GOOGLE_FLOW_VIDEO_GEN_20261113.md](_Docs/Plans/PLAN_GOOGLE_FLOW_VIDEO_GEN_20261113.md) · ดำเนินการโดย: Antigravity (Gemini 2.5 Flash)
+- [x] Round ANTIGRAVITY-GOOGLE-FLOW-VIDEO-GEN-20261113 · ระบบสร้างวิดีโอด้วย Google Flow (Veo) บนกิ่ง `feat/google-flow-video-gen` (merge เข้า `main` แล้ว) · ขับเคลื่อนด้วย `tools/flow-mcp` (Playwright CDP, บัญชี Google ฟรี 50 credits/วัน) + Backend Ingest + AI Cinematic Prompts + Studio Review Modal · ดูแผนงานที่ [_Docs/Plans/PLAN_GOOGLE_FLOW_VIDEO_GEN_20261113.md](_Docs/Plans/PLAN_GOOGLE_FLOW_VIDEO_GEN_20261113.md) และ [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 2.5 Flash)
 
 - [x] Round CLAUDE-ONE-PRESS-RENDER-PLAN-20261112 · ปุ่ม `ผลิตจนเรนเดอร์เสร็จ` (เสียง → สแกน → ดราฟต์ → เรนเดอร์ ไม่จัดคิวโพสต์) + ปุ่มเรนเดอร์เลิกเปิดตารางโพสต์ + จัดแถบเครื่องมือล็อตใหม่ · ดำเนินการโดย: Claude Code (Claude Opus 5.5)
 
