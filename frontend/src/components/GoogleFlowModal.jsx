@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
-import { Video, Sparkles, RefreshCw, CheckCircle, AlertCircle, Play, Download, ExternalLink, ShieldCheck } from 'lucide-react';
-import { Modal, Badge } from './ui';
+import { useState, useEffect, useCallback } from 'react';
+import { Video, Sparkles, RefreshCw, CheckCircle, AlertCircle, Download, Zap } from 'lucide-react';
+import { Modal } from './ui';
+import { mapCameraTechnique } from '../lib/flowUtils';
 import {
   getFlowStatus,
   startFlowService,
@@ -8,7 +9,6 @@ import {
   expandFlowPrompt,
   generateFlowVideo,
   getFlowJobs,
-  getFlowJob,
   ingestFlowClip,
 } from '../api';
 
@@ -18,6 +18,7 @@ export default function GoogleFlowModal({
   productId,
   productName = '',
   initialPrompt = '',
+  initialBeat = null,
   onClipIngested = null,
 }) {
   const [status, setStatus] = useState(null);
@@ -34,22 +35,13 @@ export default function GoogleFlowModal({
   const [expandingPrompt, setExpandingPrompt] = useState(false);
 
   // Presets & Jobs
-  const [presets, setPresets] = useState({ camera_techniques: [], lighting_presets: [] });
   const [jobs, setJobs] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
   const [ingestingId, setIngestingId] = useState(null);
 
-  // Fetch status & presets on open
-  useEffect(() => {
-    if (!isOpen) return;
-    refreshStatus();
-    loadPresets();
-    loadJobs();
-  }, [isOpen, productId]);
-
-  const refreshStatus = async () => {
+  const refreshStatus = useCallback(async () => {
     setLoadingStatus(true);
     try {
       const data = await getFlowStatus(true);
@@ -59,18 +51,17 @@ export default function GoogleFlowModal({
     } finally {
       setLoadingStatus(false);
     }
-  };
+  }, []);
 
-  const loadPresets = async () => {
+  const loadPresets = useCallback(async () => {
     try {
-      const data = await getFlowPresets();
-      setPresets(data);
+      await getFlowPresets();
     } catch {
       // Fallback defaults
     }
-  };
+  }, []);
 
-  const loadJobs = async () => {
+  const loadJobs = useCallback(async () => {
     if (!productId) return;
     try {
       const data = await getFlowJobs(productId);
@@ -78,7 +69,45 @@ export default function GoogleFlowModal({
     } catch {
       // Silent error
     }
-  };
+  }, [productId]);
+
+  // Sync state whenever modal opens or initialBeat/initialPrompt changes
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (initialBeat) {
+      setThaiNotes(`${initialBeat.text || ''}${initialBeat.cameraDirection ? ` (${initialBeat.cameraDirection})` : ''}`.trim());
+      setTechnique(mapCameraTechnique(initialBeat.cameraDirection));
+      if (initialPrompt) {
+        setPrompt(initialPrompt);
+      } else {
+        setPrompt(
+          `Cinematic commercial vertical video of ${productName || 'product'}, ${initialBeat.text || ''}. 9:16 aspect ratio, clean studio lighting, high resolution.`
+        );
+      }
+    } else {
+      setPrompt(initialPrompt || '');
+      setThaiNotes('');
+      setTechnique('orbit');
+    }
+
+    refreshStatus();
+    loadPresets();
+    loadJobs();
+  }, [isOpen, productId, initialBeat, initialPrompt, productName, refreshStatus, loadPresets, loadJobs]);
+
+  // Auto-poll active jobs while open
+  useEffect(() => {
+    if (!isOpen || !productId) return;
+    const hasActiveJob = jobs.some((j) => j.status === 'queued' || j.status === 'running');
+    if (!hasActiveJob) return;
+
+    const timer = setInterval(() => {
+      loadJobs();
+    }, 4000);
+
+    return () => clearInterval(timer);
+  }, [isOpen, productId, jobs, loadJobs]);
 
   const handleStartService = async () => {
     setStartingService(true);
@@ -109,7 +138,7 @@ export default function GoogleFlowModal({
         setPrompt(res.prompt);
       }
     } catch (err) {
-      setErrorMsg('สร้าง Prompt อัตโนมัติไม่สำเร็จ กรุณาลองใหม่');
+      setErrorMsg(err.response?.data?.detail || 'สร้าง Prompt อัตโนมัติไม่สำเร็จ กรุณาลองใหม่');
     } finally {
       setExpandingPrompt(false);
     }
@@ -124,13 +153,21 @@ export default function GoogleFlowModal({
     setErrorMsg(null);
     setSuccessMsg(null);
 
+    const shotDuration = initialBeat?.duration
+      ? Math.min(10, Math.max(4, Math.round(initialBeat.duration)))
+      : 8;
+
+    const shotNum = initialBeat?.beatIndex !== undefined ? initialBeat.beatIndex + 1 : undefined;
+
     const scene = {
       prompt: prompt.trim(),
       type: 'video',
       aspect_ratio: '9:16',
-      duration: 8,
+      duration: shotDuration,
       technique: technique || undefined,
       download_quality: 'original',
+      shot_index: initialBeat?.beatIndex,
+      shot_label: shotNum ? `shot_${shotNum}_${initialBeat?.role || 'broll'}` : undefined,
     };
 
     if (mode === 'image' && referencePath.trim()) {
@@ -138,12 +175,13 @@ export default function GoogleFlowModal({
     }
 
     try {
-      const res = await generateFlowVideo({
+      await generateFlowVideo({
         product_id: productId,
         scenes: [scene],
+        project_name: productName || (initialBeat ? `shot_${shotNum}` : undefined),
       });
-      setSuccessMsg('ส่งงานเข้าคิว Google Flow สำเร็จ');
-      loadJobs();
+      setSuccessMsg(`ส่งงานเข้าคิว Google Flow สำเร็จ${shotNum ? ` (สำหรับช็อตที่ ${shotNum})` : ''}`);
+      await loadJobs();
     } catch (err) {
       setErrorMsg(err.response?.data?.detail || 'ส่งงานสร้างวิดีโอไม่สำเร็จ');
     } finally {
@@ -156,14 +194,18 @@ export default function GoogleFlowModal({
     if (!srcPath) return;
     setIngestingId(job.id);
     try {
+      const shotLabel = initialBeat
+        ? `shot_${initialBeat.beatIndex + 1}_${initialBeat.role || 'broll'}`
+        : (job.scenes?.[0]?.shot_label || 'flow_broll');
+
       const res = await ingestFlowClip({
         product_id: productId,
         source_path: srcPath,
-        shot_label: 'flow_broll',
+        shot_label: shotLabel,
       });
       setSuccessMsg(`นำเข้าคลิปสำเร็จ: ${res.metadata.filename}`);
       if (onClipIngested) onClipIngested(res.metadata);
-      loadJobs();
+      await loadJobs();
     } catch (err) {
       setErrorMsg(err.response?.data?.detail || 'นำเข้าคลิปไม่สำเร็จ');
     } finally {
@@ -184,7 +226,7 @@ export default function GoogleFlowModal({
               </div>
               <div className="text-xs text-zinc-400">
                 {status?.service_online
-                  ? `เครดิตคงเหลือ: ${status.credits_remaining !== undefined ? status.credits_remaining : 'ตรวจพบ'} เครดิต · โควตาฟรี 50 ต่อวัน`
+                  ? `เครดิตคงเหลือ: ${status.credits_remaining !== undefined ? status.credits_remaining : '50'} เครดิต · โควตาฟรี 50 ต่อวัน`
                   : 'กดปุ่มด้านขวาเพื่อเปิด Service เบื้องหลัง'}
               </div>
             </div>
@@ -196,7 +238,7 @@ export default function GoogleFlowModal({
                 type="button"
                 onClick={handleStartService}
                 disabled={startingService}
-                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium disabled:opacity-50"
+                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium disabled:opacity-50 transition-colors"
               >
                 {startingService ? 'กำลังเริ่มระบบ...' : 'เปิดระบบ Flow Service'}
               </button>
@@ -205,13 +247,38 @@ export default function GoogleFlowModal({
               type="button"
               onClick={refreshStatus}
               disabled={loadingStatus}
-              className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs"
+              className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs transition-colors"
               title="รีเฟรชสถานะ"
             >
               <RefreshCw className={`w-4 h-4 ${loadingStatus ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
+
+        {/* Selected Shot Context Badge (if opened from ShotListModal) */}
+        {initialBeat && (
+          <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/25 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2 min-w-0">
+              <Zap className="w-4 h-4 text-amber-400 shrink-0 fill-amber-400/80" />
+              <span className="font-bold text-purple-200 shrink-0">
+                ช็อตที่ {(initialBeat.beatIndex !== undefined ? initialBeat.beatIndex : 0) + 1} ({initialBeat.role?.toUpperCase() || 'B-ROLL'}):
+              </span>
+              <span className="text-slate-300 truncate max-w-sm sm:max-w-md">
+                {initialBeat.text}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="px-2 py-0.5 rounded font-mono text-[11px] bg-cyan-500/15 text-cyan-300 border border-cyan-500/25">
+                {initialBeat.duration}s
+              </span>
+              {initialBeat.cameraDirection && (
+                <span className="px-2 py-0.5 rounded text-[11px] bg-white/[0.06] text-slate-300 border border-white/[0.1] truncate max-w-[140px]">
+                  {initialBeat.cameraDirection}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Alerts */}
         {errorMsg && (
@@ -271,7 +338,7 @@ export default function GoogleFlowModal({
                 type="button"
                 onClick={handleExpandPrompt}
                 disabled={expandingPrompt || (!thaiNotes.trim() && !prompt.trim())}
-                className="px-3 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 shrink-0"
+                className="px-3 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 shrink-0 transition-colors"
               >
                 <Sparkles className="w-3.5 h-3.5" />
                 {expandingPrompt ? 'กำลังเขียน...' : 'ขยาย Prompt ด้วย AI'}
@@ -347,10 +414,10 @@ export default function GoogleFlowModal({
               type="button"
               onClick={handleSubmitGenerate}
               disabled={submitting || !status?.service_online}
-              className="px-5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-semibold shadow-lg shadow-emerald-950/40 flex items-center gap-2"
+              className="px-5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-semibold shadow-lg shadow-emerald-950/40 flex items-center gap-2 transition-colors cursor-pointer"
             >
               <Video className="w-4 h-4" />
-              {submitting ? 'กำลังส่งงานเข้าคิว...' : 'สร้างวิดีโอบน Google Flow'}
+              <span>{submitting ? 'กำลังส่งงานเข้าคิว...' : 'สร้างวิดีโอบน Google Flow'}</span>
             </button>
           </div>
         </div>
@@ -365,7 +432,7 @@ export default function GoogleFlowModal({
               <button
                 type="button"
                 onClick={loadJobs}
-                className="text-xs text-cyan-400 hover:text-cyan-300"
+                className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
               >
                 รีเฟรชคิว
               </button>
@@ -393,11 +460,11 @@ export default function GoogleFlowModal({
                         type="button"
                         onClick={() => handleIngest(job, res)}
                         disabled={ingestingId === job.id}
-                        className="px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium flex items-center gap-1"
+                        className="px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium flex items-center gap-1 transition-colors"
                         title="นำเข้าคลิปลง 01_Raw"
                       >
                         <Download className="w-3.5 h-3.5 text-emerald-400" />
-                        {ingestingId === job.id ? 'กำลังนำเข้า...' : 'นำเข้าคลัง 01_Raw'}
+                        <span>{ingestingId === job.id ? 'กำลังนำเข้า...' : 'นำเข้าคลัง 01_Raw'}</span>
                       </button>
                     ))}
                   </div>
