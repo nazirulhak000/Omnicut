@@ -20,3331 +20,1095 @@
     "updated_at": 1791830651.3728979
   },
   {
-    "id": "cover_0ff69a2147f04a230b45454a2fc1100b",
+    "id": "cover_95e645a4dc199ddb9daba3ff73906a6c819503cfcc599c3cba8b9ea4adb7b806",
     "channel_id": "main",
-    "export_id": "exp_70faa78fd7d243f09b18899a208ea161",
-    "video_path": "04_Exports/Ready_to_post/20261015_ess02-pov-s01_v1.mp4",
+    "export_id": "exp_72e882c87b7a4c7cad5abbbdb368c7fb",
+    "video_path": "04_Exports/Ready_to_post/COD01-แกะกล่องว้าว_1_20261112_205200.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s01_v1_cover.jpg",
-        "sha256": "3ad717562701c9dc58bd913cf8f85fa5ab3716249c6d97de68f2c9c6e4c1803b",
+        "path": "05_Covers_Thumbnails/main/278990ec32c8415f9858a96fa110eb29/COD01-แกะกล่องว้าว_1_20261112_205200_cover.jpg",
+        "sha256": "4e3e65dcf59a81bdddc006fd9a3f81cdac10e06765a6231169de0939ad8ed066",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s01_v1_cover_3x4.jpg",
-        "sha256": "edb2138488e2e9e1f7f0d5f9fc5083d119ac86e04c36ab83925a1c45c80120a2",
+        "path": "05_Covers_Thumbnails/main/278990ec32c8415f9858a96fa110eb29/COD01-แกะกล่องว้าว_1_20261112_205200_cover_3x4.jpg",
+        "sha256": "b1c3b4836d35529b901d9087503f5b891737fa47f3d5b447edad3f89655132d3",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792066619.248846
+    "updated_at": 1794491548.0030181,
+    "source": "auto"
   },
   {
-    "id": "cover_523fd410002825a6442b905dc59a6da5",
+    "id": "cover_157afe34c6d54a528cb58c18b41a5bdaff7c84c7e800ef2565ea81d57afe95e4",
     "channel_id": "main",
-    "export_id": "exp_e353bfcfade740058b2fc344a67c86b6",
-    "video_path": "04_Exports/Ready_to_post/20261015_ess02-pov-s02_v1.mp4",
+    "export_id": "exp_7d34d1ad7af648938b0942f9e326ccbc",
+    "video_path": "04_Exports/Ready_to_post/COD01-โปรไฟลุก_1_20261112_205830.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s02_v1_cover.jpg",
-        "sha256": "066a1ba30d9ee403cf7cbbf04f0757e9241ce7d8474d931b526d46cba218fc3f",
+        "path": "05_Covers_Thumbnails/main/a9c1ede4bff642f2939967141b67f8f9/COD01-โปรไฟลุก_1_20261112_205830_cover.jpg",
+        "sha256": "595cd67c0625761d057bc82a6564f6b1412addfc193f3df081466a4fd7115d8a",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s02_v1_cover_3x4.jpg",
-        "sha256": "e1682f67740c031f55e6cc426d2b68729022c39d434888b17523cd168da205b2",
+        "path": "05_Covers_Thumbnails/main/a9c1ede4bff642f2939967141b67f8f9/COD01-โปรไฟลุก_1_20261112_205830_cover_3x4.jpg",
+        "sha256": "bf57035ff457d34b59d12c9220b5301e06a50cd566513fb57ecede59e941200d",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792066609.4193861
+    "updated_at": 1794491962.793668,
+    "source": "auto"
   },
   {
-    "id": "cover_0fb58d531606dc0b6de535e06e176e04",
+    "id": "cover_6ca6ddd0d82c26cf7cd88678a26ccb5f08ff71fd8bc58819bcaad46bb1fb6a9c",
     "channel_id": "main",
-    "export_id": "exp_276ad301071a49f9bd6370bcfaa99d3e",
-    "video_path": "04_Exports/Ready_to_post/20261015_ess02-pov-s03_v1.mp4",
+    "export_id": "exp_01cd2f7d272e4ee3aee5ad3d95bd6a01",
+    "video_path": "04_Exports/Ready_to_post/COD01-ทริกลึก_1_20261112_210516.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s03_v1_cover.jpg",
-        "sha256": "39acb14dd621a300d46b9acab952ffd83aa2e8e44e08ef1438d265e519ef8036",
+        "path": "05_Covers_Thumbnails/main/2aeac4a922ab4e9586be667bc31308a9/COD01-ทริกลึก_1_20261112_210516_cover.jpg",
+        "sha256": "9ea0b583059747e650919d562020deb122eabf0abaa57bc74779da1ab0195633",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s03_v1_cover_3x4.jpg",
-        "sha256": "f76026193f7c25a08bba33a5cc1f79701391460fb041e198fbd0f2f2e1d51627",
+        "path": "05_Covers_Thumbnails/main/2aeac4a922ab4e9586be667bc31308a9/COD01-ทริกลึก_1_20261112_210516_cover_3x4.jpg",
+        "sha256": "08bad87d346cfcc34a74346db8438f24b7d4b9e14722b2a2e0409241e28d131d",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792066689.959331
+    "updated_at": 1794492362.3240156,
+    "source": "auto"
   },
   {
-    "id": "cover_354bdee612c30682ad8f07ddad7436a9",
+    "id": "cover_dad5f79de58e574d63620c4a31e0cc4bd7c126a9dce81514cbcf8dc9e0fc5978",
     "channel_id": "main",
-    "export_id": "exp_1c2df210d1a0480bb67bce8496d13f11",
-    "video_path": "04_Exports/Ready_to_post/20261015_ess02-pov-s04_v1.mp4",
+    "export_id": "exp_399b1407028249fa9e53130455761733",
+    "video_path": "04_Exports/Ready_to_post/COD01-เทียบของเดิม_1_20261112_210519.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s04_v1_cover.jpg",
-        "sha256": "dd4552ebc46357b3695c13799f46c67b1efb4542da835404e7f7b4aa4746521e",
+        "path": "05_Covers_Thumbnails/main/6ad45e84fd084bba8d86d50ee293d294/COD01-เทียบของเดิม_1_20261112_210519_cover.jpg",
+        "sha256": "f734f4a1fb42a758fac2702e880cd448168d12e2e62f8970a80cec2505f1dcb9",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s04_v1_cover_3x4.jpg",
-        "sha256": "97c8333cbdd46145d484a7831ea1da73e8c13438921fa517b97d1e73b72d9bb4",
+        "path": "05_Covers_Thumbnails/main/6ad45e84fd084bba8d86d50ee293d294/COD01-เทียบของเดิม_1_20261112_210519_cover_3x4.jpg",
+        "sha256": "8b42e2195fca3cbec019aaffb4bad7a0a11a33d7b62e0700ec88b3868009354a",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792066884.363519
+    "updated_at": 1794492377.727434,
+    "source": "auto"
   },
   {
-    "id": "cover_bfd00771b455d5c9ef8537ebbc6c416a",
+    "id": "cover_9a1a77ec997efb4f05d20693442f9b52f1f4af3668a94ad527bb26bd7e8d10b3",
     "channel_id": "main",
-    "export_id": "exp_c5bcc32345e0496c8a197ade345b0525",
-    "video_path": "04_Exports/Ready_to_post/20261015_ess02-pov-s05_v1.mp4",
+    "export_id": "exp_567e35825abe49c7b6ad697a6b4054d6",
+    "video_path": "04_Exports/Ready_to_post/COD01-เตือนภัย_1_20261112_210519.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s05_v1_cover.jpg",
-        "sha256": "57f5747822431e2bb68660e71d0809cf8d9ec677dd060b3b64d95fa1f6739173",
+        "path": "05_Covers_Thumbnails/main/b215fa49f81b405f879ae2436f5e7568/COD01-เตือนภัย_1_20261112_210519_cover.jpg",
+        "sha256": "c46d7d239bc62ab4b99547377d3bd7b159c475da71501db3c62be86324fa28be",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s05_v1_cover_3x4.jpg",
-        "sha256": "1f29df0f95aea32a902dde35ce63e522c703529ee2ca2b138897f8e658d73588",
+        "path": "05_Covers_Thumbnails/main/b215fa49f81b405f879ae2436f5e7568/COD01-เตือนภัย_1_20261112_210519_cover_3x4.jpg",
+        "sha256": "e27a3602df3c68e3c459661de7bdde590e7ef0910bca4d6c873fdbf426c0a59c",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792066858.1095233
+    "updated_at": 1794492389.643818,
+    "source": "auto"
   },
   {
-    "id": "cover_a36162c2a23a0bf703ae1a39e7097a39",
+    "id": "cover_76c1657c7f2498aab029274a283ad814745d9a1f4a91ef2eea238428f3617e67",
     "channel_id": "main",
-    "export_id": "exp_c2e2ad9013e846ec965e4b86c00439ce",
-    "video_path": "04_Exports/Ready_to_post/20261015_ess02-pov-s06_v1.mp4",
+    "export_id": "exp_8e6e89d98f224a8b92ae3ff1d85c639c",
+    "video_path": "04_Exports/Ready_to_post/ESS06-รีวิวสเปก_1_20261112_212402.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s06_v1_cover.jpg",
-        "sha256": "e7a44306a7d8c3c4ead924da26164012733895f8567672b4f2795f6500e83e9c",
+        "path": "05_Covers_Thumbnails/main/65c7976441244b55baf552a4dea151fc/ESS06-รีวิวสเปก_1_20261112_212402_cover.jpg",
+        "sha256": "97524ba5fec4ffa8bf888c4948d012076a4d94a0640f0cc83baafdeeb5eae8f1",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s06_v1_cover_3x4.jpg",
-        "sha256": "d3757714b77e868e994301eb43864cf26c08bb4a7cb764555d293b76e6c20b4c",
+        "path": "05_Covers_Thumbnails/main/65c7976441244b55baf552a4dea151fc/ESS06-รีวิวสเปก_1_20261112_212402_cover_3x4.jpg",
+        "sha256": "d7464b4ef23bb89c603e5e87c05e7acc75c7a1d9351404a6d0767ba93f5e7ed0",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792066918.7749388
+    "updated_at": 1794493489.8835595,
+    "source": "auto"
   },
   {
-    "id": "cover_e9d491cf1ea58330d2c818a4c4262d55",
+    "id": "cover_927c084aa2b4c06bb2757f6b236aed0ce3f6229cf8e4d86e3c7d45ee4d9c95a0",
     "channel_id": "main",
-    "export_id": "exp_1f26d4d8997748f19b24deeb5a3f534b",
-    "video_path": "04_Exports/Ready_to_post/20261015_ess02-pov-s07_v1.mp4",
+    "export_id": "exp_dfd5d215a86e4db6ab1a0d6816a4dcb3",
+    "video_path": "04_Exports/Ready_to_post/ESS06-แกะกล่องว้าว_1_20261112_212405.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s07_v1_cover.jpg",
-        "sha256": "c79daeca0a00890c14ac65fb3c40f5101e655832618f9fead3fb56b542850e18",
+        "path": "05_Covers_Thumbnails/main/b01aab21231b4dec9a1bad32ab36a400/ESS06-แกะกล่องว้าว_1_20261112_212405_cover.jpg",
+        "sha256": "a2edc4f3111cc57aaf2e4b90ddd73386641c20742688037e47dd3f24d77e795c",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s07_v1_cover_3x4.jpg",
-        "sha256": "e9794c96cc40b9b74d1be6a23da9aae6081bd3c78475ae4834947a06a189e6e7",
+        "path": "05_Covers_Thumbnails/main/b01aab21231b4dec9a1bad32ab36a400/ESS06-แกะกล่องว้าว_1_20261112_212405_cover_3x4.jpg",
+        "sha256": "6e0ee1f79dcb2a5e155b04cd03e3a228d957ec2ecd675ed27e6bbdd49b7e9c1f",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792066943.8135254
+    "updated_at": 1794493516.0696313,
+    "source": "auto"
   },
   {
-    "id": "cover_271d760c4ac03fc57045417f626de907",
+    "id": "cover_c078aa386c996c6300c4e8b83633f35473752167b4b804978d89c94c5f395970",
     "channel_id": "main",
-    "export_id": "exp_59b71566521c4af1bf7be4e4eb3c25de",
-    "video_path": "04_Exports/Ready_to_post/20261015_ess02-pov-s08_v1.mp4",
+    "export_id": "exp_5483779642b94cb886ac8f35ae366020",
+    "video_path": "04_Exports/Ready_to_post/ESS06-เทียบของเดิม_1_20261112_212407.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s08_v1_cover.jpg",
-        "sha256": "8613a877f5827fff55237be00fa8ea8c8d9ce6d3ce029723b165225c68c17751",
+        "path": "05_Covers_Thumbnails/main/8dad621c355d4f6f8ba390b09a5dd3ed/ESS06-เทียบของเดิม_1_20261112_212407_cover.jpg",
+        "sha256": "5dfde7b594d916c693c89add165aea067e1a981d9ce444741e67775a4324141b",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s08_v1_cover_3x4.jpg",
-        "sha256": "e66a6806726d1975aedd30ac5217341facd61de352ffcef4a3b4ff6244867f23",
+        "path": "05_Covers_Thumbnails/main/8dad621c355d4f6f8ba390b09a5dd3ed/ESS06-เทียบของเดิม_1_20261112_212407_cover_3x4.jpg",
+        "sha256": "cb2cd6823a57a80e70f0aa92d14f8da0028a04ad54edf18f35b069a27444a185",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792067105.9551573
+    "updated_at": 1794493522.1401126,
+    "source": "auto"
   },
   {
-    "id": "cover_e0ce70a858f8a1f5f1610df545555749",
+    "id": "cover_294e30bc7785f842362e0d79b7eedb1bd56b4ec890257773be838468ed987a82",
     "channel_id": "main",
-    "export_id": "exp_ac2adfd3ad284be08831a9f84ffece6e",
-    "video_path": "04_Exports/Ready_to_post/20261015_ess02-pov-s09_v1.mp4",
+    "export_id": "exp_f8d8d25b4d56412fb2431496b2c68931",
+    "video_path": "04_Exports/Ready_to_post/ESS06-โปรไฟลุก_1_20261112_212407.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s09_v1_cover.jpg",
-        "sha256": "22a9d91f8a4763789e99ce957612c96808af57ee46d0114d4e0d0559ce49c37d",
+        "path": "05_Covers_Thumbnails/main/21b47830b23b4cc8afab790a324b3cf3/ESS06-โปรไฟลุก_1_20261112_212407_cover.jpg",
+        "sha256": "9f404f86af4be827388287b66ff9e81bca3acdab72760c14e8fd281fb8f8a633",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s09_v1_cover_3x4.jpg",
-        "sha256": "3929b601fffb49038197e35681eeb82fd3475e7c021d7eb5d9f3d9ecf4729651",
+        "path": "05_Covers_Thumbnails/main/21b47830b23b4cc8afab790a324b3cf3/ESS06-โปรไฟลุก_1_20261112_212407_cover_3x4.jpg",
+        "sha256": "900089d6a5575ceec0a99c788c85e89256102829ddce231894abb535201bbe19",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792067107.2862859
+    "updated_at": 1794493533.7262557,
+    "source": "auto"
   },
   {
-    "id": "cover_7a28d0ed9d6e4f73e82f7ed2b713d244",
+    "id": "cover_9519e6aaa02ef5f5d5ffeba542c22f7e455c303df1f756ee04f1c256992bd68d",
     "channel_id": "main",
-    "export_id": "exp_1e0d76ef13504ff3b995cb84739f436f",
-    "video_path": "04_Exports/Ready_to_post/20261015_ess02-pov-s10_v1.mp4",
+    "export_id": "exp_afd37f829f754789a924f5367ac7e88b",
+    "video_path": "04_Exports/Ready_to_post/ESS06-ทริกลึก_1_20261112_212500.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s10_v1_cover.jpg",
-        "sha256": "861319945e064971a0ab6fd9a4f34d9a283bedb94bbecd4de4c5db73d3fed2e9",
+        "path": "05_Covers_Thumbnails/main/5fcdc60d6e944d399b04c0699375c68b/ESS06-ทริกลึก_1_20261112_212500_cover.jpg",
+        "sha256": "564da82b872e8a5334a4f08ff42931bc3770e6049604a7cf0f186e0c55bd68cd",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s10_v1_cover_3x4.jpg",
-        "sha256": "6a3cbe5c9c541fa5d5fb8c8ad3c8947f30b2d26e746516fa0fdd0a785c6d2653",
+        "path": "05_Covers_Thumbnails/main/5fcdc60d6e944d399b04c0699375c68b/ESS06-ทริกลึก_1_20261112_212500_cover_3x4.jpg",
+        "sha256": "cbcf1c64486a01d4fcaaf956be9e4af6b1ae0193268255fe7a9908370c50d046",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792067180.2401655
+    "updated_at": 1794493551.397249,
+    "source": "auto"
   },
   {
-    "id": "cover_7f572a278419d8c9acd442d71572e954",
+    "id": "cover_bf97f2bf13300e565299962e525165ef955d60a6755cf369295b2daef61ddce5",
     "channel_id": "main",
-    "export_id": "exp_bda3b84eec7c4285ba2488e4d0bcc29a",
-    "video_path": "04_Exports/Ready_to_post/20261015_ess02-pov-s11_v1.mp4",
+    "export_id": "exp_7997551778714753a9fa0c7e19c09335",
+    "video_path": "04_Exports/Ready_to_post/ESS06-เตือนภัย_1_20261112_212525.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s11_v1_cover.jpg",
-        "sha256": "3b2afbbff4903834d92769ea4d22479c359777f7ecc9da3c1502d170ed03733f",
+        "path": "05_Covers_Thumbnails/main/e2ac891fa7e4440bad87e7f89740673d/ESS06-เตือนภัย_1_20261112_212525_cover.jpg",
+        "sha256": "50875de21390422d76b119774f1fb2c2fa6ce23fa71c230beb0e5782b04fcbc4",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s11_v1_cover_3x4.jpg",
-        "sha256": "45e6f45a55c0707f91c1149093ccfa9b7888e1470333d39a14f49090a026d42f",
+        "path": "05_Covers_Thumbnails/main/e2ac891fa7e4440bad87e7f89740673d/ESS06-เตือนภัย_1_20261112_212525_cover_3x4.jpg",
+        "sha256": "eb6f3d78d4df3c048332d52339a7fad021bae8951bb9eef1982c4f1d5118d707",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792067262.4414763
+    "updated_at": 1794493572.9425163,
+    "source": "auto"
   },
   {
-    "id": "cover_883532df38e5480c94f55021377157c3",
+    "id": "cover_7e3cf96dc36feb4d9019be58f1a8c75020921706f260a72926d31cdda92e54cb",
     "channel_id": "main",
-    "export_id": "exp_3c4943fd11b04e67b05aedf02498845c",
-    "video_path": "04_Exports/Ready_to_post/20261015_ess02-pov-s12_v1.mp4",
+    "export_id": "exp_3dc8a458173d465288e014c42e08c0e3",
+    "video_path": "04_Exports/Ready_to_post/POW01-เทียบของเดิม_1_20261112_215334.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s12_v1_cover.jpg",
-        "sha256": "804a830f7828a2626e97a23dd0a54ffa9483bc6cb0d4fec8c4795a5b12fb716a",
+        "path": "05_Covers_Thumbnails/main/564759c6c4634c4eb9dbce051250a74e/POW01-เทียบของเดิม_1_20261112_215334_cover.jpg",
+        "sha256": "aef678a3459a9f53fbcb09b6f0274e1119b31f541ea6adf4eb719ac5d5e649f9",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s12_v1_cover_3x4.jpg",
-        "sha256": "9bd919680e86ba7b2048af4a02d21e1538efea078185355b213891ff5d91f7e5",
+        "path": "05_Covers_Thumbnails/main/564759c6c4634c4eb9dbce051250a74e/POW01-เทียบของเดิม_1_20261112_215334_cover_3x4.jpg",
+        "sha256": "0e6ada05a2dd8c0ceefa3733b5bbc94ea5dbb507bafd9aad1f522f190cf62318",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792067399.7213044
+    "updated_at": 1794495267.1364486,
+    "source": "auto"
   },
   {
-    "id": "cover_7223460e898dbbc5a40e38db5e3b7e40",
+    "id": "cover_f92eec884687a44215a721e59a729c208d89ad0d2cad6813fb397a2f3cade6c0",
     "channel_id": "main",
-    "export_id": "exp_a2d4d6646fac4c5dbafcaba85c88b8d8",
-    "video_path": "04_Exports/Ready_to_post/20261015_ess02-pov-s13_v1.mp4",
+    "export_id": "exp_a1cf7b95c01b403cbf53b6a8bcd3e5a1",
+    "video_path": "04_Exports/Ready_to_post/POW01-ทริกลึก_1_20261112_215331.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s13_v1_cover.jpg",
-        "sha256": "9f83d95180c22455fbdd29c98be00ad11ba6d16136de203a38a7eb6d9193cc3a",
+        "path": "05_Covers_Thumbnails/main/5a7ed4aad82a4d1d9fb999f2ebc88ecc/POW01-ทริกลึก_1_20261112_215331_cover.jpg",
+        "sha256": "da6bd43a2fba5defec311fd6cea2095956b5cb385e3d98eadab3f60723612086",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s13_v1_cover_3x4.jpg",
-        "sha256": "267ff10a8253aa8e59db5e98c98665ca60ca871dc93595bb6797a2b3b787ff63",
+        "path": "05_Covers_Thumbnails/main/5a7ed4aad82a4d1d9fb999f2ebc88ecc/POW01-ทริกลึก_1_20261112_215331_cover_3x4.jpg",
+        "sha256": "57b549bef400497dcb9c7dfcdb99f50781edf2f4c818aa553edc1b96ecbc8f7c",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792067419.7750006
+    "updated_at": 1794495271.3724692,
+    "source": "auto"
   },
   {
-    "id": "cover_625731d1d67dce42a2ed661bc11756df",
+    "id": "cover_a3773e60155be0cdce689c1e125d90867964b6fa758e388d3cab28c085adf0fd",
     "channel_id": "main",
-    "export_id": "exp_60bed106052f47e0a1cbabd2b5d19570",
-    "video_path": "04_Exports/Ready_to_post/20261015_ess02-pov-s14_v1.mp4",
+    "export_id": "exp_e0a223e8646645daa4b339aa965bdfb6",
+    "video_path": "04_Exports/Ready_to_post/POW01-แกะกล่องว้าว_1_20261112_215334.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s14_v1_cover.jpg",
-        "sha256": "c57681826ba1bc2dd34db146d8606bd96623d39962130a1fa86d2407b1d1d998",
+        "path": "05_Covers_Thumbnails/main/458dd1872fc54b2d87daa3ad05b70a39/POW01-แกะกล่องว้าว_1_20261112_215334_cover.jpg",
+        "sha256": "74cf68657534ce8cb9b856367a334452dd07eb48cfc55530a64125855fc760a3",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s14_v1_cover_3x4.jpg",
-        "sha256": "de83934697ab46098e184611f1d9421c6a412781aecc4c651bbcf61a47b91b99",
+        "path": "05_Covers_Thumbnails/main/458dd1872fc54b2d87daa3ad05b70a39/POW01-แกะกล่องว้าว_1_20261112_215334_cover_3x4.jpg",
+        "sha256": "859e4503767c91991dd99fc3618e2aa49cad544c4a498bc78a1c0938b41716aa",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792067527.3465614
+    "updated_at": 1794495286.4538321,
+    "source": "auto"
   },
   {
-    "id": "cover_9991cf486df8ec7fa5327727e7ab1191",
+    "id": "cover_d41a51b2b9589a22c027e8bad2dd4dae36eab788ed37992f7175c7612958b886",
     "channel_id": "main",
-    "export_id": "exp_135d0b67c2714fc7b80d89b10e18427c",
-    "video_path": "04_Exports/Ready_to_post/20261015_ess02-pov-s15_v1.mp4",
+    "export_id": "exp_deafb0897dc24d5fbeefad96e33444ea",
+    "video_path": "04_Exports/Ready_to_post/POW01-โปรไฟลุก_1_20261112_215332.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s15_v1_cover.jpg",
-        "sha256": "e398129c8c640202b768d86bd13d1317a0267dfcd33fa77d90c1987e7176d69e",
+        "path": "05_Covers_Thumbnails/main/481c887056e2414485836e0bbdbd37a8/POW01-โปรไฟลุก_1_20261112_215332_cover.jpg",
+        "sha256": "188ad25f271c7a7af93ac62881500248c3914ab1dd10f9dfcbce8dee7a7d50ea",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s15_v1_cover_3x4.jpg",
-        "sha256": "86d41b28a553dc1777cb3c6509ae2db1d42f6e255a85eb86e2d7ba34757b4207",
+        "path": "05_Covers_Thumbnails/main/481c887056e2414485836e0bbdbd37a8/POW01-โปรไฟลุก_1_20261112_215332_cover_3x4.jpg",
+        "sha256": "fbb6608c0cb49edaa25dbd0a6cd7bffa649482d597b9a0626b4b16491d383562",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792067492.9888995
+    "updated_at": 1794495287.6284864,
+    "source": "auto"
   },
   {
-    "id": "cover_139b9b3d267e8204f4105f08cef92e15",
+    "id": "cover_d306c36e7d111233f70cb7d9371cba5a59341c5481d9f63ec0530d27cd338a50",
     "channel_id": "main",
-    "export_id": "exp_f8139c915b61403ebd4489ff31609bc4",
-    "video_path": "04_Exports/Ready_to_post/20261015_ess02-pov-s16_v1.mp4",
+    "export_id": "exp_9bc0c938b05b44fe8e468fe35c0fe8c1",
+    "video_path": "04_Exports/Ready_to_post/POW01-เตือนภัย_1_20261112_215436.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s16_v1_cover.jpg",
-        "sha256": "ba6122f5a40e7d527bb62b557f0cc9955eb94224be723922c07495fef3e86fc2",
+        "path": "05_Covers_Thumbnails/main/ac442e449fac417897d8ec124a572fca/POW01-เตือนภัย_1_20261112_215436_cover.jpg",
+        "sha256": "8a19d43ca64cca13e73b56951b57dff15ff22eb7507779eeb19cea889ace5967",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s16_v1_cover_3x4.jpg",
-        "sha256": "5e034c671239b3659391ce07e9a6986518192541c6b85f481983d9347d3df74f",
+        "path": "05_Covers_Thumbnails/main/ac442e449fac417897d8ec124a572fca/POW01-เตือนภัย_1_20261112_215436_cover_3x4.jpg",
+        "sha256": "b5d5b4b8c4fb997a66173ae8fb236fb95f61643b11a9d9cad30934b8b8b25d02",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792067663.763576
+    "updated_at": 1794495324.6274548,
+    "source": "auto"
   },
   {
-    "id": "cover_f92c2ac9ec90eb0e1feeb548d44520cd",
+    "id": "cover_749f973d703a6db41b34a32d07fe9ee6e769a08d96b53c3934e776659f008682",
     "channel_id": "main",
-    "export_id": "exp_64e33948b84f41db9a8ff7fa2eaaf257",
-    "video_path": "04_Exports/Ready_to_post/20261015_ess02-pov-s17_v1.mp4",
+    "export_id": "exp_81cb8e5a544143aaa2861faac199174f",
+    "video_path": "04_Exports/Ready_to_post/ESS07-ปัญหาก่อนใช้_1_20261113_000024.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s17_v1_cover.jpg",
-        "sha256": "b39e1165c406e130e4182039e324d9357015f7085e8b18400b513d07115a0a00",
+        "path": "05_Covers_Thumbnails/main/a115f797758f4099bceb00e4106ffadf/ESS07-ปัญหาก่อนใช้_1_20261113_000024_cover.jpg",
+        "sha256": "c4cd619f85833d1217da4b5a09d7fc330cd6b4ac50ed6306db3aa7c452196f1b",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s17_v1_cover_3x4.jpg",
-        "sha256": "5ab358e6391ec30df416675ddac40ded870bb04c0bfaddf23bf83adef09b80aa",
+        "path": "05_Covers_Thumbnails/main/a115f797758f4099bceb00e4106ffadf/ESS07-ปัญหาก่อนใช้_1_20261113_000024_cover_3x4.jpg",
+        "sha256": "2e8722c73e3bd103beee5c5e7e29fa3f4e756315ff9f96b53ee4913053249daa",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792067664.3623927
+    "updated_at": 1794502842.4292245,
+    "source": "auto"
   },
   {
-    "id": "cover_1b775d7e6aff928076261792193daa0b",
+    "id": "cover_2b46986c608eb0d5b8c20d7f2e8a6783267c23153c6370a7e486fa2e98dee5ed",
     "channel_id": "main",
-    "export_id": "exp_220d897814334497916b392f435e4be1",
-    "video_path": "04_Exports/Ready_to_post/20261015_ess02-pov-s18_v1.mp4",
+    "export_id": "exp_95599d03d892454c8f49855d15b7e0be",
+    "video_path": "04_Exports/Ready_to_post/ESS07-รีวิวสเปก_1_20261113_000318.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s18_v1_cover.jpg",
-        "sha256": "b30f6380f0d7b458ff41c070bd5d69768355fa8c476c6f543d55d2800d4c82f7",
+        "path": "05_Covers_Thumbnails/main/8ecdcc140d1545a9be651c241e8e023e/ESS07-รีวิวสเปก_1_20261113_000318_cover.jpg",
+        "sha256": "d4fa9281d88fa3cc72854f8823e507a383cfc97a494edb50e44b358abc1e6e50",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s18_v1_cover_3x4.jpg",
-        "sha256": "bd49d54a3e30dd14351a57de426a99105c151cc51e372f10908b6404666dccf8",
+        "path": "05_Covers_Thumbnails/main/8ecdcc140d1545a9be651c241e8e023e/ESS07-รีวิวสเปก_1_20261113_000318_cover_3x4.jpg",
+        "sha256": "e2876dcdc9aefbdc1946a1d3142a57bb502fedee35c340138d579f995ff73118",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792067716.404961
+    "updated_at": 1794503057.5889907,
+    "source": "auto"
   },
   {
-    "id": "cover_a3b985a82561c26e8afaaff723020dc4",
+    "id": "cover_11a3b89027d19949295c19501193552759eb2f8c9dc7d5cb7a0f50702ee3932e",
     "channel_id": "main",
-    "export_id": "exp_3911c6ce65734d2ca9e43acdb0f47010",
-    "video_path": "04_Exports/Ready_to_post/20261015_ess02-pov-s19_v1.mp4",
+    "export_id": "exp_633e0c5348c84c318b0efb324f4858c9",
+    "video_path": "04_Exports/Ready_to_post/ESS07-เทียบของเดิม_1_20261113_000321.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s19_v1_cover.jpg",
-        "sha256": "d95f678b44b370e85d6c13a8bd719efb6d00b62ae4431c5d21fe3a8a215de400",
+        "path": "05_Covers_Thumbnails/main/2951b550c9304221986fabace1526588/ESS07-เทียบของเดิม_1_20261113_000321_cover.jpg",
+        "sha256": "bf9fcd75f77014032d75a354a1f6354c09f1a423e13c763ac1812acc079b3b52",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s19_v1_cover_3x4.jpg",
-        "sha256": "dd1eef2541d72b2e5044b9361060f6d44ac71401ed3adc1b44083d016452ea9d",
+        "path": "05_Covers_Thumbnails/main/2951b550c9304221986fabace1526588/ESS07-เทียบของเดิม_1_20261113_000321_cover_3x4.jpg",
+        "sha256": "83697d3b2112d4bd6ad02731995fff8bc0b7150a6b97404d0d65a98a97eccbe9",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792067740.900185
+    "updated_at": 1794503064.6681669,
+    "source": "auto"
   },
   {
-    "id": "cover_8c65d57a519d20ae3142c5cd0cc0b80a",
+    "id": "cover_a5b01a1ac76540d568067745f8ee1b31da343d62a491fc33e70333c02fbf513c",
     "channel_id": "main",
-    "export_id": "exp_788470f276824c5fb52a2ce9f10f0641",
-    "video_path": "04_Exports/Ready_to_post/20261015_ess02-pov-s20_v1.mp4",
+    "export_id": "exp_796500e57b9a4e0e98b10c98c46437a0",
+    "video_path": "04_Exports/Ready_to_post/ESS07-แกะกล่องว้าว_1_20261113_000317.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s20_v1_cover.jpg",
-        "sha256": "65db5a0596ae46a2d8f3a105f7e7449169eb16e2227e4870c4900c7aec149f55",
+        "path": "05_Covers_Thumbnails/main/b4c5200d19f242d6a4aa1d45d5476a8e/ESS07-แกะกล่องว้าว_1_20261113_000317_cover.jpg",
+        "sha256": "f39a24ff94287d50a719144a2eb7d854d176c92ab50054f0e6df73d750749f31",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ess02-pov-s20_v1_cover_3x4.jpg",
-        "sha256": "71ba8a6c23385676bb726bdaa160ad76b53ec30fbdbf4257affc79eea33d339e",
+        "path": "05_Covers_Thumbnails/main/b4c5200d19f242d6a4aa1d45d5476a8e/ESS07-แกะกล่องว้าว_1_20261113_000317_cover_3x4.jpg",
+        "sha256": "c2178ece550084b64610716a644f5d9348eef0d1b31d15c5262d8574ef76a1fb",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792067798.5934858
+    "updated_at": 1794503065.3336506,
+    "source": "auto"
   },
   {
-    "id": "cover_e247db9cd34291fedf2132877e6104345fbefc9942a7fddbcca8c62d1816fd3d",
+    "id": "cover_a4e54eea309000bfe806102c54ff14354b49ec189b82a9cab6180b8664afe9b6",
     "channel_id": "main",
-    "export_id": "exp_d5c73318e8474155ac2c38d4b057d729",
-    "video_path": "04_Exports/Ready_to_post/20261015_hoy01-pov-s01_v1.mp4",
+    "export_id": "exp_e1817d70fa2844138936f28cbdded799",
+    "video_path": "04_Exports/Ready_to_post/ESS07-โปรไฟลุก_1_20261113_000321.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s01_v1_cover.jpg",
-        "sha256": "7dbbf12ceb20e8fd2954b9d6f2d0c193f61b86bb6cc01ecee6b37110ba679dc9",
+        "path": "05_Covers_Thumbnails/main/47a67be0c41d4240ab38077645318067/ESS07-โปรไฟลุก_1_20261113_000321_cover.jpg",
+        "sha256": "99007b6f9f292f2362ab4b89b3cd297dca01434fe3b662b1de7203fb7618845c",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s01_v1_cover_3x4.jpg",
-        "sha256": "0442fe03d4533922e01ded6e4925abc93a6c65452809709981a9f790a760dced",
+        "path": "05_Covers_Thumbnails/main/47a67be0c41d4240ab38077645318067/ESS07-โปรไฟลุก_1_20261113_000321_cover_3x4.jpg",
+        "sha256": "9109ec7f31059ce5a3f129151e21518de68cdcb21f3aa8ffa3ceb05abc60ce92",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792065134.8392155
+    "updated_at": 1794503081.2335527,
+    "source": "auto"
   },
   {
-    "id": "cover_50369d5eb12eb48062dc1874651e1015f4cf803ba14c3c7769fdb4f417e1badc",
+    "id": "cover_c947e56a65e5d6483e792ab0957883ca25458ec7bc6bc3050d977289470bc640",
     "channel_id": "main",
-    "export_id": "exp_b4f0b8e6bb9942d8b238e5ac3820c97a",
-    "video_path": "04_Exports/Ready_to_post/20261015_hoy01-pov-s02_v1.mp4",
+    "export_id": "exp_1b288ce6805e499fae3c80de1206f59c",
+    "video_path": "04_Exports/Ready_to_post/ESS07-ทริกลึก_1_20261113_000425.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s02_v1_cover.jpg",
-        "sha256": "2e3efff76e169cbc1c8d6fef5270f363b87020d3108a37db52dcfddaf5d0f59a",
+        "path": "05_Covers_Thumbnails/main/9692642aaa484c68ba6cc68800f25992/ESS07-ทริกลึก_1_20261113_000425_cover.jpg",
+        "sha256": "a5ff2e822fcf1c747f8dbda5aeb763027fb613b389298df0443e8d66de949420",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s02_v1_cover_3x4.jpg",
-        "sha256": "9da94078a86cea777d4f1757682688be637588495c166f0ef41490afeca95801",
+        "path": "05_Covers_Thumbnails/main/9692642aaa484c68ba6cc68800f25992/ESS07-ทริกลึก_1_20261113_000425_cover_3x4.jpg",
+        "sha256": "cf5bbc1c9026bf34724ee4d669727bc0b194c55cbc4fb1616932353f3a8a29ba",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792065134.9956753
+    "updated_at": 1794503097.5457666,
+    "source": "auto"
   },
   {
-    "id": "cover_eb84d46e590da2a96afe510c13b5f9f4a8f1b04d2f06d479b83616a5dd43388c",
+    "id": "cover_a1a4dbcc620b37fd85c703d91b655d90b545fb2d7a949964cfadd47c2da4c813",
     "channel_id": "main",
-    "export_id": "exp_b2625e42d1614152acb0991f99ee78a8",
-    "video_path": "04_Exports/Ready_to_post/20261015_hoy01-pov-s03_v1.mp4",
+    "export_id": "exp_46bd5f68aacb4a59b6bf1066983955fb",
+    "video_path": "04_Exports/Ready_to_post/ESS07-เตือนภัย_1_20261113_000432.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s03_v1_cover.jpg",
-        "sha256": "efa0005c1dde270da9ba0a4525adf35ae551565d418e1750aab7ceb22510f1a1",
+        "path": "05_Covers_Thumbnails/main/3838e962fd51442384ce5ec2bd614fd0/ESS07-เตือนภัย_1_20261113_000432_cover.jpg",
+        "sha256": "0df2a3ed8c950ad141af5f3b84151c36d6974653d5713869c95e10e8e3ff5abb",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s03_v1_cover_3x4.jpg",
-        "sha256": "a69bbfb82f09e703246f8537f29fd4d3c59787f34839b30a2f1d83b96b788e7f",
+        "path": "05_Covers_Thumbnails/main/3838e962fd51442384ce5ec2bd614fd0/ESS07-เตือนภัย_1_20261113_000432_cover_3x4.jpg",
+        "sha256": "7f04a8fb820d091ef8ee8cf051bf4cb74a937d0d60288caf8d94bc095093be8c",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792065157.2264006
+    "updated_at": 1794503115.157291,
+    "source": "auto"
   },
   {
-    "id": "cover_49df08b716d9c94d65a9cac9abd87f3f7118b108f954f650105bd711ed3b00e4",
+    "id": "cover_8648a8c68c2fc9cfa800681071ca3880d23efeedf4453b9bd7bfd3351beb50c8",
     "channel_id": "main",
-    "export_id": "exp_89c9e9128c934e23aad5eab4c2e9a3bd",
-    "video_path": "04_Exports/Ready_to_post/20261015_hoy01-pov-s04_v1.mp4",
+    "export_id": "exp_82977e89bbba4607912c3ea2c519574f",
+    "video_path": "04_Exports/Ready_to_post/TRA01-รีวิวสเปก_1_20261113_003507.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s04_v1_cover.jpg",
-        "sha256": "9fad0d7c12af7d95fbf0929825456fedbc6a86018442fe81af29740b5d1e88fa",
+        "path": "05_Covers_Thumbnails/main/931a11b7e2ec4a6baffd627cbbd6dad8/TRA01-รีวิวสเปก_1_20261113_003507_cover.jpg",
+        "sha256": "f79d48209d15f115e3e08b0b4af244dcc1a173d245199211e708d6812b805904",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s04_v1_cover_3x4.jpg",
-        "sha256": "a7d23062c0cc809a6aa41564af48dd13b9add4a94b5be5ab6a68b4f92f3513e5",
+        "path": "05_Covers_Thumbnails/main/931a11b7e2ec4a6baffd627cbbd6dad8/TRA01-รีวิวสเปก_1_20261113_003507_cover_3x4.jpg",
+        "sha256": "e364e7e7aae6a70a63a4d563edd4ea80a013e5db83fcea3b11c9a3b9e865f456",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792065397.4261627
+    "updated_at": 1794504968.1423872,
+    "source": "auto"
   },
   {
-    "id": "cover_218c454880c3f13416ed0e8bea5698697d176fe6ff4da220941f409574325587",
+    "id": "cover_c56e1c7dd9a9cddebf4cd42b73ff3e367b231dfcad0a2440f7b202f081c7134a",
     "channel_id": "main",
-    "export_id": "exp_6517f8c173664be4a2ca782a3d51ca56",
-    "video_path": "04_Exports/Ready_to_post/20261015_hoy01-pov-s05_v1.mp4",
+    "export_id": "exp_d3f1f5605c4b464c976aeb086ac6cbe8",
+    "video_path": "04_Exports/Ready_to_post/TRA01-โปรไฟลุก_1_20261113_003509.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s05_v1_cover.jpg",
-        "sha256": "48d113e01f802ae8cabf4228b6780fcc79fd8ac467a3e5fcccddfff4ca0406c0",
+        "path": "05_Covers_Thumbnails/main/ca7c7df6a7134234a75e024a7126e07c/TRA01-โปรไฟลุก_1_20261113_003509_cover.jpg",
+        "sha256": "e4a246f77b0a9795f37a4553a8d058fd0ea246a974ad21e8874ee8fe74f7adbb",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s05_v1_cover_3x4.jpg",
-        "sha256": "815d99c1271d96127144c5324fa6fd276642ecd801cdee9333eb4c04fd8dbd5f",
+        "path": "05_Covers_Thumbnails/main/ca7c7df6a7134234a75e024a7126e07c/TRA01-โปรไฟลุก_1_20261113_003509_cover_3x4.jpg",
+        "sha256": "29a0bb3d31dc86e0615983f981d3ef6423764dfc8b799437ad55f15a30ea2a17",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792065411.0619445
+    "updated_at": 1794505006.862402,
+    "source": "auto"
   },
   {
-    "id": "cover_8adb71c927bc8fb6ebab6d670132cef8737ee1beeac099556877cc86cac7db21",
+    "id": "cover_e2f6c548c562d17b0e6587cec96912010adca8c8c2686c81d74734b5f2ac8223",
     "channel_id": "main",
-    "export_id": "exp_8c4455e1d8d84c6fb9d594b2af59e47b",
-    "video_path": "04_Exports/Ready_to_post/20261015_hoy01-pov-s06_v1.mp4",
+    "export_id": "exp_22161c8626684848949f853ee38aa45e",
+    "video_path": "04_Exports/Ready_to_post/TRA01-เทียบของเดิม_1_20261113_003510.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s06_v1_cover.jpg",
-        "sha256": "58d58f8cfd29d39384e4cb817d97dbb99e0755f81a87d1c3b5961dd9409a0e49",
+        "path": "05_Covers_Thumbnails/main/16396c0e2e5646e09a92254bd4731504/TRA01-เทียบของเดิม_1_20261113_003510_cover.jpg",
+        "sha256": "8cd5c06fc6345c7aa76f73a30c4153b7cff5291d81add00900db6a715e69dec7",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s06_v1_cover_3x4.jpg",
-        "sha256": "d82113b461e0b7d76afa977274e808b40097f81da56266b74085436bec8a1bc6",
+        "path": "05_Covers_Thumbnails/main/16396c0e2e5646e09a92254bd4731504/TRA01-เทียบของเดิม_1_20261113_003510_cover_3x4.jpg",
+        "sha256": "a61c6a91c9640d6ed7fbb067670560b0b2dd499ba1580ca07cb0641b1d5d9c86",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792065414.7403224
+    "updated_at": 1794505012.948881,
+    "source": "auto"
   },
   {
-    "id": "cover_20a33199f28a24f07d001aab3ef1df325166c450d4aed0f52e27f921e32d02f1",
+    "id": "cover_581c31cc073252e5ac011804108ab0b5f228634d8e0be33ebdf3390e7b1607ae",
     "channel_id": "main",
-    "export_id": "exp_f7b99055a6e447bc8844e7ba1b38be38",
-    "video_path": "04_Exports/Ready_to_post/20261015_hoy01-pov-s07_v1.mp4",
+    "export_id": "exp_c6b4f22c769943fc833b950c9e034969",
+    "video_path": "04_Exports/Ready_to_post/TRA01-แกะกล่องว้าว_1_20261113_003509.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s07_v1_cover.jpg",
-        "sha256": "2f65c93d51ccfdfc6628238328cd11f3806c811be5e411d5a0f20646b7114e80",
+        "path": "05_Covers_Thumbnails/main/5fa771157ea9449fb3b7c0cc4e05caa0/TRA01-แกะกล่องว้าว_1_20261113_003509_cover.jpg",
+        "sha256": "7649fd4b414641fdb77172798290caf0868a7dc1139f106694d9c9ade8c6f0a5",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s07_v1_cover_3x4.jpg",
-        "sha256": "fe9f8e0b7bb5a072ed24e41775355b2319481e47070ad48672a45381d3812be5",
+        "path": "05_Covers_Thumbnails/main/5fa771157ea9449fb3b7c0cc4e05caa0/TRA01-แกะกล่องว้าว_1_20261113_003509_cover_3x4.jpg",
+        "sha256": "307ad70180bbeac7707b135cc47275999c2018ce258ed12f1a63076590b4844a",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792065434.182483
+    "updated_at": 1794505018.236682,
+    "source": "auto"
   },
   {
-    "id": "cover_fd7ac0383e5602c53ba8c22eb69e5ddb94cc6e9d4b5345181654305a1a1464aa",
+    "id": "cover_39a674bc2f6feccc9945efc5018f4ed06fd4ca65352fa6a834bd3b4968983033",
     "channel_id": "main",
-    "export_id": "exp_e1115083192246a391285721617f580b",
-    "video_path": "04_Exports/Ready_to_post/20261015_hoy01-pov-s08_v1.mp4",
+    "export_id": "exp_8cad579261e84a438dfa7685fea96e0d",
+    "video_path": "04_Exports/Ready_to_post/TRA01-ทริกลึก_1_20261113_003617.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s08_v1_cover.jpg",
-        "sha256": "f5130191fa1721e62ba09ca882e1c5d896aa14a4f6f03e5f538bb6f9ecfa3518",
+        "path": "05_Covers_Thumbnails/main/6ffea88899444026bf3564b6613ebd07/TRA01-ทริกลึก_1_20261113_003617_cover.jpg",
+        "sha256": "04c46a1629389a56e47f30c3e48832752b46897332be92f3f2e72f4f510eff08",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s08_v1_cover_3x4.jpg",
-        "sha256": "ccef69c2adc6ad69dfe0ea41e77187fb7516e186c065217bdf43b71b55e7e71e",
+        "path": "05_Covers_Thumbnails/main/6ffea88899444026bf3564b6613ebd07/TRA01-ทริกลึก_1_20261113_003617_cover_3x4.jpg",
+        "sha256": "bd52392fc78be685769b2ca3349ebb940822b89448423b778692f416d2d5e454",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792065668.4100218
+    "updated_at": 1794505030.4719036,
+    "source": "auto"
   },
   {
-    "id": "cover_fb3054f20170870b1fc7c4ecfad90a4cb023666fb574a16dcb3f21fabe657978",
+    "id": "cover_79f24225eb2d25b6ccc5ff4dc5746d6f184977200418f051fcd235a405a4b537",
     "channel_id": "main",
-    "export_id": "exp_792d5dfbacdd4aa59977540229805783",
-    "video_path": "04_Exports/Ready_to_post/20261015_hoy01-pov-s09_v1.mp4",
+    "export_id": "exp_f686c1d83f2543c3900a093839b512cf",
+    "video_path": "04_Exports/Ready_to_post/TRA01-เตือนภัย_1_20261113_003655.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s09_v1_cover.jpg",
-        "sha256": "20a28bf279d317fa811850ef408b6792f16c91947bac1ca0e254a246c9c956d5",
+        "path": "05_Covers_Thumbnails/main/b0e6d1179200474ba75f93f58932429a/TRA01-เตือนภัย_1_20261113_003655_cover.jpg",
+        "sha256": "0301417e3468fdb2c6fcab80b28d0df7ddccc6190b954e639a2e4b723b48c2e9",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s09_v1_cover_3x4.jpg",
-        "sha256": "9c13e8f17694eada2c731f17d8f2d250d9daa70dd37212426054cd7809b70a5a",
+        "path": "05_Covers_Thumbnails/main/b0e6d1179200474ba75f93f58932429a/TRA01-เตือนภัย_1_20261113_003655_cover_3x4.jpg",
+        "sha256": "a777e7d9758a6841d7b7cd4aa1797cd100bd7372a80f1cc4c4279f4ded5512ed",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792065719.2689416
+    "updated_at": 1794505060.7739196,
+    "source": "auto"
   },
   {
-    "id": "cover_f5fbb8fa6509f965e5d111162ea7e0d15a75a5c08f0a3f2373909970f3f83133",
+    "id": "cover_85d9b9299762be62e3757504b9c76cf482af25eba0713608434a1a10fb686530",
     "channel_id": "main",
-    "export_id": "exp_c1b04cda014f49728fb71bae6c585fb3",
-    "video_path": "04_Exports/Ready_to_post/20261015_hoy01-pov-s10_v1.mp4",
+    "export_id": "exp_5190d6a44a5645c69aaae039600096dc",
+    "video_path": "04_Exports/Ready_to_post/ESS05-รีวิวสเปก_1_20261113_004456.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s10_v1_cover.jpg",
-        "sha256": "8e4492ceea06500f33926cc76f828ff46f28774c5b7d8e1c856b9614d17dacf3",
+        "path": "05_Covers_Thumbnails/main/df25798626844bd5bebba684409ddfb1/ESS05-รีวิวสเปก_1_20261113_004456_cover.jpg",
+        "sha256": "4cb62ebbf9ee8cea17cdbce2a12047d42bce4de73dafec0d8bd2d79c0d54d474",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s10_v1_cover_3x4.jpg",
-        "sha256": "4e258d50e70da4f5ac92ba5606ebf83f06c5ab860660fbde55296c45fe149dc2",
+        "path": "05_Covers_Thumbnails/main/df25798626844bd5bebba684409ddfb1/ESS05-รีวิวสเปก_1_20261113_004456_cover_3x4.jpg",
+        "sha256": "5c10944795311bca56083e83d9664fa864ae37f7b7a50e9c08d0ff320122d68c",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792065718.8305292
+    "updated_at": 1794505563.5681894,
+    "source": "auto"
   },
   {
-    "id": "cover_62074448fa02f8becd6a4e826f692f4ec64379e2226f6df4e38d22f8802e003f",
+    "id": "cover_cf53dd29a1fc34f3824aab14b0940a69a8645eda019dc5602e1cde6c9ddeadb8",
     "channel_id": "main",
-    "export_id": "exp_a86860d5f2494cfba00b7b7775c008ca",
-    "video_path": "04_Exports/Ready_to_post/20261015_hoy01-pov-s11_v1.mp4",
+    "export_id": "exp_5c2a83b8a1d24e5284f786a4d56ce1a7",
+    "video_path": "04_Exports/Ready_to_post/ESS05-ปัญหาก่อนใช้_1_20261113_004453.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s11_v1_cover.jpg",
-        "sha256": "27e8070b72261df59fec5a4d781ab8c560355b3ec007a6c6f48d6955396b4454",
+        "path": "05_Covers_Thumbnails/main/69b68e6aa2ae45f6ba2e893c05672558/ESS05-ปัญหาก่อนใช้_1_20261113_004453_cover.jpg",
+        "sha256": "136d4af1066ff535cc68198fd8619155173677081d2752193674a79efdb0f745",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s11_v1_cover_3x4.jpg",
-        "sha256": "9e1d2e0d6ab056096f89a595ea55f7cf4d1c97e9115cc35230077b1c112aec3c",
+        "path": "05_Covers_Thumbnails/main/69b68e6aa2ae45f6ba2e893c05672558/ESS05-ปัญหาก่อนใช้_1_20261113_004453_cover_3x4.jpg",
+        "sha256": "badf1bf52fdceb9d1afc506cd1bca5a75bf7478943cd1b37e48575c286999bd8",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792065719.360433
+    "updated_at": 1794505567.5352325,
+    "source": "auto"
   },
   {
-    "id": "cover_4cd3f086936f320f56eea99c6f9f61d38d21e147919b70180814861dec4b9089",
+    "id": "cover_72ca4d224c00e8d6734ed069f230461ab766cb3440a0c3e4a2380bae09c91bc0",
     "channel_id": "main",
-    "export_id": "exp_6b81d7e8438f46989d59f70ab631e260",
-    "video_path": "04_Exports/Ready_to_post/20261015_hoy01-pov-s12_v1.mp4",
+    "export_id": "exp_1947762f18c049e4bfcb0a356cd1b60a",
+    "video_path": "04_Exports/Ready_to_post/ESS05-แกะกล่องว้าว_1_20261113_004455.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s12_v1_cover.jpg",
-        "sha256": "51d96ce95467e52b9031a5438dc3affd0e834567cf86890efc744c35e77b42b4",
+        "path": "05_Covers_Thumbnails/main/a4be9a7f4c874348ac5f681fdee689d4/ESS05-แกะกล่องว้าว_1_20261113_004455_cover.jpg",
+        "sha256": "e0d02cd15cc8d26f03ca1aa2cc492d6b3f1a486a767f0ae21d16b4e440e041c7",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s12_v1_cover_3x4.jpg",
-        "sha256": "322a12c6ad899e8bdaaefa185d02af681fe51d96a3d3e6b922ce144dabc82d65",
+        "path": "05_Covers_Thumbnails/main/a4be9a7f4c874348ac5f681fdee689d4/ESS05-แกะกล่องว้าว_1_20261113_004455_cover_3x4.jpg",
+        "sha256": "a6af98fefbe6bd414f5dd79d4947a50d138476c3dc9a3a1eae094dc0343c701a",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792066010.1148672
+    "updated_at": 1794505577.6123476,
+    "source": "auto"
   },
   {
-    "id": "cover_eb391550e24abca909cda8617a620567353fbb339a5fc47b1fcbed50bc46fe1a",
+    "id": "cover_22b31251ed6450e11bba4cb2d97e949954caeeeb96aeacd9acb24cb73208d600",
     "channel_id": "main",
-    "export_id": "exp_48999de9795a47c8b038670ae20ab715",
-    "video_path": "04_Exports/Ready_to_post/20261015_hoy01-pov-s13_v1.mp4",
+    "export_id": "exp_679e64cf5fa9473eac8cd3e5daf2d415",
+    "video_path": "04_Exports/Ready_to_post/ESS05-โปรไฟลุก_1_20261113_004457.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s13_v1_cover.jpg",
-        "sha256": "2c0eb167f9679bc8645a8b63f2c5a6d5251e414abaaa14e6cded8da5769f607f",
+        "path": "05_Covers_Thumbnails/main/fb044d5f4c0847c898a3e95b6e8c8a59/ESS05-โปรไฟลุก_1_20261113_004457_cover.jpg",
+        "sha256": "0da4bdbefb03e4c8ec13adac40b05e36c166725cf0ebb963add11876c0e1519c",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s13_v1_cover_3x4.jpg",
-        "sha256": "1859a7b4826580b77981112dfac3f29f478d37dee3caf67d03047747c63ca21d",
+        "path": "05_Covers_Thumbnails/main/fb044d5f4c0847c898a3e95b6e8c8a59/ESS05-โปรไฟลุก_1_20261113_004457_cover_3x4.jpg",
+        "sha256": "bfd5e66fdf957dff04bba92c2f14ac3506abc972686f4cfb4e3c6e82e3cd834b",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792066036.3477085
+    "updated_at": 1794505583.5593946,
+    "source": "auto"
   },
   {
-    "id": "cover_93ce8159a7b7dd2ec67c79cedb3e2994e31178ae4a050ec9b28d4ee1f1c53ad1",
+    "id": "cover_ba9e7dc745303ec85f8b55db4564008f27162de49b8368eb5052ff77f2bc6489",
     "channel_id": "main",
-    "export_id": "exp_2f053a0fcb8548f19e8e7b009b40461e",
-    "video_path": "04_Exports/Ready_to_post/20261015_hoy01-pov-s14_v1.mp4",
+    "export_id": "exp_0c70529f87254658aeef08aaa8d09b4f",
+    "video_path": "04_Exports/Ready_to_post/ESS05-เทียบของเดิม_1_20261113_004612.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s14_v1_cover.jpg",
-        "sha256": "41c63c01fdfaa22715a0f8ad03884cf594d9cea1f4df42338de776103a0dd841",
+        "path": "05_Covers_Thumbnails/main/50908043073f4c618fc700e7cabd6c5a/ESS05-เทียบของเดิม_1_20261113_004612_cover.jpg",
+        "sha256": "2be28e4e10ae5b21c6733d9dc302161880a7fb9f3a68ca2184bc480f0fd6b4f8",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s14_v1_cover_3x4.jpg",
-        "sha256": "0d3d1d9e2a3f236f77c51a5f4613e3595aacba7c73936ba05a36563fee9ef88e",
+        "path": "05_Covers_Thumbnails/main/50908043073f4c618fc700e7cabd6c5a/ESS05-เทียบของเดิม_1_20261113_004612_cover_3x4.jpg",
+        "sha256": "99262e2af1e5ee45ec6d6c4acdeef24c1f88c8fcda555c386530c3bb2485b0e5",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792066036.872375
+    "updated_at": 1794505615.9856832,
+    "source": "auto"
   },
   {
-    "id": "cover_5361b84c93add17029e5c02d08ac821ce879e55368c2e22eb08f0418d5db1664",
+    "id": "cover_b46af1c6590ec5e912525b343029ede4786d404dc5b92e03e4f65bde2b27ae46",
     "channel_id": "main",
-    "export_id": "exp_4c9ec519f0494840bc4aca6f58c6cdad",
-    "video_path": "04_Exports/Ready_to_post/20261015_hoy01-pov-s15_v1.mp4",
+    "export_id": "exp_8000c3f95d8c4521abac8d1ec7a11e2f",
+    "video_path": "04_Exports/Ready_to_post/ESS05-ทริกลึก_1_20261113_004618.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s15_v1_cover.jpg",
-        "sha256": "4ce78937de6315fadf43cea01508f8088f9fc082df5e5456b1f7fa5741530adf",
+        "path": "05_Covers_Thumbnails/main/8650ed5f2e494dd392dd9f8c6b1eb5ba/ESS05-ทริกลึก_1_20261113_004618_cover.jpg",
+        "sha256": "6b09c626e7d770f2be0263999214cd8bee53f5cc9901595d9f9a10f47dc6ca8d",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s15_v1_cover_3x4.jpg",
-        "sha256": "78b46611db99263b6eacd5a18cf2f6b4733ddc7f62c305eb4841c3c7ea983325",
+        "path": "05_Covers_Thumbnails/main/8650ed5f2e494dd392dd9f8c6b1eb5ba/ESS05-ทริกลึก_1_20261113_004618_cover_3x4.jpg",
+        "sha256": "215b3a323c49c552f488f47c2ce00922219817363c7c0a6709fd755700540cdc",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792066012.6665967
+    "updated_at": 1794505622.8612034,
+    "source": "auto"
   },
   {
-    "id": "cover_eb05dafb98613268fdb96fdc7e89e5123623fc18b2e1e9744e99135f5ec0cd73",
+    "id": "cover_5b716c4c09cc47cfcc0954573e22b7f3ac2a0cf22106aa42ca6b9a9fc873286f",
     "channel_id": "main",
-    "export_id": "exp_1b7bb9ee3e1c422792671a472b2628d3",
-    "video_path": "04_Exports/Ready_to_post/20261015_hoy01-pov-s16_v1.mp4",
+    "export_id": "exp_1a78f1e898f54b2dab0da74d6382220f",
+    "video_path": "04_Exports/Ready_to_post/ESS05-เตือนภัย_1_20261113_004625.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s16_v1_cover.jpg",
-        "sha256": "edb61e16e3bebfafd949cf0d67f584e0eec3b8b45e26df309430741d748d9f83",
+        "path": "05_Covers_Thumbnails/main/b212d20462004eada56fba3d9802a3a6/ESS05-เตือนภัย_1_20261113_004625_cover.jpg",
+        "sha256": "fe31d519d0bf918ab38fe2ae04f15feab04c47bd1111ee7a1a6e134259b24500",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s16_v1_cover_3x4.jpg",
-        "sha256": "8c8d6dc29b3685c07adb23037c7c5d693a08a5d8d100d46ee0e86cc8b43e0a37",
+        "path": "05_Covers_Thumbnails/main/b212d20462004eada56fba3d9802a3a6/ESS05-เตือนภัย_1_20261113_004625_cover_3x4.jpg",
+        "sha256": "475b68ae5cabf9a412371f218aee504967c67ceff31789706e7ab8c89bb30ac0",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792066330.9318542
+    "updated_at": 1794505627.119972,
+    "source": "auto"
   },
   {
-    "id": "cover_110ba785548c9cfd57fd4f02ca805c3dd53a577938886730cc53528b7e14191f",
+    "id": "cover_9f5d3e13f59b22a8c33cd9bd7cd0b904d0ad8b1cfded6d3e3595aa3f8d50c82f",
     "channel_id": "main",
-    "export_id": "exp_da7d25d8aea84df2aa75cd596d16fade",
-    "video_path": "04_Exports/Ready_to_post/20261015_hoy01-pov-s17_v1.mp4",
+    "export_id": "exp_5b25ca27fbf74b919c46ec1ddac195cf",
+    "video_path": "04_Exports/Ready_to_post/ESS04-แกะกล่องว้าว_1_20261113_005448.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s17_v1_cover.jpg",
-        "sha256": "48bf13b68873976cbb2aab3cfb37f3388e545cc63fc18eb3f51c560ac8eb34f7",
+        "path": "05_Covers_Thumbnails/main/208285f84797455d93d9a8a533d1c1cf/ESS04-แกะกล่องว้าว_1_20261113_005448_cover.jpg",
+        "sha256": "923a2f3acb38bebfd7008c4b8dcb99765ea0a41af9a1dd41cbe8939b3411f1d6",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s17_v1_cover_3x4.jpg",
-        "sha256": "8f104679dd64f440219c99d5da45c46030e325095fc9444bac07f326d90388a5",
+        "path": "05_Covers_Thumbnails/main/208285f84797455d93d9a8a533d1c1cf/ESS04-แกะกล่องว้าว_1_20261113_005448_cover_3x4.jpg",
+        "sha256": "9c1c4d6d68877b75db816ea637fcf92927485c33e61e37b14a804bc955cc1920",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792066362.101864
+    "updated_at": 1794506166.8319128,
+    "source": "auto"
   },
   {
-    "id": "cover_dd1875eee16754a78606a25408af193393f3432a85b3e6ed717716dfbff7d888",
+    "id": "cover_93dcebd3791483d80aa8c4af30a8cc41c6e3b38e779658418f43f91bc9db7c6a",
     "channel_id": "main",
-    "export_id": "exp_2bd55d3f223348b4af84c3daf1575824",
-    "video_path": "04_Exports/Ready_to_post/20261015_hoy01-pov-s18_v1.mp4",
+    "export_id": "exp_1916035e7a994d0a9a6caa727a00b617",
+    "video_path": "04_Exports/Ready_to_post/ESS04-เทียบของเดิม_1_20261113_005451.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s18_v1_cover.jpg",
-        "sha256": "021f41770f790775c676dd3a27001216118c71e8c83a960945af67f3c4e000a4",
+        "path": "05_Covers_Thumbnails/main/60101bd94603405ead95ca7e678b0aea/ESS04-เทียบของเดิม_1_20261113_005451_cover.jpg",
+        "sha256": "c5a329e84c3e0c71a1ec2504209c63f95a05a67a95d5d1b7450adceb31e4013e",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s18_v1_cover_3x4.jpg",
-        "sha256": "e5481f35a70d9dded7ead99a018b98184eb367708c54b8f9801389c585d2c3ce",
+        "path": "05_Covers_Thumbnails/main/60101bd94603405ead95ca7e678b0aea/ESS04-เทียบของเดิม_1_20261113_005451_cover_3x4.jpg",
+        "sha256": "7319416b1ef57d418f00e4b65b3954b2391375537979b65b007adeb746a4a806",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792066362.3397787
+    "updated_at": 1794506168.3221638,
+    "source": "auto"
   },
   {
-    "id": "cover_6e51acf0940d434092ede641468d26db5b476a92cc5f179608fb535d2ec10124",
+    "id": "cover_cc9a252fcce724b239254372885b7c1de9eef864b1ad03ceb7575a33f84639b3",
     "channel_id": "main",
-    "export_id": "exp_f9f428fd6ce444aab8ea327ba3aedac3",
-    "video_path": "04_Exports/Ready_to_post/20261015_hoy01-pov-s19_v1.mp4",
+    "export_id": "exp_f29dd4f0ec2f4bcf8640f17adf96ba66",
+    "video_path": "04_Exports/Ready_to_post/ESS04-โปรไฟลุก_1_20261113_005451.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s19_v1_cover.jpg",
-        "sha256": "94e14710de278f1e56619bb4201b07c5cc837fa39b647cf69ef59a6dae1dc18b",
+        "path": "05_Covers_Thumbnails/main/b4c274a0f07f413ea0df8efbd8502ac7/ESS04-โปรไฟลุก_1_20261113_005451_cover.jpg",
+        "sha256": "5249a29c58ee94b93c6a14f94df0806fbe3d5b30f344a00453eb3ade3763c664",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s19_v1_cover_3x4.jpg",
-        "sha256": "cf74b3d557a5143dc0db4519a69b32d7b862f1d2dc881c692c1da11823bc388d",
+        "path": "05_Covers_Thumbnails/main/b4c274a0f07f413ea0df8efbd8502ac7/ESS04-โปรไฟลุก_1_20261113_005451_cover_3x4.jpg",
+        "sha256": "d3e722b03ebbf3dbcc0fbff4293ad92a483bf90412e441227688c7ea8c742491",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792066361.872677
+    "updated_at": 1794506169.2060168,
+    "source": "auto"
   },
   {
-    "id": "cover_a7ff9c11e3a99e1280d02c995d75f2725f30171df422b4587ba0247b8d3d30bf",
+    "id": "cover_5d18ed8d8ddc09475f621189ccf6ee123c832ae85c9d7190aebca369caeccbc4",
     "channel_id": "main",
-    "export_id": "exp_c0802c42e9a347b88767d9547da9c5f5",
-    "video_path": "04_Exports/Ready_to_post/20261015_hoy01-pov-s20_v1.mp4",
+    "export_id": "exp_27321fef46b74f63b715f010ed34424f",
+    "video_path": "04_Exports/Ready_to_post/ESS04-ทริกลึก_1_20261113_005452.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s20_v1_cover.jpg",
-        "sha256": "555ab564475be830c8608d72067047cec5d85f6f99ce4c1425e9762d8b800882",
+        "path": "05_Covers_Thumbnails/main/abce3d4062024378affa6b210e668d35/ESS04-ทริกลึก_1_20261113_005452_cover.jpg",
+        "sha256": "c8d6616d59b563edf5c24e126c59a53c236a125698fd94e155bb974b28184801",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hoy01-pov-s20_v1_cover_3x4.jpg",
-        "sha256": "c75e332fa3d2c9a9673050a96231af7b89f2a78db7b68452a3fd19321ac4e3ad",
+        "path": "05_Covers_Thumbnails/main/abce3d4062024378affa6b210e668d35/ESS04-ทริกลึก_1_20261113_005452_cover_3x4.jpg",
+        "sha256": "bd4871f52397267871b5cdea341de8bd76503576e20ebd1fed7e45508a7b2c39",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792066688.3952196
+    "updated_at": 1794506172.4808235,
+    "source": "auto"
   },
   {
+    "id": "cover_7b479fe237474127cd49ff7aaba18510848cbbe1f13ebfd7d7083b9294d89031",
     "channel_id": "main",
-    "export_id": "exp_3015d2eaf9d5446e9e278333fd5f2a8a",
-    "video_path": "04_Exports/Ready_to_post/20261015_ors01-pov-s01_v1.mp4",
+    "export_id": "exp_3f0b11764f994a45a9d30206e566a13a",
+    "video_path": "04_Exports/Ready_to_post/ESS04-เตือนภัย_1_20261113_005615.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s01_v1_cover.jpg",
-        "sha256": "77b5880e80a23aa550a65d26daaa340b73d597cf0b2fffec3a3a179f94237e48",
+        "path": "05_Covers_Thumbnails/main/3fcd4c99a51c4cf1a84a3759a5778876/ESS04-เตือนภัย_1_20261113_005615_cover.jpg",
+        "sha256": "c57107a8d6df142c6cee644e9e302de096d1c2fac34fb73d0d2dfdded76f7247",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s01_v1_cover_3x4.jpg",
-        "sha256": "d82b815633d39869917c004f625fa7e4a60357f180e1261828f7906180dd9463",
+        "path": "05_Covers_Thumbnails/main/3fcd4c99a51c4cf1a84a3759a5778876/ESS04-เตือนภัย_1_20261113_005615_cover_3x4.jpg",
+        "sha256": "c034082f9b44c221ae8931064267e2dadd785308216ca1054855935c87d66738",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792062687.1474748
+    "updated_at": 1794506217.4050536,
+    "source": "auto"
   },
   {
+    "id": "cover_9b871f233f4c549fd2191090759e73db7768a3f2f403cb19da5117655927c8a9",
     "channel_id": "main",
-    "export_id": "exp_68a96abf6b724728aa1f5b7158eaaec7",
-    "video_path": "04_Exports/Ready_to_post/20261015_ors01-pov-s02_v1.mp4",
+    "export_id": "exp_e9ed9687038241c8b2aa5ed48592bc57",
+    "video_path": "04_Exports/Ready_to_post/TRA03-ปัญหาก่อนใช้_1_20261116_235100.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s02_v1_cover.jpg",
-        "sha256": "0a618f0eaf20a05e8c7309332baee818556c881856ff4eb80ea97cc038b58cab",
+        "path": "05_Covers_Thumbnails/main/f97bdb195b744df88de116353e6a8169/TRA03-ปัญหาก่อนใช้_1_20261116_235100_cover.jpg",
+        "sha256": "1bcd46cf2db18dc7022a7907eb2a22df72db2380163688386a344a0afe3068a1",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s02_v1_cover_3x4.jpg",
-        "sha256": "2e258d9cbe4fa648dbf2f736e7f14f780867081c87eb2f3a50a4699f4b81a914",
+        "path": "05_Covers_Thumbnails/main/f97bdb195b744df88de116353e6a8169/TRA03-ปัญหาก่อนใช้_1_20261116_235100_cover_3x4.jpg",
+        "sha256": "a78bf5e31ebde12ee722a02ae02c4079883c3872aa39872ef6f6568d45ecc613",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792062687.1924152
+    "updated_at": 1794847916.8096564,
+    "source": "auto"
   },
   {
+    "id": "cover_8461ad8ab058422b070b9dfa9c70b28daf181cd5cce3dbb5179ff1ab0afd6295",
     "channel_id": "main",
-    "export_id": "exp_22d7b82332004b06b58b1aa4a3d00915",
-    "video_path": "04_Exports/Ready_to_post/20261015_ors01-pov-s03_v1.mp4",
+    "export_id": "exp_895f93f3bbf24f318600cf00b16d01dc",
+    "video_path": "04_Exports/Ready_to_post/TRA03-แกะกล่องว้าว_1_20261116_235100.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s03_v1_cover.jpg",
-        "sha256": "f444a4557849b84338e283fc6242a4dd8c6f013e9ecd4659f9c24b2695065abe",
+        "path": "05_Covers_Thumbnails/main/f6f1be4e3e9644229d63b8c97ba20725/TRA03-แกะกล่องว้าว_1_20261116_235100_cover.jpg",
+        "sha256": "cbb6948a1970fc5a27daaecc89c828d343c793b2183eeeaf735d4b0126781972",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s03_v1_cover_3x4.jpg",
-        "sha256": "ac4a85fc16872108edbe703dc7f3c1d7984f40bb3d2a9a4b94959e1af8a3e15a",
+        "path": "05_Covers_Thumbnails/main/f6f1be4e3e9644229d63b8c97ba20725/TRA03-แกะกล่องว้าว_1_20261116_235100_cover_3x4.jpg",
+        "sha256": "dc1b56aa0e29e743bd68f838bcc90d5ca178f120fa3e89ebcb4433df6d790c1e",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792062687.1027145
+    "updated_at": 1794847917.6742218,
+    "source": "auto"
   },
   {
+    "id": "cover_be401122e30ab89a3ed50b551ae3bf2062f597b6df10e5f2e9608369ceb3466d",
     "channel_id": "main",
-    "export_id": "exp_2b8d2c9e60b64a5394cbb710da28b9d5",
-    "video_path": "04_Exports/Ready_to_post/20261015_ors01-pov-s04_v1.mp4",
+    "export_id": "exp_4d22ca1c996146d5a4bbba48e8f51c8b",
+    "video_path": "04_Exports/Ready_to_post/TRA03-รีวิวสเปก_1_20261116_235103.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s04_v1_cover.jpg",
-        "sha256": "0e78f3b100f48548921e61893771f3a14170569c497e322e588c0e2fa23d3268",
+        "path": "05_Covers_Thumbnails/main/4b1f5a26053d4893bb4d8b3ca2449572/TRA03-รีวิวสเปก_1_20261116_235103_cover.jpg",
+        "sha256": "8d3569279dbff9da8abd95cd5c39fd41eda1df8a90b0f983ea970cea4a7333d8",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s04_v1_cover_3x4.jpg",
-        "sha256": "13d980d9ab0e750b72f04fdccdf601c7a1a55721b2f7e0506846367563d6b853",
+        "path": "05_Covers_Thumbnails/main/4b1f5a26053d4893bb4d8b3ca2449572/TRA03-รีวิวสเปก_1_20261116_235103_cover_3x4.jpg",
+        "sha256": "65fb17976810e7337b1a593450da5dfa13d1eac6bc58a0f252edd388e4ca5a75",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792062687.226387
+    "updated_at": 1794847922.528704,
+    "source": "auto"
   },
   {
+    "id": "cover_35f0ac715d8aca4fdb8c046d08ed848d10e3fca602c4ffd95c6e19360f14ba4b",
     "channel_id": "main",
-    "export_id": "exp_c2c59be2a93e425790707d0f4d68e0bd",
-    "video_path": "04_Exports/Ready_to_post/20261015_ors01-pov-s05_v1.mp4",
+    "export_id": "exp_3a71becffaa740b389ef9ca3443d6762",
+    "video_path": "04_Exports/Ready_to_post/TRA03-โปรไฟลุก_1_20261116_235104.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s05_v1_cover.jpg",
-        "sha256": "ab5ab4355a46ebde2d43cd53088d3f4ba3dd881bb936bbfd702ee35860be0a5e",
+        "path": "05_Covers_Thumbnails/main/6b0b15267bba4568aa6809d5964a94a0/TRA03-โปรไฟลุก_1_20261116_235104_cover.jpg",
+        "sha256": "855d80bf7f5169cb0cae038d26f606f4de9a408178ace8ac1fa901a34b7a0701",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s05_v1_cover_3x4.jpg",
-        "sha256": "3ba3492b234427c8a63af0dc2c2313fc85ded3f385037bd3381bd25d41451ab4",
+        "path": "05_Covers_Thumbnails/main/6b0b15267bba4568aa6809d5964a94a0/TRA03-โปรไฟลุก_1_20261116_235104_cover_3x4.jpg",
+        "sha256": "b038dd28d13840fa21aa2d176a039ee2bb0c7140c6a4d3a4f60e700c620805e5",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792062687.8665442
+    "updated_at": 1794847935.950187,
+    "source": "auto"
   },
   {
+    "id": "cover_2adb601023c17965b15137b482df49c70069308eeb8462807cfc47c866d74a64",
     "channel_id": "main",
-    "export_id": "exp_4800f1378b334c208b40f33905d8a9c1",
-    "video_path": "04_Exports/Ready_to_post/20261015_ors01-pov-s06_v1.mp4",
+    "export_id": "exp_071111ebfdb04969bd69a155b09d530d",
+    "video_path": "04_Exports/Ready_to_post/TRA03-ทริกลึก_1_20261116_235209.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s06_v1_cover.jpg",
-        "sha256": "1009db03657bf87302fb735c068a20c755ab854a4d4e2204b48b5e56f97a66f2",
+        "path": "05_Covers_Thumbnails/main/942b77b52e1442dbadef6f8f33b30e7a/TRA03-ทริกลึก_1_20261116_235209_cover.jpg",
+        "sha256": "ee2897eef4ff28d186856472297d090f53788d19a82e0126a981a232e61f1b66",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s06_v1_cover_3x4.jpg",
-        "sha256": "417dc4f3109b35c8b404f46706ac9a05846fe39c524916c98acf115397951c2a",
+        "path": "05_Covers_Thumbnails/main/942b77b52e1442dbadef6f8f33b30e7a/TRA03-ทริกลึก_1_20261116_235209_cover_3x4.jpg",
+        "sha256": "5f18966560f9d62fd26ff8bb76f21255fd970c23ca1c259a5283ea8b37e26a42",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792062687.9157631
+    "updated_at": 1794847971.1472635,
+    "source": "auto"
   },
   {
+    "id": "cover_7fe1039a6317280c9c97a1efd462d05ccfa386d72e0fed4a5435cbcd191ac580",
     "channel_id": "main",
-    "export_id": "exp_143e666a180046a682f56a0f75ba245b",
-    "video_path": "04_Exports/Ready_to_post/20261015_ors01-pov-s07_v1.mp4",
+    "export_id": "exp_6feeee68943e41e0a05911e355d6841a",
+    "video_path": "04_Exports/Ready_to_post/TRA03-เทียบของเดิม_1_20261116_235208.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s07_v1_cover.jpg",
-        "sha256": "61fbf80e0f3dd578f18c5e303a3555df240a01059168578ca700f9e66c5d554a",
+        "path": "05_Covers_Thumbnails/main/23668726f9e24eeb904d1fc86a8661ef/TRA03-เทียบของเดิม_1_20261116_235208_cover.jpg",
+        "sha256": "a84d2403b2242442f5917e40a1c8b804acaf0c855c546856ff48641f3ee9c08b",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s07_v1_cover_3x4.jpg",
-        "sha256": "0be1ce4c3b515e9750b1e5d33d037e20bdce0763b525d9ffa99189d9eb5b3c2c",
+        "path": "05_Covers_Thumbnails/main/23668726f9e24eeb904d1fc86a8661ef/TRA03-เทียบของเดิม_1_20261116_235208_cover_3x4.jpg",
+        "sha256": "6459acd74f9afffde6e7e11a4129c3a5e045c8916aa0674485d214ec1dfb1c98",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792062687.9563785
+    "updated_at": 1794847972.060172,
+    "source": "auto"
   },
   {
+    "id": "cover_96dbacc4cae1b98d8e8ff8ba77dae92310b4f49784b79b583e3d59f0413baaeb",
     "channel_id": "main",
-    "export_id": "exp_2cfb7ff295594eb6bf44842792f22a07",
-    "video_path": "04_Exports/Ready_to_post/20261015_ors01-pov-s08_v1.mp4",
+    "export_id": "exp_85a14dbc69f246b39d5d71bb523fcb69",
+    "video_path": "04_Exports/Ready_to_post/TRA03-เตือนภัย_1_20261116_235215.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s08_v1_cover.jpg",
-        "sha256": "5f83d23185253038568fa95d7c89d49811dad517ef25f01abc85d9048acd4fa4",
+        "path": "05_Covers_Thumbnails/main/c6224228f4cd4948b63bebf88fd87cda/TRA03-เตือนภัย_1_20261116_235215_cover.jpg",
+        "sha256": "fb686b465fd13d2590b2ea096d4853a4d3f494b877d7785750332255cc683d70",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s08_v1_cover_3x4.jpg",
-        "sha256": "e36bb6a5c248495d76b44017baa9e0ea276a31cdac4f15ce29802895ed8f9c77",
+        "path": "05_Covers_Thumbnails/main/c6224228f4cd4948b63bebf88fd87cda/TRA03-เตือนภัย_1_20261116_235215_cover_3x4.jpg",
+        "sha256": "43fa771cd793185bc6bad0ae3f1d8932c3b318748a5d038acb37ffee49dfa936",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792062687.9939008
+    "updated_at": 1794847979.8226311,
+    "source": "auto"
   },
   {
+    "id": "cover_6477332ed3c963803a6bab241f513924894eced067090db9e623217a5b586dee",
     "channel_id": "main",
-    "export_id": "exp_a683926a9ec24efba31d54ebab6d6780",
-    "video_path": "04_Exports/Ready_to_post/20261015_ors01-pov-s09_v1.mp4",
+    "export_id": "exp_6dd043861e464c2c9928b7b396d53d79",
+    "video_path": "04_Exports/Ready_to_post/TRA02-รีวิวสเปก_1_20261116_235842.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s09_v1_cover.jpg",
-        "sha256": "f22beeddcb37380ca0da324829f35c16a9937b76da4547668aedae8fdc160321",
+        "path": "05_Covers_Thumbnails/main/0fc968ec42ae4fe1839fe8dbb20b8cee/TRA02-รีวิวสเปก_1_20261116_235842_cover.jpg",
+        "sha256": "3ac3b069e65336e00646e97151adb1baced04b260d9f9738f32250d7b3a0ce15",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s09_v1_cover_3x4.jpg",
-        "sha256": "1684b16a7e93696f8a9c966b36a4dd33f3a8b4210e8a5472fada2cfe5834b982",
+        "path": "05_Covers_Thumbnails/main/0fc968ec42ae4fe1839fe8dbb20b8cee/TRA02-รีวิวสเปก_1_20261116_235842_cover_3x4.jpg",
+        "sha256": "7d5006a0770f68189df56ecc5a270298b72546d8f5f1438f831d2917731b41ea",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792063314.8768163
+    "updated_at": 1794848363.796802,
+    "source": "auto"
   },
   {
+    "id": "cover_7d4f8608c5441da247241fd218ae3c5496aa32d2aacd15b813e5a1705c8ca61a",
     "channel_id": "main",
-    "export_id": "exp_136b377152fe4d5ebb358143b1f6fe20",
-    "video_path": "04_Exports/Ready_to_post/20261015_ors01-pov-s10_v1.mp4",
+    "export_id": "exp_273c5237dc4a455eb4bf8bef439bbb3c",
+    "video_path": "04_Exports/Ready_to_post/TRA02-ปัญหาก่อนใช้_1_20261116_235838.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s10_v1_cover.jpg",
-        "sha256": "0feb245d75cb992c7245390e8fd340c46fa1a030a7e5ef42b4ae639cbb2fbfc5",
+        "path": "05_Covers_Thumbnails/main/630640dc7d15410598701c074c91846e/TRA02-ปัญหาก่อนใช้_1_20261116_235838_cover.jpg",
+        "sha256": "8e70d57ed1f099823331fa614b70f37a2b289d6cd2287f1a8b062b972394d4e0",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s10_v1_cover_3x4.jpg",
-        "sha256": "013f26ca79a4bf81d1b5439b26267d13c5f87aacddd3b10e4bb275f67710fe4b",
+        "path": "05_Covers_Thumbnails/main/630640dc7d15410598701c074c91846e/TRA02-ปัญหาก่อนใช้_1_20261116_235838_cover_3x4.jpg",
+        "sha256": "f930f420728decb3732527ae3eddf087b981a053c0b2247b86ec22cd49e36d3e",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792062688.5833
+    "updated_at": 1794848372.1700299,
+    "source": "auto"
   },
   {
+    "id": "cover_55a92fe505028f1a2338f338a2cc18624615f958e6bd444f837b3ded03c277e5",
     "channel_id": "main",
-    "export_id": "exp_fe42215f42ba44058f41ec47f74f5fee",
-    "video_path": "04_Exports/Ready_to_post/20261015_ors01-pov-s11_v1.mp4",
+    "export_id": "exp_8a4aeb03ec104d5597756b414c598824",
+    "video_path": "04_Exports/Ready_to_post/TRA02-แกะกล่องว้าว_1_20261116_235841.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s11_v1_cover.jpg",
-        "sha256": "738a8c4ebee63947a1e3ffcb16ed514c6dc4554cf6b9dd73470f448c920dd970",
+        "path": "05_Covers_Thumbnails/main/3b665ef7d6fa4c42a08499b3d637c494/TRA02-แกะกล่องว้าว_1_20261116_235841_cover.jpg",
+        "sha256": "ec1e30415b45e55203e8a329c0eb9bb07830edb433f5bb5124b083f8a749dd50",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s11_v1_cover_3x4.jpg",
-        "sha256": "572667b0f95e0a07edb0bf3d31ec767f7fac9a1bb206b26184b511d0fcbf5535",
+        "path": "05_Covers_Thumbnails/main/3b665ef7d6fa4c42a08499b3d637c494/TRA02-แกะกล่องว้าว_1_20261116_235841_cover_3x4.jpg",
+        "sha256": "30e17150bcbcc3cd4ccd9d1455a6141b219a37e967c1ed01421012cff921b1f8",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792062688.7590625
+    "updated_at": 1794848374.5084958,
+    "source": "auto"
   },
   {
+    "id": "cover_36af07ff737084dcced5dbee63b0c7ead31a8ef4409b0a4844ff9efd7c1813c6",
     "channel_id": "main",
-    "export_id": "exp_b1c362efe0924ee9a0414b2919bc40a5",
-    "video_path": "04_Exports/Ready_to_post/20261015_ors01-pov-s12_v1.mp4",
+    "export_id": "exp_ed0620ff719d4253b96d59f0dcaf7777",
+    "video_path": "04_Exports/Ready_to_post/TRA02-โปรไฟลุก_1_20261116_235842.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s12_v1_cover.jpg",
-        "sha256": "de066af0bb5d00f63e212c3f0258aa99fcf77bed80226f881bdd295926e2d4f6",
+        "path": "05_Covers_Thumbnails/main/b9d7574dd6a242adaa6d4eee223c1b65/TRA02-โปรไฟลุก_1_20261116_235842_cover.jpg",
+        "sha256": "b3d4eebe4d2526141bcd8ce53779a3d8635efd4afb431ce6feeb80af7cda5a64",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s12_v1_cover_3x4.jpg",
-        "sha256": "ba9aab2a35faa637f8e60d248ca4f90ddd1c3c718c9217e23f3e0a9ca9adbea8",
+        "path": "05_Covers_Thumbnails/main/b9d7574dd6a242adaa6d4eee223c1b65/TRA02-โปรไฟลุก_1_20261116_235842_cover_3x4.jpg",
+        "sha256": "3754446221513a92c79e0b0d3deece929317a1e55bb44ed2976b06839da6e842",
         "format": "3:4"
       }
     },
     "revision": 1,
-    "updated_at": 1792062688.7214737
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_09a68ba21b48443aafd723ae0e6bd88e",
-    "video_path": "04_Exports/Ready_to_post/20261015_ors01-pov-s13_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s13_v1_cover.jpg",
-        "sha256": "be414b3580ef58fd739db315b329147862a97edb3a846e81e4dc0f65e0654ae5",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s13_v1_cover_3x4.jpg",
-        "sha256": "8ed1c0ace16e5317a53829d717d4e6807f2533676cbb0f990be2db4be36feeb7",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792063290.0854173
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_bd6b1256d216403d9270f827c1e46499",
-    "video_path": "04_Exports/Ready_to_post/20261015_ors01-pov-s14_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s14_v1_cover.jpg",
-        "sha256": "df7e99d41b973a5d71eecf3ef29f99921562de9fbae24662dc22aaec7470a40b",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s14_v1_cover_3x4.jpg",
-        "sha256": "873d26e76e7a12a581b2645c41cd2aa8351b6575892394b41305faed946376c9",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792063324.6129026
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_3893763ec9c14ffd9418031babb39e0a",
-    "video_path": "04_Exports/Ready_to_post/20261015_ors01-pov-s15_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s15_v1_cover.jpg",
-        "sha256": "5ad6274e27e4fbebe8f36fbcfdc3f99065fab15fbb931ae5db7ab23754d01edc",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s15_v1_cover_3x4.jpg",
-        "sha256": "140eaeeda172ed622b7a93307330d914968d4e8a078bce200b1b769c10b10588",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792063316.0475035
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_9f1bd8cf7c9541c2a342d93060695464",
-    "video_path": "04_Exports/Ready_to_post/20261015_ors01-pov-s16_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s16_v1_cover.jpg",
-        "sha256": "766a2e64096279b9604fa9584b5c83a36ae10f94aee9f1d5cd5fecd70c356fda",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s16_v1_cover_3x4.jpg",
-        "sha256": "f44ac540eb37c865814bf08e645a6779cef5837e9bcfe2de1431097cf339c882",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792063546.1869023
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_23583e533cd04b89a81dab92ec4a3f0d",
-    "video_path": "04_Exports/Ready_to_post/20261015_ors01-pov-s17_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s17_v1_cover.jpg",
-        "sha256": "771a4a1bd3fd3277c696fdf9ca52cdd5f1881ec15fedae8f69b0b602b7d610c2",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s17_v1_cover_3x4.jpg",
-        "sha256": "401f18234a3dd567f2463afa7b0f74b226be2ed6af9d9941d65a809f5e6eb1c7",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792063520.699713
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_a0c17f3497514c1385d683be1dc98ae5",
-    "video_path": "04_Exports/Ready_to_post/20261015_ors01-pov-s18_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s18_v1_cover.jpg",
-        "sha256": "54c92d1b804dab9164c4be9a18610a8dc36977b24a88ee46b2267679de1ccac3",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s18_v1_cover_3x4.jpg",
-        "sha256": "6997b725b1386ed1f8f57d478f3d755faf061641e92a8742586f6004c1037127",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792063548.2683258
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_42839cdedcdc4539a5196c8869441cb1",
-    "video_path": "04_Exports/Ready_to_post/20261015_ors01-pov-s19_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s19_v1_cover.jpg",
-        "sha256": "63d57b6418657bbb83e7fce47f2091d5544070275fb1ddf8c794cb33c0a939af",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s19_v1_cover_3x4.jpg",
-        "sha256": "efd61fbf9769bd4f0498886d8cc943855e1b1e203592d0d4002096731749e570",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792063547.5845213
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_40b0bce6da034582880225d7855e7e0f",
-    "video_path": "04_Exports/Ready_to_post/20261015_ors01-pov-s20_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s20_v1_cover.jpg",
-        "sha256": "95b022b193d3eb01041af1644fb6ae1537beb1d5f81523d67983cd1e016c5069",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_ors01-pov-s20_v1_cover_3x4.jpg",
-        "sha256": "fa7f961c1f4b44999ea63ddc80dac3f00534f4f693f33d12946fb97a0dd1ddfa",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792063738.0674238
-  },
-  {
-    "id": "cover_5026d6bcc2511fa778a8d1f92dd6c8475c51458dede3798f10a49c750aebcbc8",
-    "channel_id": "main",
-    "export_id": "exp_f8fffc9e5a84496eaf367b88b6d7f1aa",
-    "video_path": "04_Exports/Ready_to_post/20261015_hat02-pov-s01_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s01_v1_cover.jpg",
-        "sha256": "b59d74f294a16d937a6c685622e770504eb8632777fd81d00450078b607b5219",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s01_v1_cover_3x4.jpg",
-        "sha256": "621c0374d05f2412ce4faf73ca8e7050c0efd6c35079678c1c0c012ef219d1d9",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792063760.4357643
-  },
-  {
-    "id": "cover_c4fee424364f245d5c2c3cd3631c9b1df2b72632ea270f8b84a13ff27c8723bb",
-    "channel_id": "main",
-    "export_id": "exp_130b9a507e054c4aa5a98060c7fc20ee",
-    "video_path": "04_Exports/Ready_to_post/20261015_hat02-pov-s02_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s02_v1_cover.jpg",
-        "sha256": "a9f06cbc1b546bf538b9a927b3b1fb591b53a2ae33ad2bd2663095f286a1e3d4",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s02_v1_cover_3x4.jpg",
-        "sha256": "9d5d250bca71926b07bd392c3be486e42af88006f65c2cb36d3e428e919d519c",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792063783.348836
-  },
-  {
-    "id": "cover_3550899b42070b97502ffb1c0a6c0539c306b2add43c62ecd958dfe3d921e5b7",
-    "channel_id": "main",
-    "export_id": "exp_ace4e6f7ce7148f2ab92cfee9628c4b8",
-    "video_path": "04_Exports/Ready_to_post/20261015_hat02-pov-s03_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s03_v1_cover.jpg",
-        "sha256": "2ccb657e6913215e3c8508a8f64057866ed770e621a5d67e09a31a8b7112b317",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s03_v1_cover_3x4.jpg",
-        "sha256": "8ee853bd5e14e6ea4522b85399a80904e2b221573b7a56dbcf254338ee5c45ba",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792063804.928323
-  },
-  {
-    "id": "cover_3d1814adca74ec2e655ebb26c34094dd5f771db4db424ccf34c743a74e34bafe",
-    "channel_id": "main",
-    "export_id": "exp_0b31ac9522694409acc96957f16b8c64",
-    "video_path": "04_Exports/Ready_to_post/20261015_hat02-pov-s04_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s04_v1_cover.jpg",
-        "sha256": "0c1d89d68a6ca57e1d08e4039b85bef124e0aa6581a531f4123cf873bc0b1f23",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s04_v1_cover_3x4.jpg",
-        "sha256": "4be6e0a67b14a48098c5f9301fc60ce6fa7060da5bbf7d83877f95401a4cce8a",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792064031.2206633
-  },
-  {
-    "id": "cover_96785954656ebb31addfbeab5519724393e287167d03c2d79867a135e5d2f81b",
-    "channel_id": "main",
-    "export_id": "exp_186d20a5605342f39897f43f36bc9b2a",
-    "video_path": "04_Exports/Ready_to_post/20261015_hat02-pov-s05_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s05_v1_cover.jpg",
-        "sha256": "f5365b7b688544fa78406c912dc47a3937861b55ec6ffe54a179df019a460652",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s05_v1_cover_3x4.jpg",
-        "sha256": "27343186ab13ffc6f8b8dfebc58baec2a2e5d30a58e007023c3a7437450f7285",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792064031.730706
-  },
-  {
-    "id": "cover_5702ad6f761d3cdc2e89d489b10eec5099dfc58ccccacbe2c71cd4fb7f18235e",
-    "channel_id": "main",
-    "export_id": "exp_f47c8c193e404d54a5685b77a4b6d6ae",
-    "video_path": "04_Exports/Ready_to_post/20261015_hat02-pov-s06_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s06_v1_cover.jpg",
-        "sha256": "0b7c3f3719592ad2fb59b5fbaa6c257a44988e01610067654bac310401de7538",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s06_v1_cover_3x4.jpg",
-        "sha256": "90d85649f2405785a7288ae47f1377836e7107df6a8992dbe1e7f39834cd60ee",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792064049.1151793
-  },
-  {
-    "id": "cover_601cedfb1ae2230067d0c7189bb6fa02c69e36e009cc9fd6b29caaf91196c5c3",
-    "channel_id": "main",
-    "export_id": "exp_8395a82d0a704a6c87d99d87a8dc9771",
-    "video_path": "04_Exports/Ready_to_post/20261015_hat02-pov-s07_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s07_v1_cover.jpg",
-        "sha256": "b9e4b578dcdc07eba4f40eae34ebae5fc43a26f3eba50af39ed0bea4a7e59227",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s07_v1_cover_3x4.jpg",
-        "sha256": "60d7764318f62cb3bc4377ddd9c6a0a43bc48af9c5f90ea59482fb613e40c12f",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792064072.058641
-  },
-  {
-    "id": "cover_2e5418652287626e4ffa0c51ef47939e143171dcc8b8b795ad285ed7dca15733",
-    "channel_id": "main",
-    "export_id": "exp_fc401121acad4a0cad0d6220adfb1d53",
-    "video_path": "04_Exports/Ready_to_post/20261015_hat02-pov-s08_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s08_v1_cover.jpg",
-        "sha256": "3fbe2de55bb556914a291c4b588ff92d972d4f7f05d7c4aeaa805180373413c6",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s08_v1_cover_3x4.jpg",
-        "sha256": "360d64723b642679415a0ed2049dcf374ccd01a831075d8be2e1f927e9cf0e4b",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792064347.7854538
-  },
-  {
-    "id": "cover_28d011c163f022c142907be0541c77029fc9c5c209c6e597bc87c2657ca5b1f9",
-    "channel_id": "main",
-    "export_id": "exp_f9db8567bf4c47fcb12b0ad9bfe633b9",
-    "video_path": "04_Exports/Ready_to_post/20261015_hat02-pov-s09_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s09_v1_cover.jpg",
-        "sha256": "ff9929b2a739112e749c0e40f7b61af509c70c7c68c092cac796097c1661334e",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s09_v1_cover_3x4.jpg",
-        "sha256": "52dd9eceddc2a2d2897e36202f8ec7f9d5d5d1e35bd686c152ca9ee47d1f7154",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792064349.5025449
-  },
-  {
-    "id": "cover_fba2945a22152c80c98745831f5b234362e9339f0df027b53142f1ff864f738d",
-    "channel_id": "main",
-    "export_id": "exp_a3a8155fe2704ae1a651116424bf0fa0",
-    "video_path": "04_Exports/Ready_to_post/20261015_hat02-pov-s10_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s10_v1_cover.jpg",
-        "sha256": "b008a9c40c802e9f2215e2f844b89981e6710d74d0ca05ba8670d1f5704fb674",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s10_v1_cover_3x4.jpg",
-        "sha256": "294dcaa51430cdaf1b331e3c034d77d1c828c0a8c7c8a0d68fd44ffd703fd2b2",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792064308.112989
-  },
-  {
-    "id": "cover_8ebcbac7dc1080bbce317bd8602b366fa54dbfac5d4cff04cf9b3a602d80dd69",
-    "channel_id": "main",
-    "export_id": "exp_cecced388d15403a93a63b2f111a8ff0",
-    "video_path": "04_Exports/Ready_to_post/20261015_hat02-pov-s11_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s11_v1_cover.jpg",
-        "sha256": "15d23145a1c00bacc8d3dfb46211fe9cad647f2508733857bad33ff791979a6f",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s11_v1_cover_3x4.jpg",
-        "sha256": "4eadeeab2d9d423fc5099715f26c0753a6a62c707a7090ae55cc7332166a4217",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792064349.6981804
-  },
-  {
-    "id": "cover_0dd72f72bd1c2b65e1e85dabcb228142c1346c473962338b20df72318070bb1c",
-    "channel_id": "main",
-    "export_id": "exp_98fa7d99d2744c62a55939611754a8c0",
-    "video_path": "04_Exports/Ready_to_post/20261015_hat02-pov-s12_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s12_v1_cover.jpg",
-        "sha256": "14292a429db89407504f3b1e57cbda9a994500cdf21cb31bc992f57790e46643",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s12_v1_cover_3x4.jpg",
-        "sha256": "0199be0144ada61be34c70561a622951003fc7ea0661092321dbf760cd74257a",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792064607.8384118
-  },
-  {
-    "id": "cover_f6b5850c595750b4e8c0a0727883055d0c602e58117af789b708af7d1ab434ef",
-    "channel_id": "main",
-    "export_id": "exp_69bff10538c5489ea5a22ffbfb81012c",
-    "video_path": "04_Exports/Ready_to_post/20261015_hat02-pov-s13_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s13_v1_cover.jpg",
-        "sha256": "ce26c0b44ddf61c239eb51fb101f697c147063d43845ef13d4d266dc554ca313",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s13_v1_cover_3x4.jpg",
-        "sha256": "55353432b3fd01eadee140137e1a767f12ebef1e713e6c9ec6251ea7c7f20ddc",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792064630.8324208
-  },
-  {
-    "id": "cover_798370c960312589bcfb07981629783c008e9306ebe0db8c428a3ffbc91edad0",
-    "channel_id": "main",
-    "export_id": "exp_d0540796ec39424db14d47bbfa22176f",
-    "video_path": "04_Exports/Ready_to_post/20261015_hat02-pov-s14_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s14_v1_cover.jpg",
-        "sha256": "d2f147b8b3335b75da27c980a7fe19eca88654c79164f172ad403ebaa9a7894f",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s14_v1_cover_3x4.jpg",
-        "sha256": "a18844ad2a515af03063ee4aaf8445e35e1c90a6f49a9fbe109c09731f3a9c37",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792064645.8050427
-  },
-  {
-    "id": "cover_3dd6174df95c5301215baf3210b1a004a812b02ce8e2fc76f118d94b08011eff",
-    "channel_id": "main",
-    "export_id": "exp_ffe864604953443ca158081a8b61f2a7",
-    "video_path": "04_Exports/Ready_to_post/20261015_hat02-pov-s15_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s15_v1_cover.jpg",
-        "sha256": "dcc709f53dfe89b9bcea66147bb60aa821ff724e19b607a3299caeab25671798",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s15_v1_cover_3x4.jpg",
-        "sha256": "2e2c31d86dbe1136e6e2b0d355ef24bc9057d0788f48302a63e5392473186e0d",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792064614.2408676
-  },
-  {
-    "id": "cover_42d66cf8ce8be8c6d4c63e377a3831b960ebd646cf6ad31f8c6c3258cc40f7d7",
-    "channel_id": "main",
-    "export_id": "exp_a9336c5af51a4570a11cadf7f53ca741",
-    "video_path": "04_Exports/Ready_to_post/20261015_hat02-pov-s16_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s16_v1_cover.jpg",
-        "sha256": "7b19297ddce9475de253aed534e222c8c7ed61c655cc779ba9a3fac42fc1c7c4",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s16_v1_cover_3x4.jpg",
-        "sha256": "9035d03064efda7a37c13f184cd7a9b8c500739b2c279ba857c4656dad894099",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792064896.2791493
-  },
-  {
-    "id": "cover_a4201c8e6062ada6dc00e8d1b7812d7f42f730469711eb40597c267e3dbd7bce",
-    "channel_id": "main",
-    "export_id": "exp_8931e87ac13c411a915f56a18fee544c",
-    "video_path": "04_Exports/Ready_to_post/20261015_hat02-pov-s17_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s17_v1_cover.jpg",
-        "sha256": "f23cad7c3f9ed7857881e770a897ecd63f78998d2576c8563761b44b446d475e",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s17_v1_cover_3x4.jpg",
-        "sha256": "3c8ddf0d7707ffbfc3da477131c3890134c90a85475d0ebeaab1039e61c65c43",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792064895.4035835
-  },
-  {
-    "id": "cover_a08b949c4a164d65ea6734075c25c561d74a9a467acf84e1c168868b91f9e38b",
-    "channel_id": "main",
-    "export_id": "exp_1d0fd6452cf24140b08ee767c38c1d4c",
-    "video_path": "04_Exports/Ready_to_post/20261015_hat02-pov-s18_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s18_v1_cover.jpg",
-        "sha256": "88ba908eddbeb368e7958d793a00346417026789446fc17ebe677e0d81c4a570",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s18_v1_cover_3x4.jpg",
-        "sha256": "7b8d68e108b883930808e46f738ffec4fa0dc274debabf3e9f25d32139f3aaec",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792064861.8661523
-  },
-  {
-    "id": "cover_028e4f58829732b97f1be14abc51cbddd5192afe7424d66883490e4a50e75019",
-    "channel_id": "main",
-    "export_id": "exp_85e70f625c924cd2a36dfe59ba9fde76",
-    "video_path": "04_Exports/Ready_to_post/20261015_hat02-pov-s19_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s19_v1_cover.jpg",
-        "sha256": "d7dfe3bbf5e46b218fba25dfc770e5120a85053a747b0099f730f7cc516be555",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s19_v1_cover_3x4.jpg",
-        "sha256": "c566ff9b2f42356e1fe4fcd21970a185c9093f05a8971c0ee029b8e3d360fbf6",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792064899.9578922
-  },
-  {
-    "id": "cover_ba1ac532586afe72dbed362d36d5a2aca3c71002143f2d0714dad4a7d2c0304a",
-    "channel_id": "main",
-    "export_id": "exp_566a154e4ca04f7ab1d6b2541073237d",
-    "video_path": "04_Exports/Ready_to_post/20261015_hat02-pov-s20_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s20_v1_cover.jpg",
-        "sha256": "1657c5b015619ac6db97a8552104123c6a61e682c8d5d1f5f00edc49133700f6",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261015_hat02-pov-s20_v1_cover_3x4.jpg",
-        "sha256": "7246f9ddc310de93319c1e63e516ac1afb33a764a1d13522558b6f51dabb0da3",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792065133.3907337
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_597875ff34454dc8852c5c47bb7fa74e",
-    "video_path": "04_Exports/Ready_to_post/20261020_goo01-pov-s01_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s01_v1_cover.jpg",
-        "sha256": "4d9f3b89966fbde4b5904c1cbac75e63087456cec131e066dbb691a210198432",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s01_v1_cover_3x4.jpg",
-        "sha256": "a32f58901a5bd8ab4dcdaf4add758276be59f69fe4d6c3b43be75d89e02413fe",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792515484.2588544
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_8133819811c1408d8fd4c4ca0f238323",
-    "video_path": "04_Exports/Ready_to_post/20261020_hat01-pov-s01_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_hat01-pov-s01_v1_cover.jpg",
-        "sha256": "7011f8ba1972f84a85604011a05ada40e72bc81ab08f184774162250096962f6",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_hat01-pov-s01_v1_cover_3x4.jpg",
-        "sha256": "30b7fa2edff9cd157774137f0a8ef77528b72a1a5d9f8f9b0ee803399b1b3202",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792512878.9875784
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_15e4388417b144f2bb0c9259688283d3",
-    "video_path": "04_Exports/Ready_to_post/20261020_hat01-pov-s02_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_hat01-pov-s02_v1_cover.jpg",
-        "sha256": "c6f8d902457ae1ff4efe461324db463eb06fb1cef23272850f4b54ab3bb51186",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_hat01-pov-s02_v1_cover_3x4.jpg",
-        "sha256": "a0336b5f45366882eaa32c8ca450f86150a6fd931355fc5487f4e0b3bd1cc428",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792512940.8200555
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_5a5d556d2e7447a68e375ed3c3360e86",
-    "video_path": "04_Exports/Ready_to_post/20261020_red01-pov-s01_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_red01-pov-s01_v1_cover.jpg",
-        "sha256": "0f026ef1e54f62ad02be8cbf5b69d7658f8e0eb124b0ea9f7429ff9091f53ad2",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_red01-pov-s01_v1_cover_3x4.jpg",
-        "sha256": "50909756ea9918bd46c4c8ac5492bfef312b39730c66763dc0b7b26c4a651c32",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792512968.4662733
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_fa2afbe8570a43d7b48eb2c854de793c",
-    "video_path": "04_Exports/Ready_to_post/20261020_red01-pov-s02_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_red01-pov-s02_v1_cover.jpg",
-        "sha256": "e641f44d54db86bb699c8697e0b85862c75d35e94b4e03fd2816ec8e1b12b345",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_red01-pov-s02_v1_cover_3x4.jpg",
-        "sha256": "f81c346849ddd52e372ca30de6bc6908c9293688c2f52b0e6b8803d842d5b9b1",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792512987.0799432
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_6944ad98d30f43a7b3b41f0fe2b71015",
-    "video_path": "04_Exports/Ready_to_post/20261020_goo01-pov-s02_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s02_v1_cover.jpg",
-        "sha256": "06df4c21b2dc7ba8f89794030b7a675ca1bc44375bd825dc95ddddb669200af6",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s02_v1_cover_3x4.jpg",
-        "sha256": "34375af5a171fcaccdf2fc89a3402ddceeddd5503e94f7d81deb9a5ebe91ef82",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792515288.430539
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_251fa2cabd9c40899408aa443e624fc5",
-    "video_path": "04_Exports/Ready_to_post/20261020_goo01-pov-s03_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s03_v1_cover.jpg",
-        "sha256": "1f9d31174ba675332e0716d4cb359bb4a4913333c811f6b9001d3c6ed0586d0e",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s03_v1_cover_3x4.jpg",
-        "sha256": "71005a73b8ead56588faff1e7985b3abf2bebb3748c3cd14d7bb6672bb692386",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792515537.2720768
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_29feca93f1f24c9e9b84d21d61dc4555",
-    "video_path": "04_Exports/Ready_to_post/20261020_hat01-pov-s03_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_hat01-pov-s03_v1_cover.jpg",
-        "sha256": "e13a2e7f00b461fb3dc47dab675b9190e13c9943867ffd551c10fcb7557a4bd2",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_hat01-pov-s03_v1_cover_3x4.jpg",
-        "sha256": "6a9faf24ec1c3c0d0917aa6175c1f78f0c3d572eac865b70063b13d272846f62",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792513244.8966517
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_2e17d9819a2848adaad5690d5abec1c0",
-    "video_path": "04_Exports/Ready_to_post/20261020_hat01-pov-s04_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_hat01-pov-s04_v1_cover.jpg",
-        "sha256": "440480e9a73375bfcc0093977a5f5eb527b1723ada616447375a812ac1686709",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_hat01-pov-s04_v1_cover_3x4.jpg",
-        "sha256": "f9275d2377c1f99a748c9da112f23ea9489d3e249d8932cb843c5820b3eb3f35",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792513328.0184894
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_974edf94605e48809dabc974136bf271",
-    "video_path": "04_Exports/Ready_to_post/20261020_red01-pov-s03_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_red01-pov-s03_v1_cover.jpg",
-        "sha256": "7764900a92a44b19dfe31bfc699a813e12e9f4bdd61866967f4ffeeec5969b6e",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_red01-pov-s03_v1_cover_3x4.jpg",
-        "sha256": "18b64387a9c6882e8f248264cbbc3f9f1ab6fd53a779c719760768f21b9a3aa2",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792513330.284767
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_4f1089a0a628425f9d0a1a4c40873899",
-    "video_path": "04_Exports/Ready_to_post/20261020_goo01-pov-s04_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s04_v1_cover.jpg",
-        "sha256": "69cdb1a9133a49410a2dab2a8fbb1cdf6d54622f7e4d93955a31f5b7693ea613",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s04_v1_cover_3x4.jpg",
-        "sha256": "94e8dbeb2d77d3b5f197e7940e6dabe4fe55751a371224a62cd36eaddf502a67",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792515528.171438
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_3c419829d5da482c958ea19ed62cd46d",
-    "video_path": "04_Exports/Ready_to_post/20261020_red01-pov-s04_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_red01-pov-s04_v1_cover.jpg",
-        "sha256": "8a84ec37eca83c7c10f3a058fdc0e1cf5716a98ee5c9bc3c514a3e34664dae5c",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_red01-pov-s04_v1_cover_3x4.jpg",
-        "sha256": "13cfb0e9b080437e772fec2c610eb278201435c839a53629e99dfe23114fcb62",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792513380.9857078
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_080417546c2a4df8b32cd2fe6eea69d0",
-    "video_path": "04_Exports/Ready_to_post/20261020_goo01-pov-s05_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s05_v1_cover.jpg",
-        "sha256": "8b7648e9a7b92a2b12cc4f2e86b2430200aab07ab523a77151fe4d2bdd532363",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s05_v1_cover_3x4.jpg",
-        "sha256": "5f6f65fe34ccd3beda6280af59f852eb85184c1048ad47d318c0c64541f27b91",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792515761.0241244
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_7bd16b48b86149518b39d8cfb229a68d",
-    "video_path": "04_Exports/Ready_to_post/20261020_hat01-pov-s05_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_hat01-pov-s05_v1_cover.jpg",
-        "sha256": "e8c7b00391d49e84f8c49d2153e868b95d135ba22132408929057e76a6fb76f8",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_hat01-pov-s05_v1_cover_3x4.jpg",
-        "sha256": "fde2c37e9231c7a2950e128e50f45d1ddfb7e1a5b9b63e9520dc1bad907fd8ef",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792513591.8025033
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_b433653a890a4b1db0c995f88c29a6ab",
-    "video_path": "04_Exports/Ready_to_post/20261020_red01-pov-s05_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_red01-pov-s05_v1_cover.jpg",
-        "sha256": "3cb00f8a2f1b1df629a20a823ba29b26ed845066d781bdbf247f41ba044739e6",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_red01-pov-s05_v1_cover_3x4.jpg",
-        "sha256": "cee60f6de3488f860ac1b095f64fba52e5016ce8e9866f6066544ed0b241975a",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792513718.767078
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_bdee1448369f42eeaedccade6d18f737",
-    "video_path": "04_Exports/Ready_to_post/20261020_red01-pov-s06_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_red01-pov-s06_v1_cover.jpg",
-        "sha256": "d9d49c5cb0b1e01b011a57946fb4ddecef9b9ba29dca9a833926d2bb8ea0fa9c",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_red01-pov-s06_v1_cover_3x4.jpg",
-        "sha256": "bdc3acdb7aca1b5f24080ad2cf890c5fe4b240b81eceeed437aed492bced69ee",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792513726.5831974
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_27da41cfa24e42759eda6238fe006d8d",
-    "video_path": "04_Exports/Ready_to_post/20261020_hat01-pov-s06_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_hat01-pov-s06_v1_cover.jpg",
-        "sha256": "ed2c46fa8c92aa079f9efc0ddb26b033b0ff7f4361ec745e2d524f9f20e37dd7",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_hat01-pov-s06_v1_cover_3x4.jpg",
-        "sha256": "91e9b6abf408a98b0fb37d325a2ae25814166f83cf0d411802902761e623c4bc",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792513751.5223541
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_2fbf0149edf447afb99fdb80d5c55ef0",
-    "video_path": "04_Exports/Ready_to_post/20261020_goo01-pov-s06_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s06_v1_cover.jpg",
-        "sha256": "0c1dd3e65e16040f9f7710cb83be8e6fc5f8bddb548d8827a87787936d9ee0f9",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s06_v1_cover_3x4.jpg",
-        "sha256": "e7f943f27aee53355c55ffe7ea9fda721fca267fe8e936ef6adca87b3f6c3fde",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792515763.5088236
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_b073d2ffe8044d65a06a7627e2b70f78",
-    "video_path": "04_Exports/Ready_to_post/20261020_goo01-pov-s07_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s07_v1_cover.jpg",
-        "sha256": "de24c0df2fb74f953bac43c20a5f3d753658b6cf5929acc51c583d776277bf88",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s07_v1_cover_3x4.jpg",
-        "sha256": "69b5066b122992d5eef2449b0999794b6ec72611e62b01c4203166caafb09abf",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792515993.1612718
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_62e2c1c2725344559545d3d2095f0f0d",
-    "video_path": "04_Exports/Ready_to_post/20261020_hat01-pov-s07_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_hat01-pov-s07_v1_cover.jpg",
-        "sha256": "c0eec71f0b37d7a827edaf8d6d2f3f32107e313870e72c3d747629893e797d60",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_hat01-pov-s07_v1_cover_3x4.jpg",
-        "sha256": "2b96d61a8159ea8a6bdce2dfe32ffd5322a92351f161e7271105d5ab12b17534",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792513951.7509937
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_bd943570fe514c128528582fa46feea4",
-    "video_path": "04_Exports/Ready_to_post/20261020_red01-pov-s07_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_red01-pov-s07_v1_cover.jpg",
-        "sha256": "affd001bf103d32854318b3b64d457edaedadf856f61807adf0506f8e59c750e",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_red01-pov-s07_v1_cover_3x4.jpg",
-        "sha256": "1ae12b8fb7af9ab88627b912db0b41cce53ab0336c014d5446ef98a2a35a783d",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792514090.3511145
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_d51d401472e8459d98031862257cc2e2",
-    "video_path": "04_Exports/Ready_to_post/20261020_hat01-pov-s08_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_hat01-pov-s08_v1_cover.jpg",
-        "sha256": "d191651aa145a75f12f72f5199cc1f784ea4345031b84288bb6d60962060777c",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_hat01-pov-s08_v1_cover_3x4.jpg",
-        "sha256": "63bec2eaada7b9fb15d46b6aa57f41410ad9ed3bcc040869499a21ccbee51ba7",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792514120.6026123
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_176b59f7f9874b1b8861b910e5e4950f",
-    "video_path": "04_Exports/Ready_to_post/20261020_red01-pov-s08_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_red01-pov-s08_v1_cover.jpg",
-        "sha256": "558965e9b8ef4599352914db5e19ef5d942120afd48731a4b2eaca7e2318281c",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_red01-pov-s08_v1_cover_3x4.jpg",
-        "sha256": "3da5bbf170a188556f331b54bcc3ed62e4621e99a1d9327a96c2f136107b528f",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792514154.3063407
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_6ccd873f25374930862853741d19bc49",
-    "video_path": "04_Exports/Ready_to_post/20261020_goo01-pov-s08_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s08_v1_cover.jpg",
-        "sha256": "8fb459334796bf4887259a8a580ff0dd6035c40b391868d260315e21d0890b0e",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s08_v1_cover_3x4.jpg",
-        "sha256": "69e1e1b24af77373e4ba765d4a7c97bdd2f9a27afec861f3c82cbd300952ad67",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792516005.2939012
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_70bef0e7c51543a88e31062ed79e23e9",
-    "video_path": "04_Exports/Ready_to_post/20261020_goo01-pov-s10_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s10_v1_cover.jpg",
-        "sha256": "cbc50f80bf377d5debeb6db4d90ee8fda72fbeb5ce39b3367924bb57a1202003",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s10_v1_cover_3x4.jpg",
-        "sha256": "7e49bc915048fa48a354bb29f8d1e587f7b6c3fd25537d0cc0f7b7dbb723f7ee",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792516223.8170667
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_4c7d3fe601634e9898ba43774d7aeb88",
-    "video_path": "04_Exports/Ready_to_post/20261020_goo01-pov-s09_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s09_v1_cover.jpg",
-        "sha256": "006e8becab56aac5ac98ea1a997f649c2f04fe33d6afdec2fc3909647361b53f",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s09_v1_cover_3x4.jpg",
-        "sha256": "b3348744952d8ba6a192300e4c2a6035f14564a42f9ddf557c9b436bdcea3e0f",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792516229.3247206
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_70e6e2b00d0047a8873395b59c833317",
-    "video_path": "04_Exports/Ready_to_post/20261020_goo01-pov-s11_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s11_v1_cover.jpg",
-        "sha256": "9374524fb784c877e36f95339d13393d9728c409b41b99a2d22b1108f33a7809",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s11_v1_cover_3x4.jpg",
-        "sha256": "13834364c3331f86bb7880e848e8959c4aa66b6b1246f1944562f9f9ce23bac8",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792516439.87924
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_4dea454340d84af3b7437234fe106218",
-    "video_path": "04_Exports/Ready_to_post/20261020_goo01-pov-s12_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s12_v1_cover.jpg",
-        "sha256": "b15b1b90f1d003a3881dd7a4fa1f85d839681f878fcca065b602326fd3032555",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s12_v1_cover_3x4.jpg",
-        "sha256": "f9893268e7ae07a3a078549659d17d3bcdb0b3b20942dbe60577b2a442c5c284",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792516464.0156567
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_73689636f78d481dbfadd9c2acfbaae4",
-    "video_path": "04_Exports/Ready_to_post/20261020_goo01-pov-s13_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s13_v1_cover.jpg",
-        "sha256": "5a56cbe93dcfbc200b1c9576224b1e9954ebf8685612b1ba359038a8852c4ac8",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s13_v1_cover_3x4.jpg",
-        "sha256": "d10d27c4ef43ba70fa4055468c251dea3ed225795918a6ce02435c429a8f7b49",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792516670.3655112
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_672bd75a603b41bea38ed62b175c4f90",
-    "video_path": "04_Exports/Ready_to_post/20261020_goo01-pov-s14_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s14_v1_cover.jpg",
-        "sha256": "60af270d40a773b65692e63679f7c1fd5fe6325f6ce951c1c551b9002f8b8040",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s14_v1_cover_3x4.jpg",
-        "sha256": "0f8d7dda5ad3c065f94166d01b93ba04980daae0c8d1786d024ceccf6b7aea21",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792516690.0241575
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_f67f625ae0a94345808937c9857985df",
-    "video_path": "04_Exports/Ready_to_post/20261020_goo01-pov-s15_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s15_v1_cover.jpg",
-        "sha256": "2a08c3511f07bd3483a23296462f6777c7d677b9990a51f733adc57672f1fe78",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s15_v1_cover_3x4.jpg",
-        "sha256": "379345bc952caf6be99b63476a2b7a034d9446312ae2c7cf91e21199ffdca143",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792516881.5942185
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_08aa04c02b6c49c29e986a69ebe2ff5f",
-    "video_path": "04_Exports/Ready_to_post/20261020_goo01-pov-s16_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s16_v1_cover.jpg",
-        "sha256": "5699e0419c51d2de59cd43c9a30808e42230f9a97512a9bed3404ca54836cbea",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261020_goo01-pov-s16_v1_cover_3x4.jpg",
-        "sha256": "cdc86674e1000d6c374b8dfba17b56cbc491e10513a215cdd3a8eb03ea888503",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792516913.1891613
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_fdf96f6c13294395ae27dc94adff9740",
-    "video_path": "04_Exports/Ready_to_post/20261021_hat01-pov-s01_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s01_v1_cover.jpg",
-        "sha256": "1e720ec41e877abcd5c0abc098b39ab6dc2800fd4cb6b1f71d99ac82798613c5",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s01_v1_cover_3x4.jpg",
-        "sha256": "6e5cfa8e0c6a3c1cb0d727a7b2c5104133e23356e4b9dd5d628b4b5785b27c3f",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792543846.477592
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_2ad04de0355d4cc88668fdc8cfdf5967",
-    "video_path": "04_Exports/Ready_to_post/20261021_goo01-pov-s01_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s01_v1_cover.jpg",
-        "sha256": "a39878ad15391cfaa12efd1e79973ee6c7b52a04e5f50e8e1eff1d7aaac965d4",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s01_v1_cover_3x4.jpg",
-        "sha256": "bf759d36d90a56f4745244848382fa5d0210c1c8e4203864ac602e2280f9cbaa",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792541594.5481482
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_36f9225819bf472883bbe78966bdccc8",
-    "video_path": "04_Exports/Ready_to_post/20261021_goo01-pov-s02_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s02_v1_cover.jpg",
-        "sha256": "06df4c21b2dc7ba8f89794030b7a675ca1bc44375bd825dc95ddddb669200af6",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s02_v1_cover_3x4.jpg",
-        "sha256": "34375af5a171fcaccdf2fc89a3402ddceeddd5503e94f7d81deb9a5ebe91ef82",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792541605.8483653
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_cb629d07ebdf4ac2992cad539a74a1fc",
-    "video_path": "04_Exports/Ready_to_post/20261021_goo01-pov-s03_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s03_v1_cover.jpg",
-        "sha256": "1f9d31174ba675332e0716d4cb359bb4a4913333c811f6b9001d3c6ed0586d0e",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s03_v1_cover_3x4.jpg",
-        "sha256": "71005a73b8ead56588faff1e7985b3abf2bebb3748c3cd14d7bb6672bb692386",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792541828.517333
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_1b4f07514a3f4fc3819ded9183c14967",
-    "video_path": "04_Exports/Ready_to_post/20261021_goo01-pov-s04_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s04_v1_cover.jpg",
-        "sha256": "aca3d1c87ebb91d0ba074ec6ff184af5be6c2f58a262a5f8314d6719d593cc83",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s04_v1_cover_3x4.jpg",
-        "sha256": "39a49ab6de2b4a92c264f2f4221aa64b41a009d5addca5a2ff43bf172cfcbb1f",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792541830.52206
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_6bc1a09b3af64faa96aaddbe141264f3",
-    "video_path": "04_Exports/Ready_to_post/20261021_goo01-pov-s05_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s05_v1_cover.jpg",
-        "sha256": "207a17f099f7155cbb6176e53657a5a77bd474091fb241431af9f78e8129cbd4",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s05_v1_cover_3x4.jpg",
-        "sha256": "0587597dce436615b51db68392200412915b236afc8a790bd6440a2b72ebecc3",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792542068.4358015
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_f26d9d63504e4b63ad61b713debeee5f",
-    "video_path": "04_Exports/Ready_to_post/20261021_goo01-pov-s06_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s06_v1_cover.jpg",
-        "sha256": "0c1dd3e65e16040f9f7710cb83be8e6fc5f8bddb548d8827a87787936d9ee0f9",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s06_v1_cover_3x4.jpg",
-        "sha256": "e7f943f27aee53355c55ffe7ea9fda721fca267fe8e936ef6adca87b3f6c3fde",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792542068.7616642
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_1d1d63c3ed0e4f989a83463a27b9ea28",
-    "video_path": "04_Exports/Ready_to_post/20261021_goo01-pov-s07_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s07_v1_cover.jpg",
-        "sha256": "df385c89809f8c27eecf2c9f8919dc80e570338fc94aab8eaab9e4e34bf12d52",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s07_v1_cover_3x4.jpg",
-        "sha256": "e7d08bd74e6a5dd7c01b977da7e9946698a284f3f342c181208b9ff049f8428f",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792542331.4202325
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_3a312526cff84ecbbade2ec28a23ccfa",
-    "video_path": "04_Exports/Ready_to_post/20261021_goo01-pov-s08_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s08_v1_cover.jpg",
-        "sha256": "8fb459334796bf4887259a8a580ff0dd6035c40b391868d260315e21d0890b0e",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s08_v1_cover_3x4.jpg",
-        "sha256": "69e1e1b24af77373e4ba765d4a7c97bdd2f9a27afec861f3c82cbd300952ad67",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792542344.5353448
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_2b59db608c1c44c78e47e6b15a1389e8",
-    "video_path": "04_Exports/Ready_to_post/20261021_goo01-pov-s10_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s10_v1_cover.jpg",
-        "sha256": "cbc50f80bf377d5debeb6db4d90ee8fda72fbeb5ce39b3367924bb57a1202003",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s10_v1_cover_3x4.jpg",
-        "sha256": "7e49bc915048fa48a354bb29f8d1e587f7b6c3fd25537d0cc0f7b7dbb723f7ee",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792542585.9991522
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_b0bba01523ea47d584097c6f2763b8c9",
-    "video_path": "04_Exports/Ready_to_post/20261021_goo01-pov-s09_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s09_v1_cover.jpg",
-        "sha256": "006e8becab56aac5ac98ea1a997f649c2f04fe33d6afdec2fc3909647361b53f",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s09_v1_cover_3x4.jpg",
-        "sha256": "b3348744952d8ba6a192300e4c2a6035f14564a42f9ddf557c9b436bdcea3e0f",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792542592.2113802
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_35161459fc644edbb67d5849fc7ca899",
-    "video_path": "04_Exports/Ready_to_post/20261021_goo01-pov-s11_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s11_v1_cover.jpg",
-        "sha256": "9374524fb784c877e36f95339d13393d9728c409b41b99a2d22b1108f33a7809",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s11_v1_cover_3x4.jpg",
-        "sha256": "13834364c3331f86bb7880e848e8959c4aa66b6b1246f1944562f9f9ce23bac8",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792542830.473395
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_22be95681b8f4532835f978963f944c0",
-    "video_path": "04_Exports/Ready_to_post/20261021_goo01-pov-s12_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s12_v1_cover.jpg",
-        "sha256": "b15b1b90f1d003a3881dd7a4fa1f85d839681f878fcca065b602326fd3032555",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s12_v1_cover_3x4.jpg",
-        "sha256": "f9893268e7ae07a3a078549659d17d3bcdb0b3b20942dbe60577b2a442c5c284",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792542858.627505
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_8b2816abb1d34777af094b9fb7945d2b",
-    "video_path": "04_Exports/Ready_to_post/20261021_goo01-pov-s13_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s13_v1_cover.jpg",
-        "sha256": "cbf455ff65ab7deab7fd79f60a05ba7302eabb752234529158be54a68abcc643",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s13_v1_cover_3x4.jpg",
-        "sha256": "ded0451d7ef4816cb989c59c2837ecc1b9338b6e340fb00d1632d174d2600502",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792543091.3895013
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_c6b72c13271c4deda1c08195f4e20613",
-    "video_path": "04_Exports/Ready_to_post/20261021_goo01-pov-s14_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s14_v1_cover.jpg",
-        "sha256": "60af270d40a773b65692e63679f7c1fd5fe6325f6ce951c1c551b9002f8b8040",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s14_v1_cover_3x4.jpg",
-        "sha256": "0f8d7dda5ad3c065f94166d01b93ba04980daae0c8d1786d024ceccf6b7aea21",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792543112.1045268
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_777e87a1278d41e98b1c6fc03efb7023",
-    "video_path": "04_Exports/Ready_to_post/20261021_goo01-pov-s15_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s15_v1_cover.jpg",
-        "sha256": "4ec895a12e3ae32658960a7a738c812b8059d8e74bb126cfbbb341158f1c9666",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s15_v1_cover_3x4.jpg",
-        "sha256": "f539e67d22a3069706c2c43fd99806b1ff20380e60ddf5231b4ca803a7859a14",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792543326.422139
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_970cd29551a245518c3e47fcf7ef8eea",
-    "video_path": "04_Exports/Ready_to_post/20261021_goo01-pov-s16_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s16_v1_cover.jpg",
-        "sha256": "5699e0419c51d2de59cd43c9a30808e42230f9a97512a9bed3404ca54836cbea",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s16_v1_cover_3x4.jpg",
-        "sha256": "cdc86674e1000d6c374b8dfba17b56cbc491e10513a215cdd3a8eb03ea888503",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792543366.1930223
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_3cc92f697cd14f3e920f899ff6006149",
-    "video_path": "04_Exports/Ready_to_post/20261021_goo01-pov-s17_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s17_v1_cover.jpg",
-        "sha256": "00099a623bd588474c4b3768e8b3ad496480d10afd3ed2693b510c17d0b77337",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s17_v1_cover_3x4.jpg",
-        "sha256": "8e08a517f0070c6ec103ae524e0d58705f9fec30c1ccf700a4a4499e190c00fd",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792543564.258984
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_4f7e30a7699246b1a0a80dfcfb478f89",
-    "video_path": "04_Exports/Ready_to_post/20261021_goo01-pov-s18_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s18_v1_cover.jpg",
-        "sha256": "96b9a34b94c5aa307e6a9c491dea8b8f41d06e5a6c3e7e621147ec43979e9b9b",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s18_v1_cover_3x4.jpg",
-        "sha256": "09bdb80c7b5d2d404faed9aad3d3e09433a073c83ccf7614940bf66de1d60e86",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792543607.7954102
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_0aedc0086c1c4d5aa81870c6f143116e",
-    "video_path": "04_Exports/Ready_to_post/20261021_goo01-pov-s19_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s19_v1_cover.jpg",
-        "sha256": "031fcc3bb3b00ca4f7ff7d933d452d1cc185b3a76e388b1bae6a93bf1cd051c4",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s19_v1_cover_3x4.jpg",
-        "sha256": "f93b6872076609999993182dcf0b92f15453986c4d910190651e5feace632cd5",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792543805.6243722
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_85cc379f512740298c765cbd6b96aab4",
-    "video_path": "04_Exports/Ready_to_post/20261021_goo01-pov-s20_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s20_v1_cover.jpg",
-        "sha256": "0d7bdccc58d2a339ad71c863e216939df80e9b9dfac9d03ef8abee0424711af5",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_goo01-pov-s20_v1_cover_3x4.jpg",
-        "sha256": "525978e14cd67c36be322db353b063344a1259811e2fd6e107c00f9982863419",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792543845.612286
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_3cc08d4e15bf4408bda5c3f483db49e5",
-    "video_path": "04_Exports/Ready_to_post/20261021_hat01-pov-s03_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s03_v1_cover.jpg",
-        "sha256": "e13a2e7f00b461fb3dc47dab675b9190e13c9943867ffd551c10fcb7557a4bd2",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s03_v1_cover_3x4.jpg",
-        "sha256": "6a9faf24ec1c3c0d0917aa6175c1f78f0c3d572eac865b70063b13d272846f62",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792544074.7322066
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_7a3c4b99fb4047faa5436d8219168c8e",
-    "video_path": "04_Exports/Ready_to_post/20261021_hat01-pov-s02_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s02_v1_cover.jpg",
-        "sha256": "c6f8d902457ae1ff4efe461324db463eb06fb1cef23272850f4b54ab3bb51186",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s02_v1_cover_3x4.jpg",
-        "sha256": "a0336b5f45366882eaa32c8ca450f86150a6fd931355fc5487f4e0b3bd1cc428",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792544079.8427563
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_803e636c5fc04fe28cb946825f7cc974",
-    "video_path": "04_Exports/Ready_to_post/20261021_hat01-pov-s05_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s05_v1_cover.jpg",
-        "sha256": "e8c7b00391d49e84f8c49d2153e868b95d135ba22132408929057e76a6fb76f8",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s05_v1_cover_3x4.jpg",
-        "sha256": "fde2c37e9231c7a2950e128e50f45d1ddfb7e1a5b9b63e9520dc1bad907fd8ef",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792544295.2439437
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_3b342e3a556b4fcf924b47acf1e7f576",
-    "video_path": "04_Exports/Ready_to_post/20261021_hat01-pov-s04_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s04_v1_cover.jpg",
-        "sha256": "440480e9a73375bfcc0093977a5f5eb527b1723ada616447375a812ac1686709",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s04_v1_cover_3x4.jpg",
-        "sha256": "f9275d2377c1f99a748c9da112f23ea9489d3e249d8932cb843c5820b3eb3f35",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792544311.5815294
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_1bea373a28ee4662abe0c2a911f315d4",
-    "video_path": "04_Exports/Ready_to_post/20261021_hat01-pov-s07_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s07_v1_cover.jpg",
-        "sha256": "c0eec71f0b37d7a827edaf8d6d2f3f32107e313870e72c3d747629893e797d60",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s07_v1_cover_3x4.jpg",
-        "sha256": "2b96d61a8159ea8a6bdce2dfe32ffd5322a92351f161e7271105d5ab12b17534",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792544525.063617
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_62b43c9e12fe4f7485fd4254bbacf614",
-    "video_path": "04_Exports/Ready_to_post/20261021_hat01-pov-s06_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s06_v1_cover.jpg",
-        "sha256": "40d5748bc7fb2e8ab39f007669358e5743fe49058ab4156704c464a3c0ad54e6",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s06_v1_cover_3x4.jpg",
-        "sha256": "b3c570a0bfed608dd677afc89ad738bccdac9dda7523da29663082a922249f6c",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792544547.202847
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_ffa19505939a48d3b14950afccb8abd5",
-    "video_path": "04_Exports/Ready_to_post/20261021_hat01-pov-s08_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s08_v1_cover.jpg",
-        "sha256": "d191651aa145a75f12f72f5199cc1f784ea4345031b84288bb6d60962060777c",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s08_v1_cover_3x4.jpg",
-        "sha256": "63bec2eaada7b9fb15d46b6aa57f41410ad9ed3bcc040869499a21ccbee51ba7",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792544751.7301483
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_5963af43966e4ee78073971bd1665a52",
-    "video_path": "04_Exports/Ready_to_post/20261021_hat01-pov-s09_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s09_v1_cover.jpg",
-        "sha256": "82b1b2ad374fc13fc252aa9fe30fcfd0ae504003022fe9f569d52d58c006458e",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s09_v1_cover_3x4.jpg",
-        "sha256": "329fb5e26ce04471c55555b5b70d917850c5e7592f3a57af34a14013d44736e6",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792544822.8422866
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_7aac5d22b1e745a6a292bdd2fcbca91e",
-    "video_path": "04_Exports/Ready_to_post/20261021_hat01-pov-s10_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s10_v1_cover.jpg",
-        "sha256": "64d2681ed85b3646ba45a3d18a8a0170337dea956746d3db942775d55b3781df",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s10_v1_cover_3x4.jpg",
-        "sha256": "14f620fa45bef361cc583877ae8907fb22b0d01c9010fc147aaa2b9f2306ff5e",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792544992.428392
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_4ebc0b296efd40f7b2731d1745d4946f",
-    "video_path": "04_Exports/Ready_to_post/20261021_hat01-pov-s11_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s11_v1_cover.jpg",
-        "sha256": "8788af1d29e8a0bb37c0c1e3af824f68691ce55165c377e162099686aa5b8f2f",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s11_v1_cover_3x4.jpg",
-        "sha256": "9953d118eb9e70ddc0e620f26eda7f9ab4882fbecc9cfa725d38b5b4c092d125",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792545059.192555
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_3fa25d0a890242eba642804000b4bd2e",
-    "video_path": "04_Exports/Ready_to_post/20261021_hat01-pov-s12_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s12_v1_cover.jpg",
-        "sha256": "5b8142eeecf9927108375b739804506a242d1edcf3c346e67e861c117aeddb61",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s12_v1_cover_3x4.jpg",
-        "sha256": "c53cca4fb811aabf8af7b0920cc9e6122cfc8dfbd305e95f34d8db9dc9c5bd02",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792545223.6777668
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_58304dbaff984dda9fd1efcc0cff0331",
-    "video_path": "04_Exports/Ready_to_post/20261021_hat01-pov-s13_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s13_v1_cover.jpg",
-        "sha256": "1ec4cb52017f11e61aacd2e5445352130d8c15fc56022bea26e073ad67dcecb4",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s13_v1_cover_3x4.jpg",
-        "sha256": "f7a8af5cc09b200eb45536f1b250eb55d96da793374c0a3375368b08f4690d91",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792545321.0611444
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_4cff54a9d9954ac796b569cfb0bf5132",
-    "video_path": "04_Exports/Ready_to_post/20261021_hat01-pov-s14_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s14_v1_cover.jpg",
-        "sha256": "b3666cdc4e9ffb357d315b8ab82d6ec1113a9ae2affe8547185e6c27ab011e7b",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s14_v1_cover_3x4.jpg",
-        "sha256": "3895cbbb2e36aebe38a4b8720277f810efb201e8438f5bf81dc372e6f5ba95d5",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792545455.0970743
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_d0ae100455cc448cb78365cd087df5fd",
-    "video_path": "04_Exports/Ready_to_post/20261021_hat01-pov-s15_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s15_v1_cover.jpg",
-        "sha256": "4c32dff936a7715389a66bd385ef7e7d89f2975a27a61c6ddc8f4e4c1bfe3b56",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s15_v1_cover_3x4.jpg",
-        "sha256": "51d8245fabbd4334a83a136a9e3b30aeba29d64c36f5b490cd8a6f41e529226b",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792545572.052991
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_543d08c7f7d94749bf71710998a79a04",
-    "video_path": "04_Exports/Ready_to_post/20261021_hat01-pov-s16_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s16_v1_cover.jpg",
-        "sha256": "fa44ac74153f2e824fcdb464576681fc4ff38a9670fa6f5262f92a329d4a6dd5",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s16_v1_cover_3x4.jpg",
-        "sha256": "35cd7d4c609ef97f76477ef420b647c621b4442a3294bcd255a7a5d98264977d",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792545681.4628289
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_ed9ad2b43a3c433c8efc1f232091a986",
-    "video_path": "04_Exports/Ready_to_post/20261021_hat01-pov-s17_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s17_v1_cover.jpg",
-        "sha256": "253c2a851331ca0dc4076bb3663a689a923e5a45f7d9e5ea8743948b1978dda9",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s17_v1_cover_3x4.jpg",
-        "sha256": "9e804b595b40f3d7843a71089b84af35c0b9687220cfb19822676327ee456589",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792545822.7252917
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_75de853134d3410b858a8db4fd638db9",
-    "video_path": "04_Exports/Ready_to_post/20261021_hat01-pov-s18_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s18_v1_cover.jpg",
-        "sha256": "b1656be235cf0f4267f4749a2801e1c17d3fa06de70188320042a8942272d35c",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s18_v1_cover_3x4.jpg",
-        "sha256": "d6633eaa11214ad11fcf2acd25a41a40c366969864557bfdf3a67451a10f8244",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792545923.3404765
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_71063346d6ea43d7b625c6a0fe51253d",
-    "video_path": "04_Exports/Ready_to_post/20261021_hat01-pov-s19_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s19_v1_cover.jpg",
-        "sha256": "f875684661bfe231ecfb4c9a20a24ef860065bb355bfb6312bd2cf2f671b2655",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s19_v1_cover_3x4.jpg",
-        "sha256": "9ea2fdc034926372e1673c83a8207deb731881b57b99f42c31e24bc64ac6c8f6",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792546056.6004763
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_e8139c689242465c81b3626671c04eb5",
-    "video_path": "04_Exports/Ready_to_post/20261021_hat01-pov-s20_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s20_v1_cover.jpg",
-        "sha256": "eb47d28efffa6892c50f5906502a1e06ad56842f18872412f0ee37f17b1aa4a5",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_hat01-pov-s20_v1_cover_3x4.jpg",
-        "sha256": "d6556c31c3755e241de383eb17c9b145520663e971017628984680526abfe170",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792546163.9690247
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_cdae6fbccd974b3d94f5dbfab0c2140c",
-    "video_path": "04_Exports/Ready_to_post/20261021_red01-pov-s01_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s01_v1_cover.jpg",
-        "sha256": "0f026ef1e54f62ad02be8cbf5b69d7658f8e0eb124b0ea9f7429ff9091f53ad2",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s01_v1_cover_3x4.jpg",
-        "sha256": "50909756ea9918bd46c4c8ac5492bfef312b39730c66763dc0b7b26c4a651c32",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792546353.7310567
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_f7b630df7d4f47ccb391bf4b7e437638",
-    "video_path": "04_Exports/Ready_to_post/20261021_red01-pov-s02_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s02_v1_cover.jpg",
-        "sha256": "e641f44d54db86bb699c8697e0b85862c75d35e94b4e03fd2816ec8e1b12b345",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s02_v1_cover_3x4.jpg",
-        "sha256": "f81c346849ddd52e372ca30de6bc6908c9293688c2f52b0e6b8803d842d5b9b1",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792546361.2718577
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_850ed25352cd41678949c65369d71165",
-    "video_path": "04_Exports/Ready_to_post/20261021_red01-pov-s03_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s03_v1_cover.jpg",
-        "sha256": "672c6092e417611f114e0e8145173301ede767d5d7da92ae2bc09cc40dcf88ee",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s03_v1_cover_3x4.jpg",
-        "sha256": "facb496eccd593239e5ad42ee8f18cde698d43a0c466d888aae4a8e8701e009a",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792546557.9615114
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_4ac6be6573894ea0aea3814f9cf7df7b",
-    "video_path": "04_Exports/Ready_to_post/20261021_red01-pov-s04_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s04_v1_cover.jpg",
-        "sha256": "8a84ec37eca83c7c10f3a058fdc0e1cf5716a98ee5c9bc3c514a3e34664dae5c",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s04_v1_cover_3x4.jpg",
-        "sha256": "13cfb0e9b080437e772fec2c610eb278201435c839a53629e99dfe23114fcb62",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792546587.0547922
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_9071cb8c03ed40ea9c85e50e7badcf84",
-    "video_path": "04_Exports/Ready_to_post/20261021_red01-pov-s05_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s05_v1_cover.jpg",
-        "sha256": "3cb00f8a2f1b1df629a20a823ba29b26ed845066d781bdbf247f41ba044739e6",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s05_v1_cover_3x4.jpg",
-        "sha256": "cee60f6de3488f860ac1b095f64fba52e5016ce8e9866f6066544ed0b241975a",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792546773.6789873
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_4d5784e5cab9439f976d2eff4bc97fd4",
-    "video_path": "04_Exports/Ready_to_post/20261021_red01-pov-s06_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s06_v1_cover.jpg",
-        "sha256": "d9d49c5cb0b1e01b011a57946fb4ddecef9b9ba29dca9a833926d2bb8ea0fa9c",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s06_v1_cover_3x4.jpg",
-        "sha256": "bdc3acdb7aca1b5f24080ad2cf890c5fe4b240b81eceeed437aed492bced69ee",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792546779.168551
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_75d6c879c043479e9085ec734bc6e5ce",
-    "video_path": "04_Exports/Ready_to_post/20261021_red01-pov-s07_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s07_v1_cover.jpg",
-        "sha256": "affd001bf103d32854318b3b64d457edaedadf856f61807adf0506f8e59c750e",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s07_v1_cover_3x4.jpg",
-        "sha256": "1ae12b8fb7af9ab88627b912db0b41cce53ab0336c014d5446ef98a2a35a783d",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792546979.5121481
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_4c1e661fc4bd4b61a4775eaa1d42eaad",
-    "video_path": "04_Exports/Ready_to_post/20261021_red01-pov-s08_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s08_v1_cover.jpg",
-        "sha256": "558965e9b8ef4599352914db5e19ef5d942120afd48731a4b2eaca7e2318281c",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s08_v1_cover_3x4.jpg",
-        "sha256": "3da5bbf170a188556f331b54bcc3ed62e4621e99a1d9327a96c2f136107b528f",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792547020.5994327
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_424a43b09f61487a8275a10d32228267",
-    "video_path": "04_Exports/Ready_to_post/20261021_red01-pov-s09_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s09_v1_cover.jpg",
-        "sha256": "de2a6246e71f7ae8bb679e3b173992c96f79a6ee99e3f1564a5182ffd712886a",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s09_v1_cover_3x4.jpg",
-        "sha256": "59319f8697667b261d62a88b055e4233ca2243442b548d06828e996eade6ed0e",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792547192.6906836
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_8930c540c7a24dd29e30e0385911d698",
-    "video_path": "04_Exports/Ready_to_post/20261021_red01-pov-s10_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s10_v1_cover.jpg",
-        "sha256": "ae3ddd0895ed4b64c37a72679d1ced4057441fef5099cb17c97c8b6b5c391183",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s10_v1_cover_3x4.jpg",
-        "sha256": "4a32dffbfba88507e11089514aeb6a935a71f42b4dcfb10406183b9fce276c9a",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792547239.229407
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_d4f0f2f81d76469bb71abf6b3452bafc",
-    "video_path": "04_Exports/Ready_to_post/20261021_red01-pov-s11_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s11_v1_cover.jpg",
-        "sha256": "5388064475030d6b0c6b90c06b5471f5fd5160f165dffd3f49e0d51b9ba97ef5",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s11_v1_cover_3x4.jpg",
-        "sha256": "a4e1361b6a024d5d6f72a6e866cece3d65d8a381750098500adfd44f398b48d7",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792547415.7485511
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_26d8f8d82a484b9aaaf94dfb27962c61",
-    "video_path": "04_Exports/Ready_to_post/20261021_red01-pov-s12_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s12_v1_cover.jpg",
-        "sha256": "8e521d8c8c1a188ccc4f25b1a4d46dbdc006947a8600e6f0fe8bafd2e4c88557",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s12_v1_cover_3x4.jpg",
-        "sha256": "0a33946130fff3c5e8ace96b16d8cbc200328ae9fd45db98075725331c40c8dd",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792547468.9540305
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_8edbf5338ad949b192d5bcb990bf92ab",
-    "video_path": "04_Exports/Ready_to_post/20261021_red01-pov-s13_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s13_v1_cover.jpg",
-        "sha256": "1c90a2a42e57fc0a7275c235ff1e7872afc2105ce455c4a03d2618868bd8c9d2",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s13_v1_cover_3x4.jpg",
-        "sha256": "7380387b9a49c8bf3499f4a784cb4941d4c03043fa0319339007bcb61eeaed8a",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792547653.13521
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_4eb5a772263f4c559cb60c69a4588c86",
-    "video_path": "04_Exports/Ready_to_post/20261021_red01-pov-s14_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s14_v1_cover.jpg",
-        "sha256": "91b123723d0b6d64c6ede4eb3d533445fdb7a47334a766bef0cbed09587a3337",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s14_v1_cover_3x4.jpg",
-        "sha256": "06a37c16e1dda2a6d0ec01d0a50d67f8a8a9b69150bd29b17057e833b8e7bf18",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792547717.0848634
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_1f4503a140ce42baa0bc793017b6cc81",
-    "video_path": "04_Exports/Ready_to_post/20261021_red01-pov-s15_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s15_v1_cover.jpg",
-        "sha256": "153aac768688ab7e6a95c80c419dc0d70f82318ce72b71b83dad9c8cb3f4c251",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s15_v1_cover_3x4.jpg",
-        "sha256": "36ef017c5f57c100b1cd239b96e2f0557b96021308ed1480739dc35f2fbe8cf4",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792547890.6952746
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_a93d649dd10640c583bd4adb71304b5d",
-    "video_path": "04_Exports/Ready_to_post/20261021_red01-pov-s16_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s16_v1_cover.jpg",
-        "sha256": "6146a73f85d40de13f6ca028343c5346f642092ab8172de0223e7b7286f1e8d5",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s16_v1_cover_3x4.jpg",
-        "sha256": "f91541177cedaeb183cf8970042ed532ddba8886aba4d853228084344068a58a",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792547970.5291429
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_308c07da1aa2467d839ebd3c451663cb",
-    "video_path": "04_Exports/Ready_to_post/20261021_red01-pov-s17_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s17_v1_cover.jpg",
-        "sha256": "a441adada2f94c7cc3e5faba544d4d999126f6a087e100808d366ab35423f12e",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s17_v1_cover_3x4.jpg",
-        "sha256": "6208e71da6d7d8b6d990e3467a86e5138c124948b0d2fc417f5c6432df452aea",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792548158.9206824
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_3f14275d04e3478e99ebbf1b699b6736",
-    "video_path": "04_Exports/Ready_to_post/20261021_red01-pov-s18_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s18_v1_cover.jpg",
-        "sha256": "c959b4b1ef02397eb4ec09f125384743676d0512f53b3c3c873f51e3f302d6ea",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s18_v1_cover_3x4.jpg",
-        "sha256": "fa38b747bd52266e02343715452ed3de5a4110526bb97320bd7c059e675ac15b",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792548219.8052974
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_5bb107480c3948b1b63ea0a0a9d57912",
-    "video_path": "04_Exports/Ready_to_post/20261021_red01-pov-s19_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s19_v1_cover.jpg",
-        "sha256": "051b213776520f05db236330b4577108c15799949205549c4ea0bb7e66b919a9",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s19_v1_cover_3x4.jpg",
-        "sha256": "acda7bbe405d01a6cc99eb05e6dcf818b111c662c50cbe9431e523c668826781",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792548430.5149136
-  },
-  {
-    "channel_id": "main",
-    "export_id": "exp_e5e7c252d20545a9897d75a770139eed",
-    "video_path": "04_Exports/Ready_to_post/20261021_red01-pov-s20_v1.mp4",
-    "selections": {
-      "9:16": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s20_v1_cover.jpg",
-        "sha256": "49a74b33bf0a9113a3bc1da6118eb0d24489746b2deb49ea8ff886771335be5c",
-        "format": "9:16"
-      },
-      "3:4": {
-        "path": "05_Covers_Thumbnails/20261021_red01-pov-s20_v1_cover_3x4.jpg",
-        "sha256": "33451b4486e918f8e30966ad836c035f4aaa208e257b1e1475b7923077376001",
-        "format": "3:4"
-      }
-    },
-    "revision": 1,
-    "updated_at": 1792548475.8195963
+    "updated_at": 1794848383.8376484,
+    "source": "auto"
   }
 ]

@@ -1,0 +1,56 @@
+[
+  {
+    "product_id": "a4dcf71082204bcd97f76952f6b4e48d",
+    "product_name": "เมาส์ไร้สาย Memzuoix 2.4G RGB",
+    "clip": "IMG_8206.MOV",
+    "dest": "01_Raw/a4dcf71082204bcd97f76952f6b4e48d/IMG_8206.MOV",
+    "size_mb": 186.65,
+    "sha256": "b7f616e5e88a8d14bb94da26977dd474a60511cab813210a5c589996643bca4b",
+    "desc": "เมาส์ไร้สาย Memzuoix 2.4G RGB สีดำพร้อมไฟ RGB รอบตัวเมาส์"
+  },
+  {
+    "product_id": "e2109dc73f9c4bd4a3c98c28bc731bdf",
+    "product_name": "ปลอกนิ้วเล่นเกม TRANYOO GS 01",
+    "clip": "IMG_8207.MOV",
+    "dest": "01_Raw/e2109dc73f9c4bd4a3c98c28bc731bdf/IMG_8207.MOV",
+    "size_mb": 127.26,
+    "sha256": "b2e178b449af7f28603838b7be2d4911c2d10eb4bd4776d6e1b462ae3fb31223",
+    "desc": "ปลอกนิ้วเล่นเกม TRANYOO GS 01 สีเขียว/เทา สำหรับเล่นเกมบนมือถือ"
+  },
+  {
+    "product_id": "fb77e97e611e4e059b943b5512e8cb82",
+    "product_name": "สายชาร์จแม่เหล็ก ESSAGER PD 240W",
+    "clip": "IMG_8208.MOV",
+    "dest": "01_Raw/fb77e97e611e4e059b943b5512e8cb82/IMG_8208.MOV",
+    "size_mb": 115.45,
+    "sha256": "8f7c4a0db876d45e8f621d15dd8be745424afd150179d4a1d927c7b1658904fb",
+    "desc": "หัวต่อและสายชาร์จแม่เหล็ก Type-C ESSAGER PD 240W สีเทา Space Grey"
+  },
+  {
+    "product_id": "20260905182956_2",
+    "product_name": "สายชาร์จแม่เหล็กพันตัวเอง ESSAGER",
+    "clip": "IMG_8209.MOV",
+    "dest": "01_Raw/20260905182956_2/IMG_8209.MOV",
+    "size_mb": 209.08,
+    "sha256": "e1ea12881abb833377a2e9d637e6668cde5efe34a9571dbba1b392e0f0af72a9",
+    "desc": "สายชาร์จแม่เหล็กพันตัวเอง ESSAGER สีดำ สายถักแม่เหล็กดูดเก็บในตัว"
+  },
+  {
+    "product_id": "cc048aa24673485e824f18eba54cd7a3",
+    "product_name": "Buddytech คีย์บอร์ด เม้าส์ RGB 7สี 2โหมด Bluetooth keyboard",
+    "clip": "IMG_8210.MOV",
+    "dest": "01_Raw/cc048aa24673485e824f18eba54cd7a3/IMG_8210.MOV",
+    "size_mb": 214.38,
+    "sha256": "b50e226f92a910a549ae0a119db3aee3522b823c79286f00de88765c7784d173",
+    "desc": "Buddytech คีย์บอร์ด เม้าส์ RGB 7สี 2โหมด ใหม่แบ็คไลท์ไล่โทนสี Bluetooth keyboard พกพาทรงบาง สำหรับแท็บเล็ต/มือถือ/คอมพิวเตอร์"
+  },
+  {
+    "product_id": "jee01",
+    "product_name": "หูฟังบลูทูธไร้สาย Jeep EW011 TWS",
+    "clip": "IMG_8211.MOV",
+    "dest": "01_Raw/jee01/IMG_8211.MOV",
+    "size_mb": 197.21,
+    "sha256": "cb7516175bb11069e7d5aa7d16cbdf0d34224c83027437ba05252f9038c57a5b",
+    "desc": "หูฟังบลูทูธไร้สาย Jeep EW011 TWS สีขาวผิวเงา ทรง In-Ear"
+  }
+]

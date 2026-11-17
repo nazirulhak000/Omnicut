@@ -106,6 +106,10 @@ class UploadQueueManager {
           offset: record.offset,
           status: record.status,
           productCode: record.productCode,
+          productId: record.productId,
+          targetDir: record.targetDir,
+          result: record.result ? { ...record.result } : null,
+          file: record.fileRecord || record.result?.file || null,
           updatedAt: Date.now(),
         });
         tx.oncomplete = () => resolve();
@@ -119,30 +123,86 @@ class UploadQueueManager {
 
   /**
    * Add a File/Blob to the resumable upload queue and start uploading.
+   * Options:
+   * - productId: Target product UUID
+   * - targetDir: 'raw' (default) or 'inbox'
+   * - filename: Override display / target filename
+   * - onProgress: (pct: number, item: object) => void
+   * - onComplete: (result: object, item: object) => void
+   * - onError: (err: Error, item: object) => void
+   * - returnPromise: boolean (if true returns the completion Promise)
    */
   enqueue(file, options = {}) {
     const localId = options.localId || `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+    let resolvePromise, rejectPromise;
+    const promise = new Promise((resolve, reject) => {
+      resolvePromise = resolve;
+      rejectPromise = reject;
+    });
+
     const item = {
       localId,
       uploadId: options.uploadId || null,
       file,
-      filename: file.name || options.filename || 'video.mp4',
+      filename: options.filename || file.name || 'video.mp4',
       totalSize: file.size || 0,
       mimeType: file.type || 'video/mp4',
       productCode: options.productCode || null,
+      productId: options.productId || null,
+      targetDir: options.targetDir || 'raw',
       chunkSize: options.chunkSize || DEFAULT_CHUNK_SIZE,
       offset: 0,
       progress: 0,
       status: 'queued', // queued | uploading | paused | interrupted | completed | error
       error: null,
       result: null,
+      fileRecord: null,
+      promise,
+      _resolve: resolvePromise,
+      _reject: rejectPromise,
+      onProgress: options.onProgress || null,
+      onComplete: options.onComplete || null,
+      onError: options.onError || null,
     };
 
     this.items.set(localId, item);
     this._emit();
     this._saveToIndexedDB(item);
     this._processNext();
+
+    if (options.returnPromise) {
+      return promise;
+    }
     return localId;
+  }
+
+  /**
+   * Returns a Promise that resolves with upload completion result or rejects on failure.
+   */
+  waitFor(localId) {
+    const item = this.items.get(localId);
+    if (!item) return Promise.reject(new Error(`ไม่พบรายการอัปโหลด '${localId}'`));
+    if (item.status === 'completed') return Promise.resolve(item.result);
+    if (item.status === 'error') return Promise.reject(new Error(item.error || 'เกิดข้อผิดพลาดในการอัปโหลด'));
+    return item.promise;
+  }
+
+  getItem(localId) {
+    return this.items.get(localId) || null;
+  }
+
+  clearCompleted() {
+    let changed = false;
+    for (const [id, item] of this.items.entries()) {
+      if (item.status === 'completed') {
+        this.items.delete(id);
+        changed = true;
+      }
+    }
+    if (changed) {
+      this._emit();
+    }
   }
 
   pause(localId) {
@@ -175,6 +235,9 @@ class UploadQueueManager {
     const item = this.items.get(localId);
     if (!item) return;
     item.status = 'paused';
+    if (item._reject && item.status !== 'completed') {
+      try { item._reject(new Error('ยกเลิกการอัปโหลดแล้ว')); } catch {}
+    }
     this.items.delete(localId);
     this._emit();
   }
@@ -255,6 +318,8 @@ class UploadQueueManager {
             total_size: item.totalSize,
             mime_type: item.mimeType,
             product_code: item.productCode,
+            product_id: item.productId,
+            target_dir: item.targetDir,
           }),
         });
         if (!initRes.ok) {
@@ -307,6 +372,9 @@ class UploadQueueManager {
         const patchData = await patchRes.json();
         item.offset = typeof patchData.offset === 'number' ? patchData.offset : end;
         item.progress = Math.min(100, Math.round((item.offset / item.totalSize) * 100));
+        if (typeof item.onProgress === 'function') {
+          try { item.onProgress(item.progress, item); } catch {}
+        }
         this._emit();
         await this._saveToIndexedDB(item);
       }
@@ -326,12 +394,28 @@ class UploadQueueManager {
       item.status = 'completed';
       item.progress = 100;
       item.result = completeData;
+      item.fileRecord = completeData.file || null;
+      if (typeof item.onProgress === 'function') {
+        try { item.onProgress(100, item); } catch {}
+      }
+      if (item._resolve) {
+        item._resolve(completeData);
+      }
+      if (typeof item.onComplete === 'function') {
+        try { item.onComplete(completeData, item); } catch (cbErr) { console.error('Error in onComplete hook:', cbErr); }
+      }
       this._emit();
       await this._saveToIndexedDB(item);
     } catch (err) {
       const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
       item.status = isOffline ? 'interrupted' : 'error';
       item.error = err?.message || 'การเชื่อมต่อขัดข้อง ระบบจะส่งต่อให้อัตโนมัติเมื่อสัญญาณกลับมา';
+      if (!isOffline && item._reject) {
+        item._reject(err);
+      }
+      if (typeof item.onError === 'function') {
+        try { item.onError(err, item); } catch (cbErr) { console.error('Error in onError hook:', cbErr); }
+      }
       this._emit();
       await this._saveToIndexedDB(item);
     }

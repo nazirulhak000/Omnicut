@@ -115,40 +115,66 @@ def trim_silence_and_tail_artifacts_wav(
             speech_thresh = max(0.003, peak_rms * 0.045)
             is_speech = hop_rms >= speech_thresh
 
-            curr_hop = n_hops - 1
-            # Check if take ends with high energy (possible EOF digital artifact)
-            if curr_hop >= 0 and (is_speech[curr_hop] or (curr_hop > 0 and is_speech[curr_hop - 1])):
-                burst_hops = 0
-                while curr_hop >= 0 and is_speech[curr_hop]:
-                    burst_hops += 1
-                    curr_hop -= 1
+            # Check if take ends with high energy / EOF digital artifact.
+            # In Gemini Flash TTS, the digital burst is <=350ms, may be fluttered
+            # (containing 10-30ms drops to zero inside the burst), or slightly offset
+            # from the last frame. We scan backwards from the tail allowing a small
+            # micro-gap bridge of <=3 hops (30ms) to reconstruct the full burst cluster.
+            curr = n_hops - 1
+            trailing_zeros = 0
+            while curr >= 0 and not is_speech[curr] and trailing_zeros < 10:
+                trailing_zeros += 1
+                curr -= 1
+
+            is_glitch = False
+            last_speech_hop = n_hops - 1
+            if curr >= 0 and is_speech[curr]:
+                burst_end = curr
+                burst_start = curr
+                gap = 0
+                while curr >= max(0, n_hops - 50):  # search up to 500ms
+                    has_energy = is_speech[curr] or (curr * hop < n_frames and per_frame_max[curr * hop : min(n_frames, (curr + 1) * hop)].max() >= 20000)
+                    if has_energy:
+                        burst_start = curr
+                        gap = 0
+                    else:
+                        gap += 1
+                        if gap > 3:  # >30ms silence gap indicates the end of the burst cluster
+                            break
+                    curr -= 1
+
                 silence_gap_hops = 0
-                while curr_hop >= 0 and not is_speech[curr_hop]:
+                curr_s = burst_start - 1
+                while curr_s >= 0 and not is_speech[curr_s]:
                     silence_gap_hops += 1
-                    curr_hop -= 1
+                    curr_s -= 1
 
-                # An isolated EOF glitch is <= 350ms preceded by >= 60ms
-                # silence AND looks like a glitch: very short, much quieter
-                # than the speech, or clipping. A short final word after a
-                # breath (e.g. "ครับ") must survive.
-                is_glitch = False
-                if silence_gap_hops >= 6 and 0 < burst_hops <= GEMINI_GLITCH_MAX_HOPS:
-                    burst_start = (n_hops - burst_hops) * hop
-                    burst_rms = float(np.mean(hop_rms[n_hops - burst_hops:]))
-                    burst_peak = int(per_frame_max[burst_start:].max()) if burst_start < n_frames else 0
+                burst_hops = burst_end - burst_start + 1
+                burst_start_sample = burst_start * hop
+                burst_max_amp = int(per_frame_max[burst_start_sample:].max()) if burst_start_sample < n_frames else 0
+                burst_rms = float(np.mean(hop_rms[burst_start : burst_end + 1]))
+
+                # An isolated EOF glitch is <= 350ms preceded by >= 50ms silence
+                # AND looks like a glitch: clipping (>=25000), short (<=15 hops),
+                # quiet, or separated by a substantial silence gap (>=150ms).
+                # A real short final word after a breath (e.g. "ครับ") does not clip
+                # and is preceded only by a brief breath pause (<150ms).
+                if silence_gap_hops >= 5 and 0 < burst_hops <= GEMINI_GLITCH_MAX_HOPS:
                     is_glitch = (
-                        burst_hops <= GEMINI_GLITCH_MAX_SHORT_HOPS
+                        burst_max_amp >= 25000
+                        or burst_hops <= GEMINI_GLITCH_MAX_SHORT_HOPS
                         or burst_rms < peak_rms * GEMINI_GLITCH_QUIET_RATIO
-                        or burst_peak >= GEMINI_GLITCH_CLIP_LEVEL
+                        or silence_gap_hops >= 15
                     )
-                if not is_glitch:
-                    curr_hop = n_hops - 1
+                    if is_glitch:
+                        last_speech_hop = curr_s
 
-            last_speech_hop = 0
-            for j in range(curr_hop, -1, -1):
-                if is_speech[j]:
-                    last_speech_hop = j
-                    break
+            if not is_glitch:
+                last_speech_hop = 0
+                for j in range(n_hops - 1, -1, -1):
+                    if is_speech[j]:
+                        last_speech_hop = j
+                        break
 
             end_frame = min(n_frames, (last_speech_hop + 1) * hop + int(round(pad_tail_s * rate)))
         else:

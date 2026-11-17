@@ -1,12 +1,13 @@
 import React, { memo, useState, useCallback, useEffect } from 'react';
 import {
   Rocket, Layers, Scissors, FolderDown, Palette, Settings,
-  Keyboard, WifiOff, RefreshCw, Package, BarChart3, Zap
+  Keyboard, WifiOff, RefreshCw, Package, BarChart3, Zap, Smartphone
 } from 'lucide-react';
 
 import { ActivityIndicatorButton } from './ActivityCenter';
 import EditorChannelSelector from './editor/EditorChannelSelector.jsx';
 import GoogleFlowModal from './GoogleFlowModal.jsx';
+import IPhoneDirectModal from './IPhoneDirectModal.jsx';
 import { getFlowStatus } from '../api';
 
 const TAB_CONFIG = {
@@ -101,6 +102,7 @@ export default memo(function Topbar({
   // Google Flow Real-Time Status & Credit State
   const [flowStatus, setFlowStatus] = useState(null);
   const [flowModalOpen, setFlowModalOpen] = useState(false);
+  const [iphoneModalOpen, setIphoneModalOpen] = useState(false);
 
   const fetchFlowStatus = useCallback(async () => {
     try {
@@ -198,6 +200,18 @@ export default memo(function Topbar({
         {/* Global Activity Center Button */}
         <ActivityIndicatorButton className="h-8 sm:h-9" />
 
+        {/* iPhone USB Direct Ingest Button */}
+        <button
+          type="button"
+          onClick={() => setIphoneModalOpen(true)}
+          className="h-8 sm:h-9 px-2 sm:px-2.5 rounded-xl bg-white/[0.04] hover:bg-sky-500/10 active:bg-sky-500/20 active:scale-95 border border-white/[0.08] hover:border-sky-500/30 text-slate-300 hover:text-sky-300 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70"
+          title="ดึงคลิปตรงจาก iPhone (USB Direct Ingest)"
+        >
+          <Smartphone className="w-3.5 h-3.5 text-sky-400" />
+          <span className="hidden sm:inline">ดึงจาก iPhone</span>
+          <span className="sr-only sm:hidden">ดึงคลิปจาก iPhone ผ่านสาย USB</span>
+        </button>
+
         {/* Global Refresh Button */}
         {onRefresh && (
           <button
@@ -234,34 +248,31 @@ export default memo(function Topbar({
           tabIndex={0}
           title={
             flowStatus?.service_online
-              ? `Google Flow (Veo AI): ออนไลน์พร้อมใช้งาน · เครดิตคงเหลือ: ${flowStatus.credits_remaining !== undefined ? flowStatus.credits_remaining : 50} cr (แตะเพื่อจัดการ)`
-              : 'Google Flow (Veo AI): ออฟไลน์ · แตะเพื่อเปิดระบบหรือจัดการสตูดิโอ'
+              ? `Google Flow (Veo): ออนไลน์ · ${flowStatus?.active_account?.name || 'บัญชีหลัก'} (${flowStatus?.active_account?.credits ?? flowStatus?.credits_remaining ?? 0} cr)`
+              : 'Google Flow (Veo): ออฟไลน์ · คลิกเพื่อเปิดระบบ'
           }
-          className={`flex items-center justify-center gap-1.5 min-h-11 sm:min-h-0 sm:h-9 px-2 sm:px-2.5 rounded-xl text-xs font-semibold border cursor-pointer active:scale-95 transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70 ${
-            flowStatus?.service_online
-              ? 'bg-purple-500/10 hover:bg-purple-500/20 text-purple-200 border-purple-500/30'
-              : 'bg-white/[0.04] hover:bg-white/[0.08] text-slate-400 border-white/[0.08]'
-          }`}
+          className="flex items-center justify-center gap-1.5 min-h-11 sm:min-h-0 sm:h-9 px-2 sm:px-2.5 rounded-xl text-xs font-semibold border cursor-pointer active:scale-95 transition-colors bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50"
         >
           <span className="sr-only">
             {flowStatus?.service_online
-              ? `สถานะ Google Flow ออนไลน์ เครดิตคงเหลือ ${flowStatus.credits_remaining || 50} เครดิต แตะเพื่อเปิดสตูดิโอ`
-              : 'สถานะ Google Flow ออฟไลน์ แตะเพื่อเปิดสตูดิโอ'}
+              ? `Google Flow ออนไลน์ เครดิตคงเหลือ ${flowStatus?.active_account?.credits ?? flowStatus?.credits_remaining ?? 0} เครดิต`
+              : 'Google Flow ออฟไลน์'}
           </span>
 
-          <Zap className={`w-3.5 h-3.5 flex-shrink-0 ${flowStatus?.service_online ? 'text-amber-400 fill-amber-400' : 'text-slate-500'}`} />
+          <Zap className={`w-3.5 h-3.5 flex-shrink-0 ${flowStatus?.service_online ? 'text-amber-400' : 'text-slate-500'}`} />
 
           {flowStatus?.service_online ? (
             <>
-              <span className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0 shadow-[0_0_8px_rgba(52,211,153,0.7)] animate-pulse" />
-              <span className="font-mono tabular-nums text-emerald-300">
-                <span className="hidden sm:inline">Flow: </span>{flowStatus.credits_remaining !== undefined ? flowStatus.credits_remaining : 50} cr
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
+              <span className="font-mono tabular-nums text-slate-200">
+                <span className="hidden sm:inline text-slate-400 font-sans font-normal">Flow: </span>
+                {flowStatus?.active_account?.credits ?? flowStatus?.credits_remaining ?? 0} cr
               </span>
             </>
           ) : (
             <>
               <span className="w-1.5 h-1.5 rounded-full bg-slate-500 flex-shrink-0" />
-              <span className="font-mono text-slate-400 text-[11px]">Flow: Off</span>
+              <span className="font-mono text-slate-400 text-[11px]">Flow: ปิด</span>
             </>
           )}
         </div>
@@ -309,8 +320,18 @@ export default memo(function Topbar({
             setFlowModalOpen(false);
             fetchFlowStatus();
           }}
-          productId={activeProductContext?.productId}
+          productId={activeProductContext?.productId || activeProductContext?.id}
+          angleId={activeProductContext?.activeAngleId || activeProductContext?.angles?.[0]?.angle_id || activeProductContext?.angles?.[0]?.id}
           productName={activeProductContext?.productName || ''}
+        />
+      )}
+
+      {/* Global iPhone Direct Modal triggered from Topbar */}
+      {iphoneModalOpen && (
+        <IPhoneDirectModal
+          isOpen={iphoneModalOpen}
+          onClose={() => setIphoneModalOpen(false)}
+          onSuccess={() => onRefresh && onRefresh()}
         />
       )}
     </header>

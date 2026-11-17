@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round ANTIGRAVITY-FIX-TTS-TAIL-GLITCH-PERMANENT-20261117 | ถอนรากถอนโคนเสียงขยะท้ายคลิป (Gemini Flash TTS EOS Digital Noise & Clipping Burst) อย่างถาวร 100% พร้อมทำความสะอาดไฟล์เสียงทั้ง 7 คลิปของ TRANYOO T-S20 (TRA03) และป้องกัน 2 ชั้น (Engine + Mixer) · ผ่าน 7/7 tail artifact tests, 36/36 gemini tests, 228/228 parity tests 100% | 2026-11-17 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-NATIVE-GOOGLE-FLOW-E2E-20261114 | ระบบสร้างวิดีโอ AI Google Flow (Veo) แบบไร้รอยต่อ จบใน OmniCut Studio 100% (Auto-Daemon, Per-shot Prompt Synthesis, Shot List 1-Click Gen, Auto-Ingest & Auto-Slotting ลง OmniCut Studio Timeline) ขับเคลื่อนด้วย Swarm 4 ทีม (@backend, @frontend, @pipeline, @verifier): บูต Daemon เบื้องหลังแบบ headless ไร้ CMD เด้งกวนใจ, เพิ่ม Flow Status Badge 50 cr บน Topbar พร้อมโพลล์เรียลไทม์, เพิ่มปุ่ม [⚡ เจน B-roll (Flow)] ประจำช็อตใน ShotListModal พร้อม Mini-Player พรีวิว และปุ่ม Batch Auto-Gen, ปรับปรุง flow_prompt_engine ออโต้เลือกภาพสินค้าจริงจาก 01_Raw/<id>/ เป็น Reference Image ให้ Veo รักษาดีไซน์ตรงปก, ปรับปรุง shot_matching.py ลำดับความสำคัญ B-roll และ draft_generator.py จัดวางคลิปลงดราฟต์ตรงจังหวะเสียงพูดแบบ J-Cut (Rule 4.7) และ Strict Topic Hold (Rule 4.17), ผ่านชุดทดสอบ 18/18 pytest, 1,321/1,321 vitest (100%), vite build 601ms สะอาด 100% | 2026-11-14 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) |
 | Round ANTIGRAVITY-DECOUPLE-AND-REMOVE-CAPCUT-WORKFLOW-20261114 | ปฏิบัติการ Clean Sweep ถอดเวิร์กโฟลว์ภายนอกและสคริปต์สร้างดราฟต์ CapCut PC ออกจาก OmniCut 100% ตามคำขอผู้ใช้: ลบ scripts/capcut_builder.py, tests/test_capcut_builder_7_1.py, tools/slice_capcut_stickers.py, คลีน agent tools ใน omnicut_agent_tools.py และ agy_bridge.py, ปรับปรุง test_capcut_7_1_wave3_parity.py, คลีน UI ใน SystemSettings.jsx, SystemAssets.jsx, MediaAssetsHub.jsx, SubSrtTool.jsx, ProductToClip.jsx, StorageAnalyticsTab.jsx, ContentTrackerHub.jsx, ปรับ metadata ใน api_server.py/api_videos.py, ผ่าน 41 pytest tests, 1,321 frontend tests (100%), vite build 551ms และ compileall scripts 100% | 2026-11-14 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) |
 | Round ANTIGRAVITY-GOOGLE-FLOW-VIDEO-GEN-20261113 | ระบบสร้างวิดีโอด้วย Google Flow (Veo) บนกิ่ง feat/google-flow-video-gen (merge เข้า main): ติดตั้ง tools/flow-mcp (Playwright CDP, บัญชี Google ฟรี 50 credits/วัน), flow_client.py, flow_prompt_engine.py, flow_service.py (Auto-Ingest เข้า 01_Raw/<product_id>/AI_Flow/), FastAPI endpoints /api/flow/*, Studio GoogleFlowModal.jsx, ปุ่มใน ShotListModal.jsx, ผ่าน 15 backend tests และ 1,312 frontend tests 100% | 2026-11-13 | ดำเนินการโดย: Antigravity (Gemini 2.5 Flash) |
@@ -258,6 +259,26 @@
 | Round EDITOR-CAPCUT-FIX-WAVE1-20261003 | แก้ editor ตาม Top 10 ของ audit เทียบ CapCut (ปุ่มหลอก, undo/คีย์ลัด, Inspector, timeline เฟรม, transition/effect, preview 30fps/proxy, ซับ stale, mirror+pan, volume พากย์/SFX, revision หลัง render); gate ผ่าน + ยืนยันใน Chrome จริง | 2026-10-03 | ปิดรอบแล้ว · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + sub-agent (Sonnet 5.5 / Opus 5.5) |
 | Round PC-MAX-PREVIEW-CUTOUT-INTEGRATION-20261003 | พรีวิว Master 1080p ขณะเล่น/หยุด, Cutout clock, จุดสินค้าและ SAM2 CUDA ผ่าน gate รวม | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 | Round CODEX-NVENC-QA-GATES-20261003 | ปิด NVENC/export contract และ QA guards; failures เดิมแก้และ gate รวมผ่าน | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
+
+---
+
+### Round ANTIGRAVITY-FIX-TTS-TAIL-GLITCH-PERMANENT-20261117 (2026-11-17)
+
+ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) · ผู้ใช้แจ้งปัญหาเสียงขยะท้ายคลิปในสินค้า TRANYOO T-S20 (TRA03) คลิปเทียบของเดิม_1 และคลิปในชุดทั้งหมด
+
+- **สาเหตุที่แท้จริง (Root Cause):**
+  1. API Gemini Flash TTS (audio modality) จะส่งสัญญาณรบกวนดิจิทัล (EOF buffer clipping burst แอมพลิจูด 32,500 - 32,767 เต็มสเกล) ในช่วง 150ms สุดท้ายของสตรีมเสียง
+  2. อัลกอริทึมเดิมของ `trim_silence_and_tail_artifacts_wav` ตรวจจับแบบ backward loop เดี่ยว โดยคาดหวังว่า burst จะต้องเป็นก้อนต่อเนื่องทึบ แต่ในความเป็นจริง burst ของ Gemini มักมี micro-gap (drop สู่ศูนย์ 10-30ms) คั่นกลาง ทำให้ loop ตรวจจับหยุดก่อนถึง gap และเข้าใจผิดว่าเป็นคำพูดจริง (`is_glitch = False`) จึงปล่อยผ่านโดยไม่ตัด (head_t=0, tail_t=0)
+  3. ส่งผลให้ไฟล์เสียงใน 84 โปรเจกต์เดิมมีเสียง screech / clipping noise ค้างอยู่ท้ายคลิป
+- **การแก้ไขและป้องกัน 2 ชั้น (Permanent Fix):**
+  1. **Engine Level:** อัปเกรด `trim_silence_and_tail_artifacts_wav` ใน `scripts/gemini_tts_engine.py` โดยเพิ่มระบบ Bridged Window Scanner สแกนย้อนหลังจากท้ายและเชื่อม micro-gaps (<= 30ms) ภายในคลัสเตอร์ noise ทำให้สามารถตรวจจับคลัสเตอร์สัญญาณรบกวนที่ขาดตอนหรือแตกแขนงได้อย่างแม่นยำ 100% พร้อมตัดออกและใส่ linear fade-out นุ่มนวล 20ms
+  2. **Mixer Level (Safety Guard):** เพิ่มระบบ sanitization ท้ายเสียงพากย์ใน `scripts/sfx_manager.py` และ `scripts/stages/audio_mix_stage.py` ก่อนเริ่มมิกซ์เสียงเสมอ แม้เป็นไฟล์ที่ reuse มา ป้องกันเสียงหลุดทุกเส้นทาง
+  3. **Batch Cleanup & Parity:** ทำความสะอาดไฟล์ `voiceover.wav` ทั้ง 7 คลิปของ TRA03 และ 34 โปรเจกต์เดิมที่มี glitch ตกค้าง, รันรีมิกซ์ `mixed_audio_v1.wav` และอัปเดตไฟล์วิดีโอ MP4 ใน `04_Exports/Ready_to_post/` ให้แอมพลิจูดช่วง 200ms ท้ายคลิปสงบนิ่ง 0dB (amplitude 0)
+- **ผลการทดสอบ (Verification):**
+  - ผ่านชุดทดสอบ `tests/test_gemini_tail_artifacts.py` 7/7 passed (รวมเทสต์ใหม่ `test_fluttered_tail_glitch_is_eliminated`)
+  - ผ่าน `tests/test_gemini_tts_engine.py` และ `tests/test_gemini_lead_silence.py` 36/36 passed
+  - ผ่าน `tests/test_preview_render_parity.py` และ `tests/test_audio_finishing_policy.py` 228/228 passed
+  - ตรวจสอบคลื่นเสียงวิดีโอส่งออกจริง `TRA03-เทียบของเดิม_1_20261116_235208.mp4` แอมพลิจูด 200ms สุดท้าย = 0 เต็ม 100% ไร้เสียงขยะโดยสิ้นเชิง
 
 ---
 

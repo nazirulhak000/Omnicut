@@ -319,3 +319,139 @@ def test_chunked_upload_rejects_non_media_magic_bytes_with_415(isolated_app: Tes
 
     comp_res = isolated_app.post(f"/api/uploads/{upload_id}/complete")
     assert comp_res.status_code == 415
+
+
+def test_chunked_upload_mobile_raw_product_routing_and_attachment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    staging = tmp_path / "staging"
+    raw_dir = tmp_path / "01_Raw"
+    inbox_dir = tmp_path / "00_Inbox"
+    staging.mkdir(parents=True, exist_ok=True)
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    inbox_dir.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(api_uploads, "STAGING_DIR", staging)
+    monkeypatch.setattr(api_uploads, "TARGET_DIR", None)
+    monkeypatch.setattr(config, "BASE_DIR", tmp_path)
+    monkeypatch.setattr(config, "RAW_DIR", raw_dir)
+    monkeypatch.setattr(config, "INBOX_DIR", inbox_dir)
+
+    # Track calls to ProductStore.add_video_to_product
+    attached_calls = []
+
+    def fake_add_video(product_id: str, file_info: dict, **kwargs):
+        attached_calls.append((product_id, file_info))
+        return {"id": product_id, "videos": [file_info]}
+
+    from scripts.product_store import ProductStore
+    monkeypatch.setattr(ProductStore, "add_video_to_product", fake_add_video)
+
+    app = FastAPI()
+    app.include_router(api_uploads.router)
+    client = TestClient(app)
+
+    payload = _make_valid_mp4_bytes(b"iphone_raw_footage_take1")
+    total_size = len(payload)
+    sha256_hash = hashlib.sha256(payload).hexdigest()
+
+    # 1. Target = raw, with product_id
+    init_res = client.post(
+        "/api/uploads/init",
+        json={
+            "filename": "camera_roll_001.mp4",
+            "total_size": total_size,
+            "mime_type": "video/mp4",
+            "target_dir": "raw",
+            "product_id": "test-prod-uuid-99",
+            "sha256": sha256_hash,
+        },
+    )
+    assert init_res.status_code == 200
+    upload_id = init_res.json()["upload_id"]
+
+    patch_res = client.patch(
+        f"/api/uploads/{upload_id}",
+        headers={"Upload-Offset": "0"},
+        content=payload,
+    )
+    assert patch_res.status_code == 200
+
+    comp_res = client.post(f"/api/uploads/{upload_id}/complete")
+    assert comp_res.status_code == 200
+    comp_data = comp_res.json()
+
+    assert comp_data["ok"] is True
+    assert comp_data["message"] == "Upload successful"
+    assert comp_data["deduplicated"] is False
+    assert comp_data["sha256"] == sha256_hash
+    assert comp_data["size"] == total_size
+    assert comp_data["file"]["name"] == "camera_roll_001.mp4"
+    assert comp_data["file"]["size"] == total_size
+    assert "duration" in comp_data["file"]
+    assert Path(comp_data["file"]["path"]).exists()
+
+    # Verify destination is raw_dir / product_id
+    expected_dest = raw_dir / "test-prod-uuid-99" / "camera_roll_001.mp4"
+    assert Path(comp_data["file"]["path"]) == expected_dest
+    assert expected_dest.exists()
+
+    # Verify ProductStore.add_video_to_product was called
+    assert len(attached_calls) == 1
+    assert attached_calls[0][0] == "test-prod-uuid-99"
+    assert attached_calls[0][1]["name"] == "camera_roll_001.mp4"
+
+    # 2. Target = inbox
+    init_inbox = client.post(
+        "/api/uploads/init",
+        json={
+            "filename": "inbox_clip.mp4",
+            "total_size": total_size,
+            "mime_type": "video/mp4",
+            "target_dir": "inbox",
+        },
+    ).json()
+    inbox_id = init_inbox["upload_id"]
+
+    client.patch(
+        f"/api/uploads/{inbox_id}",
+        headers={"Upload-Offset": "0"},
+        content=payload,
+    )
+    comp_inbox = client.post(f"/api/uploads/{inbox_id}/complete")
+    assert comp_inbox.status_code == 200
+    inbox_data = comp_inbox.json()
+
+    assert inbox_data["ok"] is True
+    assert inbox_data["file"]["name"] == "inbox_clip.mp4"
+    expected_inbox_file = inbox_dir / "inbox_clip.mp4"
+    assert Path(inbox_data["file"]["path"]) == expected_inbox_file
+    assert expected_inbox_file.exists()
+
+    # 3. Duplicate upload for same product (Rule 13 SHA-256 deduplication)
+    init_dup = client.post(
+        "/api/uploads/init",
+        json={
+            "filename": "camera_roll_001_copy.mp4",
+            "total_size": total_size,
+            "mime_type": "video/mp4",
+            "target_dir": "raw",
+            "product_id": "test-prod-uuid-99",
+            "sha256": sha256_hash,
+        },
+    ).json()
+    dup_id = init_dup["upload_id"]
+
+    client.patch(
+        f"/api/uploads/{dup_id}",
+        headers={"Upload-Offset": "0"},
+        content=payload,
+    )
+    comp_dup = client.post(f"/api/uploads/{dup_id}/complete")
+    assert comp_dup.status_code == 200
+    dup_data = comp_dup.json()
+
+    assert dup_data["ok"] is True
+    assert dup_data["deduplicated"] is True
+    assert dup_data["sha256"] == sha256_hash
+    assert Path(dup_data["file"]["path"]) == expected_dest
+    # Only 1 file in product directory
+    assert len(list((raw_dir / "test-prod-uuid-99").glob("*.mp4"))) == 1

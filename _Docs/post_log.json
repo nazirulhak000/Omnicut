@@ -3053,5 +3053,36 @@
     "story_format": "classic",
     "duration_sec": 23.24,
     "hook_text": "เลิกใช้ปลั๊กไฟพ่วง ราคาถูกที่ไม่มี มอก. เถอะครับ อันตรายถึงชีวิตเลยนะ"
+  },
+  {
+    "id": "f1a280954841451d850ea2abdc022003",
+    "channel_id": "main",
+    "product_name": "หูฟังเปิดหู MONSTER AC530",
+    "product_url": "",
+    "angle_key": "pain_point",
+    "angle_title": "😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน",
+    "hook": "ใครใส่หูฟังแล้วเจ็บหู ฟังทางนี้ด่วน!",
+    "clip_file": "COD01-ปัญหาก่อนใช้_1_20261111_020407.mp4",
+    "platform": "tiktok",
+    "caption": "บอกลาอาการเจ็บหู! อัปเกรดชีวิตด้วย หูฟังเปิดหู MONSTER AC530 หูฟัง Open-Ear ใส่สบาย เบสแน่น พิกัดในตะกร้าเลย 👇",
+    "hashtags": [
+      "#นายหน้าtiktok",
+      "#รีวิวหูฟัง",
+      "#MONSTERAC530",
+      "#หูฟังเปิดหู",
+      "#tiktokป้ายยา",
+      "#EP178"
+    ],
+    "posted_at": "2026-11-12T20:45:29",
+    "metrics": null,
+    "metrics_filled_at": null,
+    "source": "mark_posted",
+    "product_id": "8ebd5ef6dc2545398dc1b771aedda50d",
+    "style_preset": "pain_punch",
+    "scheduled_at": "2026-11-12T06:40:00+07:00",
+    "export_id": "exp_eaf2bd3587b94690a942c0956e784786",
+    "story_format": "classic",
+    "duration_sec": 31.46,
+    "hook_text": "ทุกคน ใครที่ใส่หูฟังอัดเข้าช่องหู แล้วปวดหูจนทนไม่ไหว ฟังทางนี้ด่วนเลยครับ"
   }
 ]

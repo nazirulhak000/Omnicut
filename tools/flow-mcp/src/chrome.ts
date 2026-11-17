@@ -32,7 +32,7 @@ const CHROME_PATHS = [
 
 let browser: Browser | null = null;
 
-async function cdpUp(): Promise<boolean> {
+export async function cdpUp(): Promise<boolean> {
   try {
     const res = await fetch(`${CDP_URL}/json/version`, { signal: AbortSignal.timeout(1500) });
     return res.ok;

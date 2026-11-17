@@ -4,6 +4,58 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round ANTIGRAVITY-FIX-TTS-TAIL-GLITCH-PERMANENT-20261117 · ถอนรากถอนโคนเสียงขยะท้ายคลิป (Gemini Flash TTS EOS Digital Noise & Clipping Burst) อย่างถาวร 100% พร้อมทำความสะอาดไฟล์เสียงทั้ง 7 คลิปของ TRANYOO T-S20 (TRA03) และป้องกัน 2 ชั้น (Engine + Mixer) · ผ่าน 7/7 tail artifact tests, 36/36 gemini tests, 228/228 parity tests 100% · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-IPHONE-DIRECT-UI-AND-DEDUPLICATION-20261116 · สร้างหน้าต่าง UI ดึงคลิปตรงจาก iPhone ใน OmniCut Studio + สแกนลบคลิปซ้ำซ้อนคืนพื้นที่ 1.25 GB ปฏิบัติตาม Zero-Duplicate Guard 100% · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+  - [x] ลบคลิปวิดีโอซ้ำซ้อน 7 ไฟล์ (1,247.24 MB) ระหว่าง 00_Inbox และ 01_Raw โดยคงคลิปต้นฉบับในคลังสินค้า 01_Raw/<id>/ ไว้อย่างปลอดภัย (Zero-Duplicate 100%)
+  - [x] รวมโฟลเดอร์และไฟล์ของ Jeep EW011 เข้าสู่ 01_Raw/jee01/ เป็นโฟลเดอร์เดียว ลบโฟลเดอร์ซ้ำซ้อน 01_Raw/JEE01_Jeep_EW011
+  - [x] สร้าง Backend API `/api/iphone/status`, `/api/iphone/clips`, `/api/iphone/pull` สำหรับตรวจจับและดึงคลิปตรงจากอุปกรณ์ iOS ผ่าน WPD
+  - [x] สร้าง Frontend Modal `IPhoneDirectModal.jsx` แสดงสถานะอุปกรณ์, ตัวกรองคลิปใหม่/คลิปในคลัง, และตัวเลือกโฟลเดอร์ปลายทาง (Inbox หรือ ระบุสินค้าตรง)
+  - [x] เพิ่มปุ่ม "ดึงจาก iPhone (USB)" บน Topbar และเพิ่มปุ่มดึงตรงใน MediaPickerModal
+  - [x] ผ่านชุดทดสอบ unit tests (tests/test_api_iphone.py) และ build frontend สำเร็จ 100%
+
+- [x] Round ANTIGRAVITY-IPHONE-CIRCLED-FOOTAGE-INGEST-20261116 · ดึงคลิปวิดีโอวัตถุดิบ 11 รายการที่ผู้ใช้วงแดงในสกรีนช็อตจาก iPhone (IMG_8206 ถึง IMG_8216) เข้าสู่คลังโปรแกรม 00_Inbox/iPhone_Clips/ ตรงผ่านสายความเร็วสูง 100% พร้อมสร้างเครื่องมือดึงตรงไม่ต้องรอ AI · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+  - [x] ตรวจสอบสกรีนช็อตที่ผู้ใช้วงแดง: ยืนยันตรงกับ 11 คลิปเป้าหมาย (IMG_8206 ถึง IMG_8216 รวมความจุ ~1.8 GB)
+  - [x] ดึงคลิปตรงผ่านสาย USB เข้าสู่คลังโปรแกรม 00_Inbox/iPhone_Clips/ ครบทั้ง 11 ไฟล์ (IMG_8206 ถึง IMG_8216) ไม่ต้องรอแมพ AI
+  - [x] สร้างเครื่องมือดึงตรงความเร็วสูง `tools/pull_iphone_direct.bat` และ `tools/pull_iphone_direct.ps1` ให้ผู้ใช้ดับเบิ้ลคลิกหรือสั่งดึงคลิปตรงจาก iPhone ได้ทันทีใน 5 วินาที
+  - [x] ลบไฟล์ชั่วคราวและแคชทั้งหมดใน .tmp/ เรียบร้อย (Clean 100%)
+
+- [x] Round ANTIGRAVITY-IPHONE-PRODUCT-FOOTAGE-INGEST-20261115 · ดึงและแมพคลิปวิดีโอวัตถุดิบ 6 คลิปล่าสุดจาก iPhone เข้าคลังสินค้า 01_Raw/<product_id>/ อย่างถูกต้อง พร้อมคัดกรอง Zero-Duplicate และตรวจสอบความถูกต้องของสินค้าด้วย Gemini Vision · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+  - [x] เชื่อมต่อและสแกนคลังรูปภาพบน iPhone ผ่าน Windows Portable Device (WPD)
+  - [x] ผู้ใช้ปลดล็อกหน้าจอสำเร็จ โฟลเดอร์ 202611_a เปิดใช้งานและพบวิดีโอ 55 รายการ
+  - [x] ดึงคลิปวิดีโอชุดที่ถ่ายวันนี้ 6 คลิป (IMG_8206 ถึง IMG_8211) และตรวจสอบเนื้อหาด้วย Gemini 3.6 Flash Vision AI ยืนยันตรงรุ่นสินค้า 100%
+  - [x] คัดลอกคลิปต้นฉบับคุณภาพสูงเข้าคลัง 01_Raw/<product_id UUID>/ ครบทั้ง 6 สินค้า พร้อมบันทึก SHA-256 Checksum ป้องกันไฟล์ซ้ำซ้อน
+  - [x] ผู้ใช้แจ้งแก้ไขคลิป IMG_8210.MOV: ทำการตรวจสอบเฟรมอย่างละเอียดพบเป็นคีย์บอร์ดบลูทูธพกพาทรงบาง ย้ายแมพจาก MonsGeek M1W เข้าสู่สินค้า Buddytech คีย์บอร์ด เม้าส์ RGB 7สี 2โหมด (cc048aa24673485e824f18eba54cd7a3) สำเร็จ 100%
+  - [x] อัปเดต raw_folder ใน _Docs/products.json และ _Docs/products_seed.json เรียบร้อย สรุปผลที่ _Docs/iphone_ingest_summary.json
+
+- [x] Round ANTIGRAVITY-ANGLE-ROW-RENDER-ENGINE-BADGE-20261115 · เพิ่มป้ายระบุประเภทการเรนเดอร์ (Render Engine Badge: ⚡ Flow ทอง, HyperFrames ฟ้า, ปกติ เขียว) บนแถบรายการมุมขาย (AngleListRow) และส่วนหัวโต๊ะทำงานมุม (AngleActiveWorkbench) ให้ผู้ใช้กวาดตามองรู้ทันทีว่าคลิปไหนเรนเดอร์ด้วยวิธีไหน · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+- [x] Round ANTIGRAVITY-FLOW-AMBER-PROGRESS-BAR-SWARM-20261115 · เพิ่มระบบหลอดความคืบหน้า 3 สีในหลอดเดียวกัน (เขียว Native `#34D399` + เหลืองอำพัน Google Flow Veo AI ⚡ `#F59E0B` + ฟ้า HyperFrames `#38BDF8`) พร้อมคำนวณ flow_count อัตโนมัติจาก ExportRegistry โดยระบุคลิปที่ประกอบจาก Veo AI ชัดเจน (เช่น ESS04 แสดง 6 เขียว + 1 ทอง = 7/7) และปรับแต่ง Tooltip แสดงสัดส่วนอย่างละเอียด · ขับเคลื่อนด้วย Swarm 4 ทีม (@backend, @frontend, @verifier, @monitor) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+- [x] Round ANTIGRAVITY-UNSLOP-FLOW-UI-AND-REAL-ACCOUNT-TRUTH-20261115 · ปรับปรุง UI Google Flow ตามแนวทาง unslop (ลบความรกรุงรัง ไอคอนซ้ำซ้อน + + และแสงสะท้อนนีออน) + แก้ไขสถานะบัญชีโปรไฟล์ 2-5 ให้ตรงกับความเป็นจริง (Chrome เชื่อมต่ออยู่ 1 บัญชีจริง nazirulhak.000@gmail.com 810 cr ส่วนสล็อต 2-5 ยังไม่ได้เชื่อมต่อใน Chrome แสดงปุ่มเชื่อมต่อใน Chrome ชัดเจน ไม่แสดงเครดิตทิพย์ 1,000 cr) + ซิงก์ Topbar Flow badge ให้ตรงกับเครดิตจริง 810 cr ไม่ค้าง 50 cr · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [ ] Round CODEX-AUTOPOST-RESCHEDULE-FIX-20261115 · ดำเนินการโดย: Codex (GPT-6)
+  - [ ] แยก worktree fix/autopost-reschedule เพื่อรักษางานค้าง frontend/Flow/runtime JSON ของเอเจนต์อื่น
+  - [ ] รวม validator รายคลิป/bulk, ป้องกัน stale revision และ queue/job เวลาต่างกัน
+  - [ ] ปรับ dialog แสดงรายการครบ ปุ่มตามงาน บันทึก date/time พร้อมกัน และแจ้ง queue load failure
+  - [ ] regression/offline + full backend gate + docked sidebar จริงใน profile แยก; บันทึกผลและรวมเฉพาะไฟล์งานนี้
+
+- [x] Round CODEX-AUTOPOST-RESCHEDULE-AUDIT-20261115 · audit เสร็จ: ยืนยันข้อบกพร่อง 5 กลุ่มด้วย 6 probes + docked sidebar; backend เดิม 101 ผ่าน, Node 258 ผ่าน; ยังไม่แก้ implementation/ไม่เปลี่ยนคิวจริง → [_Docs/Reports/AUTOPOST_RESCHEDULE_AUDIT_20261115.md](_Docs/Reports/AUTOPOST_RESCHEDULE_AUDIT_20261115.md) · ดำเนินการโดย: Codex (GPT-6)
+
+- [x] Round CODEX-AUTOPOST-VALUEERROR-VERIFY-20261115 · ตรวจยืนยัน fix ตัวนับ EP ชนจากรอบ Antigravity; regression 28 ผ่าน; live GET exports ระบุ MONSTER AC530 เป็น posted แล้ว (ยังไม่ยืนยันหน้า TikTok จริง) → HISTORY.md · ดำเนินการโดย: Codex (GPT-6)
+
+- [x] Round ANTIGRAVITY-REAL-ACCOUNT-SWITCH-AND-FLOW-FIRST-20261115 · แก้ไข 2 จุดสำคัญตามฟีดแบ็กผู้ใช้: 1) ระบบสลับบัญชีจริงบน Chrome (ดึง Real Email nazirulhak.000@gmail.com และ Real Credits 810 cr พร้อมปุ่มล็อกอินเพิ่มบัญชี 2-5 บน Chrome) 2) ปรับหน้าต่าง Google Flow ให้รัน "ตามโฟลว์สคริปต์ 5 ช็อต" อัตโนมัติ ไม่ต้องกรอกมือทีละช็อต · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-PRODUCT-CARD-DUAL-PROGRESS-BAR-AND-EXPORT-SYNC-20261115 · ปรับปรุงหลอดความคืบหน้าสินค้าแบบ 2 สี (หลอดสีเขียว Program/Native + หลอดสีฟ้า HyperFrames อยู่ในหลอดเดียวกัน) บน ProductCard Carousel และ Catalog Grid Modal พร้อมระบบ Reconcile ซิงก์ข้อมูลคลิปที่เรนเดอร์แล้วจาก ExportRegistry เข้า Product Angles และคำนวณ export_stats อัตโนมัติ แก้ปัญหาบาร์ค้าง 0/20 และแก้บั๊กบาร์เขียวล้วนโดยรีสตาร์ทแบ็กเอนด์ให้โหลด export_stats และเพิ่มสีตัวเลข+หลอดฟ้าสดใส 100% · ดูแผนงานละเอียดที่ [_Docs/Plans/PLAN_PRODUCT_CARD_DUAL_PROGRESS_BAR_AND_EXPORT_SYNC_20261115.md](_Docs/Plans/PLAN_PRODUCT_CARD_DUAL_PROGRESS_BAR_AND_EXPORT_SYNC_20261115.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+- [x] Round ANTIGRAVITY-MOBILE-RESUMABLE-CHUNKED-UPLOAD-20261115 · ออกแบบและสร้างระบบอัปโหลดคลิปดิบผ่านมือถือแบบแบ่งพาร์ททนทานต่อเน็ตช้า (Resumable Chunked Mobile Upload System 8MB Chunks, Screen WakeLock กันจอดับ, IndexedDB Auto-Resume, Global UploadTray พร้อมปุ่ม Pause/Resume/Retry, และเชื่อมต่อเข้า MediaPickerModal/ProductToClip เข้าคลัง 01_Raw/<product_id>/) · ขับเคลื่อนด้วย Swarm 4 ทีม (@backend, @frontend, @verifier, @monitor) · ดูแผนงานละเอียดที่ [_Docs/Plans/PLAN_MOBILE_RESUMABLE_CHUNKED_UPLOAD_20261115.md](_Docs/Plans/PLAN_MOBILE_RESUMABLE_CHUNKED_UPLOAD_20261115.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
+- [x] Round ANTIGRAVITY-FLOW-MULTI-ACCOUNT-POOL-20261115 · ออกแบบและสร้างระบบ Smart Flow Account Pool & Auto-Failover รองรับ 5 บัญชี Google Pro (5,000 เครดิต/เดือน) แบบ 1-Click Switcher และ Auto-Failover เมื่อเครดิตหมด สลับคิวอัตโนมัติไม่สะดุด · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-FLOW-BATCH-AND-FULL-ASSEMBLY-20261114 · สร้าง AI B-roll ด้วย Google Flow (Veo) ครบทั้ง 5 ช็อต (รวม 18.8 MB) แล้วรัน Video Assembly ผสานเสียงพากย์ Fenrir (1.0), ซับไตเติล Kinetic IBM Plex Sans Thai, ดนตรี TikTok Upbeat (0.12), SFX ออกมาเป็นคลิปเต็ม 25.35s แนวตั้ง 9:16 (1080x1920) ~29 MB จบในโฟลว์เดียวใน 5.99 วินาทีด้วย GPU NVENC · ขจัดปัญหาเสียงขยะท้ายคลิป (EOS noise burst จากบัฟเฟอร์ TTS) สำเร็จ 100% ด้วยการตัดแต่ง Tail Artifact Trimming นุ่มนวลระดับสตูดิโอ · ลงทะเบียนใน ExportRegistry เรียบร้อย · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
+- [x] Round ANTIGRAVITY-GOOGLE-FLOW-E2E-LIVE-VERIFICATION-20261114 · รันโฟลวสร้างวิดีโอจริงด้วย Google Flow (Veo AI) ผ่าน OmniCut Pro Studio UI จากต้นจนจบสำเร็จ 100% (แก้ปัญหา Selector Settings Pill, Duration Snapping 8s, Technique Mapping, และ Scraper สำหรับ Credit Cost Label ใหม่) · ผลิตคลิป B-roll 9:16 ความยาว 8.04s เข้าคลัง 01_Raw/<product_id>/AI_Flow/ โดยอัตโนมัติพร้อม SHA-256 Checksum · แสดงผลป้าย B-roll พร้อม และเปิดเล่นคลิปพรีวิวบน Shot List Modal ครบถ้วนสมบูรณ์ · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
 - [x] Round ANTIGRAVITY-NATIVE-GOOGLE-FLOW-E2E-20261114 · ระบบสร้างวิดีโอ AI Google Flow (Veo) แบบไร้รอยต่อ จบใน OmniCut Studio 100% (Auto-Daemon, Per-shot Prompt Synthesis, Shot List 1-Click Gen, Auto-Ingest & Auto-Slotting ลง OmniCut Studio Timeline) · ขับเคลื่อนด้วย Swarm 4 ทีม (@backend, @frontend, @pipeline, @verifier) · ดูแผนงานละเอียดที่ [_Docs/Plans/PLAN_OMNICUT_NATIVE_GOOGLE_FLOW_E2E_20261114.md](_Docs/Plans/PLAN_OMNICUT_NATIVE_GOOGLE_FLOW_E2E_20261114.md) และ [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
 
 - [x] Round ANTIGRAVITY-GOOGLE-FLOW-VIDEO-GEN-20261113 · ระบบสร้างวิดีโอด้วย Google Flow (Veo) บนกิ่ง `feat/google-flow-video-gen` (merge เข้า `main` แล้ว) · ขับเคลื่อนด้วย `tools/flow-mcp` (Playwright CDP, บัญชี Google ฟรี 50 credits/วัน) + Backend Ingest + AI Cinematic Prompts + Studio Review Modal · ดูแผนงานที่ [_Docs/Plans/PLAN_GOOGLE_FLOW_VIDEO_GEN_20261113.md](_Docs/Plans/PLAN_GOOGLE_FLOW_VIDEO_GEN_20261113.md) และ [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 2.5 Flash)

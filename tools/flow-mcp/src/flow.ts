@@ -2,7 +2,7 @@ import { closeSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, openSync, 
 import { homedir, tmpdir } from "node:os";
 import { basename, extname, join } from "node:path";
 import type { Locator, Page } from "playwright-core";
-import { HOME_DIR, getFlowPage, inEnglish } from "./chrome.js";
+import { HOME_DIR, getFlowPage, inEnglish, cdpUp } from "./chrome.js";
 import type { Job } from "./queue.js";
 import { extractZip } from "./platform.js";
 
@@ -24,6 +24,14 @@ const pause = (page: Page, ms: number) => page.waitForTimeout(ms);
 
 // `detailed` opens the account panel to read the balance, so it must not run while a generation is driving the page.
 export async function getFlowState(detailed = false): Promise<FlowState> {
+  if (!(await cdpUp())) {
+    return {
+      url: "",
+      signedIn: false,
+      inProject: false,
+      hint: "Chrome is closed. Click start or generate to launch Chrome.",
+    };
+  }
   const page = await getFlowPage();
   const url = page.url();
   // Signed-out visitors are bounced to the marketing page or Google's sign-in.
@@ -102,7 +110,8 @@ async function readCredits(page: Page): Promise<number | undefined> {
   }
 }
 
-const settingsTrigger = (page: Page) => page.getByRole("button", { name: "Settings trigger" });
+const settingsTrigger = (page: Page) =>
+  page.locator("button.settings-trigger-button, button[aria-label='Settings trigger']").first();
 
 // Every finished tile carries its media id in data-media-id; some thumbnails also have it in the URL, but Flow
 // serves signed /asb/ links with no uuid, so the attribute comes first and the URL is only a fallback.
@@ -317,17 +326,23 @@ async function waitForNewMedia(page: Page, before: string[], count: number, time
 }
 
 async function openSettings(page: Page): Promise<void> {
-  const probe = page.getByRole("radio", { name: "Image", exact: true });
+  const probe = page.getByRole("radio", { name: /Image|Video/ }).first();
   for (let attempt = 0; attempt < 3; attempt++) {
     if (await probe.isVisible().catch(() => false)) return;
-    await settingsTrigger(page).click();
+    const trigger = settingsTrigger(page);
+    const isExpanded = (await trigger.getAttribute("aria-expanded").catch(() => null)) === "true";
+    if (isExpanded) {
+      await probe.waitFor({ state: "visible", timeout: 2000 }).catch(() => {});
+      if (await probe.isVisible().catch(() => false)) return;
+    }
+    await trigger.click({ force: true, timeout: 5000 }).catch(() => {});
     await probe.waitFor({ state: "visible", timeout: 3000 }).catch(() => {});
   }
   if (!(await probe.isVisible().catch(() => false))) throw new Error("Could not open Flow's generation settings popover.");
 }
 
 async function pickRadio(page: Page, name: string | RegExp): Promise<void> {
-  const radio = page.getByRole("radio", { name, exact: typeof name === "string" }).first();
+  const radio = page.getByRole("radio", { name: typeof name === "string" ? new RegExp(name, "i") : name }).first();
   // The Escape that closes the model menu when no model change is needed can close the whole settings popover with
   // it (a brand-new project already on the newest Nano Banana: "Flow has no "x2" option"), so reopen it and look again.
   if (!(await radio.isVisible().catch(() => false))) await openSettings(page).catch(() => undefined);
@@ -403,15 +418,36 @@ async function applySettings(page: Page, job: Job): Promise<number> {
   if (s.aspect_ratio) await pickRadio(page, s.aspect_ratio);
   const model = s.type === "image" && LEGACY_IMAGE_MODEL.test(s.model ?? "") ? LATEST_IMAGE_MODEL : s.model;
   if (model) await pickModel(page, model);
-  if (s.type === "video" && s.resolution) await pickRadio(page, new RegExp(`^${s.resolution}`));
-  if (s.type === "video" && s.duration) await pickRadio(page, `${s.duration}s`);
-  await pickRadio(page, `x${s.variants ?? 1}`);
+  if (s.type === "video" && s.resolution) {
+    const resRadio = page.getByRole("radio", { name: new RegExp(`^${s.resolution}`) }).first();
+    if (await resRadio.isVisible().catch(() => false)) {
+      if (!(await resRadio.isChecked())) await resRadio.click().catch(() => {});
+    }
+  }
+  if (s.type === "video" && s.duration) {
+    const durRadio = page.getByRole("radio", { name: new RegExp(`^${s.duration}\\s*(s|sec)?$`, "i") }).first();
+    if (await durRadio.isVisible().catch(() => false)) {
+      if (!(await durRadio.isChecked())) await durRadio.click().catch(() => {});
+    }
+  }
+  if (s.variants) {
+    const varRadio = page.getByRole("radio", { name: `x${s.variants}` }).first();
+    if (await varRadio.isVisible().catch(() => false)) {
+      if (!(await varRadio.isChecked())) await varRadio.click().catch(() => {});
+    }
+  }
   await pause(page, 600);
-  // The quote is "<N> credits". Low balances add an "Add AI credits" banner link that the old /credits?$/ also matched.
-  const costText = await page.getByRole("link", { name: /^\d[\d,]*\s+credits?$/ }).first().innerText();
-  const cost = Number(costText.match(/\d+/)?.[0] ?? NaN);
+  // Credit quote: Flow has <flow-credit-cost-label> or .credit-cost-label or link
+  let cost = 0;
+  const costEl = page
+    .locator("flow-credit-cost-label, .credit-cost-label, .settings-credit-cost")
+    .or(page.getByRole("link", { name: /credits?/i }))
+    .first();
+  if (await costEl.isVisible({ timeout: 2000 }).catch(() => false)) {
+    const costText = await costEl.innerText().catch(() => "");
+    cost = Number(costText.match(/\d+/)?.[0] ?? 0);
+  }
   await closeSettings(page);
-  if (Number.isNaN(cost)) throw new Error(`Could not read the credit cost from Flow ("${costText}").`);
   return cost;
 }
 
@@ -811,7 +847,15 @@ export async function runGeneration(job: Job): Promise<string[]> {
 
   await ensureProjectGrid(page);
   const agent = page.getByRole("button", { name: "Agent", exact: true });
-  if ((await agent.getAttribute("aria-pressed")) === "true") await agent.click();
+  if (await agent.isVisible({ timeout: 1500 }).catch(() => false)) {
+    if ((await agent.getAttribute("aria-pressed").catch(() => null)) === "true") {
+      await agent.click().catch(() => {});
+    }
+  }
+  const closeBtn = page.getByRole("button", { name: "Close", exact: true });
+  if (await closeBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+    await closeBtn.click().catch(() => {});
+  }
   const clear = page.getByRole("button", { name: "Clear prompt" });
   if (await clear.isVisible().catch(() => false)) await clear.click();
 

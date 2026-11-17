@@ -1,0 +1,57 @@
+{
+  "active_account_id": "acc_1",
+  "auto_failover": true,
+  "min_failover_credits": 25,
+  "accounts": [
+    {
+      "id": "acc_1",
+      "name": "Google Pro #1",
+      "email": "nazirulhak.000@gmail.com",
+      "user_index": 0,
+      "status": "active",
+      "authenticated": true,
+      "credits": 810,
+      "plan": "pro"
+    },
+    {
+      "id": "acc_2",
+      "name": "Google Pro #2",
+      "email": "",
+      "user_index": 1,
+      "status": "unlinked",
+      "authenticated": false,
+      "credits": 0,
+      "plan": null
+    },
+    {
+      "id": "acc_3",
+      "name": "Google Pro #3",
+      "email": "",
+      "user_index": 2,
+      "status": "unlinked",
+      "authenticated": false,
+      "credits": 0,
+      "plan": null
+    },
+    {
+      "id": "acc_4",
+      "name": "Google Pro #4",
+      "email": "",
+      "user_index": 3,
+      "status": "unlinked",
+      "authenticated": false,
+      "credits": 0,
+      "plan": null
+    },
+    {
+      "id": "acc_5",
+      "name": "Google Pro #5",
+      "email": "",
+      "user_index": 4,
+      "status": "unlinked",
+      "authenticated": false,
+      "credits": 0,
+      "plan": null
+    }
+  ]
+}

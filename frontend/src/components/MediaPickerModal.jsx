@@ -3,12 +3,14 @@ import { ModalLayer } from './ui/ModalLayer';
 import { toMediaUrl } from '../lib/mediaUrl.js';
 import {
   Film, Search, Check, X, Upload, CheckSquare, Square,
-  Loader2, Play, Pause, Sparkles, FolderOpen, AlertCircle, Trash2, Unlink, CheckCircle2, Edit3, Tag
+  Loader2, Play, Pause, Sparkles, FolderOpen, AlertCircle, Trash2, Unlink, CheckCircle2, Edit3, Tag, Smartphone
 } from 'lucide-react';
 import { getRawVideos, uploadFile, deleteFile, removeVideoFromProduct, renameVideo } from '../api';
 import { Button, ConfirmModal, Modal } from './ui';
 import PaginationControls from './PaginationControls';
 import { isSameVideo } from '../lib/mediaUrl';
+import { uploadQueue } from '../lib/uploadQueue';
+import IPhoneDirectModal from './IPhoneDirectModal.jsx';
 
 export default function MediaPickerModal({
   isOpen = false,
@@ -37,6 +39,7 @@ export default function MediaPickerModal({
   const [uploadError, setUploadError] = useState(null);
   const [uploadSuccessMessage, setUploadSuccessMessage] = useState(null);
   const fileInputRef = useRef(null);
+  const [iphoneModalOpen, setIphoneModalOpen] = useState(false);
 
   // Delete & Unlink States
   const [pendingUnlinkVideo, setPendingUnlinkVideo] = useState(null);
@@ -152,24 +155,51 @@ export default function MediaPickerModal({
     setUploadError(null);
     setUploadSuccessMessage(null);
 
+    const CHUNK_SIZE_THRESHOLD = 8 * 1024 * 1024; // 8 MB
+
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('target_dir', 'raw');
-        if (productId) {
-          formData.append('product_id', productId);
-        }
+        let res;
+
+        let targetFilename = file.name || 'video.mp4';
         if (customClipName && customClipName.trim()) {
+          const extMatch = (file.name || '').match(/\.[^.]+$/);
+          const ext = extMatch ? extMatch[0] : '.mp4';
           const suffixIndex = files.length > 1 ? `_${i + 1}` : '';
-          formData.append('custom_name', `${customClipName.trim()}${suffixIndex}`);
+          targetFilename = `${customClipName.trim()}${suffixIndex}${ext}`;
         }
 
-        const res = await uploadFile(formData, (pct) => {
-          const overall = Math.round(((i + (pct / 100)) / files.length) * 100);
-          setUploadProgress(overall);
-        });
+        if (file.size >= CHUNK_SIZE_THRESHOLD) {
+          // Large video: 8MB chunked resumable upload with Screen WakeLock and progress indicator
+          const localId = uploadQueue.enqueue(file, {
+            filename: targetFilename,
+            productId: productId || null,
+            targetDir: 'raw',
+            onProgress: (pct) => {
+              const overall = Math.round(((i + (pct / 100)) / files.length) * 100);
+              setUploadProgress(overall);
+            },
+          });
+          res = await uploadQueue.waitFor(localId);
+        } else {
+          // Small video / direct upload
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('target_dir', 'raw');
+          if (productId) {
+            formData.append('product_id', productId);
+          }
+          if (customClipName && customClipName.trim()) {
+            const suffixIndex = files.length > 1 ? `_${i + 1}` : '';
+            formData.append('custom_name', `${customClipName.trim()}${suffixIndex}`);
+          }
+
+          res = await uploadFile(formData, (pct) => {
+            const overall = Math.round(((i + (pct / 100)) / files.length) * 100);
+            setUploadProgress(overall);
+          });
+        }
 
         if (res && res.file) {
           const newPath = res.file.path || res.file.rel_path;
@@ -350,6 +380,17 @@ export default function MediaPickerModal({
             >
               <Upload className="w-3.5 h-3.5" />
               <span>อัปโหลดคลิปใหม่</span>
+            </button>
+
+            {/* iPhone Direct Ingest Trigger */}
+            <button
+              type="button"
+              onClick={() => setIphoneModalOpen(true)}
+              className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap text-sky-400 hover:text-sky-300 hover:bg-sky-500/10 border border-sky-500/20 active:scale-95"
+              title="ดึงคลิปตรงจาก iPhone ผ่านสาย USB"
+            >
+              <Smartphone className="w-3.5 h-3.5" />
+              <span>ดึงจาก iPhone</span>
             </button>
           </div>
 
@@ -809,6 +850,17 @@ export default function MediaPickerModal({
         loading={isDeleting}
         variant="danger"
       />
+
+      {/* ── iPhone USB Direct Ingest Modal ── */}
+      {iphoneModalOpen && (
+        <IPhoneDirectModal
+          isOpen={iphoneModalOpen}
+          onClose={() => setIphoneModalOpen(false)}
+          onSuccess={() => {
+            fetchVideos();
+          }}
+        />
+      )}
     </ModalLayer>
   );
 }

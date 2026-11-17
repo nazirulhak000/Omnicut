@@ -1,3 +1,439 @@
 {
-  "jobs": {}
+  "jobs": {
+    "flow_job_20261114_224448_e579aa": {
+      "id": "flow_job_20261114_224448_e579aa",
+      "product_id": "431165f167284094959bdf0f0e806899",
+      "project_name": "😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน",
+      "client_job_ids": [
+        "a6d50c68"
+      ],
+      "scenes": [
+        {
+          "prompt": "Cinematic commercial vertical video of 😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน, เบื่อไหมครับ กับสายชาร์จเส้นเดิม ที่ชาร์จช้า แถมเครื่องร้อนจนกลัวแบตเสื่อม. 9:16 aspect ratio, clean studio lighting, high resolution.",
+          "type": "video",
+          "aspect_ratio": "9:16",
+          "duration": 4,
+          "max_credits": 25,
+          "download_quality": "original",
+          "technique": "orbit-360"
+        }
+      ],
+      "status": "failed",
+      "created_at": "2026-11-14T15:44:48.336116+00:00",
+      "updated_at": "2026-11-14T15:45:20.412585+00:00",
+      "results": [
+        {
+          "id": "a6d50c68",
+          "status": "failed",
+          "project": "C:\\Users\\nazir\\flow-mcp-out\\_vs_",
+          "scene": "scene-01",
+          "prompt": "NO SUBTITLES, NO CAPTIONS, NO TEXT OF ANY KIND ON SCREEN. Cinematic commercial vertical video of 😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน, เบื่อไหมครับ กับสายชาร์จเส้นเดิม ที่ชาร์จช้า แถมเครื่องร้อนจนกลัวแบตเสื่อม. 9:16 aspect ratio, clean studio lighting, high resolution. The camera orbits a full 360 degrees around the subject at constant height while the subject stays frozen in place, bullet-time style. NO TEXT ON SCREEN: never add subtitles, captions, titles, speech transcripts, words or letters anywhere in the picture, at any moment; any speech is heard only, never written.",
+          "attempts": 1,
+          "files": [],
+          "error": "locator.getAttribute: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Agent', exact: true })\u001b[22m\n"
+        }
+      ],
+      "ingested_files": [],
+      "error": null
+    },
+    "flow_job_20261114_224821_dcd5bc": {
+      "id": "flow_job_20261114_224821_dcd5bc",
+      "product_id": "431165f167284094959bdf0f0e806899",
+      "project_name": "😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน",
+      "client_job_ids": [
+        "7383a1ed"
+      ],
+      "scenes": [
+        {
+          "prompt": "Cinematic commercial vertical video of 😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน, เบื่อไหมครับ กับสายชาร์จเส้นเดิม ที่ชาร์จช้า แถมเครื่องร้อนจนกลัวแบตเสื่อม. 9:16 aspect ratio, clean studio lighting, high resolution.",
+          "type": "video",
+          "aspect_ratio": "9:16",
+          "duration": 4,
+          "max_credits": 25,
+          "download_quality": "original",
+          "technique": "orbit-360"
+        }
+      ],
+      "status": "failed",
+      "created_at": "2026-11-14T15:48:21.003595+00:00",
+      "updated_at": "2026-11-14T15:48:53.086353+00:00",
+      "results": [
+        {
+          "id": "7383a1ed",
+          "status": "failed",
+          "project": "C:\\Users\\nazir\\flow-mcp-out\\_vs_",
+          "scene": "scene-01",
+          "prompt": "NO SUBTITLES, NO CAPTIONS, NO TEXT OF ANY KIND ON SCREEN. Cinematic commercial vertical video of 😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน, เบื่อไหมครับ กับสายชาร์จเส้นเดิม ที่ชาร์จช้า แถมเครื่องร้อนจนกลัวแบตเสื่อม. 9:16 aspect ratio, clean studio lighting, high resolution. The camera orbits a full 360 degrees around the subject at constant height while the subject stays frozen in place, bullet-time style. NO TEXT ON SCREEN: never add subtitles, captions, titles, speech transcripts, words or letters anywhere in the picture, at any moment; any speech is heard only, never written.",
+          "attempts": 1,
+          "files": [],
+          "error": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Settings trigger' })\u001b[22m\n"
+        }
+      ],
+      "ingested_files": [],
+      "error": null
+    },
+    "flow_job_20261114_225037_c42f02": {
+      "id": "flow_job_20261114_225037_c42f02",
+      "product_id": "431165f167284094959bdf0f0e806899",
+      "project_name": "😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน",
+      "client_job_ids": [
+        "fe666b13"
+      ],
+      "scenes": [
+        {
+          "prompt": "Cinematic commercial vertical video of 😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน, เบื่อไหมครับ กับสายชาร์จเส้นเดิม ที่ชาร์จช้า แถมเครื่องร้อนจนกลัวแบตเสื่อม. 9:16 aspect ratio, clean studio lighting, high resolution.",
+          "type": "video",
+          "aspect_ratio": "9:16",
+          "duration": 4,
+          "max_credits": 25,
+          "download_quality": "original",
+          "technique": "orbit-360"
+        }
+      ],
+      "status": "failed",
+      "created_at": "2026-11-14T15:50:37.881587+00:00",
+      "updated_at": "2026-11-14T15:51:13.017960+00:00",
+      "results": [
+        {
+          "id": "fe666b13",
+          "status": "failed",
+          "project": "C:\\Users\\nazir\\flow-mcp-out\\_vs_",
+          "scene": "scene-01",
+          "prompt": "NO SUBTITLES, NO CAPTIONS, NO TEXT OF ANY KIND ON SCREEN. Cinematic commercial vertical video of 😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน, เบื่อไหมครับ กับสายชาร์จเส้นเดิม ที่ชาร์จช้า แถมเครื่องร้อนจนกลัวแบตเสื่อม. 9:16 aspect ratio, clean studio lighting, high resolution. The camera orbits a full 360 degrees around the subject at constant height while the subject stays frozen in place, bullet-time style. NO TEXT ON SCREEN: never add subtitles, captions, titles, speech transcripts, words or letters anywhere in the picture, at any moment; any speech is heard only, never written.",
+          "attempts": 1,
+          "files": [],
+          "error": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: /^(Settings|Settings trigger)$/i }).or(locator('button[aria-label=\"Settings\"]')).or(locator('button:has-text(\\'tune\\')')).first()\u001b[22m\n\u001b[2m    - locator resolved to <button maticonbutton=\"\" flow-icon-button=\"\" aria-haspopup=\"menu\" aria-expanded=\"true\" aria-label=\"Settings\" mattooltip=\"View settings\" cdk-describedby-host=\"ng-1\" _ngcontent-ng-c3248806592=\"\" mat-ripple-loader-centered=\"\" aria-controls=\"mat-menu-panel-5\" aria-describedby=\"cdk-describedby-message-ng-1-6\" mat-ripple-loader-class-name=\"mat-mdc-button-ripple\" class=\"mdc-icon-button mat-mdc-icon-button mat-mdc-button-base mat-mdc-menu-trigger mat-mdc-tooltip-trigger mat-unthemed flow-icon-button-transpare…>…</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div class=\"cdk-overlay-backdrop cdk-overlay-transparent-backdrop cdk-overlay-backdrop-showing\"></div> from <div class=\"cdk-overlay-container\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div class=\"cdk-overlay-backdrop cdk-overlay-transparent-backdrop cdk-overlay-backdrop-showing\"></div> from <div class=\"cdk-overlay-container\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    56 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <div class=\"cdk-overlay-backdrop cdk-overlay-transparent-backdrop cdk-overlay-backdrop-showing\"></div> from <div class=\"cdk-overlay-container\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n"
+        }
+      ],
+      "ingested_files": [],
+      "error": null
+    },
+    "flow_job_20261114_225216_5741a1": {
+      "id": "flow_job_20261114_225216_5741a1",
+      "product_id": "431165f167284094959bdf0f0e806899",
+      "project_name": "😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน",
+      "client_job_ids": [
+        "fa29ad47"
+      ],
+      "scenes": [
+        {
+          "prompt": "Cinematic commercial vertical video of 😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน, เบื่อไหมครับ กับสายชาร์จเส้นเดิม ที่ชาร์จช้า แถมเครื่องร้อนจนกลัวแบตเสื่อม. 9:16 aspect ratio, clean studio lighting, high resolution.",
+          "type": "video",
+          "aspect_ratio": "9:16",
+          "duration": 4,
+          "max_credits": 25,
+          "download_quality": "original",
+          "technique": "orbit-360"
+        }
+      ],
+      "status": "failed",
+      "created_at": "2026-11-14T15:52:16.820902+00:00",
+      "updated_at": "2026-11-14T15:52:32.856792+00:00",
+      "results": [
+        {
+          "id": "fa29ad47",
+          "status": "failed",
+          "project": "C:\\Users\\nazir\\flow-mcp-out\\_vs_",
+          "scene": "scene-01",
+          "prompt": "NO SUBTITLES, NO CAPTIONS, NO TEXT OF ANY KIND ON SCREEN. Cinematic commercial vertical video of 😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน, เบื่อไหมครับ กับสายชาร์จเส้นเดิม ที่ชาร์จช้า แถมเครื่องร้อนจนกลัวแบตเสื่อม. 9:16 aspect ratio, clean studio lighting, high resolution. The camera orbits a full 360 degrees around the subject at constant height while the subject stays frozen in place, bullet-time style. NO TEXT ON SCREEN: never add subtitles, captions, titles, speech transcripts, words or letters anywhere in the picture, at any moment; any speech is heard only, never written.",
+          "attempts": 1,
+          "files": [],
+          "error": "Could not open Flow's generation settings popover."
+        }
+      ],
+      "ingested_files": [],
+      "error": null
+    },
+    "flow_job_20261114_225441_924faa": {
+      "id": "flow_job_20261114_225441_924faa",
+      "product_id": "431165f167284094959bdf0f0e806899",
+      "project_name": "😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน",
+      "client_job_ids": [
+        "b6881474"
+      ],
+      "scenes": [
+        {
+          "prompt": "Cinematic commercial vertical video of 😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน, เบื่อไหมครับ กับสายชาร์จเส้นเดิม ที่ชาร์จช้า แถมเครื่องร้อนจนกลัวแบตเสื่อม. 9:16 aspect ratio, clean studio lighting, high resolution.",
+          "type": "video",
+          "aspect_ratio": "9:16",
+          "duration": 4,
+          "max_credits": 25,
+          "download_quality": "original",
+          "technique": "orbit-360"
+        }
+      ],
+      "status": "failed",
+      "created_at": "2026-11-14T15:54:41.754335+00:00",
+      "updated_at": "2026-11-14T15:54:44.767781+00:00",
+      "results": [
+        {
+          "id": "b6881474",
+          "status": "failed",
+          "project": "C:\\Users\\nazir\\flow-mcp-out\\_vs_",
+          "scene": "scene-01",
+          "prompt": "NO SUBTITLES, NO CAPTIONS, NO TEXT OF ANY KIND ON SCREEN. Cinematic commercial vertical video of 😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน, เบื่อไหมครับ กับสายชาร์จเส้นเดิม ที่ชาร์จช้า แถมเครื่องร้อนจนกลัวแบตเสื่อม. 9:16 aspect ratio, clean studio lighting, high resolution. The camera orbits a full 360 degrees around the subject at constant height while the subject stays frozen in place, bullet-time style. NO TEXT ON SCREEN: never add subtitles, captions, titles, speech transcripts, words or letters anywhere in the picture, at any moment; any speech is heard only, never written.",
+          "attempts": 1,
+          "files": [],
+          "error": "Flow has no \"4s\" option for the current mode/model."
+        }
+      ],
+      "ingested_files": [],
+      "error": null
+    },
+    "flow_job_20261114_225712_c055d3": {
+      "id": "flow_job_20261114_225712_c055d3",
+      "product_id": "431165f167284094959bdf0f0e806899",
+      "project_name": "😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน",
+      "client_job_ids": [
+        "444ad346"
+      ],
+      "scenes": [
+        {
+          "prompt": "Cinematic commercial vertical video of 😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน, เบื่อไหมครับ กับสายชาร์จเส้นเดิม ที่ชาร์จช้า แถมเครื่องร้อนจนกลัวแบตเสื่อม. 9:16 aspect ratio, clean studio lighting, high resolution.",
+          "type": "video",
+          "aspect_ratio": "9:16",
+          "duration": 4,
+          "max_credits": 25,
+          "download_quality": "original",
+          "technique": "orbit-360"
+        }
+      ],
+      "status": "failed",
+      "created_at": "2026-11-14T15:57:12.873875+00:00",
+      "updated_at": "2026-11-14T15:57:15.901717+00:00",
+      "results": [
+        {
+          "id": "444ad346",
+          "status": "failed",
+          "project": "C:\\Users\\nazir\\flow-mcp-out\\_vs_",
+          "scene": "scene-01",
+          "prompt": "NO SUBTITLES, NO CAPTIONS, NO TEXT OF ANY KIND ON SCREEN. Cinematic commercial vertical video of 😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน, เบื่อไหมครับ กับสายชาร์จเส้นเดิม ที่ชาร์จช้า แถมเครื่องร้อนจนกลัวแบตเสื่อม. 9:16 aspect ratio, clean studio lighting, high resolution. The camera orbits a full 360 degrees around the subject at constant height while the subject stays frozen in place, bullet-time style. NO TEXT ON SCREEN: never add subtitles, captions, titles, speech transcripts, words or letters anywhere in the picture, at any moment; any speech is heard only, never written.",
+          "attempts": 1,
+          "credits": 48,
+          "files": [],
+          "error": "Flow quotes 48 credits for this scene, above max_credits=25. Nothing was generated. Raise max_credits or pick a cheaper model/duration/variants."
+        }
+      ],
+      "ingested_files": [],
+      "error": null
+    },
+    "flow_job_20261114_225809_9c1b04": {
+      "id": "flow_job_20261114_225809_9c1b04",
+      "product_id": "431165f167284094959bdf0f0e806899",
+      "project_name": "😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน",
+      "client_job_ids": [
+        "c8cc2b00"
+      ],
+      "scenes": [
+        {
+          "prompt": "Cinematic commercial vertical video of 😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน, เบื่อไหมครับ กับสายชาร์จเส้นเดิม ที่ชาร์จช้า แถมเครื่องร้อนจนกลัวแบตเสื่อม. 9:16 aspect ratio, clean studio lighting, high resolution.",
+          "type": "video",
+          "aspect_ratio": "9:16",
+          "duration": 4,
+          "max_credits": 100,
+          "download_quality": "original",
+          "technique": "orbit-360",
+          "shot_index": 0,
+          "shot_label": "shot_1_hook"
+        }
+      ],
+      "status": "completed",
+      "created_at": "2026-11-14T15:58:09.150699+00:00",
+      "updated_at": "2026-11-14T15:59:38.395404+00:00",
+      "results": [
+        {
+          "id": "c8cc2b00",
+          "status": "done",
+          "project": "C:\\Users\\nazir\\flow-mcp-out\\_vs_",
+          "scene": "scene-02",
+          "prompt": "NO SUBTITLES, NO CAPTIONS, NO TEXT OF ANY KIND ON SCREEN. Cinematic commercial vertical video of 😫 ปัญหาก่อนใช้ vs ชีวิตเปลี่ยน, เบื่อไหมครับ กับสายชาร์จเส้นเดิม ที่ชาร์จช้า แถมเครื่องร้อนจนกลัวแบตเสื่อม. 9:16 aspect ratio, clean studio lighting, high resolution. The camera orbits a full 360 degrees around the subject at constant height while the subject stays frozen in place, bullet-time style. NO TEXT ON SCREEN: never add subtitles, captions, titles, speech transcripts, words or letters anywhere in the picture, at any moment; any speech is heard only, never written.",
+          "attempts": 1,
+          "credits": 48,
+          "files": [
+            "C:\\Users\\nazir\\flow-mcp-out\\_vs_\\scene-02.mp4"
+          ]
+        }
+      ],
+      "ingested_files": [
+        {
+          "product_id": "431165f167284094959bdf0f0e806899",
+          "filename": "flow_20261114_225938_scene-02.mp4",
+          "path": "D:\\Programmer\\All Project\\Omnicut\\01_Raw\\431165f167284094959bdf0f0e806899\\AI_Flow\\flow_20261114_225938_scene-02.mp4",
+          "relative_path": "01_Raw/431165f167284094959bdf0f0e806899/AI_Flow/flow_20261114_225938_scene-02.mp4",
+          "size_bytes": 4887254,
+          "sha256": "547b5bcc36460cbf0f74ea4b40f2d514e48a1ba1cb1e251f24257278d75cc1fb",
+          "shot_label": "scene-02",
+          "ingested_at": "2026-11-14T15:59:38.395101+00:00",
+          "deduplicated": false,
+          "original_source": "C:\\Users\\nazir\\flow-mcp-out\\_vs_\\scene-02.mp4"
+        }
+      ],
+      "error": null
+    },
+    "flow_job_20261114_232918_36c93a": {
+      "id": "flow_job_20261114_232918_36c93a",
+      "product_id": "431165f167284094959bdf0f0e806899",
+      "project_name": "pain_point_batch",
+      "client_job_ids": [
+        "4c901b94",
+        "763affaa",
+        "0e672fcc",
+        "d5d654d2"
+      ],
+      "scenes": [
+        {
+          "prompt": "NO SUBTITLES, NO CAPTIONS, NO TEXT OF ANY KIND ON SCREEN. Cinematic commercial vertical video of Essager 100W 5A Fast Charging Cable. Sleek black and metallic Type-C charging cable with fast charging indicator glow. Hero rotation cinematic lighting, crisp studio reflections, smooth 60fps motion, clean modern desk aesthetic. 9:16 aspect ratio, clean studio lighting, high resolution. NO TEXT ON SCREEN: never add subtitles, captions, titles, speech transcripts, words or letters anywhere in the picture, at any moment; any speech is heard only, never written.",
+          "type": "video",
+          "aspect_ratio": "9:16",
+          "duration": 8,
+          "max_credits": 100,
+          "download_quality": "original",
+          "technique": "hero-rotation",
+          "shot_index": 1,
+          "shot_label": "shot_2_feature"
+        },
+        {
+          "prompt": "NO SUBTITLES, NO CAPTIONS, NO TEXT OF ANY KIND ON SCREEN. Extreme macro close-up bokeh shot of Essager 100W Type-C transparent connector revealing the intelligent E-Marker safety microchip inside. Soft glowing circuit paths with cool blue ambient edge lighting, ultra-detailed micro-soldering textures. 9:16 aspect ratio, clean studio lighting, high resolution. NO TEXT ON SCREEN: never add subtitles, captions, titles, speech transcripts, words or letters anywhere in the picture, at any moment; any speech is heard only, never written.",
+          "type": "video",
+          "aspect_ratio": "9:16",
+          "duration": 8,
+          "max_credits": 100,
+          "download_quality": "original",
+          "technique": "macro-bokeh",
+          "shot_index": 2,
+          "shot_label": "shot_3_feature"
+        },
+        {
+          "prompt": "NO SUBTITLES, NO CAPTIONS, NO TEXT OF ANY KIND ON SCREEN. Smooth lateral tracking shot along the premium braided nylon cable body of Essager 100W cable plugged into a sleek modern laptop and smartphone. Highlighting durable flexible braided texture and scratch-resistant build quality. 9:16 aspect ratio, clean studio lighting, high resolution. NO TEXT ON SCREEN: never add subtitles, captions, titles, speech transcripts, words or letters anywhere in the picture, at any moment; any speech is heard only, never written.",
+          "type": "video",
+          "aspect_ratio": "9:16",
+          "duration": 8,
+          "max_credits": 100,
+          "download_quality": "original",
+          "technique": "lateral-track",
+          "shot_index": 3,
+          "shot_label": "shot_4_feature"
+        },
+        {
+          "prompt": "NO SUBTITLES, NO CAPTIONS, NO TEXT OF ANY KIND ON SCREEN. Dynamic pull-back reveal shot of the Essager 100W Fast Charge Cable neatly coiled with its custom leather organizing strap beside sleek mobile gadgets on a clean minimalist desk. Premium warm rim light and elegant composition. 9:16 aspect ratio, clean studio lighting, high resolution. NO TEXT ON SCREEN: never add subtitles, captions, titles, speech transcripts, words or letters anywhere in the picture, at any moment; any speech is heard only, never written.",
+          "type": "video",
+          "aspect_ratio": "9:16",
+          "duration": 8,
+          "max_credits": 100,
+          "download_quality": "original",
+          "technique": "pull-back-reveal",
+          "shot_index": 4,
+          "shot_label": "shot_5_cta"
+        }
+      ],
+      "status": "completed",
+      "created_at": "2026-11-14T16:29:18.140380+00:00",
+      "updated_at": "2026-11-14T16:37:44.610543+00:00",
+      "results": [
+        {
+          "id": "4c901b94",
+          "status": "done",
+          "project": "C:\\Users\\nazir\\flow-mcp-out\\pain_point_batch",
+          "scene": "scene-01",
+          "prompt": "NO SUBTITLES, NO CAPTIONS, NO TEXT OF ANY KIND ON SCREEN. NO SUBTITLES, NO CAPTIONS, NO TEXT OF ANY KIND ON SCREEN. Cinematic commercial vertical video of Essager 100W 5A Fast Charging Cable. Sleek black and metallic Type-C charging cable with fast charging indicator glow. Hero rotation cinematic lighting, crisp studio reflections, smooth 60fps motion, clean modern desk aesthetic. 9:16 aspect ratio, clean studio lighting, high resolution. NO TEXT ON SCREEN: never add subtitles, captions, titles, speech transcripts, words or letters anywhere in the picture, at any moment; any speech is heard only, never written. The exact product from the reference image rotates slowly on a dark studio pedestal, rim light tracing its edges, shape and label unchanged. NO TEXT ON SCREEN: never add subtitles, captions, titles, speech transcripts, words or letters anywhere in the picture, at any moment; any speech is heard only, never written.",
+          "attempts": 1,
+          "credits": 48,
+          "files": [
+            "C:\\Users\\nazir\\flow-mcp-out\\pain_point_batch\\scene-01.mp4"
+          ],
+          "note": "renamed in Flow to pain_point_batch-scene-01"
+        },
+        {
+          "id": "763affaa",
+          "status": "done",
+          "project": "C:\\Users\\nazir\\flow-mcp-out\\pain_point_batch",
+          "scene": "scene-02",
+          "prompt": "NO SUBTITLES, NO CAPTIONS, NO TEXT OF ANY KIND ON SCREEN. NO SUBTITLES, NO CAPTIONS, NO TEXT OF ANY KIND ON SCREEN. Extreme macro close-up bokeh shot of Essager 100W Type-C transparent connector revealing the intelligent E-Marker safety microchip inside. Soft glowing circuit paths with cool blue ambient edge lighting, ultra-detailed micro-soldering textures. 9:16 aspect ratio, clean studio lighting, high resolution. NO TEXT ON SCREEN: never add subtitles, captions, titles, speech transcripts, words or letters anywhere in the picture, at any moment; any speech is heard only, never written. Extreme macro close-up gliding across the product surface, shallow depth of field, golden bokeh highlights in the background. NO TEXT ON SCREEN: never add subtitles, captions, titles, speech transcripts, words or letters anywhere in the picture, at any moment; any speech is heard only, never written.",
+          "attempts": 1,
+          "credits": 48,
+          "files": [
+            "C:\\Users\\nazir\\flow-mcp-out\\pain_point_batch\\scene-02.mp4"
+          ],
+          "note": "renamed in Flow to pain_point_batch-scene-02"
+        },
+        {
+          "id": "0e672fcc",
+          "status": "done",
+          "project": "C:\\Users\\nazir\\flow-mcp-out\\pain_point_batch",
+          "scene": "scene-03",
+          "prompt": "NO SUBTITLES, NO CAPTIONS, NO TEXT OF ANY KIND ON SCREEN. NO SUBTITLES, NO CAPTIONS, NO TEXT OF ANY KIND ON SCREEN. Smooth lateral tracking shot along the premium braided nylon cable body of Essager 100W cable plugged into a sleek modern laptop and smartphone. Highlighting durable flexible braided texture and scratch-resistant build quality. 9:16 aspect ratio, clean studio lighting, high resolution. NO TEXT ON SCREEN: never add subtitles, captions, titles, speech transcripts, words or letters anywhere in the picture, at any moment; any speech is heard only, never written. The camera tracks sideways parallel to the subject at a steady pace, foreground elements sliding past for parallax. NO TEXT ON SCREEN: never add subtitles, captions, titles, speech transcripts, words or letters anywhere in the picture, at any moment; any speech is heard only, never written.",
+          "attempts": 1,
+          "credits": 48,
+          "files": [
+            "C:\\Users\\nazir\\flow-mcp-out\\pain_point_batch\\scene-03.mp4"
+          ],
+          "note": "renamed in Flow to pain_point_batch-scene-03"
+        },
+        {
+          "id": "d5d654d2",
+          "status": "done",
+          "project": "C:\\Users\\nazir\\flow-mcp-out\\pain_point_batch",
+          "scene": "scene-04",
+          "prompt": "NO SUBTITLES, NO CAPTIONS, NO TEXT OF ANY KIND ON SCREEN. NO SUBTITLES, NO CAPTIONS, NO TEXT OF ANY KIND ON SCREEN. Dynamic pull-back reveal shot of the Essager 100W Fast Charge Cable neatly coiled with its custom leather organizing strap beside sleek mobile gadgets on a clean minimalist desk. Premium warm rim light and elegant composition. 9:16 aspect ratio, clean studio lighting, high resolution. NO TEXT ON SCREEN: never add subtitles, captions, titles, speech transcripts, words or letters anywhere in the picture, at any moment; any speech is heard only, never written. The camera pulls straight back from a close-up to a very wide shot, revealing the true scale of the surroundings. NO TEXT ON SCREEN: never add subtitles, captions, titles, speech transcripts, words or letters anywhere in the picture, at any moment; any speech is heard only, never written.",
+          "attempts": 1,
+          "credits": 48,
+          "files": [
+            "C:\\Users\\nazir\\flow-mcp-out\\pain_point_batch\\scene-04.mp4"
+          ],
+          "note": "renamed in Flow to pain_point_batch-scene-04"
+        }
+      ],
+      "ingested_files": [
+        {
+          "product_id": "431165f167284094959bdf0f0e806899",
+          "filename": "flow_20261114_233050_scene-01.mp4",
+          "path": "D:\\Programmer\\All Project\\Omnicut\\01_Raw\\431165f167284094959bdf0f0e806899\\AI_Flow\\flow_20261114_233050_scene-01.mp4",
+          "relative_path": "01_Raw/431165f167284094959bdf0f0e806899/AI_Flow/flow_20261114_233050_scene-01.mp4",
+          "size_bytes": 3117329,
+          "sha256": "dbcdb296f6d01e7336461a4f3ea06101b55f0bec6b3118531ce3d532b3d36c58",
+          "shot_label": "scene-01",
+          "ingested_at": "2026-11-14T16:30:50.438788+00:00",
+          "deduplicated": false,
+          "original_source": "C:\\Users\\nazir\\flow-mcp-out\\pain_point_batch\\scene-01.mp4"
+        },
+        {
+          "product_id": "431165f167284094959bdf0f0e806899",
+          "filename": "flow_20261114_233258_scene-02.mp4",
+          "path": "D:\\Programmer\\All Project\\Omnicut\\01_Raw\\431165f167284094959bdf0f0e806899\\AI_Flow\\flow_20261114_233258_scene-02.mp4",
+          "relative_path": "01_Raw/431165f167284094959bdf0f0e806899/AI_Flow/flow_20261114_233258_scene-02.mp4",
+          "size_bytes": 4328805,
+          "sha256": "5dfd8b795da249283c64b60e543fbecff1869c91b819ac20ad84645f68ef46b9",
+          "shot_label": "scene-02",
+          "ingested_at": "2026-11-14T16:32:58.764020+00:00",
+          "deduplicated": false,
+          "original_source": "C:\\Users\\nazir\\flow-mcp-out\\pain_point_batch\\scene-02.mp4"
+        },
+        {
+          "product_id": "431165f167284094959bdf0f0e806899",
+          "filename": "flow_20261114_233539_scene-03.mp4",
+          "path": "D:\\Programmer\\All Project\\Omnicut\\01_Raw\\431165f167284094959bdf0f0e806899\\AI_Flow\\flow_20261114_233539_scene-03.mp4",
+          "relative_path": "01_Raw/431165f167284094959bdf0f0e806899/AI_Flow/flow_20261114_233539_scene-03.mp4",
+          "size_bytes": 3030020,
+          "sha256": "c5c096a58dce38d97d7ef705f021f5f002150094f1d2d0d1fe26febd69285a69",
+          "shot_label": "scene-03",
+          "ingested_at": "2026-11-14T16:35:39.251204+00:00",
+          "deduplicated": false,
+          "original_source": "C:\\Users\\nazir\\flow-mcp-out\\pain_point_batch\\scene-03.mp4"
+        },
+        {
+          "product_id": "431165f167284094959bdf0f0e806899",
+          "filename": "flow_20261114_233744_scene-04.mp4",
+          "path": "D:\\Programmer\\All Project\\Omnicut\\01_Raw\\431165f167284094959bdf0f0e806899\\AI_Flow\\flow_20261114_233744_scene-04.mp4",
+          "relative_path": "01_Raw/431165f167284094959bdf0f0e806899/AI_Flow/flow_20261114_233744_scene-04.mp4",
+          "size_bytes": 3431253,
+          "sha256": "f1779ebe12c97378ff5d4ae5434d6fc4c15d378ac6e9f04e17eb25c40b7d0b50",
+          "shot_label": "scene-04",
+          "ingested_at": "2026-11-14T16:37:44.610139+00:00",
+          "deduplicated": false,
+          "original_source": "C:\\Users\\nazir\\flow-mcp-out\\pain_point_batch\\scene-04.mp4"
+        }
+      ],
+      "error": null
+    }
+  }
 }

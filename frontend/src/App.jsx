@@ -133,7 +133,8 @@ import { createWorkspaceDataCoordinator } from './lib/workspaceData';
 
 import { TaskProvider } from './context/TaskContext';
 
-import { ActivityDrawer, GlobalTaskNotification, ActivityIndicatorButton, GlobalLiveRenderWidget } from './components/ActivityCenter';
+import { ActivityDrawer, GlobalTaskNotification, ActivityIndicatorButton, GlobalLiveRenderWidget } from './components/ActivityCenter';
+import UploadTray from './components/mobile/UploadTray';
 
 
 
@@ -1550,14 +1551,13 @@ export default function App() {
         <GlobalTaskNotification />
 
         <GlobalLiveRenderWidget
-
           currentTab={activeTab}
-
           onNavigateToEditor={(projName) => handleNavigateTab('editor', { projectName: projName })}
-
           onNavigateToGallery={() => handleNavigateTab('gallery')}
-
         />
+
+        {/* ── Global Resumable Upload Tray for Mobile & Large Raw Footage ── */}
+        <UploadTray />
 
       </div>
 

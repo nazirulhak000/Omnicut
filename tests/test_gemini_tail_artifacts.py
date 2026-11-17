@@ -160,3 +160,28 @@ def test_trim_is_idempotent(tmp_path):
 
     assert trim_silence_and_tail_artifacts_wav(wav) == (0.0, 0.0)
     assert wav.read_bytes() == data and wav.stat().st_mtime_ns == mtime
+
+
+def test_fluttered_tail_glitch_is_eliminated(tmp_path):
+    """Fluttered EOF glitch (clipping burst with internal 20ms micro-gap) is cleanly stripped."""
+    wav = tmp_path / "fluttered_glitch.wav"
+    t = np.linspace(0, 1.2, int(1.2 * RATE), endpoint=False)
+    speech = 0.6 * np.sin(2 * np.pi * 300 * t)   # 1.2s speech
+    silence = np.zeros(int(0.25 * RATE))          # 250ms silence gap
+    spike1 = 0.999 * np.ones(int(0.05 * RATE))    # 50ms clipping burst
+    micro_gap = np.zeros(int(0.02 * RATE))        # 20ms zero dip
+    spike2 = 0.999 * np.ones(int(0.09 * RATE))    # 90ms clipping burst
+
+    audio = np.concatenate([speech, silence, spike1, micro_gap, spike2])
+    _write_wav(wav, audio)
+
+    head_s, tail_s = trim_silence_and_tail_artifacts_wav(wav)
+    out, rate = _read_wav(wav)
+    dur = len(out) / rate
+
+    # The fluttered burst and silence must be stripped; speech + 80ms pad survives
+    expected_max_dur = 1.2 + GEMINI_TAIL_SILENCE_PAD_S + 0.02
+    assert dur <= expected_max_dur
+    assert dur >= 1.2
+    assert out[-1, 0] == 0.0
+

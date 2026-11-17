@@ -100,10 +100,22 @@ class FlowService:
     _active_pollers: Dict[str, threading.Thread] = {}
     _poller_lock: threading.Lock = threading.Lock()
 
-    def __init__(self, client: Optional[FlowClient] = None):
+    def __init__(
+        self,
+        client: Optional[FlowClient] = None,
+        account_manager: Optional[Any] = None,
+    ):
         self.client = client or get_flow_client()
+        if account_manager is not None:
+            self.account_manager = account_manager
+        else:
+            try:
+                from scripts.flow_accounts import get_flow_account_manager
+                self.account_manager = get_flow_account_manager()
+            except Exception:
+                self.account_manager = None
 
-    def get_status(self, detailed: bool = False, auto_start: bool = True) -> Dict[str, Any]:
+    def get_status(self, detailed: bool = False, auto_start: bool = False) -> Dict[str, Any]:
         """Returns the status of flow-mcp service and Google Flow connection."""
         is_healthy = self.client.is_healthy()
         if not is_healthy and auto_start:
@@ -133,6 +145,30 @@ class FlowService:
                 "inProject": False,
                 "credits_remaining": 0,
             }
+
+    def stop_service(self) -> Dict[str, Any]:
+        """Stops the flow-mcp service and closes the Google Flow Chrome browser."""
+        import psutil
+        closed_chrome = 0
+        closed_flow = 0
+        for p in psutil.process_iter(['pid', 'name', 'cmdline']):
+            try:
+                cmdline = p.info.get('cmdline') or []
+                cmd_str = " ".join(cmdline)
+                if p.info.get('name') == 'chrome.exe' and 'flow-mcp' in cmd_str:
+                    p.terminate()
+                    closed_chrome += 1
+                elif 'flow-mcp' in cmd_str and ('studio.js' in cmd_str or 'index.js' in cmd_str):
+                    p.terminate()
+                    closed_flow += 1
+            except Exception:
+                pass
+        return {
+            "ok": True,
+            "message": "ปิดระบบ Google Flow เรียบร้อยแล้ว",
+            "closed_chrome": closed_chrome,
+            "closed_service": closed_flow,
+        }
 
     def submit_generation(
         self,
@@ -180,6 +216,7 @@ class FlowService:
         """
         Dispatches batch generation for multiple shots:
         - If auto_bundle is True, automatically generates cinematic prompts & attaches product images.
+        - Handles multi-account auto-failover if account_manager is provided and auto-failover is enabled.
         - Submits scenes to Google Flow.
         - Spawns background poller for auto-ingest into 01_Raw/<product_id>/AI_Flow/.
         """
@@ -221,12 +258,116 @@ class FlowService:
         else:
             scenes_to_submit = shots
 
-        return self.submit_generation(
+        self.client.ensure_service_running()
+        proj_name = project_name or f"Omni_{product_id[:8]}"
+
+        all_client_job_ids: List[str] = []
+
+        if self.account_manager and getattr(self.account_manager, "is_auto_failover_enabled", lambda: True)():
+            for shot in scenes_to_submit:
+                req_credits = int(shot.get("max_credits", 25))
+                acc = self.account_manager.get_next_available_account(min_credits=req_credits, auto_switch=True)
+                res = self.client.generate(project=proj_name, scenes=[shot])
+                jids = res.get("job_ids", [])
+                if not jids and "task_id" in res:
+                    jids = [res["task_id"]]
+                if not jids and "jobs" in res:
+                    jids = [j["id"] for j in res["jobs"] if isinstance(j, dict) and "id" in j]
+                all_client_job_ids.extend(jids)
+
+                if acc:
+                    curr_creds = int(acc.get("credits", 0))
+                    self.account_manager.update_account_credits(acc["id"], max(0, curr_creds - req_credits))
+        else:
+            res = self.client.generate(project=proj_name, scenes=scenes_to_submit)
+            jids = res.get("job_ids", [])
+            if not jids and "task_id" in res:
+                jids = [res["task_id"]]
+            if not jids and "jobs" in res:
+                jids = [j["id"] for j in res["jobs"] if isinstance(j, dict) and "id" in j]
+            all_client_job_ids.extend(jids)
+
+        job = FlowJobStore.create_job(
             product_id=product_id,
+            project_name=proj_name,
             scenes=scenes_to_submit,
-            project_name=project_name,
-            auto_poll=True,
+            client_job_ids=all_client_job_ids,
         )
+
+        self.start_background_poller(job["id"])
+
+        return {"job": job, "flow_response": {"job_ids": all_client_job_ids}}
+
+    def bundle_angle_shots_flow(
+        self,
+        product_id: str,
+        angle_id: str,
+        duration: int = 8,
+        aspect_ratio: str = "9:16",
+        max_credits: int = 25,
+    ) -> Dict[str, Any]:
+        """
+        Bundles the 5 script beats of the given angle with synthesized prompts
+        and auto-picked reference images, ready for 1-click execution.
+        """
+        from scripts.product_store import ProductStore
+        from scripts.flow_prompt_engine import bundle_flow_context
+
+        product = ProductStore.get(product_id)
+        if not product:
+            raise ValueError(f"Product '{product_id}' not found")
+
+        angles = product.get("angles", [])
+        target_angle = None
+        for a in angles:
+            if a.get("angle_id") == angle_id or a.get("id") == angle_id:
+                target_angle = a
+                break
+
+        if not target_angle:
+            raise ValueError(f"Angle '{angle_id}' not found for product '{product_id}'")
+
+        script_lines = target_angle.get("script_lines") or target_angle.get("lines") or []
+        beat_configs = [
+            {"shot_label": "Shot 1: Hook & Attention", "technique": "reveal", "lighting": "dramatic_dark"},
+            {"shot_label": "Shot 2: Problem & Agitation", "technique": "dolly_in", "lighting": "studio_clean"},
+            {"shot_label": "Shot 3: Key Feature", "technique": "macro", "lighting": "studio_clean"},
+            {"shot_label": "Shot 4: In Action & Orbit", "technique": "orbit", "lighting": "warm_lifestyle"},
+            {"shot_label": "Shot 5: Call to Action", "technique": "tracking", "lighting": "studio_clean"},
+        ]
+
+        shots: List[Dict[str, Any]] = []
+        for idx in range(5):
+            config = beat_configs[idx] if idx < len(beat_configs) else {
+                "shot_label": f"Shot {idx + 1}",
+                "technique": "orbit",
+                "lighting": "studio_clean",
+            }
+            line_text = script_lines[idx] if idx < len(script_lines) else f"Cinematic commercial shot {idx + 1}"
+            scene = bundle_flow_context(
+                product_id=product_id,
+                beat_text=line_text,
+                camera_direction=config["technique"],
+                lighting=config["lighting"],
+                product_name=product.get("name") or product.get("title"),
+                product_specs=product.get("specs"),
+                aspect_ratio=aspect_ratio,
+                duration=duration,
+                max_credits=max_credits,
+            )
+            scene["beat_index"] = idx
+            scene["shot_label"] = config["shot_label"]
+            scene["technique"] = config["technique"]
+            shots.append(scene)
+
+        return {
+            "ok": True,
+            "product_id": product_id,
+            "angle_id": angle_id,
+            "shots": shots,
+            "total_shots": len(shots),
+            "estimated_credits": len(shots) * max_credits,
+        }
 
     def check_and_sync_job(self, job_id: str) -> Dict[str, Any]:
         """Polls flow-mcp for the job status, updates local store, and auto-ingests completed files."""

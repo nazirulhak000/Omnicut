@@ -537,6 +537,7 @@ export default function ShotListModal({
           loadJobs();
         }}
         productId={productId}
+        angleId={angle?.angle_id || angle?.id}
         productName={angle?.title || angle?.angle_name || ''}
         initialBeat={selectedShotForFlow}
         onClipIngested={() => loadJobs()}

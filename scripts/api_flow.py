@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from scripts.flow_accounts import get_flow_account_manager
 from scripts.flow_client import get_flow_client, FlowClientError
 from scripts.flow_prompt_engine import (
     expand_prompt_with_gemini,
@@ -22,6 +23,31 @@ from scripts.flow_service import get_flow_service, FlowJobStore
 logger = logging.getLogger("omnicut.api_flow")
 
 router = APIRouter(prefix="/api/flow", tags=["Google Flow"])
+
+
+class AccountSwitchRequest(BaseModel):
+    account_id: Optional[str] = None
+    accountId: Optional[str] = None
+    user_index: Optional[int] = None
+    userIndex: Optional[int] = None
+
+
+class AccountUpdateRequest(BaseModel):
+    account_id: Optional[str] = None
+    accountId: Optional[str] = None
+    name: Optional[str] = None
+    email: Optional[str] = None
+    credits: Optional[int] = None
+    plan: Optional[str] = None
+    status: Optional[str] = None
+    data: Optional[Dict[str, Any]] = None
+
+
+class AutoFailoverRequest(BaseModel):
+    enabled: Optional[bool] = None
+    auto_failover: Optional[bool] = None
+    min_credits: Optional[int] = None
+    min_failover_credits: Optional[int] = None
 
 
 class PromptExpandRequest(BaseModel):
@@ -73,9 +99,11 @@ class SceneItem(BaseModel):
     model: Optional[str] = None
     reference_images: Optional[List[str]] = None
     first_frame: Optional[str] = None
-    max_credits: int = 25
+    max_credits: int = 100
     download_quality: str = "original"
     technique: Optional[str] = None
+    shot_index: Optional[int] = None
+    shot_label: Optional[str] = None
 
 
 class GenerateRequest(BaseModel):
@@ -92,10 +120,101 @@ class IngestRequest(BaseModel):
 
 
 @router.get("/status")
-def get_status(detailed: bool = False, auto_start: bool = True):
-    """Checks flow-mcp service and Google Flow web session with auto-start daemon."""
+def get_status(detailed: bool = False, auto_start: bool = False):
+    """Checks flow-mcp service and Google Flow web session without auto-starting."""
     service = get_flow_service()
     return service.get_status(detailed=detailed, auto_start=auto_start)
+
+
+@router.get("/accounts")
+def get_accounts():
+    """Returns list of Google Flow accounts, active account, and total pool credits."""
+    manager = get_flow_account_manager()
+    return {"ok": True, **manager.get_pool_summary()}
+
+
+@router.post("/accounts/switch")
+def switch_account(req: AccountSwitchRequest):
+    """Switches active account in Google Flow account pool and synchronizes with Chrome."""
+    manager = get_flow_account_manager()
+    acc_id = req.account_id or req.accountId
+    user_idx = req.user_index if req.user_index is not None else req.userIndex
+    if not acc_id and user_idx is None:
+        raise HTTPException(status_code=400, detail="account_id or user_index is required")
+    try:
+        res = manager.switch_account_with_chrome(account_id=acc_id, user_index=user_idx)
+        return res
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to switch account: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/accounts/open-login")
+def open_login():
+    """Clicks 'Account details' -> 'Switch account' in Chrome so the user can easily click 'Use another account' and sign in."""
+    from scripts.flow_accounts import open_chrome_login
+    res = open_chrome_login()
+    if not res.get("ok"):
+        raise HTTPException(status_code=500, detail=res.get("error", "Failed to open login in Chrome"))
+    return res
+
+
+@router.post("/accounts/sync")
+def sync_account():
+    """Syncs active account's real email and credits from Chrome CDP."""
+    manager = get_flow_account_manager()
+    synced = manager.sync_active_account_with_chrome()
+    if not synced:
+        return {"ok": False, "message": "Chrome CDP not reachable or account details unavailable"}
+    return {"ok": True, "active_account": synced, **manager.get_pool_summary()}
+
+
+@router.post("/accounts/update")
+def update_account(req: AccountUpdateRequest):
+    """Updates account metadata/label and credits."""
+    manager = get_flow_account_manager()
+    acc_id = req.account_id or req.accountId
+    if not acc_id:
+        raise HTTPException(status_code=400, detail="account_id is required")
+
+    updates: Dict[str, Any] = {}
+    if req.name is not None:
+        updates["name"] = req.name
+    if req.email is not None:
+        updates["email"] = req.email
+    if req.credits is not None:
+        updates["credits"] = req.credits
+    if req.plan is not None:
+        updates["plan"] = req.plan
+    if req.status is not None:
+        updates["status"] = req.status
+    if req.data and isinstance(req.data, dict):
+        updates.update(req.data)
+
+    try:
+        updated = manager.update_account(acc_id, updates)
+        return {"ok": True, "account": updated}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to update account: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/accounts/auto-failover")
+def toggle_auto_failover(req: AutoFailoverRequest):
+    """Toggles auto-failover on/off."""
+    manager = get_flow_account_manager()
+    enabled = req.enabled if req.enabled is not None else (req.auto_failover if req.auto_failover is not None else True)
+    min_cred = req.min_credits if req.min_credits is not None else req.min_failover_credits
+    res = manager.set_auto_failover(enabled=enabled, min_credits=min_cred)
+    return {
+        "ok": True,
+        "auto_failover": res,
+        "min_failover_credits": manager.get_min_failover_credits(),
+    }
 
 
 @router.post("/service/start")
@@ -110,6 +229,13 @@ def start_service():
     except Exception as e:
         logger.error(f"Failed to start flow-mcp daemon: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/service/stop")
+def stop_service():
+    """Stops the flow-mcp service and closes the Google Flow Chrome browser."""
+    service = get_flow_service()
+    return service.stop_service()
 
 
 @router.get("/presets")
@@ -146,6 +272,35 @@ def bundle_context(req: ContextBundleRequest):
         return {"ok": True, "scene": bundled}
     except Exception as e:
         logger.error(f"Context bundle error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/product/{product_id}/angles/{angle_id}/shots-flow")
+def get_angle_shots_flow(
+    product_id: str,
+    angle_id: str,
+    duration: int = 8,
+    aspect_ratio: str = "9:16",
+    max_credits: int = 25,
+):
+    """
+    Automatically bundles the 5 script beats of the given angle with synthesized prompts
+    and auto-picked reference images, ready for 1-click execution.
+    """
+    service = get_flow_service()
+    try:
+        res = service.bundle_angle_shots_flow(
+            product_id=product_id,
+            angle_id=angle_id,
+            duration=duration,
+            aspect_ratio=aspect_ratio,
+            max_credits=max_credits,
+        )
+        return res
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to bundle angle shots for flow: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

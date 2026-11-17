@@ -33,6 +33,7 @@ import { useTaskManager } from '../context/TaskContext';
 import { guessBrandModel } from '../lib/overlayModel';
 import { DEFAULT_VOICE_PRESET, normalizeAdTone } from '../lib/angleToForm.js';
 import { getRecommendedStyleForAngle } from '../lib/stylePresetCatalog';
+import { uploadQueue } from '../lib/uploadQueue';
 import { resolveHistoryTargetId, resolveSelectedProduct } from '../lib/productSelection';
 import { buildProjectName } from '../lib/projectName';
 import { angleNextStep, angleStage, angleActionLabel, STAGE_LABEL, STAGE_HINT } from '../lib/angleNextStep.js';
@@ -40,6 +41,7 @@ import {
   CHAIN_LABEL, CHAIN_TASK_TYPE, chainConfirmText, chainFollowUp, chainStartError, chainTargets,
   findProductTask, taskPercent,
 } from '../lib/productionChain';
+import { getProductProgressStats, getAngleEngineBadge } from '../lib/productProgressStats.js';
 
 const GEMINI_VOICE_OPTIONS = [
   { id: 'gemini_puck_male_hype', label: 'Puck — ชายพลังสูง TikTok' },
@@ -209,15 +211,13 @@ function defaultExtraBeatsForDuration(duration) {
   if (duration === '60s') return EXTRA_BEAT_OPTIONS.slice(0, 2).map(o => o.val);
   return [];
 }
+
 // ═══════════════════════════════════════════════════════════════════════
 // [PRODUCT CARD] (Horizontal Gallery Item)
 // ═══════════════════════════════════════════════════════════════════════
 
 function ProductCard({ product, isSelected, onSelect, onDoubleClick, onToggleHide }) {
-  const pAngles = product.angles || [];
-  const pDone = pAngles.filter(a => a.status === 'posted' || a.status === 'rendered').length;
-  const total = pAngles.length || 4;
-  const pct = Math.round((pDone / total) * 100);
+  const { total, totalDone, displayDone, effectiveNative, effectiveFlow, effectiveHf, nativePct, flowPct, hfPct, colorClass } = getProductProgressStats(product);
   const thumb = product.images?.[0];
   // Drawn at ~150 px: a 320 px server preview instead of the full image.
   const thumbSrc = thumb
@@ -320,18 +320,41 @@ function ProductCard({ product, isSelected, onSelect, onDoubleClick, onToggleHid
         </div>
       </div>
 
-      {/* Progress Mini Bar (Pinned to bottom baseline) */}
-      <div className="mt-auto flex items-center gap-1.5 pt-1.5 border-t border-white/[0.04]">
-        <div className="flex-1 h-1 bg-slate-800/80 rounded-full overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all duration-300 ${
-              pct === 100 ? 'bg-emerald-400' : 'bg-[#25F4EE]'
-            }`}
-            style={{ width: `${pct}%` }}
-          />
+      {/* Progress Mini Bar (Pinned to bottom baseline: Green=Native, Amber=Google Flow, Sky Blue=HyperFrames) */}
+      <div
+        className="mt-auto flex items-center gap-1.5 pt-1.5 border-t border-white/[0.04]"
+        title={totalDone > 0
+          ? `เรนเดอร์แล้วทั้งหมด ${totalDone}/${total} คลิป (โปรแกรม: ${effectiveNative} คลิป · Google Flow: ${effectiveFlow} คลิป · HyperFrames: ${effectiveHf} คลิป)`
+          : `ยังไม่เรนเดอร์ (เป้าหมาย ${total} มุม)`
+        }
+      >
+        <div className="flex-1 h-1.5 bg-slate-800/80 rounded-full overflow-hidden flex">
+          {nativePct > 0 && (
+            <div
+              className="h-full bg-emerald-400 transition-all duration-300"
+              style={{ width: `${nativePct}%`, backgroundColor: '#34d399' }}
+              title={`โปรแกรม: ${effectiveNative} คลิป`}
+            />
+          )}
+          {flowPct > 0 && (
+            <div
+              className="h-full bg-amber-400 transition-all duration-300"
+              style={{ width: `${flowPct}%`, backgroundColor: '#f59e0b' }}
+              title={`Google Flow: ${effectiveFlow} คลิป`}
+            />
+          )}
+          {hfPct > 0 && (
+            <div
+              className="h-full bg-sky-400 transition-all duration-300"
+              style={{ width: `${hfPct}%`, backgroundColor: '#38bdf8' }}
+              title={`HyperFrames: ${effectiveHf} คลิป`}
+            />
+          )}
         </div>
-        <span className={`text-[11px] font-mono font-bold tabular-nums flex-shrink-0 ${isSelected ? 'text-[#25F4EE]' : pct === 100 ? 'text-emerald-400' : 'text-slate-400'}`}>
-          {pDone}/{total}
+        <span className={`text-[11px] font-mono font-bold tabular-nums flex-shrink-0 ${
+          isSelected ? 'text-[#25F4EE]' : colorClass
+        }`}>
+          {displayDone}/{total}
         </span>
       </div>
     </div>
@@ -355,7 +378,7 @@ function angleSelectedVideos(angle) {
 }
 
 /** One row of the angle list: number, title, hook and where the angle stands. */
-function AngleListRow({ angle, index, isSelected, onSelect, shotListInfo }) {
+function AngleListRow({ angle, index, isSelected, onSelect, shotListInfo, product }) {
   const stage = angleStage(angle, { selectedCount: angleSelectedVideos(angle).length, shotListInfo });
   const stale = stage === 'ready_to_draft' && shotListInfo?.is_stale;
   const edgeTts = stage === 'needs_voice' && shotListInfo?.is_edge_tts;
@@ -365,6 +388,7 @@ function AngleListRow({ angle, index, isSelected, onSelect, shotListInfo }) {
     : edgeTts
       ? 'แผนถ่ายนี้ใช้เสียง Edge-TTS เดิม ควรอัปเกรดเป็น Gemini'
       : STAGE_HINT[stage];
+  const engineBadge = getAngleEngineBadge(angle, product);
 
   return (
     <button
@@ -392,14 +416,24 @@ function AngleListRow({ angle, index, isSelected, onSelect, shotListInfo }) {
           <span className="block text-[11px] text-slate-400 truncate mt-0.5">{angle.hook_title}</span>
         )}
       </span>
-      <span
-        title={chipTitle}
-        className={`flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${
-          stale || edgeTts ? STAGE_WARN_CHIP : STAGE_CHIP[stage]
-        }`}
-      >
-        {chipText}
-      </span>
+      <div className="flex items-center gap-1.5 flex-shrink-0">
+        {engineBadge && (
+          <span
+            title={engineBadge.title}
+            className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border whitespace-nowrap ${engineBadge.chipClass}`}
+          >
+            {engineBadge.label}
+          </span>
+        )}
+        <span
+          title={chipTitle}
+          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${
+            stale || edgeTts ? STAGE_WARN_CHIP : STAGE_CHIP[stage]
+          }`}
+        >
+          {chipText}
+        </span>
+      </div>
     </button>
   );
 }
@@ -459,6 +493,7 @@ function AngleActiveWorkbench({
   const isRendered = (curStatus === 'rendered' || isPosted) && !!angle.video_url;
   const isInProduction = !isPosted && curStatus === 'in_production';
   const isLocked = isPosted || isInProduction || isRendered;
+  const engineBadge = getAngleEngineBadge(angle, productData);
 
   const handleStartEdit = (e) => {
     if (isLocked) return;
@@ -554,6 +589,14 @@ function AngleActiveWorkbench({
           <span className={`text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full border flex-shrink-0 ${statusColor}`}>
             {statusLabel}
           </span>
+          {engineBadge && (
+            <span
+              title={engineBadge.title}
+              className={`text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-md border flex-shrink-0 ${engineBadge.chipClass}`}
+            >
+              {engineBadge.label}
+            </span>
+          )}
           <span className="hidden md:inline-flex flex-shrink-0"><ContentTypeBadges angle={angle} compact /></span>
           {/* angle_id chip — ยืนยันว่า ID ไม่ซ้ำ */}
           {angle.angle_id && (
@@ -3101,12 +3144,27 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
       const file = files[0];
 
       setUploadingImg(true);
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('target_dir', 'raw');
       try {
-        const res = await uploadFile(formData);
-        if (res.file && productData?.id) {
+        let res;
+        const CHUNK_SIZE_THRESHOLD = 8 * 1024 * 1024; // 8 MB
+        if (file.size >= CHUNK_SIZE_THRESHOLD) {
+          const localId = uploadQueue.enqueue(file, {
+            filename: file.name,
+            productId: productData?.id || null,
+            targetDir: 'raw',
+          });
+          res = await uploadQueue.waitFor(localId);
+        } else {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('target_dir', 'raw');
+          if (productData?.id) {
+            formData.append('product_id', productData.id);
+          }
+          res = await uploadFile(formData);
+        }
+
+        if (res?.file && productData?.id) {
           const filePath = res.file.rel_path || res.file.path;
           const updateRes = await setDefaultVideosForProduct(productData.id, [filePath]);
           if (updateRes.product) {
@@ -5333,6 +5391,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                           isSelected={activeAngleIdx === ang.originalIndex}
                           onSelect={() => selectAngleOnPhone(ang.originalIndex)}
                           shotListInfo={getShotListInfoForAngle(ang)}
+                          product={productData}
                         />
                       ))}
                     </div>
@@ -5363,6 +5422,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         isSelected={activeAngleIdx === ang.originalIndex}
                         onSelect={() => setOpenAngleIdx(ang.originalIndex)}
                         shotListInfo={getShotListInfoForAngle(ang)}
+                        product={productData}
                       />
                     ))
                   )}
@@ -5783,10 +5843,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
             {filteredHistory.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {filteredHistory.map(p => {
-                  const pAngles = p.angles || [];
-                  const pDone = pAngles.filter(a => a.status === 'posted' || a.status === 'rendered').length;
-                  const total = pAngles.length || 4;
-                  const pct = Math.round((pDone / total) * 100);
+                  const { total, totalDone, displayDone, effectiveNative, effectiveFlow, effectiveHf, nativePct, flowPct, hfPct, colorClass } = getProductProgressStats(p);
                   const thumb = p.images?.[0];
                   const thumbSrc = thumb
                     ? toThumbUrl(thumb.rel_path || thumb.local_path || thumb.url, 320)
@@ -5869,21 +5926,42 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         </div>
                       </div>
 
-                      {/* Progress Bar & Angle Count (Pinned to bottom baseline) */}
-                      <div className="mt-auto space-y-1 pt-1.5 border-t border-white/[0.06]">
+                      {/* Progress Bar & Angle Count (Pinned to bottom baseline: Green=Native, Amber=Google Flow, Sky Blue=HyperFrames) */}
+                      <div
+                        className="mt-auto space-y-1 pt-1.5 border-t border-white/[0.06]"
+                        title={totalDone > 0
+                          ? `เรนเดอร์แล้วทั้งหมด ${totalDone}/${total} คลิป (โปรแกรม: ${effectiveNative} คลิป · Google Flow: ${effectiveFlow} คลิป · HyperFrames: ${effectiveHf} คลิป)`
+                          : `ยังไม่เรนเดอร์ (เป้าหมาย ${total} มุม)`
+                        }
+                      >
                         <div className="flex items-center justify-between text-xs">
-                          <span className="text-slate-400">สคริปต์</span>
-                          <span className={`font-mono tabular-nums font-bold ${pct === 100 ? 'text-emerald-400' : 'text-[#25F4EE]'}`}>
-                            {pDone}/{total} มุม
+                          <span className="text-slate-400">คลิปที่พร้อม</span>
+                          <span className={`font-mono tabular-nums font-bold ${colorClass}`}>
+                            {displayDone}/{total} คลิป
                           </span>
                         </div>
-                        <div className="h-1 bg-slate-800/80 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all duration-300 ${
-                              pct === 100 ? 'bg-emerald-400' : 'bg-[#25F4EE]'
-                            }`}
-                            style={{ width: `${pct}%` }}
-                          />
+                        <div className="h-1.5 bg-slate-800/80 rounded-full overflow-hidden flex">
+                          {nativePct > 0 && (
+                            <div
+                              className="h-full bg-emerald-400 transition-all duration-300"
+                              style={{ width: `${nativePct}%`, backgroundColor: '#34d399' }}
+                              title={`โปรแกรม: ${effectiveNative} คลิป`}
+                            />
+                          )}
+                          {flowPct > 0 && (
+                            <div
+                              className="h-full bg-amber-400 transition-all duration-300"
+                              style={{ width: `${flowPct}%`, backgroundColor: '#f59e0b' }}
+                              title={`Google Flow: ${effectiveFlow} คลิป`}
+                            />
+                          )}
+                          {hfPct > 0 && (
+                            <div
+                              className="h-full bg-sky-400 transition-all duration-300"
+                              style={{ width: `${hfPct}%`, backgroundColor: '#38bdf8' }}
+                              title={`HyperFrames: ${effectiveHf} คลิป`}
+                            />
+                          )}
                         </div>
                       </div>
                     </div>

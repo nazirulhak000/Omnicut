@@ -45,16 +45,52 @@ def get_staging_dir() -> Path:
 
 
 def get_target_dir(product_code: Optional[str] = None) -> Path:
+    """Legacy helper: returns inbox target directory."""
+    return resolve_destination_dir(target_dir="inbox", product_code=product_code)
+
+
+def resolve_destination_dir(
+    target_dir: Optional[str] = "raw",
+    product_id: Optional[str] = None,
+    product_code: Optional[str] = None,
+) -> Path:
+    """Determine upload destination directory respecting target_dir, product_id, and test overrides."""
     if TARGET_DIR is not None:
         base = TARGET_DIR
+        sub = product_id or product_code
+        if sub:
+            safe_sub = re.sub(r"[^A-Za-z0-9_\-]", "", str(sub).strip())
+            if safe_sub:
+                base = base / safe_sub
+        base.mkdir(parents=True, exist_ok=True)
+        return base
+
+    t_dir = (target_dir or "raw").strip().lower()
+    if t_dir == "raw" and product_id:
+        safe_pid = re.sub(r"[^A-Za-z0-9_\-]", "", str(product_id).strip())
+        dest = config.RAW_DIR / (safe_pid or str(product_id).strip())
+    elif t_dir == "inbox":
+        dest = config.INBOX_DIR
+        if product_code:
+            safe_code = re.sub(r"[^A-Za-z0-9_\-]", "", str(product_code).strip())
+            if safe_code:
+                dest = dest / safe_code
+    elif t_dir == "raw":
+        dest = config.RAW_DIR
+        sub = product_id or product_code
+        if sub:
+            safe_sub = re.sub(r"[^A-Za-z0-9_\-]", "", str(sub).strip())
+            if safe_sub:
+                dest = dest / safe_sub
     else:
-        base = config.INBOX_DIR
-    if product_code:
-        safe_code = re.sub(r"[^A-Za-z0-9_\-]", "", product_code.strip())
-        if safe_code:
-            base = base / safe_code
-    base.mkdir(parents=True, exist_ok=True)
-    return base
+        dest = config.INBOX_DIR
+        if product_code:
+            safe_code = re.sub(r"[^A-Za-z0-9_\-]", "", str(product_code).strip())
+            if safe_code:
+                dest = dest / safe_code
+
+    dest.mkdir(parents=True, exist_ok=True)
+    return dest
 
 
 # ============================================================================
@@ -66,6 +102,8 @@ class UploadInitRequest(BaseModel):
     total_size: int = Field(..., gt=0, description="ขนาดไฟล์รวมทั้งหมด (bytes)")
     mime_type: Optional[str] = Field("video/mp4", description="MIME type ของไฟล์")
     product_code: Optional[str] = Field(None, description="รหัสสินค้า (ถ้ามี)")
+    product_id: Optional[str] = Field(None, description="ID สินค้าสำหรับแนบวิดีโอ (UUID)")
+    target_dir: Optional[str] = Field("raw", description="โฟลเดอร์เป้าหมาย ('raw' หรือ 'inbox')")
     sha256: Optional[str] = Field(None, description="SHA-256 checksum จากฝั่งไคลเอนต์ (ถ้ามี)")
 
 
@@ -202,6 +240,40 @@ def _allocate_unique_path(target_dir: Path, filename: str) -> Path:
         counter += 1
 
 
+def _safe_get_file_info(file_path: Path) -> Dict[str, Any]:
+    """Generate canonical file_info via scripts.api_videos.get_file_info with safe fallback."""
+    try:
+        from scripts.api_videos import get_file_info
+        info = dict(get_file_info(file_path))
+    except Exception as exc:
+        logger.warning("get_file_info fallback for %s: %s", file_path, exc)
+        stat = file_path.stat()
+        try:
+            rel_path = str(file_path.relative_to(config.BASE_DIR)).replace("\\", "/")
+        except Exception:
+            rel_path = file_path.name
+        info = {
+            "name": file_path.name,
+            "path": str(file_path),
+            "rel_path": rel_path,
+            "thumbnail_url": None,
+            "cover_url": None,
+            "cover_path": None,
+            "size_bytes": stat.st_size,
+            "size_mb": round(stat.st_size / (1024 * 1024), 2),
+            "modified_time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(stat.st_mtime)),
+            "timestamp": stat.st_mtime,
+        }
+
+    # Ensure canonical fields expected by consumers and test suite
+    if "size" not in info:
+        info["size"] = info.get("size_bytes", 0)
+    if "duration" not in info:
+        info["duration"] = 0.0
+
+    return info
+
+
 # ============================================================================
 # Endpoints: /api/uploads/*
 # ============================================================================
@@ -215,12 +287,18 @@ def init_chunked_upload(req: UploadInitRequest) -> Dict[str, Any]:
     part = _part_path(upload_id)
     part.write_bytes(b"")
 
+    target_dir = (req.target_dir or "raw").strip().lower()
+    if target_dir not in {"raw", "inbox"}:
+        target_dir = "raw"
+
     meta = {
         "upload_id": upload_id,
         "filename": clean_name,
         "total_size": int(req.total_size),
         "mime_type": req.mime_type or "video/mp4",
         "product_code": req.product_code,
+        "product_id": (req.product_id or "").strip() or None,
+        "target_dir": target_dir,
         "expected_sha256": (req.sha256 or "").strip().lower() or None,
         "offset": 0,
         "chunk_size": DEFAULT_CHUNK_SIZE,
@@ -228,6 +306,7 @@ def init_chunked_upload(req: UploadInitRequest) -> Dict[str, Any]:
         "created_at": time.time(),
         "updated_at": time.time(),
         "final_path": None,
+        "file": None,
         "sha256": None,
         "deduplicated": False,
     }
@@ -331,13 +410,19 @@ def complete_chunked_upload(upload_id: str) -> Dict[str, Any]:
     """Finalize upload: check total size, verify magic bytes, and deduplicate by SHA-256."""
     meta = _load_session(upload_id)
     if meta.get("status") == "completed" and meta.get("final_path"):
+        final_path_obj = Path(meta["final_path"])
+        file_info = meta.get("file")
+        if not file_info and final_path_obj.exists():
+            file_info = _safe_get_file_info(final_path_obj)
         return {
             "ok": True,
+            "message": "Upload successful",
             "upload_id": upload_id,
+            "file": file_info,
             "deduplicated": bool(meta.get("deduplicated", False)),
             "path": meta["final_path"],
-            "sha256": meta["sha256"],
-            "size": int(meta["total_size"]),
+            "sha256": meta.get("sha256"),
+            "size": int(meta.get("total_size", 0)),
         }
 
     part = _part_path(upload_id)
@@ -373,7 +458,11 @@ def complete_chunked_upload(upload_id: str) -> Dict[str, Any]:
             detail="SHA-256 checksum ไม่ตรงกับไฟล์ต้นฉบับ",
         )
 
-    dest_dir = get_target_dir(meta.get("product_code"))
+    dest_dir = resolve_destination_dir(
+        target_dir=meta.get("target_dir", "raw"),
+        product_id=meta.get("product_id"),
+        product_code=meta.get("product_code"),
+    )
 
     # Rule 13 Strict Zero-Duplicate Guard
     existing_dup = _find_duplicate_by_sha256(dest_dir, digest, total_size)
@@ -382,15 +471,29 @@ def complete_chunked_upload(upload_id: str) -> Dict[str, Any]:
             part.unlink()
         except Exception:
             pass
+
+        file_info = _safe_get_file_info(existing_dup)
+
+        if meta.get("product_id"):
+            try:
+                from scripts.product_store import ProductStore
+                ProductStore.add_video_to_product(meta["product_id"], file_info)
+            except Exception as exc:
+                logger.warning("Failed to attach deduplicated video to product %s: %s", meta["product_id"], exc)
+
         meta["status"] = "completed"
         meta["deduplicated"] = True
         meta["final_path"] = str(existing_dup)
+        meta["file"] = file_info
         meta["sha256"] = digest
         meta["updated_at"] = time.time()
         _save_session(upload_id, meta)
+
         return {
             "ok": True,
+            "message": "Upload successful",
             "upload_id": upload_id,
+            "file": file_info,
             "deduplicated": True,
             "path": str(existing_dup),
             "sha256": digest,
@@ -400,16 +503,28 @@ def complete_chunked_upload(upload_id: str) -> Dict[str, Any]:
     final_path = _allocate_unique_path(dest_dir, meta["filename"])
     shutil.move(str(part), str(final_path))
 
+    file_info = _safe_get_file_info(final_path)
+
+    if meta.get("product_id"):
+        try:
+            from scripts.product_store import ProductStore
+            ProductStore.add_video_to_product(meta["product_id"], file_info)
+        except Exception as exc:
+            logger.warning("Failed to attach video to product %s: %s", meta["product_id"], exc)
+
     meta["status"] = "completed"
     meta["deduplicated"] = False
     meta["final_path"] = str(final_path)
+    meta["file"] = file_info
     meta["sha256"] = digest
     meta["updated_at"] = time.time()
     _save_session(upload_id, meta)
 
     return {
         "ok": True,
+        "message": "Upload successful",
         "upload_id": upload_id,
+        "file": file_info,
         "deduplicated": False,
         "path": str(final_path),
         "sha256": digest,

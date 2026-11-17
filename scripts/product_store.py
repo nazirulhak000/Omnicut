@@ -26,6 +26,7 @@ import uuid
 import datetime
 import urllib.parse
 from contextlib import contextmanager
+from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -2568,6 +2569,13 @@ class ProductStore:
                             continue
                     seen_projs[p_name] = angle
 
+            pid = product.get("id")
+            p_code = (product.get("product_code") or product.get("code") or "").strip().lower()
+            p_exports = [
+                e for e in export_records
+                if (e.get("product_id") == pid) or (p_code and (p_code in str(e.get("project_name", "")).lower() or p_code in str(e.get("path", "")).lower()))
+            ]
+
             for angle in product.get("angles", []):
                 # An angle that has been posted is permanently sealed as proof/archive.
                 # Never revert or demote posted angles under any circumstances.
@@ -2576,6 +2584,80 @@ class ProductStore:
                         angle["status"] = "posted"
                         changed = True
                     continue
+
+                aid = str(angle.get("angle_id") or "").strip()
+                cur_vurl = str(angle.get("video_url") or "").strip()
+                # Sort newest first so latest export takes precedence
+                sorted_p_exports = sorted(
+                    p_exports,
+                    key=lambda e: e.get("created_at") or e.get("updated_at") or "",
+                    reverse=True,
+                )
+                matching_exp = None
+                # First try exact path match with current angle video_url
+                if cur_vurl:
+                    for exp in sorted_p_exports:
+                        if exp.get("path") == cur_vurl or exp.get("path_key") == cur_vurl:
+                            matching_exp = exp
+                            break
+                if not matching_exp and angle.get("export_id"):
+                    for exp in sorted_p_exports:
+                        if exp.get("id") == angle.get("export_id"):
+                            matching_exp = exp
+                            break
+                if not matching_exp:
+                    for exp in sorted_p_exports:
+                        if exp.get("angle_id") and exp.get("angle_id") == aid:
+                            matching_exp = exp
+                            break
+                if not matching_exp and aid.startswith("ang_"):
+                    for exp in sorted_p_exports:
+                        proj = str(exp.get("project_name") or "")
+                        e_aid = str(exp.get("angle_id") or "")
+                        m = re.search(r'-pov-s(\d+)', proj.lower()) or re.search(r'ang_.*?_(\d+)', e_aid.lower())
+                        if m:
+                            ep_num = int(m.group(1))
+                            if f"ang_{ep_num:02d}" == aid:
+                                matching_exp = exp
+                                break
+                if matching_exp:
+                    exp_proj = matching_exp.get("project_name") or matching_exp.get("angle_id") or matching_exp.get("path") or ""
+                    exp_path = matching_exp.get("path") or matching_exp.get("path_key") or ""
+                    target_str = f"{exp_proj} {exp_path} {cur_vurl}".lower()
+                    is_flow = (
+                        "_ai_veo_" in target_str
+                        or "_veo_" in target_str
+                        or "ai_flow" in target_str
+                        or matching_exp.get("source_kind") == "flow"
+                        or matching_exp.get("format") == "flow"
+                    )
+                    is_hf = (
+                        str(matching_exp.get("project_name", "")).startswith("_HyperFrames_Studio/")
+                        or "hyperframe" in target_str
+                        or "-pov-" in target_str
+                        or matching_exp.get("source_kind") == "hyperframes"
+                    )
+                    if is_flow:
+                        angle["source_kind"] = "flow"
+                    elif is_hf:
+                        angle["source_kind"] = "hyperframes"
+                    else:
+                        angle["source_kind"] = "native"
+
+                    if angle.get("status") != "rendered" or not angle.get("video_url"):
+                        exp_status = matching_exp.get("status") or "rendered"
+                        if angle.get("status") != exp_status:
+                            angle["status"] = exp_status
+                            changed = True
+                        if matching_exp.get("path") and angle.get("video_url") != matching_exp.get("path"):
+                            angle["video_url"] = matching_exp.get("path")
+                            changed = True
+                        if matching_exp.get("project_name") and angle.get("project_name") != matching_exp.get("project_name"):
+                            angle["project_name"] = matching_exp.get("project_name")
+                            changed = True
+                        if matching_exp.get("id") and angle.get("export_id") != matching_exp.get("id"):
+                            angle["export_id"] = matching_exp.get("id")
+                            changed = True
 
                 p_name = angle.get("project_name")
                 has_proj = False
@@ -2593,12 +2675,14 @@ class ProductStore:
                             has_proj = False
 
                 # Also verify HyperFrames composition existence
-                if not has_proj and (angle.get("draft_type") == "hyperframes" or angle.get("clip_id")):
+                if not has_proj and (angle.get("draft_type") == "hyperframes" or angle.get("clip_id") or (angle.get("project_name") and str(angle.get("project_name")).startswith("_HyperFrames_Studio/"))):
                     c_id = angle.get("clip_id")
                     if c_id:
-                        hf_file = projects_dir / "_HyperFrames_Studio" / "clips" / c_id / "index.html"
+                        hf_file = BASE_DIR / "_HyperFrames_Studio" / "clips" / c_id / "index.html"
                         if hf_file.exists():
                             has_proj = True
+                    elif angle.get("project_name") and str(angle.get("project_name")).startswith("_HyperFrames_Studio/"):
+                        has_proj = True
 
                 has_video = False
                 v_url = angle.get("video_url")
@@ -2609,6 +2693,16 @@ class ProductStore:
                         ready_file = exports_dir / Path(v_url).name
                         if ready_file.exists():
                             has_video = True
+                        elif (posted_dir / Path(v_url).name).exists():
+                            has_video = True
+
+                # Also verify if backed by ExportRegistry entry
+                if not has_video and (angle.get("status") == "rendered" or angle.get("export_id")):
+                    for exp in p_exports:
+                        exp_path = exp.get("path") or exp.get("path_key")
+                        if (exp_path and v_url and exp_path == v_url) or (exp.get("id") and angle.get("export_id") == exp.get("id")) or (angle.get("project_name") and exp.get("project_name") == angle.get("project_name")):
+                            has_video = True
+                            break
 
                 if angle.get("status") == "rendered" and not has_video:
                     # CRITICAL: do not treat "this one disk check didn't
@@ -2704,10 +2798,80 @@ class ProductStore:
         return changed
 
     @classmethod
+    def _attach_export_stats(cls, products: List[Dict[str, Any]], export_records: Optional[List[Dict[str, Any]]] = None) -> None:
+        if export_records is None:
+            try:
+                export_records = ExportRegistry.all(all_channels=True)
+            except Exception:
+                export_records = []
+
+        exports_by_pid: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        exports_by_code: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+
+        for exp in export_records:
+            pid = exp.get("product_id")
+            if pid:
+                exports_by_pid[pid].append(exp)
+            proj = str(exp.get("project_name") or "")
+            path = str(exp.get("path") or exp.get("path_key") or "")
+            for token in re.findall(r'[a-zA-Z]{3,5}\d{2}', f"{proj} {path}".lower()):
+                exports_by_code[token].append(exp)
+
+        for p in products:
+            pid = p.get("id")
+            code = (p.get("product_code") or p.get("code") or "").strip().lower()
+
+            p_exports = list(exports_by_pid.get(pid, []))
+            if code and code in exports_by_code:
+                for exp in exports_by_code[code]:
+                    if exp not in p_exports:
+                        p_exports.append(exp)
+
+            flow_projs = set()
+            hf_projs = set()
+            native_projs = set()
+            for exp in p_exports:
+                proj = exp.get("project_name") or exp.get("angle_id") or exp.get("path")
+                path = exp.get("path") or exp.get("path_key") or ""
+                target_str = f"{proj or ''} {path}".lower()
+                is_flow = (
+                    "_ai_veo_" in str(proj or path).lower()
+                    or "_veo_" in str(proj or path).lower()
+                    or "ai_flow" in str(proj or path).lower()
+                    or "_ai_veo_" in target_str
+                    or "_veo_" in target_str
+                    or "ai_flow" in target_str
+                    or exp.get("source_kind") == "flow"
+                    or exp.get("format") == "flow"
+                )
+                is_hf = (
+                    str(proj).startswith("_HyperFrames_Studio/")
+                    or "hyperframe" in str(proj).lower()
+                    or exp.get("source_kind") == "hyperframes"
+                )
+                if is_flow:
+                    flow_projs.add(proj)
+                elif is_hf:
+                    hf_projs.add(proj)
+                else:
+                    native_projs.add(proj)
+
+            native_projs = native_projs - flow_projs - hf_projs
+
+            p["export_stats"] = {
+                "native_count": len(native_projs),
+                "flow_count": len(flow_projs),
+                "hyperframes_count": len(hf_projs),
+                "total_rendered": len(native_projs) + len(flow_projs) + len(hf_projs),
+            }
+
+    @classmethod
     def get_all(cls, *, channel_id: Optional[str] = None, all_channels: bool = False) -> List[Dict[str, Any]]:
         scope = cls._scope(channel_id, all_channels)
         cls.reconcile_existing_projects(channel_id=channel_id, all_channels=all_channels)
-        return cls._scoped_load(scope)
+        products = cls._scoped_load(scope)
+        cls._attach_export_stats(products)
+        return products
 
     @classmethod
     def _to_lite_product(cls, p: Dict[str, Any], mode: Any = True) -> Dict[str, Any]:
@@ -2728,6 +2892,12 @@ class ProductStore:
             "angles_count": len(p.get("angles", [])),
             "selling_points": (p.get("selling_points") or [])[:3],
             "tiktok_product_id": p.get("tiktok_product_id"),
+            "export_stats": p.get("export_stats") or {
+                "native_count": 0,
+                "flow_count": 0,
+                "hyperframes_count": 0,
+                "total_rendered": 0,
+            },
         }
         if is_summary:
             return lite_p
@@ -2747,6 +2917,7 @@ class ProductStore:
                 "tiktok_hashtags": a.get("tiktok_hashtags"),
                 "batch": a.get("batch"),
                 "format": a.get("format"),
+                "source_kind": a.get("source_kind"),
             })
         lite_p["angles"] = angles
         return lite_p
@@ -2765,6 +2936,7 @@ class ProductStore:
         if reconcile:
             cls.reconcile_existing_projects(channel_id=channel_id, all_channels=all_channels)
         products = cls._scoped_load(scope)
+        cls._attach_export_stats(products)
         if status:
             products = [p for p in products if p.get("status") == status]
         products = sorted(products, key=lambda p: p.get("updated_at", ""), reverse=True)
@@ -2779,6 +2951,7 @@ class ProductStore:
         cls.reconcile_existing_projects(channel_id=channel_id, all_channels=all_channels)
         for product in cls._scoped_load(scope):
             if product["id"] == product_id:
+                cls._attach_export_stats([product])
                 return product
         return None
 

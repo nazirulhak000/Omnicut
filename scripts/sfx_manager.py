@@ -519,6 +519,14 @@ class SFXManager:
         out_path.parent.mkdir(parents=True, exist_ok=True)
 
         voice_path = Path(voice_audio_path).resolve()
+        # Double safety: sanitize voiceover file against any lingering EOS glitch / tail artifact
+        if voice_path.exists():
+            try:
+                from scripts.gemini_tts_engine import trim_silence_and_tail_artifacts_wav
+                trim_silence_and_tail_artifacts_wav(voice_path)
+            except Exception:
+                pass
+
         bgm_path = cls.resolve_bgm_path(bgm_name)
         policy = build_audio_finishing_policy(
             bgm_vol=bgm_vol,

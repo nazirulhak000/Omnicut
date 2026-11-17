@@ -8,12 +8,15 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from scripts.config import BASE_DIR, RAW_DIR
 
 logger = logging.getLogger("omnicut.flow_prompt_engine")
+
+_ai_expansion_cooldown_until: float = 0.0
 
 CAMERA_TECHNIQUES: Dict[str, str] = {
     "orbit": "slow 360-degree smooth orbital pan circling the subject",
@@ -33,7 +36,7 @@ LIGHTING_PRESETS: Dict[str, str] = {
 
 
 def build_fallback_prompt(
-    thai_description: str,
+    thai_description: Any,
     product_name: str = "Tech Gadget",
     technique: str = "orbit",
     lighting: str = "studio_clean",
@@ -42,8 +45,13 @@ def build_fallback_prompt(
     tech_str = CAMERA_TECHNIQUES.get(technique, CAMERA_TECHNIQUES["orbit"])
     light_str = LIGHTING_PRESETS.get(lighting, LIGHTING_PRESETS["studio_clean"])
 
+    if isinstance(thai_description, dict):
+        thai_str = thai_description.get("concept") or thai_description.get("shot_description") or str(thai_description)
+    else:
+        thai_str = str(thai_description or "commercial product display")
+
     # Basic English extraction or translation fallback
-    clean_desc = thai_description.replace("\n", " ").strip()
+    clean_desc = thai_str.replace("\n", " ").strip()
     return (
         f"Cinematic vertical commercial shot of {product_name}. "
         f"{tech_str}. "
@@ -62,6 +70,10 @@ def expand_prompt_with_gemini(
     lighting: str = "studio_clean",
 ) -> str:
     """Uses AIBridge/Gemini to translate and enrich Thai shot notes into Google Flow prompts."""
+    global _ai_expansion_cooldown_until
+    if time.time() < _ai_expansion_cooldown_until:
+        return build_fallback_prompt(thai_description, product_name, technique, lighting)
+
     tech_guidance = CAMERA_TECHNIQUES.get(technique, CAMERA_TECHNIQUES["orbit"])
     light_guidance = LIGHTING_PRESETS.get(lighting, LIGHTING_PRESETS["studio_clean"])
 
@@ -123,6 +135,9 @@ CRITICAL RULES:
                     text += " 9:16 vertical framing."
                 return text
     except Exception as exc:
+        err_msg = str(exc)
+        if "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg or "quota" in err_msg.lower():
+            _ai_expansion_cooldown_until = time.time() + 60.0
         logger.warning(f"AI expansion failed ({exc}), falling back to template engine.")
 
     return build_fallback_prompt(thai_description, product_name, technique, lighting)
@@ -205,7 +220,7 @@ def find_best_product_image(product_id: str) -> Optional[Path]:
 
 def bundle_flow_context(
     product_id: str,
-    beat_text: str,
+    beat_text: Any,
     camera_direction: str = "orbit",
     lighting: str = "studio_clean",
     product_name: Optional[str] = None,
@@ -222,6 +237,17 @@ def bundle_flow_context(
     3. Expands the beat text and cinematic direction into high-retention English prompt via Gemini Flash.
     4. Bundles into a validated scene generation dictionary.
     """
+    if isinstance(beat_text, dict):
+        beat_dict = beat_text
+        beat_text = (
+            beat_dict.get("shot_description")
+            or beat_dict.get("concept")
+            or beat_dict.get("action")
+            or str(beat_dict)
+        )
+        if not camera_direction or camera_direction == "orbit":
+            camera_direction = beat_dict.get("camera_direction") or "orbit"
+
     p_name = product_name
     p_specs = product_specs
 
