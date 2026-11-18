@@ -4,6 +4,23 @@
 
 ## รอบปัจจุบัน
 
+- [ ] Round CLAUDE-SPEED-ROUND2-AUDIT-20261118 · ความเร็วรอบสอง "สร้างร่าง → editor → เรนเดอร์ batch" ต่อจาก [รายงานรอบแรก](_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md) + [รายงานข้ามคืน](_Docs/Reports/SPEED_OVERNIGHT_20261112.md) · ผู้ใช้สั่ง 2026-11-18 · ผลช่วงที่ 1 → `_Docs/Reports/SPEED_ROUND2_AUDIT_20261118.md` · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5)
+  - เครื่องที่วัด: Ryzen 7 7735HS (8C/16T) · AMD Radeon iGPU · RAM 13.7 GB (ว่าง ~1.2 GB ก่อนเริ่ม) · **ไม่มี CUDA/NVENC ใช้งานจริง** · `.venv` ไม่มี `faster-whisper` → ข้อที่ต้อง CUDA/NVENC/VRAM ลง "ยังไม่ได้วัด"
+  - **ช่วงที่ 1 = วัดอย่างเดียว ห้ามแก้โค้ด product · ผลลง `.tmp/` · ค่ากลาง 3 รอบ แยก cold/warm · จบแล้วหยุดรอผู้ใช้เลือก**
+  - [x] 0 · เปิดงาน: ปิดรอบ PHASE2 (ย้ายเข้า HISTORY) · ตั้ง data root ใน `.tmp/speed_audit/data` ด้วย harness เดิม
+  - [x] A · ถดถอยหลัง 2026-11-12: Flow B-roll auto-slot / poller / auto-ingest · TTS tail filter 2 ชั้น + ไฟล์เสียง TRA03 (วิธี 10.4) · iPhone ingest + chunked upload · เรนเดอร์ GOC01-รีวิวสเปก_1 เทียบ 10.1 / 8.1
+  - [x] B · ที่รอบก่อนไม่ได้วัด (ค2/แปล batching ลง "ยังไม่ได้วัด"): ค1 CLI WinError 206 · ค2 word_alignment · Vision cold · cutout VP9 alpha · โปรเจกต์ 60 วิ · batching แปล
+  - [x] C · editor: seek ท้าย 100 คลิป 478 ms · proxy ไม่จำกัด · preload=auto · filmstrip trim · audioPeaks · autosave lock · reroll · scrub INP · Lighthouse ×3
+  - [~] D · (วัดได้แค่ c=1 · c=2/3/4 RAM guard ตัด) batch 20 คลิปผ่าน `batch_render` ที่ concurrency 2/3/4 (ไม่เกิน 4) · `is_valid_mp4` skip
+  - [x] รายงาน [`SPEED_ROUND2_AUDIT_20261118.md`](_Docs/Reports/SPEED_ROUND2_AUDIT_20261118.md) (ตารางเทียบ · คอขวดใหม่ · "ต้องตัดสิน" · "ยังไม่ได้วัด") แล้วหยุดถามผู้ใช้
+  - **ต้องตัดสิน (ยกมาจากรอบก่อน):**
+    - ถอด `02_Assets` ออกจาก `delete_file` — `SystemAssets.jsx:101` / `MediaAssetsHub.jsx:209` ใช้ endpoint นี้ลบไฟล์ที่ผู้ใช้อัปโหลดเอง
+    - ข4 `zoompan` (−3 วิ ภาพเลื่อน SSIM 0.975) · ข5 ตรวจเฟรมดำในกราฟ (ได้สุทธิ ≤1 วิ ตัดสินแล้วว่าไม่คุ้ม — ขอยืนยันปิด) · ก2 cache ผลทดสอบตัวเข้ารหัส (ไม่ทำ — ขอยืนยันปิด)
+  - **ช่วงที่ 1 จบ · พบถดถอย: auto-sharpen +51.6 วิ/คลิป (ข1) · mix-stage เขียนทับ voiceover.wav (R1) · `validate_mp4` ปล่อยไฟล์ตัดครึ่ง (R2) · รอผู้ใช้เลือกข้อที่จะแก้ · .tmp/ 2.9 GB รอถามก่อนลบ**
+  - ช่วงที่ 2 (แก้) เริ่มหลังผู้ใช้เลือกข้อ · กิ่ง `feat/<ชื่อ>` ต่อข้อ ตามข้อ 25
+
+- [x] Round CLAUDE-SPEED-AND-HARDENING-PHASE2-20261112 · ปิดรอบ 2026-11-18: ข2/ก1/ข1(บางส่วน)/P0-ffprobe/P0-backup/P1-500 เสร็จ ผ่าน merge `f143e2f` · ข3–ข6 + วัดซ้ำ + editor ทำต่อในช่วงที่ 3–5 ([รายงานหัวข้อ 8–10](_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md)) · ก2 ตัดสินแล้ว "ไม่ทำ" · P0 `delete_file` และ ข1 batching ย้ายไปรอบ CLAUDE-SPEED-ROUND2-AUDIT-20261118 · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
+
 - [x] Round ANTIGRAVITY-FIX-TTS-TAIL-GLITCH-PERMANENT-20261117 · ถอนรากถอนโคนเสียงขยะท้ายคลิป (Gemini Flash TTS EOS Digital Noise & Clipping Burst) อย่างถาวร 100% พร้อมทำความสะอาดไฟล์เสียงทั้ง 7 คลิปของ TRANYOO T-S20 (TRA03) และป้องกัน 2 ชั้น (Engine + Mixer) · ผ่าน 7/7 tail artifact tests, 36/36 gemini tests, 228/228 parity tests 100% · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
 
 - [x] Round ANTIGRAVITY-IPHONE-DIRECT-UI-AND-DEDUPLICATION-20261116 · สร้างหน้าต่าง UI ดึงคลิปตรงจาก iPhone ใน OmniCut Studio + สแกนลบคลิปซ้ำซ้อนคืนพื้นที่ 1.25 GB ปฏิบัติตาม Zero-Duplicate Guard 100% · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
@@ -117,19 +134,6 @@
 - [x] Round CLAUDE-DRAFT-TO-RENDER-SPEED-AUDIT-20261111 · วัดเวลาจริงเส้นทาง "สร้างคลิป → ร่างแรก → editor → เรนเดอร์ mp4" หาคอขวดจากตัวเลข (ช่วงที่ 1 = วัดอย่างเดียว ปิดรอบแล้ว ดู [HISTORY.md](HISTORY.md) และ [_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md](_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md)) · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
 
 - [x] Round ANTIGRAVITY-FIX-SECURITY-TEST-FIXTURE-LEAK-20261111 · แก้ไขปัญหา OMNICUT_APP_PASSWORD จาก .env รั่วไหลเข้าสู่ test environment ทำให้ tests/test_security_boundary_agent.py::test_unconfigured_lan_bind_is_rejected ผ่านไม่สมบูรณ์: เพิ่ม monkeypatch.delenv("OMNICUT_APP_PASSWORD", raising=False) และเพิ่ม os.environ["OMNICUT_APP_PASSWORD"] = "" ใน tests/conftest.py (Pytest security boundary 15/15 passed 100%, test_api_auth 91/91 passed 100%, parity 212/212 passed 100%) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
-
-- [ ] Round CLAUDE-SPEED-AND-HARDENING-PHASE2-20261112 · ทำ roadmap ช่วงที่ 2 (ผู้ใช้สั่ง 2026-11-12 "เคลียร์ทุกเฟส") · กิ่ง `feat/speed-phase2` · รายละเอียด+ตัวเลข: [รายงานหัวข้อ 7](_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md) · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
-  - [x] ข2 · `scripts/video_editor.py`: แหล่งเงา Hook (`geq`) หยุดหลัง fade จบ — กราฟคลิป 43.6 วิ 40.07 → 23.43 วิ · framemd5 เหมือนกัน 1,307/1,307 · เรนเดอร์จริงผ่าน `VideoEditor` 270/270 เฟรมเหมือนกัน ไฟล์เท่ากันทุกไบต์ · ดูเฟรมด้วยตาแล้ว
-  - [x] ก1 · `scripts/translator.py`: cache คำแปลลงดิสก์ (`03_Projects/.cache/subtitle_translations.json`) — 32 ท่อน 79.8 → 0.01 วิ เมื่อเคยแปลแล้ว
-  - [x] ข1 (บางส่วน) · `scripts/translator.py`: Google ตอบ `TooManyRequests` แล้วเลิกลองซ้ำ 10 นาที — ครั้งแรก 79.8 → 26.2 วิ · **batching ไม่ได้ทำ**: Google ปฏิเสธเครื่องนี้ต่อเนื่อง ทดสอบไม่ได้ว่าบรรทัดอังกฤษยังตรงท่อนไทย
-  - [ ] ก2 · ไม่ทำ: ได้ 1.4 วิต่อการเปิด backend (ไม่ใช่ต่อคลิป) แต่ไดรเวอร์เปลี่ยนแล้วค่าที่จำไว้ทำให้เรนเดอร์ล้ม
-  - [x] P0 · `scripts/api_recording.py`: ffprobe ผ่าน `asyncio.to_thread`
-  - [ ] P0 · ถอด `02_Assets` จาก `delete_file` — **ไม่ทำ รอเจ้าของตัดสิน**: `SystemAssets.jsx:101` และ `MediaAssetsHub.jsx:209` ใช้ endpoint นี้ลบไฟล์ที่ผู้ใช้อัปโหลดเองหลังกดยืนยัน ถอดแล้วปุ่มลบสองหน้านั้นใช้ไม่ได้
-  - [x] P0 · `scripts/agent/omnicut_agent_tools.py`: สำเนา `draft_content.json.<เวลา>.bak` ก่อนเขียนทับ (เทสตรวจจากซอร์ส ยังไม่ได้รันกับดราฟต์ CapCut จริง)
-  - [x] P1 · `scripts/api_server.py`: error ที่ไม่มีใครจับตอบเป็น JSON 500 (ส่งชนิด error ไม่ส่งข้อความ กัน path หลุด; traceback ลง log)
-  - [x] เทสใหม่ `tests/test_speed_phase2.py` 10 ข้อผ่าน · แก้ `tests/test_channel_scope.py::test_middleware_order_on_real_app` ที่ล้มอยู่ก่อน (GZip ถูกเพิ่มรอบ 2026-11-11 แต่เทสไม่ได้อัปเดต)
-  - [x] pytest เต็มชุด (ไม่รวม `tests/motion_capture` เพราะรอบนี้ไม่แตะ UI): 5405 passed, 22 skipped, **1 failed** ใน 27:06 — `tests/test_background_isolation_sam2.py::test_sam2_preflight_check` ล้มเฉพาะตอนรันทั้งชุด รันเดี่ยวผ่านทั้งก่อนและหลังแก้ (ยังไม่ได้หาสาเหตุ) · `tests/motion_capture` ไม่ได้รัน
-  - ยังไม่ทำ: วัดเวลาเรนเดอร์ทั้ง pipeline ซ้ำหลังแก้ (harness ต้องยิง TTS ใหม่) · วัด editor ในเบราว์เซอร์ · วัดบนเครื่อง RTX 4060 · ข3–ข6
 
 - [x] Round CLAUDE-AUTOPOST-EXTENSION-WEB-QUALITY-20261111 · side panel ของ `tiktok_autopost_extension` v0.10.1: axe-core 389 → 0 จุด (ธีมมืด/สว่าง, 3 แท็บ, 320–400px), modal ยืนยัน + พรีวิวเป็น native `<dialog>`, แท็บมี keyboard pattern, รูปปก 540x960 → 160px lazy · ไม่แตะ logic โพสต์ → ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
   - [x] ตรวจกับ extension ที่โหลดจริงแล้ว (ผู้ใช้สั่ง 2026-11-11): `tools/extension_real_check.py` 27/27 ในโปรไฟล์ Chromium แยกที่ไม่มี login TikTok · คิว/exports ฝั่ง server เหมือนเดิมทุกไบต์
