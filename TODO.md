@@ -4,6 +4,8 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round ANTIGRAVITY-SPEED-ROUND2-CATEGORY1-FIXES-20261118 · แก้ไขงานหมวดที่ 1 จาก `SPEED_ROUND2_AUDIT_20261118.md` ครบชุด (R1 ถอด voiceover overwrite ใน audio_mix_stage/sfx_manager · R2 เพิ่ม MP4 box check ใน media_validation · R3 บังคับ UTF-8 ใน api_iphone · ข1 probe การ์ดจอจริงและรองรับ NVENC/AMF/QSV/VideoToolbox ใน tiktok_enhancer · ก1 เพิ่ม ram_safe_concurrency ใน render_jobs/batch_render) · เทส `test_speed_round2_category1.py` 5/5 + compileall ผ่าน 100% → ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+
 - [ ] Round CLAUDE-SPEED-ROUND2-AUDIT-20261118 · ความเร็วรอบสอง "สร้างร่าง → editor → เรนเดอร์ batch" ต่อจาก [รายงานรอบแรก](_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md) + [รายงานข้ามคืน](_Docs/Reports/SPEED_OVERNIGHT_20261112.md) · ผู้ใช้สั่ง 2026-11-18 · ผลช่วงที่ 1 → `_Docs/Reports/SPEED_ROUND2_AUDIT_20261118.md` · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5)
   - เครื่องที่วัด: Ryzen 7 7735HS (8C/16T) · AMD Radeon iGPU · RAM 13.7 GB (ว่าง ~1.2 GB ก่อนเริ่ม) · **ไม่มี CUDA/NVENC ใช้งานจริง** · `.venv` ไม่มี `faster-whisper` → ข้อที่ต้อง CUDA/NVENC/VRAM ลง "ยังไม่ได้วัด"
   - **ช่วงที่ 1 = วัดอย่างเดียว ห้ามแก้โค้ด product · ผลลง `.tmp/` · ค่ากลาง 3 รอบ แยก cold/warm · จบแล้วหยุดรอผู้ใช้เลือก**

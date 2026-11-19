@@ -15,6 +15,8 @@ IPHONE_INBOX_DIR = INBOX_DIR / "iPhone_Clips"
 IPHONE_INBOX_DIR.mkdir(parents=True, exist_ok=True)
 
 SCAN_PS_SCRIPT = """
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 $shell = New-Object -ComObject Shell.Application
 $computer = $shell.Namespace(17)
 $iphone = $computer.Items() | Where-Object { $_.Name -like '*iPhone*' -or $_.Name -like '*Apple*' }
@@ -98,16 +100,19 @@ def get_iphone_status():
             ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", SCAN_PS_SCRIPT],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=8
         )
-        if res.returncode != 0 or not res.stdout.strip():
+        stdout = (res.stdout or "").strip()
+        if res.returncode != 0 or not stdout:
             return {
                 "connected": False,
                 "accessible": False,
                 "device_name": None,
                 "error": "เกิดข้อผิดพลาดในการตรวจสอบอุปกรณ์ผ่านระบบ WPD"
             }
-        data = json.loads(res.stdout.strip())
+        data = json.loads(stdout)
         return {
             "connected": bool(data.get("connected")),
             "accessible": bool(data.get("accessible")),
@@ -138,12 +143,15 @@ def list_iphone_clips(limit: int = 50):
             ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", SCAN_PS_SCRIPT],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=10
         )
-        if res.returncode != 0 or not res.stdout.strip():
+        stdout = (res.stdout or "").strip()
+        if res.returncode != 0 or not stdout:
             raise HTTPException(status_code=500, detail="ไม่สามารถอ่านข้อมูลจาก iPhone ได้")
         
-        data = json.loads(res.stdout.strip())
+        data = json.loads(stdout)
         if not data.get("connected"):
             raise HTTPException(status_code=404, detail=data.get("error", "ไม่พบ iPhone"))
         if not data.get("accessible"):
@@ -211,6 +219,8 @@ def pull_iphone_clips(req: PullRequest):
 
     # Use a separate ps1 template with -replace or plain string to avoid f-string escaping issues
     script_parts = [
+        "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8",
+        "$OutputEncoding = [System.Text.Encoding]::UTF8",
         f'$destDir = "{dest_str}"',
         f"$clipNames = ConvertFrom-Json '{clean_clips_json}'",
         """
@@ -267,12 +277,15 @@ def pull_iphone_clips(req: PullRequest):
             ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", copy_ps_script],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=120
         )
-        if res.returncode != 0 or not res.stdout.strip():
+        stdout = (res.stdout or "").strip()
+        if res.returncode != 0 or not stdout:
             raise HTTPException(status_code=500, detail="เกิดข้อผิดพลาดในการคัดลอกไฟล์จาก iPhone")
             
-        data = json.loads(res.stdout.strip())
+        data = json.loads(stdout)
         if not data.get("success"):
             raise HTTPException(status_code=400, detail=data.get("error", "ไม่สามารถดึงคลิปได้"))
 

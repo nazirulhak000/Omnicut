@@ -40,23 +40,54 @@ def is_gpu_driver_blacklisted(vendor_id: Optional[str] = None, device_id: Option
     return d in CAPCUT_GPU_DRIVER_BUG_LIST.get(v, [])
 
 
-def check_nvenc_support() -> bool:
-    """Check if NVIDIA NVENC hardware encoder is available."""
-    if is_gpu_driver_blacklisted():
-        return False
+HW_ENCODER_CANDIDATES = ("h264_nvenc", "h264_qsv", "h264_amf", "h264_videotoolbox")
+
+
+def _probe_encoder(encoder_name: str) -> bool:
+    """Run a tiny 0.1s null encode to verify a hardware encoder actually works on this machine."""
     try:
         ffmpeg_bin = shutil.which("ffmpeg") or "ffmpeg"
-        res = subprocess.run([ffmpeg_bin, "-encoders"], capture_output=True, text=True, check=False, timeout=30)
-        return "h264_nvenc" in res.stdout
+        res = subprocess.run(
+            [
+                ffmpeg_bin, "-hide_banner", "-loglevel", "error",
+                "-f", "lavfi", "-i", "color=black:s=256x256:d=0.1:r=30",
+                "-c:v", encoder_name, "-f", "null", "-",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=15,
+        )
+        return res.returncode == 0
     except Exception:
         return False
 
 
-HAS_NVENC = check_nvenc_support()
-if HAS_NVENC:
-    logger.info("เปิดใช้ NVIDIA NVENC เข้ารหัสด้วยการ์ดจอแล้ว")
+def detect_hardware_encoder() -> Optional[str]:
+    """Return the first working hardware H.264 encoder, or None to use libx264 on CPU."""
+    if is_gpu_driver_blacklisted():
+        return None
+    if os.environ.get("OMNICUT_FORCE_CPU", "").strip().lower() in ("1", "true", "yes"):
+        return None
+    for name in HW_ENCODER_CANDIDATES:
+        if _probe_encoder(name):
+            return name
+    return None
+
+
+def check_nvenc_support() -> bool:
+    """Check if NVIDIA NVENC hardware encoder actually works (real encode probe, not -encoders text)."""
+    if is_gpu_driver_blacklisted():
+        return False
+    return _probe_encoder("h264_nvenc")
+
+
+HW_ENCODER: Optional[str] = detect_hardware_encoder()
+HAS_NVENC: bool = HW_ENCODER == "h264_nvenc"
+if HW_ENCODER:
+    logger.info("เปิดใช้ตัวเข้ารหัสการ์ดจอ %s สำหรับปรับความคมชัด TikTok แล้ว", HW_ENCODER)
 else:
-    logger.info("ไม่พบ NVIDIA NVENC — ใช้ libx264 บน CPU แทน")
+    logger.info("ไม่พบตัวเข้ารหัสการ์ดจอที่ใช้งานได้ — ใช้ libx264 บน CPU แทน")
 
 # GeForce drivers cap concurrent NVENC sessions per system (5 on drivers from
 # 2023, 8 on current ones). The cap now lives in scripts.media_validation and
@@ -154,32 +185,59 @@ def enhance_video_for_tiktok(
 
     vf_filter = f"unsharp={unsharp},eq=contrast={contrast}:brightness={brightness}:saturation={saturation}"
 
-    nvenc_args = [
-        "-c:v", "h264_nvenc",
-        "-preset", "p4",
-        "-rc", "vbr",
-        "-cq", str(crf + 1),
-        "-b:v", "0",
+    common_color_args = [
         "-profile:v", "high",
-        "-level", "4.2",
         "-pix_fmt", "yuv420p",
         "-color_primaries", "bt709",
         "-color_trc", "bt709",
         "-colorspace", "bt709",
         "-g", str(gop),
-        "-bf", "1",
     ]
+
+    def build_hw_args(encoder_name: str) -> List[str]:
+        if encoder_name == "h264_nvenc":
+            return [
+                "-c:v", "h264_nvenc",
+                "-preset", "p4",
+                "-rc", "vbr",
+                "-cq", str(crf + 1),
+                "-b:v", "0",
+                "-level", "4.2",
+                *common_color_args,
+                "-bf", "1",
+            ]
+        if encoder_name == "h264_amf":
+            # Matches video_editor.py (SSIM 0.9942 against libx264 crf 18)
+            return [
+                "-c:v", "h264_amf",
+                "-quality", "balanced",
+                "-rc", "cqp",
+                "-qp_i", str(crf + 2),
+                "-qp_p", str(crf + 4),
+                *common_color_args,
+            ]
+        if encoder_name == "h264_qsv":
+            return [
+                "-c:v", "h264_qsv",
+                "-global_quality", str(crf + 2),
+                "-look_ahead", "0",
+                *common_color_args,
+            ]
+        if encoder_name == "h264_videotoolbox":
+            q_val = max(1, min(100, 100 - crf * 2))
+            return [
+                "-c:v", "h264_videotoolbox",
+                "-q:v", str(q_val),
+                *common_color_args,
+            ]
+        return ["-c:v", encoder_name, *common_color_args]
+
     x264_args = [
         "-c:v", "libx264",
-        "-profile:v", "high",
         "-level", "4.2",
-        "-pix_fmt", "yuv420p",
-        "-color_primaries", "bt709",
-        "-color_trc", "bt709",
-        "-colorspace", "bt709",
+        *common_color_args,
         "-crf", str(crf),
         "-preset", preset,
-        "-g", str(gop),
         "-bf", "1",
     ]
 
@@ -207,13 +265,18 @@ def enhance_video_for_tiktok(
 
     try:
         proc = None
-        if HAS_NVENC:
-            with _NVENC_SESSIONS:
-                proc = run_encode(nvenc_args)
+        active_hw = HW_ENCODER or ("h264_nvenc" if HAS_NVENC else None)
+        if active_hw:
+            hw_codec_args = build_hw_args(active_hw)
+            if active_hw == "h264_nvenc":
+                with _NVENC_SESSIONS:
+                    proc = run_encode(hw_codec_args)
+            else:
+                proc = run_encode(hw_codec_args)
             if proc.returncode != 0:
                 logger.warning(
-                    "h264_nvenc ล้มเหลว (exit %s) — สลับไปใช้ libx264 บน CPU แทน: %s",
-                    proc.returncode, (proc.stderr or "")[-300:],
+                    "%s ล้มเหลว (exit %s) — สลับไปใช้ libx264 บน CPU แทน: %s",
+                    active_hw, proc.returncode, (proc.stderr or "")[-300:],
                 )
                 media_validation.discard_partial(partial)
                 proc = None

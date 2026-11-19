@@ -628,9 +628,15 @@ class BatchRenderManager:
             (idx, item) for idx, item in enumerate(items)
             if item.get("status") not in ("rendered", "draft_ready", "failed", "skipped", "cancelled")
         ]
-        # Never run more batch threads than render slots: extra threads would
-        # only sit in the render queue and could fill it (429) for everyone.
-        workers = max(1, min(int(BATCH_MAX_WORKERS), render_jobs.render_concurrency()))
+        # Never run more batch threads than render slots or available RAM headroom
+        # (~3.5 GB per active pipeline, audit 2026-11-18 ก1).
+        requested_workers = max(1, min(int(BATCH_MAX_WORKERS), render_jobs.render_concurrency()))
+        workers = render_jobs.ram_safe_concurrency(requested_workers)
+        if workers < requested_workers:
+            logger.info(
+                "[BatchRender] ลด concurrency ของ batch %s จาก %d เหลือ %d ตาม RAM ว่างในเครื่อง",
+                batch_id[:8], requested_workers, workers,
+            )
         with ThreadPoolExecutor(max_workers=workers, thread_name_prefix=f"batch_{batch_id[:8]}") as pool:
             futures = [pool.submit(cls._process_item_safely, ctx, idx, item) for idx, item in pending]
             for future in futures:

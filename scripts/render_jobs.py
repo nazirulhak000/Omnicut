@@ -82,17 +82,19 @@ def _owned_by(job: Dict[str, Any], owner_id: Optional[str], channel_id: Optional
     channel_matches = channel_id is None or (job.get("channel_id") or "main") == channel_id
     return owner_matches and channel_matches
 
-# Render slot pool (AGENTS rules 21 + 24). This machine is a 20-core / 32GB
-# RAM workstation with an RTX 4060 (8GB VRAM): four pipelines at once fit
-# comfortably (~4.5GB RAM, ~2GB VRAM), so up to RENDER_MAX_CONCURRENT clips
-# render in parallel. Every render, re-roll and batch item acquires one slot
-# before touching the pipeline; anything beyond the pool waits as "queued".
-# Override with OMNICUT_RENDER_CONCURRENCY (clamped to 1..4) -- 1 restores
-# the old one-clip-at-a-time behaviour.
+# Render slot pool (AGENTS rules 21 + 24). Measured ~3.1 GB RAM per active
+# render pipeline (audit 2026-11-18 ก1): on a 32GB workstation with an RTX 4060
+# (8GB VRAM), four pipelines fit comfortably, while lower-RAM machines need a
+# lower cap at batch start (see ram_safe_concurrency). Every render, re-roll
+# and batch item acquires one slot before touching the pipeline; anything
+# beyond the pool waits as "queued". Override with OMNICUT_RENDER_CONCURRENCY
+# (clamped to 1..4) -- 1 restores the old one-clip-at-a-time behaviour.
 RENDER_CONCURRENCY_ENV = "OMNICUT_RENDER_CONCURRENCY"
 RENDER_CONCURRENCY_DEFAULT = 4
 RENDER_CONCURRENCY_MIN = 1
 RENDER_CONCURRENCY_MAX = 4
+# Measured ~3.1 GB per active render pipeline; keep 3.5 GB headroom per worker.
+RAM_BYTES_PER_RENDER_WORKER = int(3.5 * 1024 ** 3)
 
 
 def resolve_render_concurrency(raw: Optional[str] = None) -> int:
@@ -111,6 +113,30 @@ def resolve_render_concurrency(raw: Optional[str] = None) -> int:
     except ValueError:
         return RENDER_CONCURRENCY_DEFAULT
     return max(RENDER_CONCURRENCY_MIN, min(RENDER_CONCURRENCY_MAX, value))
+
+
+def ram_safe_concurrency(
+    requested: int,
+    available_ram_bytes: Optional[int] = None,
+) -> int:
+    """Cap concurrent batch workers by available RAM (min(requested, avail // 3.5 GB)).
+
+    Honors an explicit ``OMNICUT_RENDER_CONCURRENCY`` override when probing host
+    RAM automatically. Falls back to ``requested`` when ``psutil`` is absent.
+    """
+    capped_req = max(RENDER_CONCURRENCY_MIN, min(RENDER_CONCURRENCY_MAX, int(requested)))
+    if available_ram_bytes is None:
+        if os.environ.get(RENDER_CONCURRENCY_ENV, "").strip():
+            return capped_req
+        if os.environ.get("OMNICUT_DISABLE_RAM_CONCURRENCY_CAP", "").strip().lower() in ("1", "true", "yes"):
+            return capped_req
+        try:
+            import psutil  # type: ignore
+            available_ram_bytes = int(psutil.virtual_memory().available)
+        except Exception:
+            return capped_req
+    by_ram = max(RENDER_CONCURRENCY_MIN, int(available_ram_bytes // RAM_BYTES_PER_RENDER_WORKER))
+    return max(RENDER_CONCURRENCY_MIN, min(capped_req, by_ram))
 
 
 class RenderQueueFull(Exception):

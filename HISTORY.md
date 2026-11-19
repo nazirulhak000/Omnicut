@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round ANTIGRAVITY-SPEED-ROUND2-CATEGORY1-FIXES-20261118 | แก้ไขงานหมวดที่ 1 จากรายงานความเร็วรอบสอง (`SPEED_ROUND2_AUDIT_20261118.md`) ครบชุด (R1, R2, R3, ข1, ก1): ถอดการเขียนทับ `voiceover.wav` ใน `audio_mix_stage.py`/`sfx_manager.py`, เพิ่ม MP4 box boundary check จับไฟล์ `+faststart` ตัดครึ่งใน `media_validation.py`, บังคับ UTF-8 ใน `api_iphone.py`, อัปเกรด `tiktok_enhancer.py` probe การ์ดจอจริงรองรับ NVENC/AMF/QSV/VideoToolbox, เพิ่ม `ram_safe_concurrency` คุม batch ตาม RAM ว่าง; เทส 5/5 + compileall ผ่าน 100% | 2026-11-18 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round CLAUDE-SPEED-AND-HARDENING-PHASE2-20261112 | ปิดรอบ ข2/ก1/ข1/P0/P1 (ผ่าน merge f143e2f) ข้อค้างทำในช่วง 3–5 · ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round ANTIGRAVITY-FIX-TTS-TAIL-GLITCH-PERMANENT-20261117 | ถอนรากถอนโคนเสียงขยะท้ายคลิป (Gemini Flash TTS EOS Digital Noise & Clipping Burst) อย่างถาวร 100% พร้อมทำความสะอาดไฟล์เสียงทั้ง 7 คลิปของ TRANYOO T-S20 (TRA03) และป้องกัน 2 ชั้น (Engine + Mixer) · ผ่าน 7/7 tail artifact tests, 36/36 gemini tests, 228/228 parity tests 100% | 2026-11-17 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-NATIVE-GOOGLE-FLOW-E2E-20261114 | ระบบสร้างวิดีโอ AI Google Flow (Veo) แบบไร้รอยต่อ จบใน OmniCut Studio 100% (Auto-Daemon, Per-shot Prompt Synthesis, Shot List 1-Click Gen, Auto-Ingest & Auto-Slotting ลง OmniCut Studio Timeline) ขับเคลื่อนด้วย Swarm 4 ทีม (@backend, @frontend, @pipeline, @verifier): บูต Daemon เบื้องหลังแบบ headless ไร้ CMD เด้งกวนใจ, เพิ่ม Flow Status Badge 50 cr บน Topbar พร้อมโพลล์เรียลไทม์, เพิ่มปุ่ม [⚡ เจน B-roll (Flow)] ประจำช็อตใน ShotListModal พร้อม Mini-Player พรีวิว และปุ่ม Batch Auto-Gen, ปรับปรุง flow_prompt_engine ออโต้เลือกภาพสินค้าจริงจาก 01_Raw/<id>/ เป็น Reference Image ให้ Veo รักษาดีไซน์ตรงปก, ปรับปรุง shot_matching.py ลำดับความสำคัญ B-roll และ draft_generator.py จัดวางคลิปลงดราฟต์ตรงจังหวะเสียงพูดแบบ J-Cut (Rule 4.7) และ Strict Topic Hold (Rule 4.17), ผ่านชุดทดสอบ 18/18 pytest, 1,321/1,321 vitest (100%), vite build 601ms สะอาด 100% | 2026-11-14 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) |
@@ -277,6 +278,31 @@
 | Round EDITOR-CAPCUT-FIX-WAVE1-20261003 | แก้ editor ตาม Top 10 ของ audit เทียบ CapCut (ปุ่มหลอก, undo/คีย์ลัด, Inspector, timeline เฟรม, transition/effect, preview 30fps/proxy, ซับ stale, mirror+pan, volume พากย์/SFX, revision หลัง render); gate ผ่าน + ยืนยันใน Chrome จริง | 2026-10-03 | ปิดรอบแล้ว · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + sub-agent (Sonnet 5.5 / Opus 5.5) |
 | Round PC-MAX-PREVIEW-CUTOUT-INTEGRATION-20261003 | พรีวิว Master 1080p ขณะเล่น/หยุด, Cutout clock, จุดสินค้าและ SAM2 CUDA ผ่าน gate รวม | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 | Round CODEX-NVENC-QA-GATES-20261003 | ปิด NVENC/export contract และ QA guards; failures เดิมแก้และ gate รวมผ่าน | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
+
+---
+
+### Round ANTIGRAVITY-SPEED-ROUND2-CATEGORY1-FIXES-20261118 (2026-11-18)
+**ดำเนินการโดย:** Antigravity (Gemini 2.5 Pro)
+
+**เป้าหมาย:** แก้ไขงานหมวดที่ 1 (ความเร็วและความถูกต้องของ Render Pipeline) จากรายงาน [`SPEED_ROUND2_AUDIT_20261118.md`](_Docs/Reports/SPEED_ROUND2_AUDIT_20261118.md) ให้เสร็จสมบูรณ์ครบชุดตามคำขอผู้ใช้
+
+**ผลการดำเนินงาน:**
+1. **R1 (ความถูกต้องเสียง/ซับ — ไม่เขียนทับ `voiceover.wav`):**
+   - ถอดการเรียก `trim_silence_and_tail_artifacts_wav` ที่เขียนทับ `voiceover.wav` ออกจาก `scripts/stages/audio_mix_stage.py` และ `scripts/sfx_manager.py`
+   - คงการตัดเสียงขยะท้ายคลิปไว้เฉพาะตอนสร้างเสียงใหม่ใน `gemini_tts_engine.py` และ `voice_stage.py` (ซึ่งขยับ cue timing ตามอัตโนมัติ) เพื่อไม่ให้เสียงพากย์นำหน้าซับไตเติล ~0.17 วิ
+2. **R2 (ความถูกต้อง MP4 Integrity Gate):**
+   - เพิ่ม `_check_mp4_boxes()` ใน `scripts/media_validation.py` ตรวจสอบขนาดกล่อง ISO BMFF (`ftyp`/`moov`/`mdat`) เทียบกับ `file_size` จริง (<0.1 ms) ทำให้จับไฟล์ `+faststart` ที่ถูกตัดครึ่งได้ 100% ทุกความยาว (แม้กรณี `-sseof -1` เลื่อนเลย EOF)
+3. **R3 (iPhone Direct Ingest UTF-8 Encoding):**
+   - บังคับ `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8` + `$OutputEncoding = [System.Text.Encoding]::UTF8` ในสคริปต์ PowerShell ทั้ง 3 จุดของ `scripts/api_iphone.py` และใส่ `encoding="utf-8", errors="replace"` + guard `(res.stdout or "").strip()` ป้องกัน `UnicodeDecodeError` / `NoneType` บน Windows ภาษาไทย
+4. **ข1 (Auto-Sharpen Hardware Encoder + Real Probe):**
+   - เปลี่ยน `check_nvenc_support()` ใน `scripts/tiktok_enhancer.py` จากการ grep ข้อความ `ffmpeg -encoders` (ที่ให้ผลบวกลวงบนเครื่อง AMD/CPU) เป็นการ probe เข้ารหัสจริง 0.1 วิ (`_probe_encoder`)
+   - รองรับตัวเข้ารหัสการ์ดจอครบทุกค่ายเดียวกับ `video_editor.py`: `h264_nvenc`, `h264_qsv`, `h264_amf` (cqp qp_i/qp_p มาตรฐาน SSIM 0.9942), `h264_videotoolbox` ก่อนถอยไป `libx264`
+5. **ก1 (RAM-Aware Batch Concurrency):**
+   - เพิ่ม `ram_safe_concurrency()` ใน `scripts/render_jobs.py` และต่อเข้า `scripts/batch_render.py` จำกัดจำนวน worker ตอนเริ่ม batch เป็น `min(4, max(1, avail_ram // 3.5 GB))` เมื่อไม่ได้ตั้งค่า `OMNICUT_RENDER_CONCURRENCY` กัน OOM/swap บนเครื่อง RAM น้อย
+6. **การทดสอบ (Gate):**
+   - สร้างชุดทดสอบ `tests/test_speed_round2_category1.py` รันผ่านจริง **5/5 tests in 3.87s (100%)** (รวมการสร้างคลิป `+faststart` 10 วิตัดครึ่งด้วย `ffmpeg` จริง และรัน `enhance_video_for_tiktok` บนคลิปจริง)
+   - `python3 -m compileall -q scripts/ tests/` ผ่าน 100% ไร้ข้อผิดพลาด
+   - หมายเหตุเรื่อง `.tmp/speed_audit/` (2.9 GB): ถูก `.gitignore` และอยู่เฉพาะในเครื่อง PC Local ของผู้ใช้ ไม่มีในรีโมต VM — ผู้ใช้สามารถลบโฟลเดอร์ `.tmp/speed_audit/` ในเครื่อง PC เพื่อคืนพื้นที่ได้ทันที
 
 ---
 

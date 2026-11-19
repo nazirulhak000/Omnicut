@@ -29,6 +29,7 @@ import logging
 import os
 import re
 import shutil
+import struct
 import subprocess
 import threading
 from dataclasses import dataclass, field
@@ -204,9 +205,83 @@ def validate_mp4(
     return result
 
 
+_ISO_BMFF_START_BOXES = frozenset({b"ftyp", b"moov", b"mdat", b"free", b"skip", b"wide", b"pnot"})
+
+
+def _check_mp4_boxes(path: Path, file_size: int) -> str:
+    """Verify top-level ISO BMFF (MP4/MOV) box sizes fit inside ``file_size``.
+
+    A ``+faststart`` MP4 truncated in half still has a complete ``moov`` atom
+    at the front, and on longer clips ``ffmpeg -sseof -1`` can seek past EOF
+    and exit 0 with empty stderr (audit 2026-11-18 R2). Walking top-level box
+    headers takes <0.1 ms and catches any truncated ``mdat``/``moov`` box.
+    """
+    if file_size < 8:
+        return "ไฟล์สั้นเกินกว่าจะมีหัวกล่อง MP4"
+    try:
+        with path.open("rb") as fh:
+            hdr = fh.read(8)
+            if len(hdr) < 8:
+                return "อ่านหัวกล่อง MP4 ไม่ได้"
+            first_size, first_type = struct.unpack(">I4s", hdr)
+            if first_type not in _ISO_BMFF_START_BOXES:
+                # Non-MP4 container (e.g. Matroska/WebM) — let ffprobe/ffmpeg validate.
+                return ""
+            offset = 0
+            seen: set[bytes] = set()
+            for _ in range(1024):
+                if offset == file_size:
+                    break
+                if offset + 8 > file_size:
+                    return f"กล่องข้อมูล MP4 ท้ายไฟล์ไม่สมบูรณ์ (เหลือ {file_size - offset} ไบต์)"
+                if offset > 0:
+                    fh.seek(offset)
+                    hdr = fh.read(8)
+                    if len(hdr) < 8:
+                        return "อ่านหัวกล่อง MP4 ไม่ครบ"
+                    size, box_type = struct.unpack(">I4s", hdr)
+                else:
+                    size, box_type = first_size, first_type
+                if size == 0:
+                    box_size = file_size - offset
+                elif size == 1:
+                    if offset + 16 > file_size:
+                        return "กล่อง MP4 แบบ 64-bit ขาดไม่ครบไฟล์"
+                    ext = fh.read(8)
+                    if len(ext) < 8:
+                        return "อ่านขนาดกล่อง MP4 แบบ 64-bit ไม่ครบ"
+                    box_size = struct.unpack(">Q", ext)[0]
+                    if box_size < 16:
+                        return f"ขนาดกล่อง MP4 ({box_type.decode('ascii', 'replace')}) ไม่ถูกต้อง"
+                elif size < 8:
+                    return f"ขนาดกล่อง MP4 ({box_type.decode('ascii', 'replace')}) ไม่ถูกต้อง ({size})"
+                else:
+                    box_size = size
+                if offset + box_size > file_size:
+                    tag = box_type.decode("ascii", "replace")
+                    return (
+                        f"กล่องข้อมูล {tag} ขาดไม่ครบไฟล์ "
+                        f"(ต้องการ {offset + box_size} ไบต์ แต่ไฟล์มี {file_size} ไบต์ — ไฟล์ถูกตัดครึ่ง)"
+                    )
+                seen.add(box_type)
+                offset += box_size
+            if b"ftyp" in seen and (b"moov" not in seen or b"mdat" not in seen):
+                return "ไฟล์ MP4 ไม่มีกล่อง moov หรือ mdat ครบถ้วน"
+    except OSError as exc:
+        return f"อ่านไฟล์ MP4 ไม่สำเร็จ: {exc}"
+    return ""
+
+
 def _validate_uncached(
     p: Path, *, width: Optional[int], height: Optional[int], fps: Optional[float], tail_seconds: float
 ) -> MediaCheck:
+    try:
+        file_size = p.stat().st_size
+    except OSError:
+        return MediaCheck(False, "ไม่พบไฟล์")
+    box_err = _check_mp4_boxes(p, file_size)
+    if box_err:
+        return MediaCheck(False, box_err)
     try:
         data = probe_streams(p)
     except MediaValidationError as exc:

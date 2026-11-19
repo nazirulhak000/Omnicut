@@ -195,13 +195,6 @@ class AudioMixStage:
             if mixed_audio_path:
                 print(f"[4/5] Reusing mixed audio: {mixed_audio_path.name}")
 
-        if ctx.voice_audio_path and Path(ctx.voice_audio_path).exists():
-            try:
-                from scripts.gemini_tts_engine import trim_silence_and_tail_artifacts_wav
-                trim_silence_and_tail_artifacts_wav(ctx.voice_audio_path)
-            except Exception:
-                pass
-
         ctx.mixed_audio_path = mixed_audio_path
         ctx.effective_bgm_name = effective_bgm_name
 
