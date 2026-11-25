@@ -46,6 +46,12 @@ npm run build
 
 ก่อนปิดรอบให้รัน `git diff --check` และบันทึกจำนวน pass/fail/skip/warning จริงลง `TODO.md`
 
+## กติกาการรายงานผลเทส, ข้อมูล runtime และ Commit (P5)
+
+1. **ตัวเลขผลเทสใน `TODO.md` / `HISTORY.md` ต้องตรงขอบเขตจริง:** ตัวเลข "ผ่าน" สำหรับปิดรอบต้องมาจากการรันเต็ม `pytest tests/` (หรือ `pytest tests/ --ignore=tests/motion_capture` คู่กับผลรัน `tests/motion_capture` แยก) พร้อมระบุจำนวน pass/fail/skip/error จริงครบถ้วน — ห้ามนำผลจากชุดไฟล์ที่เลือกเองบางส่วนไปอ้างว่า "ผ่านทั้งหมด" (หากรายงานเฉพาะบางไฟล์ต้องระบุขอบเขตชัด) และให้แยกจำนวนความล้มเหลวจากสภาพแวดล้อม (เช่น ฟอนต์ Windows, ไม่มี GPU/Playwright) ออกจาก regression ของโค้ดเสมอ
+2. **ห้าม commit ไฟล์ runtime DB:** ห้าม track หรือ commit ไฟล์สถานะ/คิว runtime ใต้ `_Docs/` (`schedule_queue.json`, `posting_jobs.json`, `channel_artifacts.json`, `export_cover_bindings.json`, `episodes.json`, `*.db`, `*.bak*`) — ให้เก็บเฉพาะไฟล์ seed (`_Docs/products_seed.json`) ใน git
+3. **แยก commit ตามเรื่องให้ชัดเจน:** ไม่รวมการแก้ไขต่างโดเมน (เช่น UI motion + pipeline + autopost + data hygiene) ไว้ใน commit เดียวขนาดใหญ่ เพื่อให้ตรวจย้อนหลังและ revert เฉพาะส่วนได้ปลอดภัย
+
 ## โครงสร้างชุดทดสอบ
 
 - `tests/test_backend_api_contracts.py`: route/method/request/response contracts

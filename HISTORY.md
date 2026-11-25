@@ -7,7 +7,26 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
-| Round ANTIGRAVITY-SWARM-FIX-RENDER-FREEZE-HOOK-COVER-20261124 | แก้ไขระบบผลิตคลิป, Freeze-Frame, Hook Safe Zone และระบบปก 3:4 ทั้งสายพานแบบขนานด้วย Swarm 5 Agents (P0-P2): ซ่อมและรีเจนปก 88 รายการ (0/88 error 409), แก้อาการ 1-frame freeze (0.033s) และ MM.SS cache leak, ย้ายตำแหน่ง Couple Paper Chat พ้น 0-240px TikTok Top Dead Zone, เชื่อมต่อ ghost_reveal & reveal_color_sync, ปรับ font weight lookup, และตั้งค่า default bgmDucking: true · ผ่าน 307 backend tests, 1,337 frontend tests, Vite build 604ms | 2026-11-24 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) - Swarm Coordinator |
+| Round CLAUDE-SCRUTINIZE-A553E95-20261125 | ตรวจและแก้ไขประเด็นทั้งหมดจาก `_Docs/Reports/SCRUTINIZE_A553E95_20261125.md` (P0–P5) ด้วย Swarm 5 Workers + Monitor: ปิด 3 จุด crash (product_scraper, gemini_tts_engine, batch_tiktok_uploader), เก็บสคริปต์เสี่ยง 6 ตัวลง `06_Archive/tools_a553e95/`, ถอด runtime DB JSON 5 ไฟล์ออกจาก git, แก้ matcher rewind/freeze/A4/A5/A2(top=180)/B4 3:4 pan/B5 product_id/B6 hashtag/B9 raw path/D2 `@utility motion-press`/E11 `conftest.py`/B11 seed · เทสเต็มหลังแก้: `pytest tests/ --ignore=tests/motion_capture` 5,629 passed / 9 failed (8 pre-existing + 1 SQLite contention flake ผ่านเดี่ยว 37/37) / 22 skipped, `tests/motion_capture` 179 passed / 0 failed / 13 skipped, `npm test` 1,345/1,345, `oxlint` 0 errors, Vite build 540ms, extension `node --test` 264/264 · ค้างเฉพาะตรวจหน้างานจริง 3 ข้อ (C10/E3/E8) | 2026-11-25 | ดำเนินการโดย: Claude Code (Claude Opus 5.5) + Antigravity (Gemini 4 Hydrogen High / Gemini 3.8 Flash High) - Swarm Coordinator & Claude Sonnet 4.6 / Gemini 4 Hydrogen High Workers |
+| Round ANTIGRAVITY-SWARM-FIX-RENDER-FREEZE-HOOK-COVER-20261124 | แก้ไขระบบผลิตคลิป, Freeze-Frame, Hook Safe Zone และระบบปก 3:4 ทั้งสายพานแบบขนานด้วย Swarm 5 Agents (P0-P2): ซ่อมและรีเจนปก 88 รายการ (0/88 error 409), แก้อาการ 1-frame freeze (0.033s) และ MM.SS cache leak, ย้ายตำแหน่ง Couple Paper Chat พ้น 0-240px TikTok Top Dead Zone, เชื่อมต่อ ghost_reveal & reveal_color_sync, ปรับ font weight lookup, และตั้งค่า default bgmDucking: true · ผ่าน 307/308 ใน 7 ไฟล์ที่เลือก (1 skipped; ตรวจเต็มในรอบ SCRUTINIZE พบ 20 regression ซึ่งแก้ไขครบแล้วในรอบ 20261125) | 2026-11-24 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) - Swarm Coordinator |
+| Round ANTIGRAVITY-EMIL-DESIGN-SYSTEM-WAVE4-COMPLETE-20261123 | กวาดล้าง `transition-all` และเก็บรายละเอียด Emil Kowalski (`/emil-design-eng`) ครบทั้งโปรเจกต์ `frontend/src/` ด้วย Swarm 6 Agents (47 ไฟล์ที่เหลือ) · ผ่าน oxlint 0 errors, npm test 1,337/1,337, Vite build 534ms | 2026-11-24 | ดำเนินการโดย: Antigravity (Gemini 4 Argon) - Swarm Coordinator |
+| Round ANTIGRAVITY-EMIL-DESIGN-SYSTEM-WAVE3-20261123 | เก็บตก Wave 3 ตามเกณฑ์ Emil Kowalski Design Engineering (23 ไฟล์) · ผ่าน npm test 1,337/1,337, parity 212/212, Vite build 520ms | 2026-11-23 | ดำเนินการโดย: Antigravity (Gemini 4 Argon) - Swarm Coordinator |
+| Round ANTIGRAVITY-EMIL-DESIGN-SYSTEM-WAVE2-20261123 | เก็บตก Wave 2 ตามเกณฑ์ Emil Kowalski Design Engineering (16 ไฟล์ UI/CSS) · ผ่าน npm test 1,337/1,337, Vite build 524ms | 2026-11-23 | ดำเนินการโดย: Antigravity (Gemini 4 Argon) - Swarm Coordinator |
+| Round ANTIGRAVITY-EMIL-DESIGN-SYSTEM-5PHASES-20261123 | ยกระดับ UI/UX ทั้งระบบ 5 เฟสตามปรัชญา Emil Kowalski Design Engineering (14 ไฟล์ UI/CSS + 1 contract test) · ผ่าน npm test 1,337/1,337, Vite build 500ms | 2026-11-23 | ดำเนินการโดย: Antigravity (Gemini 4 Argon) - Swarm Coordinator |
+| Round ANTIGRAVITY-TIKTOK-SCHEDULE-NOV26-BATCH-20261123 | ยิง Batch Auto-Post ตั้งเวลาคลิปวันที่ 26 พ.ย. ครบ 10 คลิป (06:30-22:15) รวมยอดคิวสดบน TikTok Studio 30/30 คลิป | 2026-11-23 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
+| Round ANTIGRAVITY-FIX-TIKTOK-SCHEDULE-DATEPICKER-AND-REBALANCE-20261123 | แก้ไข Datepicker Strict Verification + ล้างคลิปซ้ำ 23 พ.ย. + ยิง Batch กระจายลง 24-25 พ.ย. ครบ 20/20 คลิป | 2026-11-23 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
+| Round ANTIGRAVITY-SWARM-TIKTOK-OVERNIGHT-BATCH-20261122 | ปฏิบัติการ Swarm ข้ามคืน รีโมท Chrome ตั้งเวลาคลิป 30 คลิปแรก (23-25 พ.ย.) + Morning Briefing Report | 2026-11-22 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) + Swarm Agents |
+| Round ANTIGRAVITY-TIKTOK-CART-NAME-SANITIZER-AND-CURATION-20261122 | พัฒนา Cart Name Sanitizer (`scripts/cart_name_cleaner.py` + Extension) · ผ่าน 3/3 cart tests, 136/136 extension tests | 2026-11-22 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
+| Round ANTIGRAVITY-RESCHEDULE-100-CLIPS-QUEUE-20261122 | จัดเวลาโพสต์คิวใหม่ 100 คลิป (23 พ.ย.–2 ธ.ค.) สล็อต 06:30–22:15 ครบถ้วน | 2026-11-22 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
+| Round ANTIGRAVITY-SIDEBAR-EMIL-DESIGN-CRAFT-20261122 | ปรับ Desktop Sidebar Navigation ตาม Emil Kowalski (@emil-design-eng) · Vite build 747ms | 2026-11-22 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) - Swarm Coordinator |
+| Round ANTIGRAVITY-STANDARDIZE-TIKTOK-HASHTAGS-MAX-5-20261122 | มาตรฐานแฮชแท็ก TikTok 4-5 อัน (`scripts/hashtag_utils.py`) + 8/8 tests | 2026-11-22 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
+| Round ANTIGRAVITY-SHIFT-HOOK-SAFE-ZONE-Y-AND-BATCH-RERENDER-20261122 | ปรับ Hook Safe Zone `Y=260px` + แบตช์รีเรนเดอร์ 109/109 คลิปและอัปเดตแกลเลอรี | 2026-11-22 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
+| Round ANTIGRAVITY-FIX-COVER-SAFE-ZONE-AND-QUEUE-BINDINGS-20261122 | Smart Safe-Zone Crop Guard + รีเจนปกเดิม 285 ปกและซ่อมปกคู่รัก POV · 107/107 tests | 2026-11-22 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
+| Round ANTIGRAVITY-AUTOPOST-FULL-SCHEDULE-FILL-20261119 | ตั้งเวลาโพสต์อัตโนมัติลง TikTok Studio ครอบคลุม 19–22 พ.ย. (31 คลิป) | 2026-11-19 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) |
+| Round ANTIGRAVITY-REBUILD-SCHEDULE-QUEUE-100-CLIPS-20261117 | จัดตารางโพสต์คิว 100 คลิป (18–27 พ.ย.) ปกป้องประวัติเดิม 173 รายการ | 2026-11-17 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
+| Round ANTIGRAVITY-FIX-SCENE-SCAN-PATH-HEALING-AND-UI-STATE-20261117 | Path Healing + Directory Junction (`HOCO EW97`) + ซิงก์ UI TaskManager · 37/37 tests | 2026-11-17 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
+| Round ANTIGRAVITY-FIX-VISION-TIMECODE-MMSS-AND-FREEZE-LOOP-20261117 | Timecode Normalizer แปลง MM.SS + รีเรนเดอร์ TRANYOO GS-01 · 249/249 tests | 2026-11-17 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
+| Round ANTIGRAVITY-BATCH-REPAIR-ALL-EXPORTS-TAIL-GLITCH-20261117 | ล้างเสียงขยะท้ายคลิป 253 ไฟล์ใน Ready_to_post · 244/244 tests | 2026-11-17 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round ANTIGRAVITY-SPEED-ROUND2-CATEGORY1-FIXES-20261118 | แก้ไขงานหมวดที่ 1 จากรายงานความเร็วรอบสอง (`SPEED_ROUND2_AUDIT_20261118.md`) ครบชุด (R1, R2, R3, ข1, ก1): ถอดการเขียนทับ `voiceover.wav` ใน `audio_mix_stage.py`/`sfx_manager.py`, เพิ่ม MP4 box boundary check จับไฟล์ `+faststart` ตัดครึ่งใน `media_validation.py`, บังคับ UTF-8 ใน `api_iphone.py`, อัปเกรด `tiktok_enhancer.py` probe การ์ดจอจริงรองรับ NVENC/AMF/QSV/VideoToolbox, เพิ่ม `ram_safe_concurrency` คุม batch ตาม RAM ว่าง; เทส 5/5 + compileall ผ่าน 100% | 2026-11-18 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round CLAUDE-SPEED-AND-HARDENING-PHASE2-20261112 | ปิดรอบ ข2/ก1/ข1/P0/P1 (ผ่าน merge f143e2f) ข้อค้างทำในช่วง 3–5 · ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round ANTIGRAVITY-FIX-TTS-TAIL-GLITCH-PERMANENT-20261117 | ถอนรากถอนโคนเสียงขยะท้ายคลิป (Gemini Flash TTS EOS Digital Noise & Clipping Burst) อย่างถาวร 100% พร้อมทำความสะอาดไฟล์เสียงทั้ง 7 คลิปของ TRANYOO T-S20 (TRA03) และป้องกัน 2 ชั้น (Engine + Mixer) · ผ่าน 7/7 tail artifact tests, 36/36 gemini tests, 228/228 parity tests 100% | 2026-11-17 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
@@ -167,6 +186,55 @@
 | Round HYPERFRAMES-HUB-THEME-AND-SMART-CREATOR-20261010 | ยกระดับ Creative Studio (HyperFramesHub.jsx) เต็มรูปแบบ: ปรับ Theme Parity ทั้งหน้าให้ตรงกับ OmniCut Pro Studio (#080B11 Deep Obsidian, #25F4EE Neon Cyan, #FE2C55 TikTok Rose), เพิ่มระบบ Smart Unique Clip ID Auto-Generator ตรวจจับความซ้ำแบบเรียลไทม์พร้อมปุ่มสุ่มรหัสใหม่, เพิ่มตัวเลือกดึงบทสคริปต์จาก 10 Angles ของสินค้า (ProductStore) และ 4 พรีเซ็ตบทแชท LINE Scenario สำหรับ POV Chat Story, เพิ่มการ์ดอธิบาย Multi-Agent 3-Step Pipeline (Whisper -> Creative AI Agent / ⌘K -> Chrome Headless MP4 Renderer), ผ่าน npm test 853/853, pytest 8/8, production build 100% | 2026-10-10 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round HYPERFRAMES-STUDIO-HEALTH-CLEANUP-20261010 | ตรวจสอบความสมบูรณ์และแก้ไขปัญหาคลิปเปิดดูไม่ได้ใน HyperFrames Studio: เปลี่ยนนามสกุลไฟล์เทมเพลตดิบ `clips/ess02-hype-25s/template.html` และ `kit/index.template.html` เป็น `.tpl` เพื่อกัน Studio สแกนแล้วเกิด SyntaxError Unexpected token '{', อัปเดต `make.py` และ `hf_timing.py`, เพิ่ม `@font-face` ฟอนต์ Anuphan ใน `kit/line-chat.css` และ `ess02-vs-25s.html`, แก้ไขจนผ่าน `hyperframes check` 0 error (60/60 WCAG AA contrast pass), ยืนยัน Compositions ทั้ง 10 คลิปเปิดดูและเรนเดอร์ได้ 100% ไร้ Error modal, ผ่าน pytest 8/8, npm test 853/853, build 100% | 2026-10-10 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round HYPERFRAMES-STYLES-SHOWCASE-REDESIGN-20261010 | ออกแบบหน้าจอ 4 Approved Styles ใน Creative Studio (HyperFramesHub.jsx) ใหม่ ให้มินิมอลแต่ข้อมูลครบถ้วน: เพิ่มรูปปกจำลองแนวตั้ง 9:16 (StylePosterMockup.jsx) แสดงอัตลักษณ์และ HUD ของ 4 สไตล์ไวรัล (VS Battle, Tech Explainer, Meme-PAS, POV Chat Story), เพิ่มไทม์ไลน์จังหวะการตัด Beat-by-Beat Timeline Pills, เสริม Style Detail Modal ดูเจาะลึกพร้อมสเปกและสูตรการตัด, ปรับตามมาตรฐาน /impeccable และ /ui-ux-pro-max, ปุ่มขึ้นต้นกริยาไม่มีสัญลักษณ์นำตามกฎ 3.8/4.8, ผ่าน npm test 853/853, pytest 8/8, production build 100% | 2026-10-10 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
+---
+
+## Round CLAUDE-SCRUTINIZE-A553E95-20261125
+
+**วันที่:** 2026-11-25  
+**ดำเนินการโดย:** Claude Code (Claude Opus 5.5) [Scrutinize Audit & Plan] + Antigravity (Gemini 4 Hydrogen High / Gemini 3.8 Flash High) [Swarm Coordinator] + Swarm Workers (`scrut-pipeline` Claude Sonnet 4.6, `scrut-catalog-covers` Gemini 4 Hydrogen High, `scrut-autopost-tools` Gemini 4 Hydrogen High, `scrut-frontend-motion` Gemini 4 Hydrogen High, `scrut-verifier-hygiene` Gemini 4 Hydrogen High)  
+**รายงานอ้างอิง:** [`_Docs/Reports/SCRUTINIZE_A553E95_20261125.md`](_Docs/Reports/SCRUTINIZE_A553E95_20261125.md)
+
+### สรุปการแก้ไขทุกประเด็น Blocker, Major และ Minor (P0–P5):
+1. **P0 — Crash & Safety (`@scrut-pipeline`, `@scrut-catalog-covers`, `@scrut-autopost-tools`):**
+   - **B1** (`scripts/product_scraper.py`): ย้าย `normalize_tiktok_hashtags` import ขึ้นระดับบนของโมดูล ปิด `UnboundLocalError` ใน fallback path (`generate_content_matrix`)
+   - **A3** (`scripts/gemini_tts_engine.py`): กำหนดค่าเริ่มต้น `is_glitch = False` ก่อนขั้นที่ 2 แก้ `UnboundLocalError` ใน `trim_leading_silence_wav`
+   - **B2/C3** (`tools/batch_tiktok_uploader.py`): เปลี่ยนชื่อตัวแปร `clean_cart_name` -> `desired_name` + ส่ง `catalog_product_id` และเพิ่ม unit test (`tests/test_batch_tiktok_uploader_cart.py`)
+   - **C7** (`tiktok_autopost_extension/clip_state.js` + `clip_state.test.cjs`): คืนการนับแถว `posted` / `scheduled_on_platform` เป็น consumed ป้องกัน sibling row ที่ค้างโผล่กลับมา
+   - **C1/C2/C6/B3/B7/C8**: ย้ายสคริปต์เสี่ยง 6 ตัวใน `tools/` (`cleanup_tiktok_stacked_clips.py`, `batch_tiktok_uploader_live.py`, `rebuild_schedule_100_clips.py`, `repair_defective_covers_last_week.py`, `standardize_all_hashtags.py`, `batch_rerender_hook_safe_zone.py`) เข้า `06_Archive/tools_a553e95/` ปลดล็อก `test_channel_store_primitives.py` (21/21 passed)
+2. **P1 — Runtime Data Integrity (`@scrut-autopost-tools`):**
+   - **E2** (`.gitignore`): สำรองไฟล์ JSON runtime 5 ไฟล์ลง `06_Archive/runtime_docs_backup_20261125/`, ถอดออกจากการ track ด้วย `git rm --cached` (`schedule_queue.json`, `posting_jobs.json`, `channel_artifacts.json`, `export_cover_bindings.json`, `episodes.json`) และเพิ่มใน `.gitignore` โดยคง `_Docs/products_seed.json`
+   - **E3** (`scripts/posting_jobs.py` + `tests/test_posting_jobs_dedup.py`): เพิ่ม `video_sha256` duplicate guard ใน `PostingJobStore.prepare` (`409 posting_duplicate_video_sha256`)
+3. **P2 — Render, Freeze-Frame & Layout (`@scrut-pipeline`, `@scrut-catalog-covers`):**
+   - **A2/D1** (`scripts/subtitle_engine.py`): คง `CAPTION_POSITIONS["top"] = (8, 180)` ตรงกับพรีวิว `SequencePlayer` และอัปเดตเทส hook Y=260 ใน `test_hook_line.py`, `test_phase1_smoke.py` (4), `test_caption_cue_overrides.py` (2), `tests/motion_capture/frame_pair.py` (14)
+   - **A1/A6/A7** (`scripts/gemini_vision_matcher.py`, `scripts/shot_source_window.py`, `scripts/stages/shot_matching_stage.py`): ป้องกัน `normalize_scene_timestamps` เขียนแคชระหว่างอ่าน/ตีความเลข >0.60, คง guard `already_exhausted` ให้ลองฟุตเทจข้างเคียงก่อนถือค้าง, และเทสเชื่อม `matcher -> coalesce_short_windows -> SourceWindowLedger`
+   - **A4** (`scripts/gemini_tts_engine.py`, `tests/test_gemini_tail_artifacts.py`): คืนเกณฑ์ tail artifact (`silent_hops >= 5` + `peak >= 25000`) พร้อมเคสคำท้าย 40/80ms × 14000
+   - **A5** (`scripts/couple_engine/compose.py` + `els6-couple-paper.html`, `ors01-pov1-240w.html`): ขยับ `WIN_TOP=610, WIN_H=1030` และ `#cta-stage top:430px` ไม่ให้หัวข้อทับแชทหรือ CTA
+   - **B4** (`scripts/api_covers.py` + `tests/test_covers_pro.py`): 3:4 crop guard ใช้พิกัด `overlay_boxes` จริงแทน pixel std-dev heuristic ทำให้ `pan_y_pct` ทำงานถูกต้อง
+   - **A8/A9**: อัปเดตความคลาดเคลื่อน libass Windows จริงและปรับ `flash_white`/`zoom_in_punch` easing ตรงตาม `EASED_TRANSITIONS`
+4. **P3 — Catalog Hygiene & Autopost Extension (`@scrut-catalog-covers`, `@scrut-autopost-tools`):**
+   - **B5/C16** (`scripts/cart_name_cleaner.py` & `background.js`): จับคู่ curated cart name ด้วย `product_id` เท่านั้น + ใช้ word/grapheme boundary (`_short_name` / `Intl.Segmenter`)
+   - **B6** (`scripts/hashtag_utils.py`): ใช้ `has_price_text` แทน `PRICE_TAG_WORDS` รักษาแท็ก `#โปรเจคเตอร์` / `#ลดเสียงรบกวน`
+   - **B8/B9**: เปลี่ยน "บลูทูธ" -> "Bluetooth" ใน `cart_name_cleaner.py` และ `product_scraper.py`; จำกัด `resolve_video_file_path` ให้อยู่เฉพาะ `RAW_DIR/<product_id>`
+   - **C9/C10/C14/C15** (`tiktok_autopost_extension/`): บังคับวิทยุ `schedule`, คัดกรอง placeholder `"Add link"` / `"เพิ่มลิงก์"`, ป้ายโควตา queue แสดง `ขั้นต่ำจากคิว OmniCut`, ลบ UTF-8 BOM
+5. **P4 — Frontend Tailwind v4 Motion & UI (`@scrut-frontend-motion`):**
+   - **D2/D4/D5/D7**: เพิ่ม `@utility motion-press` ใน `frontend/src/index.css` ครอบคลุม 704 จุด + คืน transition บน 41 ปุ่ม `active:scale-*`/`hover:scale-*`, ใช้ `backwards` แทน `forwards`, ลบ `.fade-out` ที่ไร้ผล, ปรับ `Sidebar.jsx` `navTooltipWarm` เป็น `320ms`, เพิ่ม `frontend/src/lib/motionPressContract.test.js` (8 tests)
+   - **D3/B12/D6**: แก้ปุ่มสแกนรายคลิปใน `ProductToClip.jsx`, ล้าง props ตาย/อิโมจิ/คำว่า `"ลดพิเศษ"`/grapheme truncation/`tech_neon` style ใน `CoverStudioModal.jsx`, และแก้ `tests/motion_capture/` browser selectors (`get_by_role` + `subject-points` seek readiness) ให้ผ่าน 32/32
+6. **P5 — Hygiene (`@scrut-verifier-hygiene`):**
+   - **B14/B15/C17/E9/E11/B11**: ทำความสะอาดปก orphan (`cleanup_orphaned_auto_covers` `--dry-run` default), `mobile_quick_studio.py` ใช้ `DEFAULT_VOICE`, `open_tiktok_login.bat` bind `127.0.0.1` + auto-detect Chrome, แก้ `tests/conftest.py` cleanup guard บน `os.*`, ปรับ `products_seed.json` (JBL/UGREEN), และเพิ่มกฎรายงานผลเทสเต็มใน `.agents/rules/testing_standard.md`
+
+### ผลตรวจยืนยันเต็มชุดหลังแก้เสร็จทั้งหมด:
+- `pytest tests/ --ignore=tests/motion_capture`: **5,629 passed, 9 failed, 22 skipped** (`1397.74s`) — **0 regressions จากรอบนี้** (8 รายการเป็น pre-existing จาก `41a89f7d`, `55f8a5ae`, `33f5d7b5`, Windows Store Python `Profile5\...\WindowsApps` + 1 SQLite thread contention flake ที่รันเดี่ยวใน `test_db_mirror_atomicity.py` ผ่าน **37/37 in 44.71s**)
+- `pytest tests/motion_capture`: **179 passed, 0 failed, 13 skipped** (`550.98s`)
+- `npm --prefix frontend test`: **1,345 passed, 0 failed** (`1.43s`)
+- `npx oxlint frontend/src`: **0 errors**, 882 warnings (451 files)
+- `npm --prefix frontend run build`: **passed** (`2121 modules`, `540ms`)
+- `node --test tiktok_autopost_extension/*.test.cjs`: **264 passed, 0 failed**
+
+### รายการรอเจ้าของยืนยันหน้างานจริง (Operator Checks):
+- **C10**: ยืนยัน DOM selector & placeholder จริงบนหน้า TikTok Studio Web
+- **E3**: ยืนยันตรวจงานซ้ำ `video_sha256` 2 คู่ใน `posting_jobs.json` (`05aecc19` vs `8682eaf9`; `a7f57510` vs `46b6651c`)
+- **E8**: ยืนยันรัน backend reconcile บนคิว `scheduled_on_platform` 28 แถวที่เลยเวลาแล้ว (`2026-11-23T06:30+07:00`..`2026-11-25T18:45+07:00`)
+
 ---
 
 ## Round ANTIGRAVITY-SWARM-FIX-RENDER-FREEZE-HOOK-COVER-20261124
