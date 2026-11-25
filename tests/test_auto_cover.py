@@ -133,8 +133,50 @@ def test_automatic_cover_is_reused_until_the_video_is_newer(studio):
     assert studio.angle()["cover_path"] == second["cover_path"]
     assert studio.angle()["cover_source"] == "auto"
     assert studio.bindings.get(CHANNEL, EXPORT_ID)["path"] == second["cover_path"]
-    # Superseded automatic covers are left for the owner to clear.
+    # B14: superseded unreferenced automatic UUID folder is cleaned up automatically.
+    assert not (studio.root / first["cover_path"]).parent.exists()
+
+
+def test_superseded_auto_folder_is_preserved_when_referenced_by_posting_job(studio):
+    first = studio.run()
+    first_dir = (studio.root / first["cover_path"]).parent
+    assert first_dir.is_dir()
+
+    # Simulate an active posting job still pointing at the first auto cover
+    docs = studio.root / "_Docs"
+    DocumentTable("posting_jobs", lambda: docs / "store.db", lambda: docs / "posting_jobs.json").save(
+        [{"id": "job_1", "channel_id": CHANNEL, "cover_path": first["cover_path"]}]
+    )
+
+    newer = (studio.root / first["cover_path"]).stat().st_mtime + 60
+    os.utime(studio.video, (newer, newer))
+    second = studio.run()
+    assert second["status"] == "created" and second["cover_path"] != first["cover_path"]
+    # Referenced by PostingJobStore -> must NOT be deleted!
     assert (studio.root / first["cover_path"]).is_file()
+
+
+def test_cleanup_orphaned_auto_covers_dry_run_and_apply(studio):
+    first = studio.run()
+    orphan_dir = studio.root / "05_Covers_Thumbnails" / CHANNEL / ("a" * 32)
+    orphan_dir.mkdir(parents=True, exist_ok=True)
+    (orphan_dir / "old_cover.jpg").write_bytes(b"orphan")
+    manual_dir = studio.root / "05_Covers_Thumbnails" / CHANNEL / "picked"
+    manual_dir.mkdir(parents=True, exist_ok=True)
+    (manual_dir / "keep.jpg").write_bytes(b"manual")
+
+    dry = auto_cover.cleanup_orphaned_auto_covers(studio.root, channel_id=CHANNEL, dry_run=True)
+    assert dry["dry_run"] is True
+    assert f"05_Covers_Thumbnails/{CHANNEL}/{'a' * 32}" in dry["orphans"]
+    assert dry["removed"] == []
+    assert orphan_dir.is_dir()
+
+    applied = auto_cover.cleanup_orphaned_auto_covers(studio.root, channel_id=CHANNEL, dry_run=False)
+    assert applied["dry_run"] is False
+    assert f"05_Covers_Thumbnails/{CHANNEL}/{'a' * 32}" in applied["removed"]
+    assert not orphan_dir.exists()
+    assert (studio.root / first["cover_path"]).is_file()
+    assert (manual_dir / "keep.jpg").is_file()
 
 
 def test_modified_3x4_cover_causes_auto_heal(studio):
@@ -423,3 +465,31 @@ def test_real_frame_becomes_a_bound_cover_in_both_sizes(isolated_storage):
     assert store.get(CHANNEL, export_id, format="3:4")["path"] == outcome["cover_3x4_path"]
     # The cover step wrote nothing next to the clip.
     assert [path.name for path in video.parent.iterdir()] == [video.name]
+
+
+def test_resolve_video_file_path_strictly_scoped_to_product_id(tmp_path, monkeypatch):
+    """B9: fallback filename search must stay strictly inside RAW_DIR/<product_id>, never scan other products."""
+    from scripts import api_products
+
+    raw_dir = tmp_path / "01_Raw"
+    prod_a = raw_dir / "prod_a"
+    prod_b = raw_dir / "prod_b"
+    (prod_a / "nested").mkdir(parents=True, exist_ok=True)
+    prod_b.mkdir(parents=True, exist_ok=True)
+
+    video_b = prod_b / "IMG_8207.MOV"
+    video_b.write_bytes(b"product b video")
+
+    monkeypatch.setattr(api_products, "BASE_DIR", tmp_path)
+    monkeypatch.setattr(api_products, "RAW_DIR", raw_dir)
+
+    # Missing in prod_a must NEVER resolve to prod_b/IMG_8207.MOV
+    assert api_products.resolve_video_file_path("01_Raw/prod_a/IMG_8207.MOV", product_id="prod_a") is None
+    assert api_products.resolve_video_file_path("01_Raw/prod_a/IMG_8207.MOV") is None
+    assert api_products.resolve_video_file_path("IMG_8207.MOV") is None
+
+    # Inside prod_a's own nested folder IS allowed when scoped to prod_a
+    video_a = prod_a / "nested" / "IMG_8207.MOV"
+    video_a.write_bytes(b"product a video")
+    assert api_products.resolve_video_file_path("01_Raw/prod_a/IMG_8207.MOV", product_id="prod_a") == video_a
+    assert api_products.resolve_video_file_path("01_Raw/prod_a/IMG_8207.MOV") == video_a

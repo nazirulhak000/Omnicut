@@ -185,3 +185,45 @@ def test_fluttered_tail_glitch_is_eliminated(tmp_path):
     assert dur >= 1.2
     assert out[-1, 0] == 0.0
 
+
+@pytest.mark.parametrize("gap_ms,peak_amp", [(40, 14000 / 32767.0), (80, 20000 / 32767.0)])
+def test_trailing_spoken_word_after_short_gap_with_moderate_peak_is_kept(tmp_path, gap_ms, peak_amp):
+    """A4 regression: trailing spoken syllables (~250ms, peak 14000-20000) after a
+    40ms or 80ms inter-word breath gap must NOT be falsely stripped as a tail glitch."""
+    wav = tmp_path / f"final_word_{gap_ms}ms.wav"
+    t_main = np.linspace(0, 1.8, int(1.8 * RATE), endpoint=False)
+    speech = 0.7 * np.sin(2 * np.pi * 220 * t_main)
+    gap = np.zeros(int((gap_ms / 1000.0) * RATE))
+    t_word = np.linspace(0, 0.25, int(0.25 * RATE), endpoint=False)
+    final_word = peak_amp * np.sin(2 * np.pi * 280 * t_word)
+    _write_wav(wav, np.concatenate([speech, gap, final_word]))
+
+    expected_dur = 1.8 + (gap_ms / 1000.0) + 0.25
+    head_s, tail_s = trim_silence_and_tail_artifacts_wav(wav)
+    out, rate = _read_wav(wav)
+
+    assert tail_s == 0.0
+    assert len(out) / rate == pytest.approx(expected_dur, abs=0.005)
+
+
+
+@pytest.mark.parametrize("pause_ms,peak_int16", [(40, 14000), (80, 14000), (40, 20000), (80, 20000)])
+def test_real_speech_ending_after_brief_pause_is_not_clipped(tmp_path, pause_ms, peak_int16):
+    """A4 regression: real speech endings (250ms, peak 14000-20000) after 40/80ms pause must survive."""
+    wav = tmp_path / f"real_end_{pause_ms}_{peak_int16}.wav"
+    t_main = np.linspace(0, 1.5, int(1.5 * RATE), endpoint=False)
+    main_speech = 0.6 * np.sin(2 * np.pi * 240 * t_main)
+    pause = np.zeros(int((pause_ms / 1000.0) * RATE))
+    t_end = np.linspace(0, 0.25, int(0.25 * RATE), endpoint=False)
+    amp = peak_int16 / 32767.0
+    final_syllable = amp * np.sin(2 * np.pi * 280 * t_end)
+    _write_wav(wav, np.concatenate([main_speech, pause, final_syllable]))
+
+    expected_dur = 1.5 + (pause_ms / 1000.0) + 0.25
+    head_s, tail_s = trim_silence_and_tail_artifacts_wav(wav)
+    out, rate = _read_wav(wav)
+
+    assert head_s == 0.0
+    assert tail_s == 0.0
+    assert len(out) / rate == pytest.approx(expected_dur, abs=0.005)
+

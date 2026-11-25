@@ -69,6 +69,18 @@ def test_content_matrix_prompt_forbids_price_and_never_receives_price_note(monke
     assert "ข้อเสนอราคา" not in prompt
 
 
+def test_content_matrix_prompt_uses_official_english_bluetooth_not_thai(monkeypatch):
+    """Rule 3.9 / B8: prompt examples must use 'Bluetooth', never '#คีย์บอร์ดบลูทูธ'."""
+    prompt, _ = _capture_matrix_prompt(monkeypatch, duration="30s")
+    assert "#คีย์บอร์ดBluetooth" in prompt
+    assert "#คีย์บอร์ดบลูทูธ" not in prompt
+    positive_lines = [
+        line for line in prompt.splitlines()
+        if "ตัวอย่างที่ผิด" not in line
+    ]
+    assert all("บลูทูธ" not in line for line in positive_lines)
+
+
 def test_content_matrix_fallback_templates_have_no_price_nudges(monkeypatch):
     # Fake client raises -> generate_content_matrix falls back to templates.
     _, angles = _capture_matrix_prompt(monkeypatch, duration="30s")

@@ -846,8 +846,8 @@ def capcut_particle_noise(u: float, v: float, seed: float = 0.25, intensity: flo
 
 CAPCUT_HIGH_SPEED_TRANSITIONS = (
     {"id": "whip_pan", "label": "เหวี่ยงกล้อง (Whip Pan)", "xfade": "slideleft", "duration": 0.25, "easing": "ease_in_out"},
-    {"id": "zoom_in_punch", "label": "พุ่งซูมกระแทก (Zoom Punch)", "xfade": "circleopen", "duration": 0.22, "easing": "ease_out"},
-    {"id": "flash_white", "label": "แฟลชขาวไวรัล (Flash White)", "xfade": "fadewhite", "duration": 0.18, "easing": "ease_out"},
+    {"id": "zoom_in_punch", "label": "พุ่งซูมกระแทก (Zoom Punch)", "xfade": "circleopen", "duration": 0.22, "easing": "linear"},
+    {"id": "flash_white", "label": "แฟลชขาวไวรัล (Flash White)", "xfade": "fadewhite", "duration": 0.18, "easing": "linear"},
     {"id": "glitch_shake", "label": "สั่นกลิตช์ (Glitch Shake)", "xfade": "dissolve", "duration": 0.20, "easing": "linear"},
 )
 

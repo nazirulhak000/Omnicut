@@ -89,3 +89,28 @@ def test_product_store_standardize_hashtags_dry_run():
     assert "posted_untouched" in res
     assert res["applied"] is False
 
+
+def test_normalize_preserves_valid_non_price_tags():
+    # B6: non-price tags containing substrings like โปร/ลด/ถูก/deal must be preserved
+    valid = "#โปรเจคเตอร์ #ลดเสียงรบกวน #ถูกใจ #idealhome #คีย์บอร์ดBluetooth"
+    result = normalize_tiktok_hashtags(valid)
+    tags = result.split()
+    assert tags == [
+        "#โปรเจคเตอร์",
+        "#ลดเสียงรบกวน",
+        "#ถูกใจ",
+        "#idealhome",
+        "#คีย์บอร์ดBluetooth",
+    ]
+
+
+def test_normalize_strips_price_and_baht_tags():
+    dirty = "#ลดราคา #ราคาถูก #199บาท #ราคา290บาท #ส่งฟรี #สายชาร์จเร็ว"
+    result = normalize_tiktok_hashtags(dirty)
+    tags = result.split()
+    for bad in ("#ลดราคา", "#ราคาถูก", "#199บาท", "#ราคา290บาท", "#ส่งฟรี"):
+        assert bad not in tags
+    assert "#สายชาร์จเร็ว" in tags
+    assert len(tags) >= 3
+    assert len(tags) <= 5
+

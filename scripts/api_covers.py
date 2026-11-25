@@ -585,12 +585,14 @@ def generate_hook_ideas(
 
     # If angle_title is provided, offer an angle-tailored hook as well
     if angle_title and angle_title.strip():
-        at_clean = angle_title.strip()
-        hooks.insert(0, {
-            "style": "angle",
-            "category": "ตรงประเด็นคลิป",
-            "text": at_clean[:30].strip(),
-        })
+        from scripts.product_scraper import _short_name
+        at_clean = _short_name(angle_title.strip(), limit=30, fallback="")
+        if at_clean:
+            hooks.insert(0, {
+                "style": "angle",
+                "category": "ตรงประเด็นคลิป",
+                "text": at_clean,
+            })
 
     return hooks
 
@@ -898,6 +900,7 @@ def render_pro_cover(
         font_sub = ImageFont.load_default()
 
     template_name = (template or "neon").lower()
+    overlay_boxes: List[Tuple[int, int]] = []
     scene_model = _normalise_requested_cover_scene(
         scene=scene,
         layers=layers,
@@ -912,6 +915,12 @@ def render_pro_cover(
     if scene_model is not None:
         canvas = _render_cover_scene(canvas, scene_model, font_path)
         draw = ImageDraw.Draw(canvas)
+        for layer in scene_model.get("layers", []):
+            if not layer.get("visible", True):
+                continue
+            if layer.get("type") in {"text", "callout"} and isinstance(layer.get("text"), str) and layer["text"].strip():
+                _, layer_top, _, layer_bottom = _scene_layer_bounds(layer, COVER_W, COVER_H)
+                overlay_boxes.append((layer_top, layer_bottom))
 
     # 4. Prepare Lines (if enable_hook_text is True)
     if enable_hook_text and scene_model is None:
@@ -1084,6 +1093,18 @@ def render_pro_cover(
                 )
                 cur_y += sub_font_size + line_spacing
 
+        # Track actual rendered overlay vertical bounds for the 3:4 Crop Guard
+        if tmpl == "modern_box":
+            ov_top = start_y - 20
+            ov_bot = start_y - 20 + total_height + 40
+        elif tmpl in ("minimal_bold", "tech_neon", "tech_reviewer"):
+            ov_top = start_y - 16
+            ov_bot = cur_y
+        else:
+            ov_top = start_y - 14
+            ov_bot = cur_y
+        overlay_boxes.append((max(0, ov_top), min(COVER_H, ov_bot)))
+
     # 7. Stamp 3D Badge (if selected and enable_badge is True)
     if enable_badge and badge and badge != "none" and badge_position != "none":
         # badge is client-controlled (RenderProCoverRequest.badge) and was
@@ -1131,51 +1152,33 @@ def render_pro_cover(
     # Pan moves crop window vertically: 0 is top (cuts bottom 480px subtitles), 100 is bottom
     crop_3x4_y = round((COVER_H - PROFILE_H) * (clamped_pan_y / 100.0))
 
-    # Smart Safe-Zone 3:4 Crop Guard:
-    # If crop_3x4_y (e.g. 240px from default pan_y_pct=50) cuts into top text/banner (y=80..360),
+    # Smart Safe-Zone 3:4 Crop Guard (uses actual rendered overlay bounds, never raw pixel guessing):
+    # If crop_3x4_y (e.g. 240px from default pan_y_pct=50) cuts into top text/banner (y < 360),
     # adjust crop_3x4_y upward so top text retains a clean >=80px breathing margin.
-    # Also inspect bottom edge near crop_3x4_y + PROFILE_H to prevent slicing subtitles in half.
-    try:
-        import numpy as np
-        gray = np.array(canvas.convert("L"))
+    # Also inspect bottom edge near crop_3x4_y + PROFILE_H to prevent slicing rendered overlays in half.
+    if overlay_boxes:
+        top_overlays = [ov_top for ov_top, _ in overlay_boxes if ov_top < 360]
+        first_top_y = min(top_overlays) if top_overlays else None
+        if first_top_y is not None and crop_3x4_y > 80 and first_top_y < crop_3x4_y + 80:
+            crop_3x4_y = max(0, min(crop_3x4_y, first_top_y - 80))
 
-        # Top guard: scan 80..360 for top text/hook overlays
-        top_slice = gray[80:360, :]
-        first_top_y = None
-        if top_slice.std() > 20.0:
-            for r_idx in range(top_slice.shape[0]):
-                if top_slice[r_idx].std() > 20.0:
-                    first_top_y = 80 + r_idx
-                    if crop_3x4_y > 80 and first_top_y < crop_3x4_y + 80:
-                        crop_3x4_y = max(0, min(crop_3x4_y, first_top_y - 80))
-                    break
-
-        # Bottom guard: scan near crop_3x4_y + PROFILE_H so subtitles are not cut in half
         target_h = PROFILE_H
         bot_y = crop_3x4_y + target_h
-        scan_b_start = max(0, bot_y - 80)
-        scan_b_end = min(COVER_H, bot_y + 80)
-        bot_slice = gray[scan_b_start:scan_b_end, :]
-        if bot_slice.std() > 20.0:
-            bot_text_rows = [scan_b_start + r for r in range(bot_slice.shape[0]) if bot_slice[r].std() > 20.0]
-            if bot_text_rows:
-                first_bot_y = bot_text_rows[0]
-                last_bot_y = bot_text_rows[-1]
-                if first_bot_y - 40 < bot_y < last_bot_y + 40:
-                    shift_up = first_bot_y - 40 - target_h
-                    if shift_up >= 0:
-                        crop_3x4_y = shift_up
+        for ov_top, ov_bot in overlay_boxes:
+            if ov_top - 40 < bot_y < ov_bot + 40:
+                shift_up = ov_top - 40 - target_h
+                if shift_up >= 0:
+                    crop_3x4_y = shift_up
+                else:
+                    shift_down = ov_bot + 40 - target_h
+                    max_top = (first_top_y - 80) if first_top_y is not None else (COVER_H - target_h)
+                    if shift_down <= max_top:
+                        crop_3x4_y = shift_down
                     else:
-                        shift_down = last_bot_y + 40 - target_h
-                        max_top = (first_top_y - 80) if first_top_y is not None else (COVER_H - target_h)
-                        if shift_down <= max_top:
-                            crop_3x4_y = shift_down
-                        else:
-                            crop_3x4_y = max(0, shift_up)
+                        crop_3x4_y = max(0, shift_up)
+                bot_y = crop_3x4_y + target_h
 
         crop_3x4_y = max(0, min(crop_3x4_y, COVER_H - PROFILE_H))
-    except Exception:
-        pass
 
     canvas_3x4 = canvas.crop((0, crop_3x4_y, PROFILE_W, crop_3x4_y + PROFILE_H))
 

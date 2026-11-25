@@ -190,7 +190,7 @@ CAPTION_POSITIONS = {
     # the public safe-zone contract remains 420px.
     "bottom": (2, 410),
     "middle": (5, 0),
-    "top": (8, 260),
+    "top": (8, 180),
 }
 
 # Legacy sentence-level SpecBar (cue `on_screen`). BorderStyle 3 paints its box

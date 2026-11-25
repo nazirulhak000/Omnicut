@@ -101,28 +101,30 @@ def test_normalize_scene_timestamps_string_colons():
 
 
 def test_lookup_cached_matches_normalizes_legacy_mmss_timestamps():
-    """Ensure _lookup_cached_matches normalizes legacy MM.SS timestamps from cache."""
+    """Ensure _lookup_cached_matches applies MM.SS heuristic ONLY to catalog scans,
+    never to direct Vision matches, and never writes back to cache during a read."""
+    from copy import deepcopy
     from scripts.gemini_vision_matcher import GeminiVisionMatcher
 
     file_hash = "mock_hash_123"
     match_cache_key = "mock_hash_123_key_v2_1.50-2.50"
     cues = [{"start": 0.0, "end": 2.0, "text": "ทดสอบ"}]
 
-    # 1. Direct cached matches with legacy MM.SS (e.g. 1.24 meaning 84.0s on 85s video)
+    # 1. Direct cached matches (no catalog scenes) must NOT apply MM.SS heuristic
     cache_direct = {
         "catalogs": {file_hash: {"duration": 85.0}},
         "matches": {
             match_cache_key: [
-                {"cue_id": 1, "start_time": 1.18, "end_time": 1.24}
+                {"cue_id": 1, "start_time": 1.18, "end_time": 1.38}
             ]
         }
     }
     direct_res = GeminiVisionMatcher._lookup_cached_matches(cache_direct, file_hash, match_cache_key, cues)
     assert direct_res is not None
-    assert direct_res[0]["start_time"] == 78.0
-    assert direct_res[0]["end_time"] == 84.0
+    assert direct_res[0]["start_time"] == 1.18
+    assert direct_res[0]["end_time"] == 1.38
 
-    # 2. Cached catalog with legacy MM.SS scenes
+    # 2. Cached catalog with legacy MM.SS scenes DOES normalize MM.SS
     cache_catalog = {
         "catalogs": {
             file_hash: {
@@ -138,72 +140,152 @@ def test_lookup_cached_matches_normalizes_legacy_mmss_timestamps():
             ]
         }
     }
+    snapshot = deepcopy(cache_catalog)
     cat_res = GeminiVisionMatcher._lookup_cached_matches(cache_catalog, file_hash, match_cache_key, cues)
     assert cat_res is not None
-    # Scene should be normalized from 0.05..1.24 to 5.0..84.0s
     assert cat_res[0]["scene_start"] == 5.0
     assert cat_res[0]["scene_end"] == 84.0
     assert cat_res[0]["start_time"] >= 5.0
+    assert cache_catalog == snapshot
 
 
-def test_match_script_with_catalog_rotates_when_keyword_scene_exhausted():
-    """When a single keyword scene is exhausted (<0.35s remaining and cannot rewind),
-    it must rotate to fallback scenes instead of collapsing to 1-frame 0.033s."""
+def test_normalize_scene_timestamps_a7_guards():
+    """A7: reject >= .60 fractional MM.SS, clamp end <= raw_dur, respect allow_mmss_heuristic=False."""
+    # 1. Fractional >= .60 (e.g. 1.75s) on a 300s video must stay 1.75s, NOT 135.0s!
+    scenes_frac = [{"id": 1, "start": 0.0, "end": 1.75}]
+    norm_frac = normalize_scene_timestamps(scenes_frac, raw_duration=300.0, allow_mmss_heuristic=True)
+    assert norm_frac[0]["end"] == 1.75
+
+    # 1b. Early shots ending < 15s on a 300s video (e.g. 14.0s > expected_mmss*1.15=5.75) stay real seconds
+    scenes_early = [{"id": 1, "start": 2.0, "end": 14.0}]
+    norm_early = normalize_scene_timestamps(scenes_early, raw_duration=300.0, allow_mmss_heuristic=True)
+    assert norm_early[0]["start"] == 2.0
+    assert norm_early[0]["end"] == 14.0
+
+    # 2. allow_mmss_heuristic=False keeps direct Vision timestamps even if < 0.60
+    scenes_direct = [{"cue_id": 1, "start_time": 0.15, "end_time": 1.24}]
+    norm_direct = normalize_scene_timestamps(scenes_direct, raw_duration=85.0, allow_mmss_heuristic=False)
+    assert norm_direct[0]["start_time"] == 0.15
+    assert norm_direct[0]["end_time"] == 1.24
+
+    # 3. end is strictly clamped <= raw_duration even when raw start >= raw_duration
+    scenes_over = [{"id": 1, "start": 65.0, "end": 70.0}]
+    norm_over = normalize_scene_timestamps(scenes_over, raw_duration=60.0)
+    assert norm_over[0]["end"] <= 60.0
+    assert norm_over[0]["start"] < norm_over[0]["end"]
+
+
+def test_get_cached_catalog_skips_missing_duration_and_never_writes_cache(tmp_path, monkeypatch):
+    """A7: get_cached_catalog skips normalization if duration is missing and never calls save."""
+    from scripts.gemini_vision_matcher import GeminiVisionMatcher, VisionRequestContext
+
+    fake_video = tmp_path / "raw.mp4"
+    fake_video.write_bytes(b"00")
+    scenes = [{"id": 1, "start": 0.05, "end": 1.24}]
+    ctx_no_dur = VisionRequestContext(
+        video_file=fake_video,
+        file_hash="h1",
+        cache={"catalogs": {"h1": {"scenes": [dict(s) for s in scenes]}}},
+    )
+    monkeypatch.setattr(
+        GeminiVisionMatcher,
+        "save_cached_catalog",
+        classmethod(lambda cls, *a, **k: (_ for _ in ()).throw(AssertionError("read must not write cache"))),
+    )
+    cat_no_dur = GeminiVisionMatcher.get_cached_catalog(str(fake_video), request_context=ctx_no_dur)
+    assert cat_no_dur["scenes"][0]["end"] == 1.24  # skipped when duration missing
+
+    ctx_with_dur = VisionRequestContext(
+        video_file=fake_video,
+        file_hash="h2",
+        cache={"catalogs": {"h2": {"duration": 85.0, "scenes": [dict(s) for s in scenes]}}},
+    )
+    cat_with_dur = GeminiVisionMatcher.get_cached_catalog(str(fake_video), request_context=ctx_with_dur)
+    assert cat_with_dur["scenes"][0]["start"] == 5.0
+    assert cat_with_dur["scenes"][0]["end"] == 84.0
+
+
+def test_end_to_end_matcher_coalesce_and_ledger_no_excess_freeze_or_hold_only():
+    """A1 + A6 end-to-end deterministic pipeline:
+    match_script_with_catalog -> coalesce_short_windows -> _split_groups -> SourceWindowLedger
+    must keep freeze_tail <= 1.0s, avoid hold_only when adjacent footage exists,
+    and split shared windows to <= SHOT_CAP."""
     from scripts.gemini_vision_matcher import GeminiVisionMatcher
+    from scripts.shot_source_window import SourceWindowLedger, coalesce_short_windows
+    from scripts.stages.shot_matching_stage import _split_groups, _plan_split_points
 
+    raw_duration = 30.0
+    shot_cap = 3.125
+    max_shot = 2.5
+
+    # Case 1: 5s scene (10..15s) shared across 2x3s cues (6s total) -> 0s freeze via adjacent footage
+    # Case 2: 4s scene (20..24s) shared across 3x2s cues (6s total) -> split & adjacent, freeze_tail <= 1.0
     catalog = {
         "scenes": [
-            # Scene 0: only 2.0s long! Cannot cover a 3.0s cue or rewind to cover multiple 3.0s cues.
-            {"id": 0, "start": 0.0, "end": 2.0, "keywords": ["USB-C"], "action_type": "closeup", "description": "USB-C port"},
-            # Fallback scenes with plenty of footage
-            {"id": 1, "start": 10.0, "end": 20.0, "keywords": ["overview"], "action_type": "overview", "description": "Product body"},
-            {"id": 2, "start": 20.0, "end": 30.0, "keywords": ["hands_on"], "action_type": "hands_on", "description": "Using device"},
+            {"id": 1, "start": 10.0, "end": 15.0, "keywords": ["ชาร์จ"], "action_type": "port_connection", "description": "ชาร์จไว"},
+            {"id": 2, "start": 20.0, "end": 24.0, "keywords": ["แม่เหล็ก"], "action_type": "feature_demo", "description": "แม่เหล็กประกบ"},
         ]
     }
     cues = [
-        {"start": 0.0, "end": 3.0, "text": "USB-C charging."},
-        {"start": 3.0, "end": 6.0, "text": "USB-C charging."},
-        {"start": 6.0, "end": 9.0, "text": "USB-C charging."},
+        {"start": 0.0, "end": 3.0, "text": "ชาร์จไวมาก."},
+        {"start": 3.0, "end": 6.0, "text": "ชาร์จเข้าเร็ว."},
+        {"start": 6.0, "end": 8.0, "text": "แม่เหล็กดูดแน่น."},
+        {"start": 8.0, "end": 10.0, "text": "แม่เหล็กประกบง่าย."},
+        {"start": 10.0, "end": 12.0, "text": "แม่เหล็กจัดเก็บสะดวก."},
     ]
-    matches = GeminiVisionMatcher.match_script_with_catalog(catalog, cues, raw_duration=30.0)
-    assert len(matches) == 3
-    # First match uses keyword scene 0
-    assert matches[0]["scene_id"] == 0
-    # Second and third matches must NOT collapse onto exhausted scene 0 with 0.033s!
-    # They must rotate to fallback scenes (1 or 2)
-    assert matches[1]["scene_id"] != 0
-    assert matches[2]["scene_id"] != 0
-    # Every match must have viable playable duration (> 0.35s)
-    for m in matches:
-        playable = m["end_time"] - m["start_time"]
-        assert playable >= 0.35
 
+    matches = GeminiVisionMatcher.match_script_with_catalog(catalog, cues, raw_duration=raw_duration)
+    assert len(matches) == 5
 
-def test_split_groups_never_slices_exhausted_window_into_hold_only():
-    """_split_groups must never split a group into sub-clips where a sub-clip gets <= 0.11s playable footage."""
-    from scripts.stages.shot_matching_stage import _split_groups
+    # Group into per-cue groups (as ShotMatchingStage builds before coalescing)
+    groups = [[i] for i in range(len(cues))]
+    boundaries = [0.0] + [c["end"] for c in cues]
+    onsets = [None] + [c["start"] for c in cues[1:]] + [None]
 
-    # Setup: 1 group spanning 0.0 to 4.0s (longer than SHOT_CAP 3.0s)
-    # But assigned source match only has 2.0s of footage!
-    groups = [[0]]
-    boundary_times = [0.0, 4.0]
-    boundary_onsets = [None, 0.0]
-
-    matches = [{
-        "cue_ids": [0],
-        "start_time": 5.0,
-        "end_time": 7.0,  # Only 2.0s source span!
-        "scene_start": 5.0,
-        "scene_end": 7.0,
-    }]
-
-    # Split fn wants to split at 2.0s:
-    split_fn = lambda s, e: [(2.0, 2.0)]
-
-    out_groups, out_times, out_onsets = _split_groups(
-        groups, boundary_times, boundary_onsets, split_fn,
-        skip_ids=frozenset(), matches=matches, raw_duration=10.0, min_subclip_sec=0.5
+    overrides = {}
+    exhausted = set()
+    c_groups, c_times, c_onsets = coalesce_short_windows(
+        groups, boundaries, onsets, matches, raw_duration,
+        max_hold=1.0, overrides=overrides, exhausted=exhausted,
     )
-    # Because source_span (2.0s) < group_dur (4.0s) - 0.1, splitting is skipped!
-    assert len(out_groups) == 1
-    assert out_times == [0.0, 4.0]
+
+    split_candidates = [(boundaries[i], cues[i]["start"]) for i in range(1, len(cues))]
+    s_groups, s_times, _ = _split_groups(
+        c_groups, c_times, c_onsets,
+        lambda s, e: _plan_split_points(s, e, lambda _t: max_shot, split_candidates) if e - s > shot_cap + 1e-6 else [],
+        skip_ids=exhausted,
+    )
+
+    ledger = SourceWindowLedger()
+    for idx, grp in enumerate(s_groups):
+        dur = s_times[idx + 1] - s_times[idx]
+        if id(grp) not in exhausted:
+            assert dur <= shot_cap + 1e-6, f"Shot {idx} exceeded SHOT_CAP: {dur}"
+        match = overrides[id(grp)][1] if id(grp) in overrides else matches[grp[0]]
+        alloc = ledger.allocate(match, raw_duration, match["start_time"], dur)
+        assert alloc is not None
+        assert alloc["freeze_tail"] <= 1.0 + 1e-6, f"Shot {idx} froze {alloc['freeze_tail']}s > 1.0s"
+        assert alloc["hold_only"] is False, f"Shot {idx} hit hold_only despite adjacent footage!"
+
+
+def test_a6_shared_window_within_hold_budget_is_still_split_to_shot_cap():
+    """A6: 3 cues sharing a 5s window over 5.9s (fits 1.0s hold) must be split <= SHOT_CAP."""
+    from scripts.shot_source_window import coalesce_short_windows
+    from scripts.stages.shot_matching_stage import _split_groups, _plan_split_points
+
+    shared_match = {"cue_ids": [1, 2, 3], "start_time": 10.0, "end_time": 15.0, "scene_start": 10.0, "scene_end": 15.0}
+    matches = [shared_match, shared_match, shared_match]
+    overrides, exhausted = {}, set()
+    c_groups, c_times, c_onsets = coalesce_short_windows(
+        [[0], [1], [2]], [0.0, 2.0, 4.0, 5.9], [None, 2.0, 4.0, None],
+        matches, raw_duration=60.0, max_hold=1.0, overrides=overrides, exhausted=exhausted,
+    )
+    assert not exhausted
+    s_groups, s_times, _ = _split_groups(
+        c_groups, c_times, c_onsets,
+        lambda s, e: _plan_split_points(s, e, lambda _t: 2.5, [(2.0, 2.0), (4.0, 4.0)]) if e - s > 3.125 + 1e-6 else [],
+        skip_ids=exhausted,
+    )
+    assert len(s_groups) == 3
+    assert s_times == [0.0, 2.0, 4.0, 5.9]
+

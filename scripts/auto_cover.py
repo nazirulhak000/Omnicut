@@ -10,16 +10,19 @@ Rules:
   export's video is newer than the cover file.
 - Failure never propagates: the render that triggered it still succeeds.
 - ``OMNICUT_AUTO_COVER=0`` switches the whole step off.
-- Superseded automatic cover files stay on disk (deleting needs the owner).
+- Superseded automatic UUID cover folders that are no longer referenced by
+  ``ExportCoverBindingStore``, ``ProductStore``, or ``PostingJobStore`` are
+  cleaned up safely after replacement.
 """
 from __future__ import annotations
 
 import logging
 import os
 import re
+import shutil
 import uuid
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Iterable, List, Optional, Set
 
 from scripts import config
 from scripts.channel_ownership import OWNER_KEY
@@ -34,6 +37,7 @@ ENV_SWITCH = "OMNICUT_AUTO_COVER"
 FALLBACK_SECONDS = 1.0
 _OFF_VALUES = {"0", "false", "off", "no"}
 _COVER_KEYS = ("cover_path", "cover_9x16_path", "cover_3x4_path")
+_HEX_UUID_RE = re.compile(r"^[0-9a-f]{32}$")
 
 
 def is_enabled() -> bool:
@@ -119,6 +123,140 @@ def _is_current(cover_rel: Optional[str], video: Path) -> bool:
         return False
 
 
+def _normalize_rel_cover_path(raw: Any, base_dir: Path) -> Optional[str]:
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    p = Path(raw.strip())
+    if p.is_absolute():
+        try:
+            p = p.resolve(strict=False).relative_to(base_dir.resolve(strict=False))
+        except ValueError:
+            return None
+    return p.as_posix()
+
+
+def _is_auto_uuid_dir(path: Path, covers_dir: Path, channel: Optional[str] = None) -> bool:
+    if not path.is_dir() or not _HEX_UUID_RE.match(path.name):
+        return False
+    try:
+        resolved_covers = covers_dir.resolve(strict=False)
+        resolved_dir = path.resolve(strict=False)
+        if resolved_dir.parent.parent != resolved_covers:
+            return False
+        if channel and resolved_dir.parent.name != channel:
+            return False
+        return True
+    except OSError:
+        return False
+
+
+def _referenced_cover_paths(base_dir: Path, bindings: Optional[ExportCoverBindingStore] = None) -> Set[str]:
+    """Collect every cover path still referenced by bindings, products, or posting jobs."""
+    store = bindings or ExportCoverBindingStore(base_dir)
+    referenced: Set[str] = set()
+    for row in store._rows("export_cover_bindings"):
+        for sel in (row.get("selections") or {}).values():
+            if isinstance(sel, dict):
+                norm = _normalize_rel_cover_path(sel.get("path"), base_dir)
+                if norm:
+                    referenced.add(norm)
+    for prod in store._rows("products"):
+        for angle in prod.get("angles") or []:
+            if not isinstance(angle, dict):
+                continue
+            for key in _COVER_KEYS:
+                norm = _normalize_rel_cover_path(angle.get(key), base_dir)
+                if norm:
+                    referenced.add(norm)
+    for job in store._rows("posting_jobs"):
+        norm = _normalize_rel_cover_path(job.get("cover_path"), base_dir)
+        if norm:
+            referenced.add(norm)
+    return referenced
+
+
+def _cleanup_superseded_auto_dirs(
+    base_dir: Path,
+    covers_dir: Path,
+    channel: str,
+    superseded_paths: Iterable[Optional[str]],
+    *,
+    exclude_dir: Optional[Path] = None,
+    bindings: Optional[ExportCoverBindingStore] = None,
+) -> List[str]:
+    """Remove superseded auto UUID cover directories once no store references them."""
+    candidates: List[Path] = []
+    seen_dirs: Set[Path] = set()
+    for raw in superseded_paths:
+        rel = _normalize_rel_cover_path(raw, base_dir)
+        if not rel:
+            continue
+        candidate_dir = (base_dir / rel).parent
+        if exclude_dir is not None and candidate_dir.resolve(strict=False) == exclude_dir.resolve(strict=False):
+            continue
+        if candidate_dir not in seen_dirs and _is_auto_uuid_dir(candidate_dir, covers_dir, channel=channel):
+            seen_dirs.add(candidate_dir)
+            candidates.append(candidate_dir)
+
+    if not candidates:
+        return []
+
+    referenced = _referenced_cover_paths(base_dir, bindings=bindings)
+    removed: List[str] = []
+    for cand in candidates:
+        files = [
+            f.relative_to(base_dir).as_posix()
+            for f in cand.rglob("*")
+            if f.is_file() and f.parent.name != ".cache"
+        ]
+        if any(f in referenced for f in files):
+            continue
+        shutil.rmtree(cand, ignore_errors=True)
+        if not cand.exists():
+            removed.append(cand.relative_to(base_dir).as_posix())
+    return removed
+
+
+def cleanup_orphaned_auto_covers(
+    base_dir: Optional[Path] = None,
+    *,
+    channel_id: Optional[str] = None,
+    dry_run: bool = True,
+) -> Dict[str, Any]:
+    """Scan 05_Covers_Thumbnails/<channel>/<32-hex-uuid>/ for unreferenced auto cover folders."""
+    root = Path(base_dir) if base_dir is not None else config.BASE_DIR
+    covers_dir = (root / "05_Covers_Thumbnails") if base_dir is not None else config.COVERS_DIR
+    if not covers_dir.is_dir():
+        return {"dry_run": dry_run, "scanned": 0, "orphans": [], "removed": []}
+
+    referenced = _referenced_cover_paths(root)
+    channels = [covers_dir / channel_id] if channel_id else [p for p in covers_dir.iterdir() if p.is_dir()]
+    scanned = 0
+    orphans: List[str] = []
+    removed: List[str] = []
+    for ch_dir in channels:
+        if not ch_dir.is_dir():
+            continue
+        for sub in sorted(ch_dir.iterdir()):
+            if not _is_auto_uuid_dir(sub, covers_dir, channel=ch_dir.name):
+                continue
+            scanned += 1
+            files = [
+                f.relative_to(root).as_posix()
+                for f in sub.rglob("*")
+                if f.is_file() and f.parent.name != ".cache"
+            ]
+            if any(f in referenced for f in files):
+                continue
+            rel_dir = sub.relative_to(root).as_posix()
+            orphans.append(rel_dir)
+            if not dry_run:
+                shutil.rmtree(sub, ignore_errors=True)
+                if not sub.exists():
+                    removed.append(rel_dir)
+    return {"dry_run": dry_run, "scanned": scanned, "orphans": orphans, "removed": removed}
+
+
 def _ensure(export_id, channel_id, product_id, angle_id, batch) -> Dict[str, Any]:
     row = ExportRegistry.get(export_id, channel_id=channel_id)
     if not row or not row.get("path"):
@@ -153,6 +291,17 @@ def _ensure(export_id, channel_id, product_id, angle_id, batch) -> Dict[str, Any
             and _is_current(current_3, video)
         ):
             return {"status": "kept", "reason": "auto_cover_current", "cover_path": current_9}
+
+    superseded_paths: List[Optional[str]] = []
+    if bound_by == "auto":
+        superseded_paths.extend([current_9, current_3])
+        for row_b in bindings._rows("export_cover_bindings"):
+            if row_b.get("channel_id") == channel and row_b.get("export_id") == export_id:
+                for sel in (row_b.get("selections") or {}).values():
+                    if isinstance(sel, dict):
+                        superseded_paths.append(sel.get("path"))
+    if angle and angle.get("cover_source") == "auto":
+        superseded_paths.extend(angle.get(k) for k in _COVER_KEYS)
 
     # Imported here: api_covers pulls in FastAPI routes and Pillow, which a
     # render worker should not pay for unless it actually builds a cover.
@@ -199,4 +348,29 @@ def _ensure(export_id, channel_id, product_id, angle_id, batch) -> Dict[str, Any
             outcome["angle_updated"] = True
         except Exception as exc:
             logger.warning("[AutoCover] บันทึกปกลง angle %s ไม่สำเร็จ: %s", angle_id, exc)
+
+    if (outcome["bound"] or outcome["angle_updated"]) and superseded_paths:
+        removed_dirs = _cleanup_superseded_auto_dirs(
+            config.BASE_DIR,
+            config.COVERS_DIR,
+            channel,
+            superseded_paths,
+            exclude_dir=cover_root,
+            bindings=bindings,
+        )
+        if removed_dirs:
+            outcome["cleaned_dirs"] = removed_dirs
     return outcome
+
+
+if __name__ == "__main__":
+    import argparse
+    import json
+
+    parser = argparse.ArgumentParser(description="Clean up unreferenced auto-generated cover UUID folders.")
+    parser.add_argument("--channel", default=None, help="Restrict scan to one channel id")
+    parser.add_argument("--apply", action="store_true", help="Delete orphaned folders (default is --dry-run)")
+    parser.add_argument("--dry-run", action="store_true", help="Report orphaned folders without deleting (default)")
+    args = parser.parse_args()
+    summary = cleanup_orphaned_auto_covers(channel_id=args.channel, dry_run=not args.apply)
+    print(json.dumps(summary, ensure_ascii=False, indent=2))

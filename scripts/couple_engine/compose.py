@@ -13,7 +13,7 @@ import wave
 from scripts.config import BASE_DIR
 from scripts.couple_engine.config import load_couple_product_config
 
-WIN_TOP, WIN_H = 470, 1170
+WIN_TOP, WIN_H = 610, 1030
 NAME_H, BUBBLE_H, GAP, TURN_GAP = 44, 104, 12, 30
 PHOTO_H, STICKER_H = 540, 460
 SCROLL_PAD = 40
@@ -254,10 +254,10 @@ CANONICAL_COUPLE_TEMPLATE = r"""<!DOCTYPE html>
       }
       #cta-stage {
         position: absolute;
-        top: 370px;
+        top: 430px;
         left: 0;
         width: 1080px;
-        height: 880px;
+        height: 820px;
         display: flex;
         flex-direction: column;
         align-items: center;

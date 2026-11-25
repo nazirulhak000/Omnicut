@@ -107,6 +107,32 @@ def coalesce_short_windows(groups, boundaries, onsets, matches, raw_duration,
         window = source_window(match, raw_duration)
         duration = boundaries[stop] - boundaries[index]
         window_len = (window[1] - window[0]) / FPS if window else 0.0
+        already_exhausted = bool(
+            window and match
+            and (window[1] - window[0] <= 1)
+            and float(match.get("consumed_source_until", -1.0)) >= (window[1] / FPS - 1 / FPS - 1e-6)
+        )
+        if (
+            window and max_hold is not None and overrides is not None
+            and already_exhausted and duration > 1 / FPS + 1e-6
+        ):
+            cues = [cue for group in groups[index:stop] for cue in group]
+            adjacent, covered = adjacent_window_match(match, window, raw_duration, duration)
+            if adjacent is not None and covered >= duration - max_hold - 1e-6:
+                continuation = list(cues)
+                overrides[id(continuation)] = (continuation, adjacent)
+                output.append(continuation)
+                times.append(boundaries[stop])
+                starts.append(onsets[stop])
+                index = stop
+                continue
+            if exhausted is not None:
+                exhausted.add(id(cues))
+            output.append(cues)
+            times.append(boundaries[stop])
+            starts.append(onsets[stop])
+            index = stop
+            continue
         if (
             window and max_hold is not None and overrides is not None
             and duration > window_len + max_hold + 1e-6
@@ -144,8 +170,6 @@ def coalesce_short_windows(groups, boundaries, onsets, matches, raw_duration,
                 starts.append(onsets[stop] if cursor == boundaries[stop] else None)
         elif window and duration > window_len + 1e-6:
             cues = [cue for group in groups[index:stop] for cue in group]
-            if exhausted is not None and duration - window_len > 0.05:
-                exhausted.add(id(cues))
             cursor = boundaries[index]
             while cursor < boundaries[stop] - 1e-6:
                 remaining = boundaries[stop] - cursor

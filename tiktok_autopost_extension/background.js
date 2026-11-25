@@ -2015,19 +2015,45 @@ function sanitizeCartName(name) {
   for (const [k, v] of Object.entries(romanMap)) {
     s = s.replaceAll(k, v);
   }
-  s = s.replace(/[^\w\s\-\.\(\)\/ก-๙]/g, '').replace(/\s+/g, ' ').trim();
+  // C16: Match Python cart_name_cleaner.py Unicode \w (\p{L}\p{N}_) + Thai + safe punctuation
+  s = s.replace(/[^\p{L}\p{N}_\s\-\.\(\)\/ก-๙]/gu, '').replace(/\s+/g, ' ').trim();
   if (s.length <= 30) return s;
+  if (typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function') {
+    const segs = Array.from(new Intl.Segmenter('th', { granularity: 'word' }).segment(s), (x) => x.segment);
+    let acc = '';
+    for (const seg of segs) {
+      if ((acc + seg).length <= 30) acc += seg;
+      else break;
+    }
+    const cut = acc.trim();
+    if (cut.length >= 8) return cut;
+    const graphs = Array.from(new Intl.Segmenter('th', { granularity: 'grapheme' }).segment(s), (x) => x.segment);
+    let gAcc = '';
+    for (const g of graphs) {
+      if ((gAcc + g).length <= 30) gAcc += g;
+      else break;
+    }
+    return gAcc.trim();
+  }
   const truncated = s.slice(0, 30);
   const lastSpace = truncated.lastIndexOf(' ');
   if (lastSpace >= 15) return truncated.slice(0, lastSpace).trim();
   return truncated.trim();
 }
 
+function getCleanCartName(productId = null, rawName = '', curatedNames = {}) {
+  // C16: Match curated cart names strictly by exact product_id key ONLY (never substring matching on rawName).
+  if (productId && curatedNames && Object.prototype.hasOwnProperty.call(curatedNames, productId)) {
+    return curatedNames[productId];
+  }
+  return rawName ? sanitizeCartName(rawName) : '';
+}
+
 // Automatically clicks "+ เพิ่ม" under "เพิ่มลิงก์", searches product by ID, and adds it.
 
-async function attachProductLink(send, productId, cartName = '') {
+async function attachProductLink(send, productId, cartName = '', catalogProductId = '') {
 
-  cartName = sanitizeCartName(cartName);
+  cartName = getCleanCartName(catalogProductId || productId, cartName);
 
   if (!productId) return { success: false, reason: 'ไม่มี Product ID' };
 
@@ -2941,8 +2967,21 @@ function productEvidenceExpression(productName = '') {
     const inDialog = (el) => dialogs.some((d) => d.contains(el));
     const texts = Array.from(document.querySelectorAll('h1, h2, h3, h4, [role="tab"]')).filter(isVisible).map(el => (el.innerText || el.textContent || '').trim());
     const modalOpen = texts.some(t => t.includes('เพิ่มลิงก์สินค้า') || t.includes('Add product links') || t.includes('นำเสนอสินค้า') || t === 'Showcase' || t.includes('Showcase products'));
-    const chip = Array.from(document.querySelectorAll('[class*="product-anchor"], [class*="productAnchor"], [class*="anchor-card"], [class*="product-card"], [class*="productCard"], [class*="linked-product"], [class*="anchor-tag-label"], [class*="content-anchor-label"]'))
+    const hasRealProductLabel = (el) => {
+      const raw = String(el.innerText || el.textContent || '').replace(/\\s+/g, ' ').trim();
+      if (!raw) return false;
+      const cleaned = raw
+        .replace(/(?:^|[\\s|·])(?:\\+\\s*)?add(?:\\s+product\\s+links?|\\s+links?)?(?=$|[\\s|·:()])/gi, ' ')
+        .replace(/(?:เพิ่มลิงก์สินค้า|เพิ่มลิงก์|ไม่มี|\\+?\\s*เพิ่ม(?=$|[\\s|·:()]))/g, ' ')
+        .replace(/[\\s:|\\-·•+()0]+/g, ' ')
+        .trim();
+      return cleaned.length >= 2 && /[a-z0-9ก-๙]/i.test(cleaned);
+    };
+    const strictChip = Array.from(document.querySelectorAll('[class*="product-anchor"], [class*="productAnchor"], [class*="anchor-card"], [class*="product-card"], [class*="productCard"], [class*="linked-product"]'))
       .some(el => isVisible(el) && !inDialog(el));
+    const labelChip = Array.from(document.querySelectorAll('[class*="anchor-tag-label"], [class*="content-anchor-label"]'))
+      .some(el => isVisible(el) && !inDialog(el) && hasRealProductLabel(el));
+    const chip = strictChip || labelChip;
     let nameSeen = false;
     if (key.length >= 6) {
       const walker = document.createTreeWalker(document.body || document.documentElement, NodeFilter.SHOW_TEXT);
@@ -3460,12 +3499,13 @@ async function setScheduleDateTimeLegacy(send, { date = '', time = '' } = {}) {
 // nothing. Without an intent nothing is clicked. The dialog text must be recognised (it used to be optional).
 async function dismissContinueToPostDialogIfPresent(send, timeoutMs = 200, intent = null) {
   const labelsByIntent = {
-    post_now: ['Post now', 'โพสต์เลย', 'โพสต์ตอนนี้'],
-    // TikTok Studio shows "Post now" inside "Continue to post?" even when Schedule is selected.
-    schedule: ['Schedule now', 'กำหนดเวลาเลย', 'Post now', 'โพสต์เลย', 'โพสต์ตอนนี้'],
+    post_now: { primary: ['Post now', 'โพสต์เลย', 'โพสต์ตอนนี้'], fallback: [] },
+    // TikTok Studio can show "Post now" inside "Continue to post?" when Schedule is selected;
+    // only accept that fallback when the Schedule radio is confirmed selected on the page.
+    schedule: { primary: ['Schedule now', 'กำหนดเวลาเลย'], fallback: ['Post now', 'โพสต์เลย', 'โพสต์ตอนนี้'] },
   };
-  const acceptLabels = labelsByIntent[intent];
-  if (!acceptLabels) return false;
+  const intentLabels = labelsByIntent[intent];
+  if (!intentLabels) return false;
   const deadline = Date.now() + timeoutMs;
 
   while (Date.now() < deadline) {
@@ -3477,6 +3517,12 @@ async function dismissContinueToPostDialogIfPresent(send, timeoutMs = 200, inten
       ({ result } = await send('Runtime.evaluate', {
 
         expression: `(() => {
+
+          const scheduleRadioSelected = Array.from(document.querySelectorAll('input[type="radio"][value="schedule"]'))
+            .some(r => Boolean(r && (r.checked || r.getAttribute?.('aria-checked') === 'true')));
+          const primaryLabels = ${JSON.stringify(intentLabels.primary)};
+          const fallbackLabels = ${JSON.stringify(intentLabels.fallback)};
+          const acceptLabels = ${intent === 'schedule' ? 'scheduleRadioSelected ? [...primaryLabels, ...fallbackLabels] : primaryLabels' : 'primaryLabels'};
 
           const dialogs = Array.from(document.querySelectorAll('[role="dialog"], [aria-modal="true"], .TUXModal, [class*="modal"], [class*="Modal"]'));
 
@@ -3506,7 +3552,7 @@ async function dismissContinueToPostDialogIfPresent(send, timeoutMs = 200, inten
 
               const t = (b.innerText || b.textContent || '').trim();
 
-              return ${JSON.stringify(acceptLabels)}.includes(t);
+              return acceptLabels.includes(t);
 
             });
 
@@ -4725,7 +4771,7 @@ async function runAttachProductOnly({ productId, cartName = '' }) {
 
     await guardPostingAction(job, send, tab.id);
 
-    const attachResult = await attachProductLink(send, productId, cartName);
+    const attachResult = await attachProductLink(send, productId, cartName, job.product_id || '');
 
     if (attachResult.success && attachResult.productName) {
       // remembered for the last check before the click (assertPublishReady looks for this exact name in the form)

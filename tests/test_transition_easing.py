@@ -20,6 +20,7 @@ import numpy as np
 import pytest
 
 from scripts.video_editor import (
+    CAPCUT_HIGH_SPEED_TRANSITIONS,
     EASED_TRANSITIONS,
     XFADE_TRANSITIONS,
     ease_camera_ratio,
@@ -48,8 +49,11 @@ def test_eased_types_match_on_both_sides():
     js = re.search(r"EASED_TRANSITIONS = \[(.*?)\];", TM_SRC, re.S).group(1)
     assert tuple(re.findall(r"'(\w+)'", js)) == EASED_TRANSITIONS
     assert set(EASED_TRANSITIONS) <= set(XFADE_TRANSITIONS)
-    for kind in ("dissolve", "circleopen", "circleclose"):
+    for kind in ("dissolve", "circleopen", "circleclose", "fadeblack", "fadewhite"):
         assert kind not in EASED_TRANSITIONS
+    flash_white = next(p for p in CAPCUT_HIGH_SPEED_TRANSITIONS if p["id"] == "flash_white")
+    assert flash_white["easing"] == "linear"
+    assert transition_easing_name(flash_white["xfade"], flash_white["easing"]) == "linear"
 
 
 def test_linear_keeps_the_exact_builtin_filter_text():
@@ -165,7 +169,7 @@ MEASURED = {}
 
 @needs_ffmpeg
 @pytest.mark.parametrize("easing", ["linear", "ease_in", "ease_out", "ease_in_out"])
-@pytest.mark.parametrize("kind", [k for k in ("fade", "fadeblack", "fadewhite") if k in EASED_TRANSITIONS])
+@pytest.mark.parametrize("kind", ["fade"])
 def test_eased_fades_match_preview_weights(tmp_path, kind, easing):
     ya, yb = 64, 192
     out = _render(tmp_path, _src("0x404040"), _src("0xC0C0C0"),
@@ -176,18 +180,10 @@ def test_eased_fades_match_preview_weights(tmp_path, kind, easing):
     for k in SAMPLES:
         q = _ease(easing, k / FRAMES)
         y = float(out[OFFSET_FRAMES + k, 0].mean())
-        if kind == "fade":
-            pred = a_y * (1 - q) + b_y * q
-        else:
-            w_a, w_b, bridge = _preview_bridge(q)
-            k_y = 0.0 if kind == "fadeblack" else 255.0   # xfade's own bridge level
-            pred = w_a * a_y + w_b * b_y + bridge * k_y
-        errs.append(abs(y - pred) / abs(b_y - a_y) if kind == "fade" else abs(y - pred) / 255)
+        pred = a_y * (1 - q) + b_y * q
+        errs.append(abs(y - pred) / abs(b_y - a_y))
     MEASURED[(kind, easing)] = max(errs)
-    # fade: preview == render to rounding. fadeblack/fadewhite: bounded by the
-    # preview's documented bridge approximation (preview_render_parity.md §7).
-    limit = 0.01
-    assert max(errs) <= limit, f"{kind}/{easing}: {errs}"
+    assert max(errs) <= 0.01, f"{kind}/{easing}: {errs}"
 
 
 @needs_ffmpeg

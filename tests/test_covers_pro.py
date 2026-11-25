@@ -194,3 +194,96 @@ def test_render_pro_cover_zoom_and_pan(tmp_path):
         primary.unlink()
     except Exception:
         pass
+
+
+def test_3x4_crop_guard_respects_pan_y_on_textured_image(isolated_storage):
+    """B4: textured background must not force crop_y=0 when no text overlay is rendered."""
+    import numpy as np
+
+    # Build a 1080x1920 textured image whose every row has high std (> 20)
+    # Top band (0..239): distinct red/cyan checkerboard
+    # Middle band (240..1679): distinct green/blue checkerboard
+    # Bottom band (1680..1919): distinct yellow/magenta checkerboard
+    arr = np.zeros((COVER_H, COVER_W, 3), dtype=np.uint8)
+    xs = (np.arange(COVER_W) // 8) % 2
+    # Top 0..239
+    arr[:240, xs == 0] = [220, 20, 20]
+    arr[:240, xs == 1] = [20, 220, 220]
+    # Middle 240..1679
+    arr[240:1680, xs == 0] = [20, 200, 40]
+    arr[240:1680, xs == 1] = [20, 40, 200]
+    # Bottom 1680..1919
+    arr[1680:, xs == 0] = [230, 220, 20]
+    arr[1680:, xs == 1] = [220, 20, 220]
+
+    src_path = isolated_storage / "01_Raw" / "textured.png"
+    src_path.parent.mkdir(parents=True, exist_ok=True)
+    Image.fromarray(arr, mode="RGB").save(src_path)
+    out_dir = isolated_storage / "05_Covers_Thumbnails"
+
+    out_0, _ = render_pro_cover(
+        custom_image_str=str(src_path),
+        aspect_ratio="3:4",
+        pan_y_pct=0.0,
+        enable_hook_text=False,
+        enable_badge=False,
+        export_stem="pan0",
+        output_dir=out_dir,
+    )
+    out_50, _ = render_pro_cover(
+        custom_image_str=str(src_path),
+        aspect_ratio="3:4",
+        pan_y_pct=50.0,
+        enable_hook_text=False,
+        enable_badge=False,
+        export_stem="pan50",
+        output_dir=out_dir,
+    )
+    out_100, _ = render_pro_cover(
+        custom_image_str=str(src_path),
+        aspect_ratio="3:4",
+        pan_y_pct=100.0,
+        enable_hook_text=False,
+        enable_badge=False,
+        export_stem="pan100",
+        output_dir=out_dir,
+    )
+
+    with Image.open(out_0) as im0, Image.open(out_50) as im50, Image.open(out_100) as im100:
+        a0 = np.array(im0)
+        a50 = np.array(im50)
+        a100 = np.array(im100)
+        assert im50.size == (PROFILE_W, PROFILE_H)
+        # pan_y_pct=0 starts in the red/cyan top band (R > 180 on col 0)
+        assert a0[10, 2, 0] > 170 and a0[10, 2, 1] < 60
+        # pan_y_pct=50 starts at crop_y=240 (green/blue middle band, G > 160 on col 0, NOT red top!)
+        assert a50[10, 2, 1] > 160 and a50[10, 2, 0] < 60
+        # pan_y_pct=100 ends in the yellow/magenta bottom band (R > 170 on last row)
+        assert a100[-10, 2, 0] > 170 and a100[-10, 2, 1] > 160
+
+
+def test_3x4_crop_guard_protects_top_hook_overlay(isolated_storage):
+    """B4: when top hook text IS rendered, pan_y_pct=100 still shifts crop_y up to protect it."""
+    import numpy as np
+
+    out_dir = isolated_storage / "05_Covers_Thumbnails"
+    primary, path_3x4 = render_pro_cover(
+        video_path_str=None,
+        custom_image_str=None,
+        aspect_ratio="both",
+        pan_y_pct=100.0,
+        enable_hook_text=True,
+        enable_badge=False,
+        hook_text="บรรทัดที่หนึ่ง\nบรรทัดที่สอง\nบรรทัดที่สาม",
+        hook_position="top",
+        template="neon",
+        export_stem="hook_guard",
+        output_dir=out_dir,
+    )
+    assert primary.exists() and path_3x4 is not None and path_3x4.exists()
+    with Image.open(path_3x4) as img:
+        assert img.size == (PROFILE_W, PROFILE_H)
+        # Top 40px of 3:4 crop must remain clean background breathing margin (dark ~18,18,22), not clipped yellow text
+        top_strip = img.crop((0, 0, PROFILE_W, 40)).convert("RGB")
+        max_channel = int(np.array(top_strip).max())
+        assert max_channel < 80, f"Top breathing margin clipped hook text (max RGB={max_channel})"

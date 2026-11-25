@@ -318,7 +318,7 @@ def type_caption(caption, hashtags, tab_id=DEFAULT_TAB_ID):
             run_cdp('Input.insertText', {'text': clean_hashtags.strip()}, tab_id=tab_id)
             sleep_s(0.4)
 
-def attach_product_link(product_id, cart_name='', tab_id=DEFAULT_TAB_ID):
+def attach_product_link(product_id, cart_name='', tab_id=DEFAULT_TAB_ID, catalog_product_id=''):
     """
     Attaches product link using the verified extension flow (background.js).
     Strictly verifies stock availability and cart attachment before returning True.
@@ -604,7 +604,7 @@ def attach_product_link(product_id, cart_name='', tab_id=DEFAULT_TAB_ID):
 
     # Step 7: Confirm cart name on Title Dialog
     cart_ok = False
-    clean_cart_name = clean_cart_name(raw_name=cart_name)
+    desired_name = clean_cart_name(product_id=catalog_product_id or product_id, raw_name=cart_name)
     for _ in range(8):
         s7 = eval_js(f'''(() => {{
             const isVisible = (el) => {{
@@ -626,7 +626,7 @@ def attach_product_link(product_id, cart_name='', tab_id=DEFAULT_TAB_ID):
                 try {{
                     nameInput.focus();
                     nameInput.select();
-                    const desired = "{clean_cart_name}";
+                    const desired = {json.dumps(desired_name)};
                     if (desired) {{
                         const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
                         if (setter) setter.call(nameInput, desired); else nameInput.value = desired;
@@ -659,7 +659,7 @@ def attach_product_link(product_id, cart_name='', tab_id=DEFAULT_TAB_ID):
                 run_cdp('Input.dispatchMouseEvent', {'type': 'mousePressed', 'button': 'left', 'clickCount': 1, 'x': pt['x'], 'y': pt['y']}, tab_id=tab_id)
                 run_cdp('Input.dispatchMouseEvent', {'type': 'mouseReleased', 'button': 'left', 'clickCount': 1, 'x': pt['x'], 'y': pt['y']}, tab_id=tab_id)
             cart_ok = True
-            print(f"   Confirmed cart name '{clean_cart_name}' and added product!")
+            print(f"   Confirmed cart name '{desired_name}' and added product!")
             break
         sleep_s(1)
 
@@ -1105,7 +1105,7 @@ def process_single_clip(clip_item, mode='schedule', tab_id=None):
 
     # 5. Attach Product Link (Strict Cart Guard)
     if p_id:
-        ok_prod = attach_product_link(p_id, cart_name=p_name, tab_id=tab_id)
+        ok_prod = attach_product_link(p_id, cart_name=p_name, tab_id=tab_id, catalog_product_id=clip_item.get('product_id', ''))
         if not ok_prod:
             print(f"❌ CRITICAL GUARD: Product link attachment failed (ID: {p_id})! Aborting clip {cid[:8]} to prevent posting without cart!")
             clean_reset_upload_page(tab_id=tab_id)

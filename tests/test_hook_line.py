@@ -158,7 +158,7 @@ def test_position_is_top_centred_and_clear_of_the_edges_and_tiktok_ui():
     nameplate = hook_overlay_from_legacy("Logi", "Wave", "Key")
     line = build_hook_line_overlay("ปวดข้อมือใช่ไหม", nameplate)
     assert line["x"] == 0.5
-    assert 180 / 1920 <= line["y"] <= 300 / 1920, "inside the top band, below the status bar"
+    assert 260 / 1920 <= line["y"] <= 380 / 1920, "inside the top band, below the status bar (HOOK_TOP_Y=260)"
     assert (1080 - HOOK_LINE_MAX_WIDTH_PX) / 2 >= 60, "left/right margin"
 
 

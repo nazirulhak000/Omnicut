@@ -5,6 +5,7 @@ every line of a marketing script to the exact visual action segment in the video
 """
 
 import os
+import re
 import sys
 import json
 import math
@@ -150,7 +151,7 @@ def parse_timestamp_seconds(val: Any) -> Optional[float]:
         if math.isnan(val) or math.isinf(val):
             return None
         return float(val)
-    s = str(val).strip().lower().rstrip("s").rstrip("sec").strip()
+    s = re.sub(r"(?:sec|s)$", "", str(val).strip().lower()).strip()
     if not s:
         return None
     if ":" in s:
@@ -171,13 +172,19 @@ def parse_timestamp_seconds(val: Any) -> Optional[float]:
         return None
 
 
-def normalize_scene_timestamps(scenes: List[Dict], raw_duration: float = 60.0) -> List[Dict]:
+def normalize_scene_timestamps(
+    scenes: List[Dict],
+    raw_duration: Optional[float] = 60.0,
+    allow_mmss_heuristic: bool = True,
+) -> List[Dict]:
     """Sanitize and normalize scene timestamps from Gemini Vision.
     Detects and fixes:
       1. String timestamps e.g. "01:24" -> 84.0s
-      2. MM.SS float timecodes (e.g. Gemini returned 1.24 meaning 1 min 24 sec,
-         or 0.05 meaning 5 sec, collapsing an 84s video to 1.24s).
-      3. Boundary clamping and forward progress (end > start).
+      2. MM.SS float timecodes (when ``allow_mmss_heuristic=True``, e.g. catalog scans
+         where Gemini returned 1.24 meaning 1 min 24 sec). Rejects any fractional
+         part >= 0.60 so normal decimal seconds (e.g. 1.75s) are never misread.
+      3. Boundary clamping (``end <= raw_duration`` when duration is known) and
+         forward progress (``end > start``).
     """
     if not scenes or not isinstance(scenes, list):
         return []
@@ -198,24 +205,33 @@ def normalize_scene_timestamps(scenes: List[Dict], raw_duration: float = 60.0) -
     if not parsed_scenes:
         return []
 
-    raw_dur = max(1.0, float(raw_duration))
+    has_duration = raw_duration is not None and float(raw_duration) > 0.0
+    raw_dur = max(1.0, float(raw_duration)) if has_duration else None
+
     def _scene_end(s):
         return s.get("end", s.get("end_time", 0.0))
-    def _scene_start(s):
-        return s.get("start", s.get("start_time", 0.0))
+
+    def _is_valid_mmss_frac(v: float) -> bool:
+        return v >= 0.0 and round(v - math.floor(v), 4) < 0.60
 
     max_end = max(_scene_end(s) for s in parsed_scenes)
 
-    # Detect MM.SS compression bug:
-    # If raw_duration >= 15s and max_end < raw_duration * 0.45:
+    # Detect MM.SS compression bug (only for full-clip catalog scans with known duration):
     is_mmss_pattern = False
-    if raw_dur >= 15.0 and max_end < raw_dur * 0.45:
+    if allow_mmss_heuristic and raw_dur is not None and raw_dur >= 15.0 and max_end < raw_dur * 0.45:
         expected_mmss = (raw_dur // 60) + (raw_dur % 60) / 100.0
-        if max_end <= expected_mmss * 1.15 or max_end < (raw_dur / 20.0):
-            frac_ok = all(round((_scene_start(s) - int(_scene_start(s))), 4) < 0.60 and
-                          round((_scene_end(s) - int(_scene_end(s))), 4) < 0.60
-                          for s in parsed_scenes)
-            if frac_ok or max_end < (raw_dur / 25.0):
+        if max_end <= expected_mmss * 1.15:
+            frac_ok = True
+            for s in parsed_scenes:
+                for key in ("start", "end", "start_time", "end_time", "scene_start", "scene_end"):
+                    if key in s:
+                        v = parse_timestamp_seconds(s[key])
+                        if v is not None and not _is_valid_mmss_frac(v):
+                            frac_ok = False
+                            break
+                if not frac_ok:
+                    break
+            if frac_ok:
                 is_mmss_pattern = True
 
     if is_mmss_pattern:
@@ -228,13 +244,19 @@ def normalize_scene_timestamps(scenes: List[Dict], raw_duration: float = 60.0) -
                         seconds = round((val - minutes) * 100.0, 3)
                         sc[key] = round(minutes * 60.0 + seconds, 2)
 
-    # Final pass: clamp and ensure valid boundaries
+    # Final pass: clamp (when duration is known) and ensure valid boundaries
     normalized = []
     for sc in parsed_scenes:
         for skey, ekey in (("start", "end"), ("start_time", "end_time"), ("scene_start", "scene_end")):
             if skey in sc or ekey in sc:
-                st = max(0.0, min(float(sc.get(skey, 0.0)), raw_dur))
-                et = max(st + 0.1, min(float(sc.get(ekey, st + 2.5)), raw_dur))
+                raw_st = max(0.0, float(sc.get(skey, 0.0)))
+                raw_et = float(sc.get(ekey, raw_st + 2.5))
+                if raw_dur is not None:
+                    st = max(0.0, min(raw_st, max(0.0, raw_dur - 0.1)))
+                    et = min(raw_dur, max(st + 0.1, raw_et))
+                else:
+                    st = raw_st
+                    et = max(st + 0.1, raw_et)
                 sc[skey] = round(st, 2)
                 sc[ekey] = round(et, 2)
         normalized.append(sc)
@@ -375,9 +397,13 @@ class GeminiVisionMatcher:
         if cached_matches:
             catalog = cache.get("catalogs", {}).get(file_hash) or {}
             catalog_dur = float(catalog.get("duration") or 0.0)
-            if catalog.get("scenes"):
-                raw_dur = catalog_dur if catalog_dur > 0 else 60.0
-                catalog = {**catalog, "scenes": normalize_scene_timestamps(catalog["scenes"], raw_duration=raw_dur)}
+            if catalog.get("scenes") and catalog_dur > 0:
+                catalog = {
+                    **catalog,
+                    "scenes": normalize_scene_timestamps(
+                        catalog["scenes"], raw_duration=catalog_dur, allow_mmss_heuristic=True
+                    ),
+                }
             if catalog.get("scenes") and all(
                 isinstance(match, dict) and "scene_id" in match for match in cached_matches
             ):
@@ -388,11 +414,10 @@ class GeminiVisionMatcher:
                 # without catalog scene IDs keep their cache behavior.
                 catalog_end = max(float(scene.get("end", 0)) for scene in catalog["scenes"])
                 cached_matches = cls.match_script_with_catalog(catalog, cues, raw_duration=catalog_end)
-            else:
-                max_end = max((float(m.get("end_time", m.get("scene_end", 0.0)) or 0.0) for m in cached_matches if isinstance(m, dict)), default=0.0)
-                raw_dur = catalog_dur if catalog_dur > 0 else max_end
-                if raw_dur > 0:
-                    cached_matches = normalize_scene_timestamps(cached_matches, raw_duration=raw_dur)
+            elif catalog_dur > 0:
+                cached_matches = normalize_scene_timestamps(
+                    cached_matches, raw_duration=catalog_dur, allow_mmss_heuristic=False
+                )
             cached_matches = cls._bind_catalog_windows(cached_matches, catalog)
         return cached_matches
 
@@ -591,11 +616,13 @@ class GeminiVisionMatcher:
                 cache = cls._load_cache()
             catalog = cache.get("catalogs", {}).get(file_hash)
             if catalog and isinstance(catalog, dict) and catalog.get("scenes"):
-                raw_dur = float(catalog.get("duration") or 60.0)
-                norm_scenes = normalize_scene_timestamps(catalog["scenes"], raw_duration=raw_dur)
-                if norm_scenes != catalog["scenes"]:
-                    catalog["scenes"] = norm_scenes
-                    cls.save_cached_catalog(file_hash, catalog)
+                raw_dur = float(catalog.get("duration") or 0.0)
+                if raw_dur > 0:
+                    norm_scenes = normalize_scene_timestamps(
+                        catalog["scenes"], raw_duration=raw_dur, allow_mmss_heuristic=True
+                    )
+                    if norm_scenes != catalog["scenes"]:
+                        return {**catalog, "scenes": norm_scenes}
                 return catalog
         except Exception:
             pass
@@ -842,30 +869,8 @@ class GeminiVisionMatcher:
 
             relevant = [candidate for candidate in scored_scenes if candidate[2]]
             hero_fallback = False
-
-            # Check if relevant keyword scenes have viable footage remaining
-            # A candidate is viable if it has >= 0.35s unconsumed footage or can cleanly rewind to cover needed_dur
-            def _is_candidate_viable(cand):
-                sc = cand[1]
-                sid = sc.get("id")
-                ostart = float(sc.get("start", 0.0))
-                oend = float(sc.get("end", ostart + needed_dur))
-                slen = max(0.1, oend - ostart)
-                skey = (sid, ostart, oend)
-                c_until = consumed_scene_until.get(skey)
-                if c_until is None:
-                    return True
-                rem = oend - c_until
-                if rem >= 0.35:
-                    return True
-                if slen >= needed_dur:
-                    return True
-                return False
-
-            viable_relevant = [c for c in relevant if _is_candidate_viable(c)]
-
-            if viable_relevant:
-                scored_scenes = viable_relevant
+            if relevant:
+                scored_scenes = relevant
             elif float(group_cues[0].get("start", 0.0)) < CATALOG_HOOK_WINDOW_SEC:
                 # M6: nothing in the hook matched a keyword -- open on the
                 # moving / branded hero footage instead of the scene the
@@ -910,8 +915,6 @@ class GeminiVisionMatcher:
             scene_key = (s_id, orig_start, orig_end)
             consumed_until = consumed_scene_until.get(scene_key)
             requested_start = consumed_until if consumed_until is not None else orig_start + sweet_offset
-            if scene_len >= needed_dur:
-                requested_start = min(requested_start, orig_end - needed_dur)
             s_start = max(orig_start, min(requested_start, orig_end - 1 / 30))
             s_end = min(raw_duration, orig_end)
             consumed_scene_until[scene_key] = min(s_end, requested_start + needed_dur)
@@ -1444,7 +1447,7 @@ class GeminiVisionMatcher:
 
             data = json.loads(clean_json)
             matched = normalize_match_confidence(data.get("matched_shots", []))
-            matched = normalize_scene_timestamps(matched, raw_duration=raw_duration)
+            matched = normalize_scene_timestamps(matched, raw_duration=raw_duration, allow_mmss_heuristic=False)
             print(f"   ✓ Gemini Vision successfully matched {len(matched)} visual scenes to the script!")
             for idx, m_shot in enumerate(matched[:3]):
                 print(f"     • Shot {idx+1}: [{m_shot.get('start_time')}s-{m_shot.get('end_time')}s] ({m_shot.get('punch_zoom', 1.15)}x) -> {m_shot.get('visual_reason', '')[:50]}")

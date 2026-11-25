@@ -14,6 +14,7 @@ from pathlib import Path
 
 from scripts import compliance_lint as _compliance_lint
 from scripts.config import DEFAULT_AD_TONE
+from scripts.hashtag_utils import normalize_tiktok_hashtags
 from scripts.image_quality_gate import ImageHashRegistry
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -784,13 +785,43 @@ def has_price_text(text: Any, *, caption: bool = True) -> bool:
     return content_reason(value, "") == "price_in_caption"
 
 
-def _short_name(name: str, limit: int = 30) -> str:
-    """The product name for a neutral caption: cut at a word boundary, never mid-word ("BlueWow" -> "Blu")."""
-    text = (name or "").strip()
+def _short_name(name: str, limit: int = 30, fallback: str = "สินค้าตัวนี้") -> str:
+    """Truncate a product/angle name cleanly at a Thai/English word boundary, never mid-word or mid-combining-mark."""
+    text = re.sub(r"\s+", " ", (name or "")).strip()
+    if not text:
+        return fallback
     if len(text) <= limit:
-        return text or "สินค้าตัวนี้"
-    cut = text[:limit].rsplit(" ", 1)[0].strip()
-    return cut if len(cut) >= 8 else text[:limit].strip()
+        return text
+
+    try:
+        import pythainlp
+        tokens = pythainlp.word_tokenize(text, keep_whitespace=True)
+    except Exception:
+        tokens = re.split(r"(\s+)", text)
+
+    acc = ""
+    for tok in tokens:
+        if len(acc) + len(tok) <= limit:
+            acc += tok
+        else:
+            break
+    cut = acc.strip()
+    if len(cut) >= min(8, limit):
+        return cut
+
+    # Fallback when a single token exceeds `limit`: prefer space boundary,
+    # and never leave a trailing Thai combining mark or cut mid-grapheme.
+    space_cut = text[:limit].rsplit(" ", 1)[0].strip()
+    if len(space_cut) >= min(8, limit):
+        return space_cut
+    idx = limit
+    while idx > 1 and text[idx - 1] in "\u0E31\u0E34\u0E35\u0E36\u0E37\u0E38\u0E39\u0E3A\u0E47\u0E48\u0E49\u0E4A\u0E4B\u0E4C\u0E4D\u0E4E":
+        idx -= 1
+    if idx < len(text) and text[idx] in "\u0E31\u0E34\u0E35\u0E36\u0E37\u0E38\u0E39\u0E3A\u0E47\u0E48\u0E49\u0E4A\u0E4B\u0E4C\u0E4D\u0E4E":
+        idx -= 1
+    while idx > 1 and text[idx - 1] in "\u0E31\u0E34\u0E35\u0E36\u0E37\u0E38\u0E39\u0E3A\u0E47\u0E48\u0E49\u0E4A\u0E4B\u0E4C\u0E4D\u0E4E":
+        idx -= 1
+    return text[:max(1, idx)].strip()
 
 
 def _scrub_hashtags(hashtags: str) -> str:
@@ -1886,7 +1917,7 @@ class ProductScraper:
    - ฟิลด์ `tiktok_hashtags` ต้องมี **4-5 แฮชแท็กเท่านั้น ห้ามต่ำกว่า 3 และห้ามเกิน 5 อันเด็ดขาด** (เพื่อป้องกันระบบ TikTok ลดคะแนนการนำส่งจากการสแปมแท็ก)
    - โครงสร้าง 5 แฮชแท็กต้องจัดเรียงตามสูตรเร่งยอดขาย TikTok Shop Affiliate:
      1. `#ชื่อแบรนด์หรือรุ่นสินค้า` (เช่น `#LogitechWaveKeys` หรือ `#OrsenS6`)
-     2. `#หมวดหมู่หรือฟังก์ชันหลัก` (เช่น `#คีย์บอร์ดบลูทูธ` หรือ `#สายชาร์จเร็ว`)
+     2. `#หมวดหมู่หรือฟังก์ชันหลัก` (เช่น `#คีย์บอร์ดBluetooth` หรือ `#สายชาร์จเร็ว`)
      3. `#TikTokป้ายยา` (แท็กดันฟีดคนช้อปปิ้ง)
      4. `#ของดีบอกต่อ` (แท็กดันฟีดทั่วไป)
      5. `#พิกัดในตะกร้า` (แท็กกระตุ้นการสั่งซื้อ)
@@ -1914,7 +1945,7 @@ class ProductScraper:
   "ad_tone": "{DEFAULT_AD_TONE}",
   "script_lines": {example_script_lines_json},
   "tiktok_caption": "บอกลาอาการปวดข้อมือ! อัปเกรดชีวิตด้วย {{product_name}} คีย์บอร์ดเพื่อสุขภาพที่นุ่มสบายที่สุด พิกัดในตะกร้าเลย 👇",
-  "tiktok_hashtags": "#LogitechWaveKeys #คีย์บอร์ดบลูทูธ #TikTokป้ายยา #ของดีบอกต่อ #พิกัดในตะกร้า"
+  "tiktok_hashtags": "#LogitechWaveKeys #คีย์บอร์ดBluetooth #TikTokป้ายยา #ของดีบอกต่อ #พิกัดในตะกร้า"
 }}
 
 ตอบกลับเฉพาะ JSON array เท่านั้น ห้ามใส่คำเกริ่นนำหรือ markdown formatting อื่น
@@ -2010,7 +2041,6 @@ class ProductScraper:
                         if "hook_title" in a and isinstance(a["hook_title"], str):
                             a["hook_title"] = re.sub(r'\s+', ' ', re.sub(r'[\.]{2,}|…', ' ', a["hook_title"])).strip()
                     # The prompt forbids prices; this makes it a guarantee (a model that ignores the rule never reaches a caption)
-                    from scripts.hashtag_utils import normalize_tiktok_hashtags
                     for a in angles:
                         scrub_angle_price_text(a, title, script_lines=True)
                         if "tiktok_hashtags" in a:
@@ -2029,7 +2059,7 @@ class ProductScraper:
                 print(f"[ProductScraper] Gemini call failed ({e}), using fallback 10 matrix...")
 
         # Robust Fallback 10-Angle Matrix (30-38s, strictly male tone)
-        base_name = title[:30] or "สินค้าตัวนี้"
+        base_name = _short_name(title, limit=30)
         clean_tag = re.sub(r"[^\w\u0E00-\u0E7F]+", "", base_name)[:15] or "ของใช้ดี"
         from scripts.tts_sanitizer import TTSSanitizer
         fallback_angles = [

@@ -145,3 +145,45 @@ test('scheduled_on_platform exports are excluded from unscheduled and never show
   assert.ok(byExportId['e-ready'], 'unposted ready clip is listed');
   assert.ok(byExportId['e-plan'], 'planned queue clip is listed');
 });
+
+test('C7: sibling planned/failed rows stay hidden when another row for the same clip is posted or past scheduled_on_platform', () => {
+  const pastSlot = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+  const clips = buildExtensionClipList([], [
+    { id: 'q-posted', status: 'posted', export_id: 'e-a', video_path: '04_Exports/a.mp4' },
+    { id: 'q-sib-plan', status: 'planned', export_id: 'e-a', video_path: '04_Exports/a.mp4' },
+    { id: 'q-sib-fail', status: 'failed', export_id: 'e-a', video_path: '04_Exports/a.mp4' },
+    { id: 'q-sched-past', status: 'scheduled_on_platform', export_id: 'e-b', video_path: '04_Exports/b.mp4', scheduled_at: pastSlot },
+    { id: 'q-sib-b-plan', status: 'planned', export_id: 'e-b', video_path: '04_Exports/b.mp4' },
+    { id: 'q-sib-b-fail', status: 'failed', export_id: 'e-b', video_path: '04_Exports/b.mp4' },
+    { id: 'q-active', status: 'planned', export_id: 'e-c', video_path: '04_Exports/c.mp4' },
+  ]);
+  assert.deepEqual(clips.map((c) => c.id), ['q-active']);
+});
+
+test('C7: custom { now } still treats past scheduled_on_platform as consumed and sorts remaining clips chronologically', () => {
+  const futureNow = Date.parse('2035-01-01T00:00:00+07:00');
+  const clips = buildExtensionClipList([], [
+    { id: 'q-consumed-past', status: 'scheduled_on_platform', export_id: 'e-old', video_path: 'old.mp4', scheduled_at: '2026-11-01T10:00+07:00' },
+    { id: 'q-consumed-sib', status: 'planned', export_id: 'e-old', video_path: 'old.mp4', scheduled_at: '2035-01-02T10:00+07:00' },
+    { id: 'q-late', status: 'planned', export_id: 'e-late', video_path: 'late.mp4', scheduled_at: '2035-01-03T12:00+07:00' },
+    { id: 'q-early-fields', status: 'planned', export_id: 'e-early', video_path: 'early.mp4', schedule_date: '2035-01-02', schedule_time: '08:00' },
+    { id: 'q-unslotted', status: 'planned', export_id: 'e-unslotted', video_path: 'unslotted.mp4' },
+  ], { now: futureNow });
+  assert.deepEqual(clips.map((c) => c.id), ['q-early-fields', 'q-late', 'q-unslotted']);
+});
+
+test('C7: buildExtensionClipList respects now option without resurfacing past scheduled siblings and sorts chronologically', () => {
+  const fixedNow = Date.parse('2026-11-25T12:00:00+07:00');
+  const clips = buildExtensionClipList(
+    [{ export_id: 'e-past', rel_path: '04_Exports/past.mp4', angle_status: 'rendered', is_latest: true }],
+    [
+      { id: 'q-late', status: 'planned', export_id: 'e-late', video_path: '04_Exports/late.mp4', scheduled_at: '2026-11-26T15:00:00+07:00' },
+      { id: 'q-unbounded', status: 'planned', export_id: 'e-unbounded', video_path: '04_Exports/unbounded.mp4' },
+      { id: 'q-early', status: 'planned', export_id: 'e-early', video_path: '04_Exports/early.mp4', schedule_date: '2026-11-25', schedule_time: '18:00' },
+      { id: 'q-past-sched', status: 'scheduled_on_platform', export_id: 'e-past', video_path: '04_Exports/past.mp4', scheduled_at: '2026-11-25T09:00:00+07:00' },
+      { id: 'q-past-sib', status: 'planned', export_id: 'e-past', video_path: '04_Exports/past.mp4', scheduled_at: '2026-11-25T10:00:00+07:00' },
+    ],
+    { now: fixedNow }
+  );
+  assert.deepEqual(clips.map((c) => c.id), ['q-early', 'q-late', 'q-unbounded']);
+});

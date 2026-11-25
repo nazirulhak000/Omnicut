@@ -541,6 +541,7 @@ let currentQuotaState = {
   remainingDraft: 30,
   maxSchedule: 30,
   maxDraft: 30,
+  scheduleSource: null,
 };
 
 function updateQuotaUI() {
@@ -548,18 +549,28 @@ function updateQuotaUI() {
   const maxD = currentQuotaState.maxDraft || 30;
 
   if (quotaScheduleValue) {
-    quotaScheduleValue.textContent = currentQuotaState.scheduledCount != null
-      ? `${currentQuotaState.scheduledCount} / ${maxS}`
-      : `-- / ${maxS}`;
+    if (currentQuotaState.scheduledCount != null) {
+      quotaScheduleValue.textContent = currentQuotaState.scheduleSource === 'queue'
+        ? `≥${currentQuotaState.scheduledCount} / ${maxS}`
+        : `${currentQuotaState.scheduledCount} / ${maxS}`;
+    } else {
+      quotaScheduleValue.textContent = `-- / ${maxS}`;
+    }
   }
   if (quotaScheduleRemain) {
     const rem = currentQuotaState.remainingSchedule;
-    if (rem != null) {
+    if (currentQuotaState.scheduleSource === 'queue') {
+      quotaScheduleRemain.textContent = rem === 0 ? 'เต็มจากคิว OmniCut' : `ขั้นต่ำจากคิว OmniCut · เหลือ ≤${rem}`;
+      quotaScheduleRemain.className = 'quota-badge neutral';
+      quotaScheduleRemain.title = 'นับเฉพาะรายการที่รู้ในคิว OmniCut (ไม่ใช่โควตาสดจากหน้า TikTok Studio)';
+    } else if (rem != null) {
       quotaScheduleRemain.textContent = rem === 0 ? 'เต็ม 30/30' : `เหลือ ${rem}`;
       quotaScheduleRemain.className = 'quota-badge ' + (rem === 0 ? 'danger' : (rem <= 5 ? 'warning' : 'success'));
+      quotaScheduleRemain.title = '';
     } else {
       quotaScheduleRemain.textContent = 'สูงสุด 30';
       quotaScheduleRemain.className = 'quota-badge neutral';
+      quotaScheduleRemain.title = '';
     }
   }
 
@@ -631,7 +642,9 @@ function updateBatchCountDisplay(filteredCount = null) {
     if (picked > 0) {
       batchLimitInfo.textContent = picked > capped ? `เลือกไว้ ${picked} · โควตารับได้ ${capped}` : `เลือกเอง ${picked} คลิป`;
     } else if (limitChoice === 'auto_quota') {
-      batchLimitInfo.textContent = `โควตาว่าง: ${capped} คลิป`;
+      batchLimitInfo.textContent = currentQuotaState.scheduleSource === 'queue'
+        ? `โควตาว่าง (ประมาณจากคิว): ≤${capped} คลิป`
+        : `โควตาว่าง: ${capped} คลิป`;
     } else if (limitChoice === 'all') {
       batchLimitInfo.textContent = `รันทั้งหมด ${count} คลิป`;
     } else {
@@ -668,6 +681,7 @@ async function checkTikTokQuota(silent = false, allowNavigate = false) {
       currentQuotaState = {
         scheduledCount,
         scheduledAt: scheduledCount != null ? (keepScheduled ? currentQuotaState.scheduledAt : Date.now()) : null,
+        scheduleSource: keepScheduled ? currentQuotaState.scheduleSource : (res.scheduledCount != null ? 'tiktok' : null),
         draftCount: res.draftCount,
         // an incomplete scan only proves a lower bound of scheduled posts: never more room than that leaves
         remainingSchedule: keepScheduled
@@ -1513,7 +1527,7 @@ async function loadExports() {
   filterAndRenderClips();
   updateLinkDueButton(allQueueRaw);
 
-  // Fallback quota from backend queue: if TikTok live check is pending/unknown, show queue count
+  // Fallback quota from backend queue: if TikTok live check is pending/unknown, show minimum count from OmniCut queue
   const backendScheduledCount = (allQueueRaw || []).filter(item => {
     if (item.status !== 'scheduled_on_platform') return false;
     const at = item.scheduled_at ? Date.parse(item.scheduled_at) : 0;
@@ -1522,6 +1536,7 @@ async function loadExports() {
   if (currentQuotaState.scheduledCount == null && backendScheduledCount > 0) {
     currentQuotaState.scheduledCount = backendScheduledCount;
     currentQuotaState.remainingSchedule = Math.max(0, (currentQuotaState.maxSchedule || 30) - backendScheduledCount);
+    currentQuotaState.scheduleSource = 'queue';
     updateQuotaUI();
     updateBatchCountDisplay();
   }

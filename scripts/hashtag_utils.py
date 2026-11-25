@@ -24,27 +24,10 @@ DEFAULT_BOOSTER_TAGS = [
     "#พิกัดในตะกร้า",
 ]
 
-# Patterns for price/discount words in hashtags
-PRICE_TAG_WORDS = [
-    "ราคา", "ถูก", "ลด", "sale", "บาท", "โปร", "คูปอง", "ส่วนลด",
-    "แจกฟรี", "ส่งฟรี", "flashsale", "deal", "discount", "price",
-]
-
-
 def _is_price_tag(tag: str) -> bool:
-    """Check if tag contains price/discount terminology."""
-    try:
-        from scripts.product_scraper import has_price_text
-        if has_price_text(tag, caption=True):
-            return True
-    except Exception:
-        pass
-
-    lower = tag.lower().replace("#", "")
-    for word in PRICE_TAG_WORDS:
-        if word in lower:
-            return True
-    return False
+    """Check if tag contains price/discount terminology via product_scraper.has_price_text."""
+    from scripts.product_scraper import has_price_text
+    return bool(has_price_text(tag, caption=True))
 
 
 def clean_single_tag(raw: str) -> str:

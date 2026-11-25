@@ -45,21 +45,10 @@
         .map(clipKey)
         .filter(Boolean)
     );
-    const activeFutureScheduledKeys = new Set(
-      queueList
-        .filter((item) => {
-          if (item?.status !== 'scheduled_on_platform') return false;
-          const at = item?.scheduled_at ? Date.parse(item.scheduled_at) : null;
-          return at == null || Number.isNaN(at) || at >= now - 15 * 60 * 1000;
-        })
-        .map(clipKey)
-        .filter(Boolean)
-    );
-    const consumedForUnscheduled = new Set([...postedKeys, ...allScheduledOnPlatformKeys]);
-    const consumedForScheduled = new Set([...postedKeys, ...activeFutureScheduledKeys]);
+    const consumedKeys = new Set([...postedKeys, ...allScheduledOnPlatformKeys]);
 
     const scheduled = queueList
-      .filter((item) => ACTIVE_QUEUE_STATUSES.has(item?.status) && !isPostedClip(item) && !consumedForScheduled.has(clipKey(item)))
+      .filter((item) => ACTIVE_QUEUE_STATUSES.has(item?.status) && !isPostedClip(item) && !consumedKeys.has(clipKey(item)))
       .map((item) => ({
         ...item,
         rel_path: item.rel_path || item.video_path,
@@ -68,17 +57,19 @@
         ...(item.status === 'draft_on_platform' ? { is_draft: true, publish_draft: true, force_mode: 'schedule' } : {}),
       }));
 
-    // Chronological sort: earliest scheduled first
-    scheduled.sort((a, b) => {
-      const timeA = a.scheduled_at ? Date.parse(a.scheduled_at) : (a.schedule_date && a.schedule_time ? Date.parse(`${a.schedule_date}T${a.schedule_time}`) : Infinity);
-      const timeB = b.scheduled_at ? Date.parse(b.scheduled_at) : (b.schedule_date && b.schedule_time ? Date.parse(`${b.schedule_date}T${b.schedule_time}`) : Infinity);
-      return timeA - timeB;
-    });
+    // Chronological sort: earliest scheduled first (NaN/missing dates sort last)
+    const scheduledMs = (item) => {
+      const raw = item?.scheduled_at
+        || (item?.schedule_date && item?.schedule_time ? `${item.schedule_date}T${item.schedule_time}` : '');
+      const parsed = raw ? Date.parse(raw) : NaN;
+      return Number.isFinite(parsed) ? parsed : Infinity;
+    };
+    scheduled.sort((a, b) => scheduledMs(a) - scheduledMs(b));
 
     const scheduledKeys = new Set(scheduled.map(clipKey).filter(Boolean));
     const unscheduled = exportsList
       .filter(isReadyToPost)
-      .filter((item) => !scheduledKeys.has(clipKey(item)) && !consumedForUnscheduled.has(clipKey(item)));
+      .filter((item) => !scheduledKeys.has(clipKey(item)) && !consumedKeys.has(clipKey(item)));
     return [...scheduled, ...unscheduled];
   }
 

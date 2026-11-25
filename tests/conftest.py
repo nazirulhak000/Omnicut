@@ -33,7 +33,24 @@ _DATA_DIR_NAMES = ("00_Inbox", "01_Raw", "02_Assets", "03_Projects", "04_Exports
 _PROTECTED_ROOTS = tuple(SOURCE_ROOT / name for name in _DATA_DIR_NAMES)
 
 
-def _protected_path(value):
+def _resolve_dir_fd(dir_fd):
+    if not isinstance(dir_fd, int) or dir_fd < 0:
+        return None
+    try:
+        return Path(os.readlink(f"/proc/self/fd/{dir_fd}"))
+    except OSError:
+        pass
+    try:
+        import fcntl
+        if hasattr(fcntl, "F_GETPATH"):
+            raw = fcntl.fcntl(dir_fd, fcntl.F_GETPATH, b"\x00" * 1024)
+            return Path(os.fsdecode(raw.split(b"\x00", 1)[0]))
+    except OSError:
+        pass
+    return None
+
+
+def _protected_path(value, dir_fd=None):
     if not isinstance(value, (str, bytes, os.PathLike)):
         return False
     value = os.fsdecode(value)
@@ -42,7 +59,14 @@ def _protected_path(value):
         value = unquote(value[5:].split("?", 1)[0])
         if os.name == "nt" and value.startswith("///"):
             value = value.lstrip("/")
-    path = Path(value).resolve(strict=False)
+        dir_fd = None
+    if isinstance(dir_fd, int) and dir_fd >= 0 and not os.path.isabs(value):
+        base = _resolve_dir_fd(dir_fd)
+        if base is None:
+            return False
+        path = (base / value).resolve(strict=False)
+    else:
+        path = Path(value).resolve(strict=False)
     return any(path == root or root in path.parents for root in _PROTECTED_ROOTS)
 
 
@@ -53,16 +77,30 @@ def _production_write_guard(event, args):
     for SELECT because WAL/setup can write before the first explicit mutation.
     This audit hook also covers thread-pool workers and direct os/sqlite calls.
     """
-    paths = ()
+    checks = ()
     if event == "open":
         path, mode, flags = args
         if (mode and any(character in mode for character in "wax+")) or (flags and flags & (os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_TRUNC | os.O_APPEND)):
-            paths = (path,)
-    elif event in {"os.mkdir", "os.remove", "os.rmdir", "os.truncate", "os.chmod", "os.utime", "sqlite3.connect", "shutil.rmtree"}:
-        paths = args[:1]
-    elif event in {"os.rename", "os.link", "os.symlink"}:
-        paths = args[:2]
-    if any(_protected_path(path) for path in paths):
+            checks = ((path, None),)
+    elif event in {"os.mkdir", "os.chmod"}:
+        checks = ((args[0], args[2] if len(args) > 2 else None),)
+    elif event in {"os.remove", "os.rmdir", "shutil.rmtree"}:
+        checks = ((args[0], args[1] if len(args) > 1 else None),)
+    elif event == "os.utime":
+        checks = ((args[0], args[3] if len(args) > 3 else None),)
+    elif event in {"os.truncate", "sqlite3.connect"}:
+        checks = ((args[0], None),)
+    elif event in {"os.rename", "os.link"}:
+        checks = (
+            (args[0], args[2] if len(args) > 2 else None),
+            (args[1], args[3] if len(args) > 3 else None),
+        )
+    elif event == "os.symlink":
+        checks = (
+            (args[0], None),
+            (args[1], args[2] if len(args) > 2 else None),
+        )
+    if any(_protected_path(path, dir_fd) for path, dir_fd in checks):
         raise PermissionError(f"pytest production storage write blocked: {event}")
 
 

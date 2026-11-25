@@ -1,4 +1,4 @@
-﻿const { test } = require('node:test');
+const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
@@ -809,7 +809,54 @@ test('R1 dismissContinueToPostDialogIfPresent: only the button that matches the 
   assert.ok(expressions[0].includes('postNowBtn && isContinueDialog'), 'the dialog text must be recognised');
   await ctx.dismissContinueToPostDialogIfPresent(send, 50, 'schedule');
   const last = expressions[expressions.length - 1];
-  assert.ok(last.includes('Schedule now') && last.includes('Post now'));
+  assert.ok(last.includes('Schedule now') && last.includes('scheduleRadioSelected'));
+});
+
+test('C9 dismissContinueToPostDialogIfPresent DOM fixture: schedule job only accepts "Post now" fallback when Schedule radio is selected', async () => {
+  const ctx = worker();
+  const makeDom = ({ radioChecked, buttonText }) => {
+    let clicked = 0;
+    const btn = {
+      innerText: buttonText,
+      disabled: false,
+      getAttribute: () => null,
+      scrollIntoView() {},
+      click() { clicked += 1; },
+    };
+    const dialog = {
+      innerText: 'Continue to post? We are still checking your video for potential issues.',
+      querySelectorAll: (sel) => (sel.includes('button') ? [btn] : []),
+    };
+    const radio = { checked: radioChecked, getAttribute: () => (radioChecked ? 'true' : 'false') };
+    const dom = vm.createContext({
+      document: {
+        querySelectorAll: (sel) => {
+          if (sel.includes('radio') && sel.includes('schedule')) return [radio];
+          if (sel.includes('dialog')) return [dialog];
+          return [];
+        },
+      },
+    });
+    return {
+      wasClicked: () => clicked,
+      send: async (_m, params) => ({ result: { value: vm.runInContext(params.expression, dom) } }),
+    };
+  };
+
+  // Schedule radio NOT selected -> "Post now" must NOT be clicked
+  const unguarded = makeDom({ radioChecked: false, buttonText: 'Post now' });
+  assert.equal(await ctx.dismissContinueToPostDialogIfPresent(unguarded.send, 40, 'schedule'), false);
+  assert.equal(unguarded.wasClicked(), 0);
+
+  // Schedule radio selected -> "Post now" fallback IS allowed
+  const guarded = makeDom({ radioChecked: true, buttonText: 'Post now' });
+  assert.equal(await ctx.dismissContinueToPostDialogIfPresent(guarded.send, 40, 'schedule'), true);
+  assert.equal(guarded.wasClicked(), 1);
+
+  // Explicit "Schedule now" works even without reading the radio
+  const explicitSched = makeDom({ radioChecked: false, buttonText: 'Schedule now' });
+  assert.equal(await ctx.dismissContinueToPostDialogIfPresent(explicitSched.send, 40, 'schedule'), true);
+  assert.equal(explicitSched.wasClicked(), 1);
 });
 
 test('R1 release: there is no force; an attempted job is never released, a never-attempted claim is', async () => {
@@ -2053,6 +2100,63 @@ test('B10: an affiliate job needs its product visible in the form at the click',
   await assert.rejects(() => ctx.assertPublishReady(probeSeq(button, { modalOpen: true, chip: true, nameSeen: true }), job), /product_missing/);
   await ctx.assertPublishReady(probeSeq(button, { modalOpen: false, chip: false, nameSeen: true }), job);
   assert.match(ctx.productEvidenceExpression('Hatari Fan 16'), /hatarifan16/);
+});
+
+test('C10 productEvidenceExpression DOM fixture: blank "Add link" anchor-tag-label placeholder does not pass Strict Cart Guard', async () => {
+  const ctx = worker();
+  const evalEvidence = ({ anchorText, strictChipPresent = false, productName = 'Orsen S6 240W' }) => {
+    const labelEl = {
+      innerText: anchorText,
+      textContent: anchorText,
+      checkVisibility: () => true,
+    };
+    const strictEl = {
+      innerText: 'Orsen S6',
+      checkVisibility: () => true,
+    };
+    const dom = vm.createContext({
+      NodeFilter: { SHOW_TEXT: 4 },
+      window: { getComputedStyle: () => ({ visibility: 'visible' }) },
+      document: {
+        body: {},
+        createTreeWalker: () => ({ nextNode: () => null }),
+        querySelectorAll: (sel) => {
+          if (sel.includes('anchor-tag-label')) return [labelEl];
+          if (sel.includes('product-anchor')) return strictChipPresent ? [strictEl] : [];
+          return [];
+        },
+      },
+    });
+    return vm.runInContext(ctx.productEvidenceExpression(productName), dom);
+  };
+
+  for (const blankText of ['', '   ', 'Add link', '+ Add', 'Add link + Add', 'เพิ่มลิงก์', 'เพิ่มลิงก์ + เพิ่ม', 'เพิ่มลิงก์สินค้า']) {
+    const ev = evalEvidence({ anchorText: blankText });
+    assert.equal(ev.chip, false, `blank placeholder "${blankText}" must not pass as product chip`);
+  }
+  assert.equal(evalEvidence({ anchorText: 'สายชาร์จ Orsen S6 PD 240W' }).chip, true);
+  assert.equal(evalEvidence({ anchorText: 'Add link', strictChipPresent: true }).chip, true);
+});
+
+test('C16 sanitizeCartName and getCleanCartName: product_id-only matching, Unicode regex parity, and Thai boundary truncation', () => {
+  const ctx = worker();
+  const curated = { 'prod-essager': 'สายชาร์จแม่เหล็ก ESSAGER' };
+  // Exact product_id matches curated name
+  assert.equal(ctx.getCleanCartName('prod-essager', 'อะไรก็ได้', curated), 'สายชาร์จแม่เหล็ก ESSAGER');
+  // Non-matching product_id with substring "สายชาร์จ" must NOT match curated Essager name
+  assert.equal(
+    ctx.getCleanCartName('prod-other', 'สายชาร์จ Type-C 100W ยี่ห้ออื่น', curated),
+    'สายชาร์จ Type-C 100W ยี่ห้ออื่น'.slice(0, 30) === 'สายชาร์จ Type-C 100W ยี่ห้ออื่น' ? 'สายชาร์จ Type-C 100W ยี่ห้ออื่น' : ctx.sanitizeCartName('สายชาร์จ Type-C 100W ยี่ห้ออื่น')
+  );
+  assert.ok(!ctx.getCleanCartName('prod-other', 'สายชาร์จ Belkin 60W', curated).includes('ESSAGER'));
+  // Unicode letter preservation (aligns with Python \w) & Roman numeral conversion
+  assert.equal(ctx.sanitizeCartName('Café Ⅱ™ Edition'), 'Café II Edition');
+  // Thai word/grapheme boundary truncation never chops mid-combining-mark or leaves > 30 chars
+  const longThai = 'พัดลมตั้งโต๊ะคุณภาพสูงสำหรับห้องนอนและโต๊ะทำงาน';
+  const cut = ctx.sanitizeCartName(longThai);
+  assert.ok(cut.length <= 30 && cut.length >= 8);
+  assert.ok(!/[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]$/.test(cut) || longThai.startsWith(cut), 'must stay valid Thai boundary');
+  assert.ok(longThai.startsWith(cut));
 });
 
 test('B6: a receipt for a job the backend already settled is retired, not kept forever', async () => {

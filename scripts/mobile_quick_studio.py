@@ -657,7 +657,7 @@ class MobileQuickStudioService:
                         "project_name": project_name,
                         "key_features": key_features,
                         "custom_script": script_text,
-                        "voice": "male",
+                        "voice": DEFAULT_VOICE,
                         "voice_engine_type": "gemini_tts",
                         "voice_preset": "gemini_fenrir_male_strong",
                         "font_name": "IBMPlex",

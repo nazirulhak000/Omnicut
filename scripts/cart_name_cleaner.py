@@ -48,8 +48,8 @@ CURATED_CART_NAMES: Dict[str, str] = {
     '37521e0dae1a419e8037e159254d4fdf': 'สายชาร์จ Orsen S6 PD 240W',
     'cde38b1c07e54ea69a3d50a6c1bb3f18': 'Hatari Cyclone Max 8 นิ้ว',
     '7900bbca318d41ed964b5a721c0d951f': 'มินิพาวเวอร์แบงค์ GOOJODOQ',
-    'b0137078e2ff4c089b60131f60168b54': 'หูฟังบลูทูธ Redmi Buds 8',
-    'jee01': 'หูฟังบลูทูธ Jeep EW011 TWS',
+    'b0137078e2ff4c089b60131f60168b54': 'หูฟัง Bluetooth Redmi Buds 8',
+    'jee01': 'หูฟัง Bluetooth Jeep EW011 TWS',
     'cbce4d403975449a98e364b621d98308': 'พาวเวอร์แบงค์ TTZ K106 30k',
     '8ebd5ef6dc2545398dc1b771aedda50d': 'หูฟังเปิดหู MONSTER AC530',
     '431165f167284094959bdf0f0e806899': 'สายชาร์จ Essager 100W E-Mark',
@@ -83,26 +83,17 @@ def sanitize_cart_name(name: str) -> str:
     if len(s) <= 30:
         return s
 
-    # 3. Smart truncate at space or word boundary
-    truncated = s[:30]
-    last_space = truncated.rfind(' ')
-    if last_space >= 15:
-        return truncated[:last_space].strip()
-
-    # If no convenient space, check if last char is a lonely consonant
-    return truncated.rstrip()
+    # 3. Smart truncate at Thai/English word boundary (never mid-word or mid-combining-mark)
+    from scripts.product_scraper import _short_name
+    return _short_name(s, limit=30, fallback='')
 
 
 def get_clean_cart_name(product_id: Optional[str] = None, raw_name: Optional[str] = None) -> str:
-    """Returns curated clean cart name if product_id is known, else sanitizes raw_name."""
+    """Returns curated clean cart name strictly by product_id, else sanitizes raw_name."""
     if product_id and product_id in CURATED_CART_NAMES:
         return CURATED_CART_NAMES[product_id]
 
     if raw_name:
-        # Check by match in CURATED_CART_NAMES
-        for pid, curated in CURATED_CART_NAMES.items():
-            if curated in raw_name or raw_name in curated:
-                return curated
         return sanitize_cart_name(raw_name)
 
     return ''

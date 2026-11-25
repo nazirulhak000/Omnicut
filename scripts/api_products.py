@@ -827,10 +827,10 @@ def set_default_videos_endpoint(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-def resolve_video_file_path(v_str: str) -> Optional[Path]:
+def resolve_video_file_path(v_str: str, product_id: Optional[str] = None) -> Optional[Path]:
     """Resolve a video path (relative or absolute) to an existing Path on disk.
-    If the specified path does not exist, searches in 01_Raw for the filename
-    or handles case-insensitive / renamed folder aliases.
+    If the specified path does not exist, searches strictly inside
+    RAW_DIR/<product_id> ONLY (never scans across other products in 01_Raw).
     """
     if not v_str:
         return None
@@ -839,10 +839,31 @@ def resolve_video_file_path(v_str: str) -> Optional[Path]:
         p = BASE_DIR / p
     if p.exists():
         return p
-    # Try searching under RAW_DIR for the same file name
+
     fname = p.name
-    if fname:
-        matches = list(RAW_DIR.rglob(fname))
+    if not fname:
+        return None
+
+    raw_root = RAW_DIR.resolve(strict=False)
+    search_root: Optional[Path] = None
+    if product_id:
+        pid = Path(str(product_id)).name
+        if pid and pid not in (".", ".."):
+            candidate = (RAW_DIR / pid).resolve(strict=False)
+            if candidate.parent == raw_root:
+                search_root = candidate
+    else:
+        try:
+            rel = p.resolve(strict=False).relative_to(raw_root)
+            if len(rel.parts) >= 2:
+                candidate = (RAW_DIR / rel.parts[0]).resolve(strict=False)
+                if candidate.parent == raw_root:
+                    search_root = candidate
+        except ValueError:
+            search_root = None
+
+    if search_root and search_root.is_dir():
+        matches = list(search_root.rglob(fname))
         if matches:
             return matches[0]
     return None
@@ -868,10 +889,11 @@ def collect_canonical_videos(prod_obj: Dict[str, Any], specific_video: Optional[
             if v_p:
                 raw_candidates.append(v_p)
 
+    prod_id = prod_obj.get("id")
     canonical_map = {}
     for v in raw_candidates:
         try:
-            v_p = resolve_video_file_path(v) or Path(v)
+            v_p = resolve_video_file_path(v, product_id=prod_id) or Path(v)
             if not v_p.is_absolute():
                 v_p = BASE_DIR / v
             resolved_key = str(v_p.resolve()).lower()
@@ -888,7 +910,12 @@ def collect_canonical_videos(prod_obj: Dict[str, Any], specific_video: Optional[
     return list(canonical_map.values())
 
 
-def run_scene_scan(task_id: str, videos_to_index: List[str], force: bool = False) -> Dict[str, Any]:
+def run_scene_scan(
+    task_id: str,
+    videos_to_index: List[str],
+    force: bool = False,
+    product_id: Optional[str] = None,
+) -> Dict[str, Any]:
     """Scan footage into the Scene Catalog and finish the given task.
 
     Runs in the caller's thread: the /index-scenes route hands it to a
@@ -905,7 +932,7 @@ def run_scene_scan(task_id: str, videos_to_index: List[str], force: bool = False
         total = len(videos_to_index)
         TaskManager.update_progress(task_id, 0.05, f"เริ่มสแกนสารบัญฉาก {total} คลิป...")
         for idx, v_rel in enumerate(videos_to_index):
-            v_full = resolve_video_file_path(v_rel)
+            v_full = resolve_video_file_path(v_rel, product_id=product_id)
             if not v_full or not v_full.exists():
                 not_analyzed[v_rel] = f"ไม่พบไฟล์วิดีโอบนเครื่อง ({Path(v_rel).name})"
                 continue
@@ -983,7 +1010,7 @@ def get_scene_catalogs(
 
     results = {}
     for v_rel in videos_to_check:
-        v_full = resolve_video_file_path(v_rel)
+        v_full = resolve_video_file_path(v_rel, product_id=product_id)
         if not v_full or not v_full.exists():
             item_missing = {
                 "is_indexed": False,
@@ -1069,7 +1096,9 @@ def index_scenes_endpoint(
     )
     task_id = task["id"]
 
-    TaskManager.run_in_background(lambda: run_scene_scan(task_id, videos_to_index, force=force))
+    TaskManager.run_in_background(
+        lambda: run_scene_scan(task_id, videos_to_index, force=force, product_id=product_id)
+    )
 
     return {
         "success": True,

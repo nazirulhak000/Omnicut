@@ -125,6 +125,24 @@ class PostingJobStore:
             # The draft a publish_draft job is made from is not a competitor: it stays draft_saved until the publication
             # succeeds (so a cleared/failed publication can be retried from the same draft).
             draft_source = frozen.get("draft_source_job_id") if frozen.get("intent") == "publish_draft" else None
+            # E3: Prevent duplicate posting/scheduling of identical video content (SHA-256) registered under a
+            # different export_id within the same channel. Enforce on real 64-hex SHA-256 digests so synthetic
+            # non-hash test placeholders remain isolated.
+            video_sha = str(frozen.get("video_sha256") or "").strip().lower()
+            if re.fullmatch(r"[0-9a-f]{64}", video_sha):
+                dup_video = next((r for r in rows
+                                  if str(r.get("video_sha256") or "").strip().lower() == video_sha
+                                  and r.get("export_id") != frozen["export_id"]
+                                  and r["status"] != "cancelled"
+                                  and not (draft_source and r["id"] == draft_source and r["status"] == "draft_saved")), None)
+                if dup_video:
+                    raise ChannelError(
+                        409,
+                        "posting_duplicate_video_sha256",
+                        f"คลิปนี้มีไฟล์วิดีโอซ้ำ (SHA-256 เดียวกับงาน {dup_video['id'][:8]} สถานะ {dup_video['status']}) จึงหยุดเพื่อป้องกันการโพสต์ซ้ำ",
+                        duplicate_job_id=dup_video["id"],
+                        duplicate_status=dup_video["status"],
+                    )
             existing_export = next((r for r in rows if r["export_id"] == frozen["export_id"]
                                     and r["status"] != "cancelled"
                                     and not (draft_source and r["id"] == draft_source and r["status"] == "draft_saved")), None)
