@@ -106,6 +106,10 @@ scripts/*.db-shm
 _Docs/export_registry.json
 _Docs/post_log.json
 _Docs/schedule_queue.json
+_Docs/posting_jobs.json
+_Docs/channel_artifacts.json
+_Docs/export_cover_bindings.json
+_Docs/episodes.json
 _Docs/schedule_templates.json
 _Docs/tiktok_pending.json
 
