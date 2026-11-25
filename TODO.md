@@ -4,6 +4,12 @@
 
 ## รอบปัจจุบัน
 
+- [ ] Round CLAUDE-SCRUTINIZE-A553E95-20261125 · ตรวจละเอียดแบบคนนอก (`/scrutinize`) commit `a553e95` "Emil UI polish, pipeline freeze/cover/safe-zone fixes & autopost hardening" (199 ไฟล์ +23,137/−2,573) · ผู้ใช้สั่ง 2026-11-25 · **รอบนี้ตรวจ + วางแผนเท่านั้น ห้ามแก้โค้ด product จนผู้ใช้เลือกข้อ** · ดำเนินการโดย: Claude Code (Claude Opus 5.5)
+  - [x] 0 · เปิดรอบ: ดึง `main` ล่าสุด · แบ่งไฟล์ 5 กลุ่ม
+  - [ ] 1 · ตรวจขนาน 5 เอเจนต์ (อ่านอย่างเดียว ผลลง scratchpad ไม่แตะข้อมูลจริง): A pipeline/ซับ/freeze · B ปก/สินค้า/hashtag · C autopost/extension/tools · D frontend Emil · E ข้อมูล runtime ที่ commit + ยืนยันตัวเลขเทสที่อ้าง
+  - [ ] 2 · รวมผล จัดลำดับ blocker → major → nit · เขียนแผนแก้ละเอียดลงรอบนี้
+  - [ ] 3 · หยุดรอผู้ใช้เลือกข้อที่จะแก้
+
 - [x] Round ANTIGRAVITY-SWARM-FIX-RENDER-FREEZE-HOOK-COVER-20261124 · แก้ไขระบบผลิตคลิป, Freeze-Frame, Hook Safe Zone และระบบปก 3:4 ทั้งสายพานแบบขนานด้วย Swarm 5 Agents (P0-P2): ซ่อมและรีเจนปก 88 รายการ (0/88 error 409), แก้อาการ 1-frame freeze (0.033s) และ MM.SS cache leak, ย้ายตำแหน่ง Couple Paper Chat พ้น 0-240px TikTok Top Dead Zone, เชื่อมต่อ ghost_reveal & reveal_color_sync, ปรับ font weight lookup, และตั้งค่า default bgmDucking: true · ผ่าน 307 backend tests, 1,337 frontend tests, Vite build 604ms · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) - Swarm Coordinator
 
 - [x] Round ANTIGRAVITY-EMIL-DESIGN-SYSTEM-WAVE4-COMPLETE-20261123 · กวาดล้าง `transition-all` และเก็บรายละเอียด Emil Kowalski (`/emil-design-eng`) ครบทั้งโปรเจกต์ `frontend/src/` ด้วย Swarm 6 Agents (47 ไฟล์ที่เหลือ: `editor/`, `ProductToClip`, `ContentTrackerHub`, `ExportGallery`, `MediaAssetsHub`, `CoverStudioModal`, `MediaPickerModal`, `ManualStoryboardModal`, `SystemSettings`, `SystemAssets`, `TokenDashboard`, `RawVaultPanel`, `ScheduleAgenda`, `analytics/**`, `App.jsx` + 20 ไฟล์ Hubs/Dialogs): 0 `transition-all` matches ทั้ง `frontend/src/` (ยกเว้น negated assertion ใน test), `oxlint` 450 ไฟล์ = 0 errors, `npm test` 1,337/1,337 pass, Vite build 534ms · ดำเนินการโดย: Antigravity (Gemini 4 Argon) - Swarm Coordinator
