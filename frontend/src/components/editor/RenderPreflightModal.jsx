@@ -53,7 +53,7 @@ export default function RenderPreflightModal({ isOpen, onClose, report, onSeek }
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-white/10 hover:text-white active:scale-[0.95] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-white/10 hover:text-white active:scale-[0.95] motion-press active:duration-100 cursor-pointer"
             title="ปิดหน้าต่าง (Esc)"
           >
             <X className="h-5 w-5" />
@@ -142,7 +142,7 @@ export default function RenderPreflightModal({ isOpen, onClose, report, onSeek }
                         onSeek(issue.start);
                         onClose();
                       }}
-                      className="flex-shrink-0 flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-amber-300 hover:bg-white/10 hover:text-white active:scale-[0.97] transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 active:duration-100 ease-out cursor-pointer"
+                      className="flex-shrink-0 flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-amber-300 hover:bg-white/10 hover:text-white active:scale-[0.97] motion-press active:duration-100 cursor-pointer"
                     >
                       <span>ดูช่วงนี้</span>
                       <ExternalLink className="w-3 h-3" />

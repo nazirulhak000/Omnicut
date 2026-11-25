@@ -159,7 +159,7 @@ export function Toast({
             type="button"
             onClick={onClose}
             aria-label="ปิดการแจ้งเตือน"
-            className="p-1 max-md:min-h-11 max-md:min-w-11 pointer-coarse:min-h-11 pointer-coarse:min-w-11 flex items-center justify-center flex-shrink-0 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white active:scale-[0.95] transition-[background-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer"
+            className="p-1 max-md:min-h-11 max-md:min-w-11 pointer-coarse:min-h-11 pointer-coarse:min-w-11 flex items-center justify-center flex-shrink-0 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white active:scale-[0.95] motion-press active:duration-100 cursor-pointer"
           >
             <X className="w-3.5 h-3.5" />
           </button>

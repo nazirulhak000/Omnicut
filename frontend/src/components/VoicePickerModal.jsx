@@ -160,7 +160,7 @@ export default function VoicePickerModal({ isOpen, onClose, selectedVoice, selec
                 {manifest.ready}/{manifest.total} พร้อมฟัง
               </span>
             )}
-            <button onClick={onClose} className="w-8 h-8 rounded-xl flex items-center justify-center border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.1] text-slate-400 hover:text-white active:scale-[0.95] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer">
+            <button onClick={onClose} className="w-8 h-8 rounded-xl flex items-center justify-center border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.1] text-slate-400 hover:text-white active:scale-[0.95] motion-press active:duration-100 cursor-pointer">
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -204,7 +204,7 @@ export default function VoicePickerModal({ isOpen, onClose, selectedVoice, selec
                 {(grouped[gender] || []).map((voice) => {
                   const isVoiceSel = localVoice === voice.id;
                   return (
-                    <div key={voice.id} className={`rounded-2xl border transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 ease-out ${isVoiceSel ? 'border-[#E89274]/50 bg-[#E89274]/[0.05]' : 'border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.03]'}`}>
+                    <div key={voice.id} className={`rounded-2xl border motion-press ${isVoiceSel ? 'border-[#E89274]/50 bg-[#E89274]/[0.05]' : 'border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.03]'}`}>
                       <button type="button" onClick={() => setLocalVoice(voice.id)} className="w-full flex items-center gap-3 px-4 py-3 cursor-pointer text-left">
                         <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-sm font-bold text-white"
                           style={{ background: isVoiceSel ? VOICE_GROUPS[gender].accent + '25' : 'rgba(255,255,255,0.05)', border: `1px solid ${isVoiceSel ? VOICE_GROUPS[gender].accent + '50' : 'rgba(255,255,255,0.08)'}` }}>
@@ -226,7 +226,7 @@ export default function VoicePickerModal({ isOpen, onClose, selectedVoice, selec
                             <div
                               key={combo.tone_id}
                               onClick={() => { setLocalVoice(voice.id); setLocalTone(combo.tone_id); }}
-                              className={`relative rounded-xl border p-2.5 flex flex-col gap-1.5 transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 ease-out cursor-pointer select-none ${isThisSel ? 'border-[#E89274]/60 bg-[#E89274]/10' : 'border-white/[0.05] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.12]'}`}
+                              className={`relative rounded-xl border p-2.5 flex flex-col gap-1.5 motion-press cursor-pointer select-none ${isThisSel ? 'border-[#E89274]/60 bg-[#E89274]/10' : 'border-white/[0.05] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.12]'}`}
                             >
                               <div className={`absolute top-2 right-2 w-1.5 h-1.5 rounded-full ${combo.ready ? 'bg-emerald-400' : 'bg-slate-600'}`} title={combo.ready ? 'พร้อมฟังทันที' : 'จะสร้าง Live'} />
                               <span className="text-base leading-none">{TONE_ICONS[combo.tone_id] || '🎵'}</span>
@@ -234,7 +234,7 @@ export default function VoicePickerModal({ isOpen, onClose, selectedVoice, selec
                               <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); playPreview(combo); }}
-                                className={`mt-auto flex items-center justify-center gap-1 h-7 w-full rounded-lg text-[11px] font-medium active:scale-[0.97] transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 active:duration-100 ease-out cursor-pointer ${isPlaying ? 'bg-[#E89274]/20 border border-[#E89274]/40 text-[#E89274]' : 'bg-white/[0.04] border border-white/[0.08] text-slate-300 hover:text-white hover:bg-white/[0.1]'}`}
+                                className={`mt-auto flex items-center justify-center gap-1 h-7 w-full rounded-lg text-[11px] font-medium active:scale-[0.97] motion-press active:duration-100 cursor-pointer ${isPlaying ? 'bg-[#E89274]/20 border border-[#E89274]/40 text-[#E89274]' : 'bg-white/[0.04] border border-white/[0.08] text-slate-300 hover:text-white hover:bg-white/[0.1]'}`}
                               >
                                 {isLoadingT ? <Loader2 className="w-3 h-3 animate-spin" />
                                   : isPlaying ? <><Square className="w-2.5 h-2.5 fill-current" /><span>หยุด</span></>
@@ -268,7 +268,7 @@ export default function VoicePickerModal({ isOpen, onClose, selectedVoice, selec
               type="button"
               onClick={handleSelect}
               disabled={!localVoice || !localTone}
-              className="h-9 px-5 rounded-xl text-sm font-bold text-white cursor-pointer active:scale-[0.97] disabled:active:scale-100 transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 active:duration-100 ease-out disabled:opacity-40"
+              className="h-9 px-5 rounded-xl text-sm font-bold text-white cursor-pointer active:scale-[0.97] disabled:active:scale-100 motion-press active:duration-100 disabled:opacity-40"
               style={{ background: 'linear-gradient(135deg,#E89274,#D97757)' }}
             >
               ยืนยันเสียงนี้

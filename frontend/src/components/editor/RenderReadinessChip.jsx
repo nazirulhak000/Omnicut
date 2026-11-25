@@ -90,7 +90,7 @@ export default function RenderReadinessChip({
                     ? 'ความพร้อมสมบูรณ์ พร้อมเรนเดอร์ 100%'
                     : 'ความพร้อมก่อนเรนเดอร์'
         }
-        className={`flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border px-2 sm:px-2.5 text-xs font-bold active:scale-[0.96] disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out cursor-pointer select-none disabled:opacity-40 disabled:cursor-not-allowed ${
+        className={`flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border px-2 sm:px-2.5 text-xs font-bold active:scale-[0.96] disabled:active:scale-100 motion-press active:duration-100 cursor-pointer select-none disabled:opacity-40 disabled:cursor-not-allowed ${
           open ? 'ring-2 ring-white/20' : ''
         } ${
           isLoading
@@ -240,7 +240,7 @@ export default function RenderReadinessChip({
                     setOpen(false);
                     onOpenCoverStudio();
                   }}
-                  className="px-2 py-1 rounded-lg text-xs font-bold bg-white/[0.08] hover:bg-white/[0.15] text-slate-200 hover:text-white active:scale-[0.97] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer flex-shrink-0"
+                  className="px-2 py-1 rounded-lg text-xs font-bold bg-white/[0.08] hover:bg-white/[0.15] text-slate-200 hover:text-white active:scale-[0.97] motion-press active:duration-100 cursor-pointer flex-shrink-0"
                 >
                   {isCoverAuto ? 'เปลี่ยนปก' : coverStatus === true ? 'แก้ไขปก' : 'สร้างปก'}
                 </button>
@@ -309,7 +309,7 @@ export default function RenderReadinessChip({
                     setOpen(false);
                     onOpenPreflightModal();
                   }}
-                  className="px-2 py-1 rounded-lg text-xs font-bold bg-white/[0.08] hover:bg-white/[0.15] text-slate-200 hover:text-white active:scale-[0.97] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer flex-shrink-0"
+                  className="px-2 py-1 rounded-lg text-xs font-bold bg-white/[0.08] hover:bg-white/[0.15] text-slate-200 hover:text-white active:scale-[0.97] motion-press active:duration-100 cursor-pointer flex-shrink-0"
                 >
                   ดูรายละเอียด
                 </button>
@@ -339,7 +339,7 @@ export default function RenderReadinessChip({
                     setOpen(false);
                     onOpenPlaybookModal();
                   }}
-                  className="px-2 py-1 rounded-lg text-xs font-bold bg-white/[0.08] hover:bg-white/[0.15] text-slate-200 hover:text-white active:scale-[0.97] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer flex-shrink-0"
+                  className="px-2 py-1 rounded-lg text-xs font-bold bg-white/[0.08] hover:bg-white/[0.15] text-slate-200 hover:text-white active:scale-[0.97] motion-press active:duration-100 cursor-pointer flex-shrink-0"
                 >
                   เปิดดู
                 </button>

@@ -87,7 +87,7 @@ def test_hf_cover_save_reload_prepare_keeps_exact_export_and_existing_queue(moti
 
             page.route("**/api/**", api)
             page.goto(f"{origin}/?channel=second&mode=desktop", wait_until="domcontentloaded")
-            page.get_by_title("4. Export Gallery", exact=True).click()
+            page.get_by_role("button", name="4. Export Gallery", exact=True).click()
             if invalid_binding:
                 if prepare_view == "detail":
                     # "ดูรายละเอียด" lives in the card More Actions dropdown.
@@ -113,7 +113,7 @@ def test_hf_cover_save_reload_prepare_keeps_exact_export_and_existing_queue(moti
             # before preparing; normal fresh selections also work immediately.
             if reload_after_save or invalid_binding:
                 page.reload(wait_until="domcontentloaded")
-                page.get_by_title("4. Export Gallery", exact=True).click()
+                page.get_by_role("button", name="4. Export Gallery", exact=True).click()
             else:
                 studio.get_by_role("button", name="ปิดสตูดิโอสร้างปก", exact=True).click()
             if prepare_view == "detail":

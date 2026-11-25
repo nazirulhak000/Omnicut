@@ -173,7 +173,7 @@ export default function HookVariationModal({
           <button
             type="button"
             onClick={() => setActiveTab('variations')}
-            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 flex items-center justify-center gap-1.5 cursor-pointer ${
+            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'variations'
                 ? 'bg-[#25F4EE] text-slate-950 shadow-sm'
                 : 'text-slate-400 hover:text-white'
@@ -185,7 +185,7 @@ export default function HookVariationModal({
           <button
             type="button"
             onClick={() => setActiveTab('header')}
-            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 flex items-center justify-center gap-1.5 cursor-pointer ${
+            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'header'
                 ? 'bg-[#25F4EE] text-slate-950 shadow-sm'
                 : 'text-slate-400 hover:text-white'
@@ -257,7 +257,7 @@ export default function HookVariationModal({
                       <div
                         key={item.style_id || idx}
                         onClick={() => setSelectedIdx(idx)}
-                        className={`p-3.5 rounded-2xl border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer text-left ${
+                        className={`p-3.5 rounded-2xl border motion-press active:duration-100 cursor-pointer text-left ${
                           isSelected
                             ? 'border-[#25F4EE]/50 bg-[#25F4EE]/[0.06]'
                             : 'border-white/[0.08] bg-[#0A0D14] hover:border-white/[0.15] hover:bg-white/[0.02]'
@@ -503,7 +503,7 @@ export default function HookVariationModal({
                 type="button"
                 onClick={onClose}
                 disabled={savingHeader}
-                className="px-3.5 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-xs font-bold text-slate-300 hover:text-white cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
+                className="px-3.5 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-xs font-bold text-slate-300 hover:text-white cursor-pointer motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100"
               >
                 ยกเลิก
               </button>
@@ -511,7 +511,7 @@ export default function HookVariationModal({
                 type="button"
                 onClick={handleSaveHeader}
                 disabled={savingHeader}
-                className="px-4 py-2 rounded-xl bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-md cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 disabled:opacity-50"
+                className="px-4 py-2 rounded-xl bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-md cursor-pointer motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 disabled:opacity-50"
               >
                 {savingHeader ? (
                   <span>กำลังบันทึก...</span>

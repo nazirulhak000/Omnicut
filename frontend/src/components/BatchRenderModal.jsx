@@ -302,7 +302,7 @@ export default function BatchRenderModal({
                   <div
                     key={aid}
                     onClick={() => !isPosted && toggleSelectAngle(aid)}
-                    className={`flex items-center justify-between p-3 rounded-xl border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer select-none ${
+                    className={`flex items-center justify-between p-3 rounded-xl border motion-press active:duration-100 cursor-pointer select-none ${
                       isSelected
                         ? 'bg-cyan-500/10 border-cyan-500/40 text-cyan-100'
                         : isPosted

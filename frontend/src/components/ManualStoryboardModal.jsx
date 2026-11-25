@@ -816,7 +816,7 @@ export default function ManualStoryboardModal({
                     <div
                       key={idx}
                       onClick={() => setSelectedBeatIdx(idx)}
-                      className={`p-3 rounded-xl border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer text-left ${
+                      className={`p-3 rounded-xl border motion-press active:duration-100 cursor-pointer text-left ${
                         isSelected
                           ? 'bg-[#25F4EE]/10 border-[#25F4EE] ring-1 ring-[#25F4EE]/50 shadow-lg'
                           : 'bg-white/[0.03] hover:bg-white/[0.06] border-white/[0.08]'
@@ -924,7 +924,7 @@ export default function ManualStoryboardModal({
                     <button
                       type="button"
                       onClick={handleSnapToBeatDur}
-                      className="px-2 py-0.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-[10px] font-extrabold cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-95 shadow-sm"
+                      className="px-2 py-0.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-[10px] font-extrabold cursor-pointer motion-press active:duration-100 active:scale-95 shadow-sm"
                     >
                       ปรับให้พอดี
                     </button>
@@ -949,7 +949,7 @@ export default function ManualStoryboardModal({
                     <button
                       type="button"
                       onClick={togglePlay}
-                      className="absolute inset-0 m-auto w-13 h-13 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center border border-white/20 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out opacity-80 group-hover/vid:opacity-100 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-105 cursor-pointer shadow-2xl active:scale-90 z-10"
+                      className="absolute inset-0 m-auto w-13 h-13 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center border border-white/20 motion-press active:duration-100 opacity-80 group-hover/vid:opacity-100 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-105 cursor-pointer shadow-2xl active:scale-90 z-10"
                     >
                       {isPlaying ? <Pause className="w-6 h-6 text-[#25F4EE]" /> : <Play className="w-6 h-6 ml-0.5 text-white" />}
                     </button>
@@ -990,7 +990,7 @@ export default function ManualStoryboardModal({
                             setPanOffset(idealStart);
                           }
                         }}
-                        className={`px-2 py-0.5 rounded-lg font-mono font-bold text-[11px] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
+                        className={`px-2 py-0.5 rounded-lg font-mono font-bold text-[11px] motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                           zoomLevel === z
                             ? 'bg-[#25F4EE] text-black shadow-md'
                             : 'bg-white/[0.08] hover:bg-white/[0.15] text-slate-300'
@@ -1015,7 +1015,7 @@ export default function ManualStoryboardModal({
                         const newPan = Math.max(0, Math.min(videoDuration - viewSpan, center - viewSpan / 2));
                         setPanOffset(newPan);
                       }}
-                      className="px-2 py-1 rounded-lg bg-white/[0.08] hover:bg-[#25F4EE]/20 hover:text-[#25F4EE] text-slate-300 font-bold text-[11px] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 flex items-center gap-1.5 cursor-pointer shadow-sm"
+                      className="px-2 py-1 rounded-lg bg-white/[0.08] hover:bg-[#25F4EE]/20 hover:text-[#25F4EE] text-slate-300 font-bold text-[11px] motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 flex items-center gap-1.5 cursor-pointer shadow-sm"
                       title="ซูมและโฟกัสตรงช่วงที่กำลังตัดต่อ"
                     >
                       <Maximize2 className="w-3 h-3" />
@@ -1029,7 +1029,7 @@ export default function ManualStoryboardModal({
                           setZoomLevel(1);
                           setPanOffset(0);
                         }}
-                        className="px-2 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-bold text-[11px] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 flex items-center gap-1.5 cursor-pointer shadow-sm"
+                        className="px-2 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-bold text-[11px] motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 flex items-center gap-1.5 cursor-pointer shadow-sm"
                         title="รีเซ็ตการซูมเป็น 1x (เต็มคลิป)"
                       >
                         <ZoomOut className="w-3 h-3" />
@@ -1340,7 +1340,7 @@ export default function ManualStoryboardModal({
                         setTrimStart(val);
                         if (videoRef.current) videoRef.current.currentTime = val;
                       }}
-                      className="px-2 py-0.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-[10px] text-white font-mono cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-95"
+                      className="px-2 py-0.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-[10px] text-white font-mono cursor-pointer motion-press active:duration-100 active:scale-95"
                     >
                       -0.5
                     </button>
@@ -1351,7 +1351,7 @@ export default function ManualStoryboardModal({
                         setTrimStart(val);
                         if (videoRef.current) videoRef.current.currentTime = val;
                       }}
-                      className="px-2 py-0.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-[10px] text-white font-mono cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-95"
+                      className="px-2 py-0.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-[10px] text-white font-mono cursor-pointer motion-press active:duration-100 active:scale-95"
                     >
                       +0.5
                     </button>
@@ -1362,7 +1362,7 @@ export default function ManualStoryboardModal({
                     <button
                       type="button"
                       onClick={() => nudgeTrimWindow(-0.5)}
-                      className="p-1.5 rounded-lg bg-white/[0.08] hover:bg-cyan-500/25 hover:text-cyan-300 text-slate-200 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer flex items-center justify-center active:scale-95 shadow-sm"
+                      className="p-1.5 rounded-lg bg-white/[0.08] hover:bg-cyan-500/25 hover:text-cyan-300 text-slate-200 motion-press active:duration-100 cursor-pointer flex items-center justify-center active:scale-95 shadow-sm"
                       title="เลื่อนถอยหลัง 0.5s (~15 เฟรม) (คีย์ลัด: ←)"
                     >
                       <ArrowLeft className="w-4 h-4" />
@@ -1370,7 +1370,7 @@ export default function ManualStoryboardModal({
                     <button
                       type="button"
                       onClick={() => nudgeTrimWindow(0.5)}
-                      className="p-1.5 rounded-lg bg-white/[0.08] hover:bg-cyan-500/25 hover:text-cyan-300 text-slate-200 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer flex items-center justify-center active:scale-95 shadow-sm"
+                      className="p-1.5 rounded-lg bg-white/[0.08] hover:bg-cyan-500/25 hover:text-cyan-300 text-slate-200 motion-press active:duration-100 cursor-pointer flex items-center justify-center active:scale-95 shadow-sm"
                       title="เลื่อนไปข้างหน้า 0.5s (~15 เฟรม) (คีย์ลัด: →)"
                     >
                       <ArrowRight className="w-4 h-4" />
@@ -1386,7 +1386,7 @@ export default function ManualStoryboardModal({
                         const val = Math.max(trimStart + 0.2, trimEnd - 0.5);
                         setTrimEnd(val);
                       }}
-                      className="px-2 py-0.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-[10px] text-white font-mono cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-95"
+                      className="px-2 py-0.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-[10px] text-white font-mono cursor-pointer motion-press active:duration-100 active:scale-95"
                     >
                       -0.5
                     </button>
@@ -1396,7 +1396,7 @@ export default function ManualStoryboardModal({
                         const val = Math.min(videoDuration || 9999, trimEnd + 0.5);
                         setTrimEnd(val);
                       }}
-                      className="px-2 py-0.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-[10px] text-white font-mono cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-95"
+                      className="px-2 py-0.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-[10px] text-white font-mono cursor-pointer motion-press active:duration-100 active:scale-95"
                     >
                       +0.5
                     </button>
@@ -1409,7 +1409,7 @@ export default function ManualStoryboardModal({
                     <button
                       type="button"
                       onClick={() => handleUnlockBeat(selectedBeatIdx)}
-                      className="px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 font-bold text-xs flex items-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer shadow-sm"
+                      className="px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 font-bold text-xs flex items-center gap-1.5 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer shadow-sm"
                     >
                       <Unlock className="w-3.5 h-3.5" />
                       <span>ปลดล็อกช็อตนี้</span>
@@ -1421,7 +1421,7 @@ export default function ManualStoryboardModal({
                   <button
                     type="button"
                     onClick={handleLockCurrentBeat}
-                    className="px-4 py-2 rounded-xl bg-[#25F4EE] hover:bg-[#20ded8] text-black font-black text-xs shadow-lg shadow-cyan-500/25 flex items-center gap-2 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer active:scale-95 ml-auto"
+                    className="px-4 py-2 rounded-xl bg-[#25F4EE] hover:bg-[#20ded8] text-black font-black text-xs shadow-lg shadow-cyan-500/25 flex items-center gap-2 motion-press active:duration-100 cursor-pointer active:scale-95 ml-auto"
                   >
                     <Lock className="w-4 h-4" />
                     <span>
@@ -1458,7 +1458,7 @@ export default function ManualStoryboardModal({
               <button
                 type="button"
                 onClick={handleOpenSyncModal}
-                className="py-1.5 px-3 rounded-xl bg-gradient-to-r from-cyan-600/80 to-blue-600/80 hover:brightness-110 border border-cyan-400/40 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-cyan-500/20 cursor-pointer active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+                className="py-1.5 px-3 rounded-xl bg-gradient-to-r from-cyan-600/80 to-blue-600/80 hover:brightness-110 border border-cyan-400/40 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-cyan-500/20 cursor-pointer active:scale-95 motion-press active:duration-100"
                 title="คัดลอกและปรับใช้ชุดช็อตนี้กับสคริปต์มุมอื่นๆ ทั้งหมดของสินค้านี้"
               >
                 <Share2 className="w-3.5 h-3.5 text-cyan-200" />
@@ -1505,7 +1505,7 @@ export default function ManualStoryboardModal({
                 <button
                   type="button"
                   onClick={() => setSyncModalOpen(false)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 active:scale-[0.95] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer"
+                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 active:scale-[0.95] motion-press active:duration-100 cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -1533,7 +1533,7 @@ export default function ManualStoryboardModal({
                     <button
                       type="button"
                       onClick={() => setSyncOverwritePolicy('overwrite_all')}
-                      className={`p-2.5 rounded-xl border text-left cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 ${
+                      className={`p-2.5 rounded-xl border text-left cursor-pointer motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 ${
                         syncOverwritePolicy === 'overwrite_all'
                           ? 'bg-cyan-500/15 border-cyan-400 text-white shadow-sm'
                           : 'bg-black/30 border-white/10 text-slate-400 hover:text-slate-200'
@@ -1545,7 +1545,7 @@ export default function ManualStoryboardModal({
                     <button
                       type="button"
                       onClick={() => setSyncOverwritePolicy('skip_existing')}
-                      className={`p-2.5 rounded-xl border text-left cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 ${
+                      className={`p-2.5 rounded-xl border text-left cursor-pointer motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 ${
                         syncOverwritePolicy === 'skip_existing'
                           ? 'bg-cyan-500/15 border-cyan-400 text-white shadow-sm'
                           : 'bg-black/30 border-white/10 text-slate-400 hover:text-slate-200'
@@ -1595,7 +1595,7 @@ export default function ManualStoryboardModal({
                           <div
                             key={targetId}
                             onClick={() => handleToggleSyncAngleId(targetId)}
-                            className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out ${
+                            className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 cursor-pointer motion-press active:duration-100 ${
                               isSelected
                                 ? 'bg-cyan-950/20 border-cyan-500/40 text-white'
                                 : 'bg-black/20 border-white/[0.06] text-slate-400 hover:border-white/20'
@@ -1646,7 +1646,7 @@ export default function ManualStoryboardModal({
                   type="button"
                   onClick={handleConfirmSync}
                   disabled={syncing || selectedSyncAngleIds.size === 0}
-                  className="py-2 px-5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 hover:brightness-110 disabled:opacity-50 text-black font-black text-xs flex items-center gap-1.5 shadow-md shadow-cyan-500/25 cursor-pointer active:scale-95 disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+                  className="py-2 px-5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 hover:brightness-110 disabled:opacity-50 text-black font-black text-xs flex items-center gap-1.5 shadow-md shadow-cyan-500/25 cursor-pointer active:scale-95 disabled:active:scale-100 motion-press active:duration-100"
                 >
                   {syncing ? (
                     <>

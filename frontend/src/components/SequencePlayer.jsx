@@ -1033,7 +1033,7 @@ function BackgroundIsolationStatusBadge({ status = 'off' }) {
       aria-live="polite"
       aria-label={`${meta.label}: ${meta.detail}`}
       title={`${meta.label}\n${meta.detail}`}
-      className={`pointer-events-auto absolute left-2 top-2 z-30 flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold shadow-lg backdrop-blur-md transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 ease-out ${tone}`}
+      className={`pointer-events-auto absolute left-2 top-2 z-30 flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold shadow-lg backdrop-blur-md motion-press ${tone}`}
     >
       {icon}
       <span className="whitespace-nowrap">{meta.label}</span>
@@ -5530,7 +5530,7 @@ function SequencePlayer({
               type="button"
               onClick={toggleSafeZone}
               title={showSafeZone ? 'ซ่อน TikTok Safe Zone' : 'แสดง TikTok Safe Zone (9:16)'}
-              className={`flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10.5px] font-medium border transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 ease-out cursor-pointer ${
+              className={`flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10.5px] font-medium border motion-press cursor-pointer ${
                 showSafeZone
                   ? 'bg-[#25F4EE]/15 border-[#25F4EE]/60 text-[#25F4EE] shadow-[0_0_8px_rgba(37,244,238,0.2)]'
                   : 'bg-white/5 border-white/10 text-slate-400 hover:text-slate-200 hover:bg-white/10'
@@ -5593,9 +5593,9 @@ function SequencePlayer({
           {doubleTapRipple && (
             <div
               key={doubleTapRipple.id}
-              className="pointer-events-none absolute inset-0 z-[60] flex items-center justify-center animate-out fade-out duration-500"
+              className="pointer-events-none absolute inset-0 z-[60] flex items-center justify-center animate-out duration-500"
             >
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-black/70 backdrop-blur-md border border-[#25F4EE]/40 text-[#25F4EE] shadow-2xl shadow-[#25F4EE]/20 transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 ease-out scale-110">
+              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-black/70 backdrop-blur-md border border-[#25F4EE]/40 text-[#25F4EE] shadow-2xl shadow-[#25F4EE]/20 motion-press scale-110">
                 {doubleTapRipple.isPlaying ? (
                   <Play className="h-9 w-9 fill-current translate-x-0.5" />
                 ) : (
@@ -5958,7 +5958,7 @@ function SequencePlayer({
                   aria-label={isPlaying ? 'หยุดพรีวิวชั่วคราว' : 'เล่นพรีวิว'}
                   className="group absolute inset-0 flex cursor-pointer items-center justify-center bg-black/0 transition-colors hover:bg-black/20"
                 >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/60 text-white opacity-0 shadow-lg transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 ease-out group-hover:bg-[#25F4EE] group-hover:text-black group-hover:opacity-100">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/60 text-white opacity-0 shadow-lg motion-press group-hover:bg-[#25F4EE] group-hover:text-black group-hover:opacity-100">
                     {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
                   </div>
                 </button>
@@ -6090,7 +6090,7 @@ function SequencePlayer({
               aria-pressed={showSafeZone}
               aria-label={showSafeZone ? 'ซ่อน TikTok Safe Zone' : 'แสดง TikTok Safe Zone'}
               title={showSafeZone ? 'ซ่อน TikTok Safe Zone (9:16)' : 'แสดง TikTok Safe Zone (9:16)'}
-              className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 ease-out cursor-pointer border ${
+              className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold motion-press cursor-pointer border ${
                 showSafeZone
                   ? 'bg-rose-500/20 text-rose-300 border-rose-500/50 shadow-[0_0_8px_rgba(254,44,85,0.3)]'
                   : 'text-slate-400 hover:text-slate-200 border-white/10 hover:border-white/20 hover:bg-white/5'

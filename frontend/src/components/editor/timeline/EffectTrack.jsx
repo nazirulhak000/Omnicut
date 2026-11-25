@@ -25,7 +25,7 @@ function labelFor(item, effectAssets) {
 
 export function EffectTrackLabel({ width, slotWidth, rowStyleProp }) {
   return (
-    <div style={rowStyleProp} className="flex items-center transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out">
+    <div style={rowStyleProp} className="flex items-center motion-press active:duration-100">
       <TrackLabel width={width} slotWidth={slotWidth} icon={Sparkles}>
         เอฟเฟกต์
       </TrackLabel>
@@ -54,7 +54,7 @@ export function EffectTrackLane({
   // Live playhead for handlers; the `playhead` prop is the settled value.
   const getPlayhead = usePlayheadGetter(playhead);
   return (
-    <div className="relative rounded bg-[#181716] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out" style={rowStyleProp}>
+    <div className="relative rounded bg-[#181716] motion-press active:duration-100" style={rowStyleProp}>
       {packedEffects.map((item) => {
         const start = item.start ?? 0.5;
         const end = item.end ?? (totalDuration || 15);

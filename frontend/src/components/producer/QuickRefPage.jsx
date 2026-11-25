@@ -691,7 +691,7 @@ export default function QuickRefPage({ onExit }) {
           <div className="flex items-center gap-3">
             <button
               onClick={onExit || (() => { window.location.href = window.location.pathname; })}
-              className="w-10 h-10 rounded-xl bg-slate-800/80 hover:bg-slate-700 active:scale-95 disabled:active:scale-100 flex items-center justify-center text-slate-300 hover:text-white cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out border border-white/5"
+              className="w-10 h-10 rounded-xl bg-slate-800/80 hover:bg-slate-700 active:scale-95 disabled:active:scale-100 flex items-center justify-center text-slate-300 hover:text-white cursor-pointer motion-press active:duration-100 border border-white/5"
               title="กลับหน้าหลัก"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -717,7 +717,7 @@ export default function QuickRefPage({ onExit }) {
             <div className="flex lg:hidden bg-slate-900/90 p-1 rounded-xl border border-white/10">
               <button
                 onClick={() => setMobileTab('capture')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 ${
                   mobileTab === 'capture'
                     ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
                     : 'text-slate-400 hover:text-white'
@@ -727,7 +727,7 @@ export default function QuickRefPage({ onExit }) {
               </button>
               <button
                 onClick={() => setMobileTab('vault')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 flex items-center gap-1.5 ${
                   mobileTab === 'vault'
                     ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
                     : 'text-slate-400 hover:text-white'
@@ -744,7 +744,7 @@ export default function QuickRefPage({ onExit }) {
 
             <button
               onClick={onExit || (() => { window.location.href = window.location.pathname; })}
-              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 hover:text-white transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 border border-white/10 hidden sm:flex items-center gap-1.5"
+              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 hover:text-white motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 border border-white/10 hidden sm:flex items-center gap-1.5"
             >
               <span>เปิดหน้าเต็มในแอป</span>
               <ExternalLink className="w-3.5 h-3.5" />
@@ -784,7 +784,7 @@ export default function QuickRefPage({ onExit }) {
                   <button
                     type="button"
                     onClick={handlePasteClipboard}
-                    className="text-[11px] font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 cursor-pointer bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20 active:scale-95 disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+                    className="text-[11px] font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 cursor-pointer bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20 active:scale-95 disabled:active:scale-100 motion-press active:duration-100"
                   >
                     {pasteSuccess ? <Check className="w-3 h-3" /> : <Clipboard className="w-3 h-3" />}
                     <span>{pasteSuccess ? 'วางเรียบร้อย!' : 'วางลิงก์ล่าสุด'}</span>
@@ -854,7 +854,7 @@ export default function QuickRefPage({ onExit }) {
                           type="button"
                           onClick={() => setSelectedTag(cat.id)}
                           aria-pressed={active}
-                        className={`p-2 rounded-xl text-xs font-bold flex items-center gap-2 border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer text-left ${
+                        className={`p-2 rounded-xl text-xs font-bold flex items-center gap-2 border motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer text-left ${
                           active
                             ? 'bg-amber-500/20 border-amber-500 text-amber-300 shadow-md shadow-amber-500/10'
                             : 'bg-slate-950/60 border-white/5 text-slate-400 hover:text-slate-200 hover:border-white/15'
@@ -887,7 +887,7 @@ export default function QuickRefPage({ onExit }) {
                     <button
                       type="button"
                       onClick={() => setSelectedProductId('')}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap border cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 ${
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap border cursor-pointer motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 ${
                         !selectedProductId
                           ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300'
                           : 'bg-slate-950/60 border-white/5 text-slate-400 hover:text-slate-200'
@@ -903,7 +903,7 @@ export default function QuickRefPage({ onExit }) {
                           type="button"
                           onClick={() => setSelectedProductId(p.id)}
                           aria-pressed={active}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap border cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 ${
+                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap border cursor-pointer motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 ${
                             active
                               ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300 shadow-sm'
                               : 'bg-slate-950/60 border-white/5 text-slate-400 hover:text-slate-200'
@@ -1004,7 +1004,7 @@ export default function QuickRefPage({ onExit }) {
                         <button
                           type="button"
                           onClick={() => fileInputRef.current?.click()}
-                          className="flex-shrink-0 w-16 h-16 rounded-xl border-2 border-dashed border-amber-500/40 bg-amber-500/5 hover:bg-amber-500/15 text-amber-300 flex flex-col items-center justify-center gap-0.5 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-95 disabled:active:scale-100"
+                          className="flex-shrink-0 w-16 h-16 rounded-xl border-2 border-dashed border-amber-500/40 bg-amber-500/5 hover:bg-amber-500/15 text-amber-300 flex flex-col items-center justify-center gap-0.5 cursor-pointer motion-press active:duration-100 active:scale-95 disabled:active:scale-100"
                           title="เลือกรูปภาพเพิ่มจากคลัง"
                         >
                           <PlusCircle className="w-4 h-4 text-amber-400" />
@@ -1085,7 +1085,7 @@ export default function QuickRefPage({ onExit }) {
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
                         disabled={uploadingImage || previewImages.some(img => img.includes('#omnicut-pending-'))}
-                        className="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/10 hover:from-amber-500/30 hover:to-orange-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-95 disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out shadow-md shadow-amber-500/10"
+                        className="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/10 hover:from-amber-500/30 hover:to-orange-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-95 disabled:active:scale-100 motion-press active:duration-100 shadow-md shadow-amber-500/10"
                         title="เปิดคลังภาพ (รูปที่เพิ่งแคปหน้าจอจะอยู่มุมบนสุดซ้ายมือ)"
                       >
                         <ImageIcon className="w-4 h-4 text-amber-400 flex-shrink-0" />
@@ -1096,7 +1096,7 @@ export default function QuickRefPage({ onExit }) {
                         type="button"
                         onClick={handlePasteImageFromClipboard}
                         disabled={uploadingImage || previewImages.some(img => img.includes('#omnicut-pending-'))}
-                        className="w-full py-2.5 px-3 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-white/10 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+                        className="w-full py-2.5 px-3 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-white/10 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 disabled:active:scale-100 motion-press active:duration-100"
                         title="อ่านรูปภาพจากคลิปบอร์ดเครื่อง"
                       >
                         <Clipboard className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
@@ -1131,7 +1131,7 @@ export default function QuickRefPage({ onExit }) {
                 onClick={handleSave}
                 aria-live="polite"
                 disabled={uploadingImage || previewImages.some(img => img.includes('#omnicut-pending-')) || (!ideaText.trim() && !refUrl.trim() && previewImages.length === 0)}
-                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-orange-500 hover:brightness-110 active:scale-[0.98] disabled:active:scale-100 text-slate-950 font-black text-sm flex items-center justify-center gap-2 cursor-pointer shadow-xl shadow-amber-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-orange-500 hover:brightness-110 active:scale-[0.98] disabled:active:scale-100 text-slate-950 font-black text-sm flex items-center justify-center gap-2 cursor-pointer shadow-xl shadow-amber-500/25 disabled:opacity-40 disabled:cursor-not-allowed motion-press active:duration-100"
               >
                 {saveSuccess ? <Check className="w-5 h-5" /> : <Bookmark className="w-5 h-5" />}
                 <span>{saveSuccess ? 'บันทึกเข้าคลังเรียบร้อย!' : 'บันทึกเข้าคลังไอเดีย'}</span>
@@ -1206,7 +1206,7 @@ export default function QuickRefPage({ onExit }) {
                       <button
                         type="button"
                         onClick={() => handleDelete(item.id)}
-                        className="px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-xs font-bold flex items-center gap-1 cursor-pointer active:scale-95 disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex-shrink-0"
+                        className="px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-xs font-bold flex items-center gap-1 cursor-pointer active:scale-95 disabled:active:scale-100 motion-press active:duration-100 flex-shrink-0"
                         title="ลบโน้ตนี้"
                       >
                         <Trash2 className="w-3.5 h-3.5 text-rose-400" />
@@ -1244,7 +1244,7 @@ export default function QuickRefPage({ onExit }) {
                     onClick={fetchNotes}
                     disabled={isSyncing}
                     aria-label={isSyncing ? 'กำลังซิงก์ข้อมูล' : 'ซิงก์ข้อมูลจากเซิร์ฟเวอร์'}
-                    className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-white/10 text-xs font-semibold flex items-center gap-1.5 cursor-pointer active:scale-95 disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex-shrink-0"
+                    className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-white/10 text-xs font-semibold flex items-center gap-1.5 cursor-pointer active:scale-95 disabled:active:scale-100 motion-press active:duration-100 flex-shrink-0"
                     title="ซิงก์ข้อมูลล่าสุดจากเซิร์ฟเวอร์ (คอมพิวเตอร์/มือถือ)"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 text-cyan-400 ${isSyncing ? 'animate-spin' : ''}`} />
@@ -1277,7 +1277,7 @@ export default function QuickRefPage({ onExit }) {
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
                 <button
                   onClick={() => setFilterTag('all')}
-                  className={`px-3 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 ${
+                  className={`px-3 py-1 rounded-xl text-xs font-bold whitespace-nowrap motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 ${
                     filterTag === 'all'
                       ? 'bg-amber-500 text-slate-950 shadow-sm'
                       : 'bg-slate-950/60 text-slate-400 hover:text-slate-200 border border-white/5'
@@ -1292,7 +1292,7 @@ export default function QuickRefPage({ onExit }) {
                     <button
                       key={cat.id}
                       onClick={() => setFilterTag(cat.id)}
-                      className={`px-3 py-1 rounded-xl text-xs font-semibold whitespace-nowrap border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 ${
+                      className={`px-3 py-1 rounded-xl text-xs font-semibold whitespace-nowrap border motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 ${
                         active
                           ? 'bg-amber-500/20 border-amber-500 text-amber-300'
                           : 'bg-slate-950/60 border-white/5 text-slate-400 hover:text-slate-200'
@@ -1329,7 +1329,7 @@ export default function QuickRefPage({ onExit }) {
                     return (
                       <div
                         key={item.id}
-                        className={`p-4 rounded-2xl border space-y-3 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex flex-col justify-between group ${
+                        className={`p-4 rounded-2xl border space-y-3 motion-press active:duration-100 flex flex-col justify-between group ${
                           item.isPinned
                             ? 'bg-amber-500/[0.05] border-amber-500/40 shadow-sm shadow-amber-500/10'
                             : 'bg-slate-950/70 border-white/[0.08] hover:border-amber-500/40'
@@ -1367,7 +1367,7 @@ export default function QuickRefPage({ onExit }) {
                                   e.stopPropagation();
                                   handleTogglePin(item);
                                 }}
-                                className={`p-1.5 rounded-lg border text-xs font-semibold flex items-center cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 ${
+                                className={`p-1.5 rounded-lg border text-xs font-semibold flex items-center cursor-pointer motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 ${
                                   item.isPinned
                                     ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm'
                                     : 'bg-white/5 hover:bg-white/10 text-slate-400 border-white/10'
@@ -1382,7 +1382,7 @@ export default function QuickRefPage({ onExit }) {
                                   e.stopPropagation();
                                   handleDelete(item.id);
                                 }}
-                                className="p-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-xs font-bold flex items-center cursor-pointer active:scale-95 disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out shadow-sm"
+                                className="p-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-xs font-bold flex items-center cursor-pointer active:scale-95 disabled:active:scale-100 motion-press active:duration-100 shadow-sm"
                                 title="ลบโน้ตนี้"
                               >
                                 <Trash2 className="w-3.5 h-3.5 text-rose-400" />
@@ -1458,7 +1458,7 @@ export default function QuickRefPage({ onExit }) {
                                           isLastAndMore ? setActiveDetailsNote(item) : setActiveZoomImage(imgUrl);
                                         }
                                       }}
-                                      className="relative h-20 rounded-xl overflow-hidden border border-white/10 bg-black/40 cursor-pointer group/thumb hover:border-amber-500/40 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80"
+                                      className="relative h-20 rounded-xl overflow-hidden border border-white/10 bg-black/40 cursor-pointer group/thumb hover:border-amber-500/40 motion-press active:duration-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80"
                                     >
                                       <img loading="lazy" decoding="async"
                                         src={imgUrl}
@@ -1502,7 +1502,7 @@ export default function QuickRefPage({ onExit }) {
                             <button
                               type="button"
                               onClick={() => handleCopyNoteForBoss(item)}
-                              className="px-2.5 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-white border border-white/10 text-xs font-semibold flex items-center gap-1.5 cursor-pointer active:scale-95 disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+                              className="px-2.5 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-white border border-white/10 text-xs font-semibold flex items-center gap-1.5 cursor-pointer active:scale-95 disabled:active:scale-100 motion-press active:duration-100"
                               title="คัดลอกสรุปข้อความและรูปภาพทั้งหมดสำหรับส่งไลน์ให้นายหรือทีมงาน"
                             >
                               <Copy className="w-3.5 h-3.5 text-cyan-400" />
@@ -1524,7 +1524,7 @@ export default function QuickRefPage({ onExit }) {
                             type="button"
                             onClick={() => handleRunAi(item)}
                             disabled={isSynthesizing}
-                            className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out disabled:opacity-50"
+                            className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 disabled:active:scale-100 motion-press active:duration-100 disabled:opacity-50"
                             title="วิเคราะห์ไอเดียนี้ด้วย AI"
                           >
                             {isSynthesizing ? (
@@ -1561,7 +1561,7 @@ export default function QuickRefPage({ onExit }) {
               </div>
               <button
                 onClick={() => setAiProposal(null)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-white bg-slate-800 active:scale-[0.95] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer"
+                className="p-1.5 rounded-xl text-slate-400 hover:text-white bg-slate-800 active:scale-[0.95] motion-press active:duration-100 cursor-pointer"
                 aria-label="ปิดข้อเสนอจาก AI"
               >
                 <X className="w-4 h-4" />
@@ -1653,7 +1653,7 @@ export default function QuickRefPage({ onExit }) {
                 type="button"
                 onClick={handleConfirmAddAngle}
                 disabled={addingAngle || angleAddedSuccess}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 active:scale-95 disabled:active:scale-100 text-slate-950 font-black text-xs flex items-center gap-2 cursor-pointer shadow-lg shadow-amber-500/20 disabled:opacity-50 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 active:scale-95 disabled:active:scale-100 text-slate-950 font-black text-xs flex items-center gap-2 cursor-pointer shadow-lg shadow-amber-500/20 disabled:opacity-50 motion-press active:duration-100"
               >
                 {addingAngle ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -1689,7 +1689,7 @@ export default function QuickRefPage({ onExit }) {
             <button
               type="button"
               onClick={() => setActiveZoomImage(null)}
-              className="absolute -top-11 right-0 p-2 rounded-full bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white cursor-pointer active:scale-[0.95] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out shadow-lg"
+              className="absolute -top-11 right-0 p-2 rounded-full bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white cursor-pointer active:scale-[0.95] motion-press active:duration-100 shadow-lg"
               title="ปิดรูปขยาย"
               aria-label="ปิดรูปขยาย"
             >
@@ -1763,7 +1763,7 @@ export default function QuickRefPage({ onExit }) {
                   <button
                     type="button"
                     onClick={() => handleTogglePin(activeDetailsNote)}
-                    className={`p-1.5 rounded-xl border text-xs font-semibold flex items-center cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 ${
+                    className={`p-1.5 rounded-xl border text-xs font-semibold flex items-center cursor-pointer motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 ${
                       activeDetailsNote.isPinned
                         ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
                         : 'bg-slate-800 text-slate-400 border-white/10'
@@ -1789,7 +1789,7 @@ export default function QuickRefPage({ onExit }) {
                       setActiveDetailsNote(null);
                       setIsEditingInModal(false);
                     }}
-                    className="p-1.5 rounded-xl text-slate-400 hover:text-white bg-slate-800 active:scale-[0.95] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer"
+                    className="p-1.5 rounded-xl text-slate-400 hover:text-white bg-slate-800 active:scale-[0.95] motion-press active:duration-100 cursor-pointer"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -1878,7 +1878,7 @@ export default function QuickRefPage({ onExit }) {
                             setActiveZoomImage(img);
                           }
                         }}
-                        className="relative rounded-2xl overflow-hidden border border-white/10 bg-black/40 cursor-zoom-in group hover:border-amber-500/50 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out aspect-square focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80"
+                        className="relative rounded-2xl overflow-hidden border border-white/10 bg-black/40 cursor-zoom-in group hover:border-amber-500/50 motion-press active:duration-100 aspect-square focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80"
                       >
                         <img loading="lazy" decoding="async"
                           src={img}
@@ -1902,7 +1902,7 @@ export default function QuickRefPage({ onExit }) {
                 <button
                   type="button"
                   onClick={() => handleCopyNoteForBoss(activeDetailsNote)}
-                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-white/10 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-95 disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out shadow-md"
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-white/10 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer active:scale-95 disabled:active:scale-100 motion-press active:duration-100 shadow-md"
                 >
                   <Copy className="w-4 h-4 text-cyan-400" />
                   <span>คัดลอกส่งงาน (พร้อมข้อความและรูปทั้งหมด)</span>
@@ -1915,7 +1915,7 @@ export default function QuickRefPage({ onExit }) {
                       handleDelete(activeDetailsNote.id);
                       setActiveDetailsNote(null);
                     }}
-                    className="px-3.5 py-2.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out shadow-sm"
+                    className="px-3.5 py-2.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 disabled:active:scale-100 motion-press active:duration-100 shadow-sm"
                     title="ลบโน้ตนี้"
                   >
                     <Trash2 className="w-4 h-4 text-rose-400" />
@@ -1928,7 +1928,7 @@ export default function QuickRefPage({ onExit }) {
                       setActiveDetailsNote(null);
                       handleRunAi(itemToRun);
                     }}
-                    className="px-4 py-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+                    className="px-4 py-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 disabled:active:scale-100 motion-press active:duration-100"
                   >
                     <Sparkles className="w-4 h-4 text-amber-400" />
                     <span>คิดสคริปต์จากเรฟนี้</span>

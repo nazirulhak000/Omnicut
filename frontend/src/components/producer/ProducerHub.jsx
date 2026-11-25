@@ -485,7 +485,7 @@ export default function ProducerHub() {
             <button
               type="button"
               onClick={() => setShowPipelineViewer(!showPipelineViewer)}
-              className="px-3.5 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-xs font-semibold text-cyan-300 hover:text-white border border-cyan-500/30 flex items-center gap-1.5 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 shadow-sm"
+              className="px-3.5 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-xs font-semibold text-cyan-300 hover:text-white border border-cyan-500/30 flex items-center gap-1.5 cursor-pointer motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 shadow-sm"
             >
               <span>{showPipelineViewer ? 'ซ่อนแผนผัง' : 'เปิดดูแผนผัง Interactive'}</span>
             </button>
@@ -493,7 +493,7 @@ export default function ProducerHub() {
               href="/ai_pipeline_flow.html"
               target="_blank"
               rel="noreferrer"
-              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 hover:text-white border border-white/10 flex items-center gap-1.5 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 hover:text-white border border-white/10 flex items-center gap-1.5 cursor-pointer motion-press active:duration-100"
               title="เปิดแผนผังแบบเต็มหน้าต่างในแท็บใหม่"
             >
               <span>เปิดแท็บใหม่</span>
@@ -555,7 +555,7 @@ export default function ProducerHub() {
               href="/ai_pipeline_flow.html"
               target="_blank"
               rel="noreferrer"
-              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-amber-300 hover:text-white border border-amber-500/20 flex items-center gap-1.5 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-amber-300 hover:text-white border border-amber-500/20 flex items-center gap-1.5 cursor-pointer motion-press active:duration-100"
               title="เปิดดูแผนผัง AI Production Pipeline Flow"
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
@@ -566,7 +566,7 @@ export default function ProducerHub() {
               href="?view=quick-ref"
               target="_blank"
               rel="noreferrer"
-              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-cyan-300 hover:text-white border border-cyan-500/20 flex items-center gap-1.5 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-cyan-300 hover:text-white border border-cyan-500/20 flex items-center gap-1.5 cursor-pointer motion-press active:duration-100"
               title="เปิดหน้า Quick-Capture ขนาดมือถือ iPhone 15 Pro Max เพื่อ Add to Home Screen"
             >
               <Smartphone className="w-3.5 h-3.5" />
@@ -641,7 +641,7 @@ export default function ProducerHub() {
                 type="button"
                 onClick={handlePasteImageFromClipboard}
                 disabled={uploadingRefImage || ideaImages.some(img => img.includes('#omnicut-pending-'))}
-                className="px-2.5 py-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out disabled:opacity-50"
+                className="px-2.5 py-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 disabled:active:scale-100 motion-press active:duration-100 disabled:opacity-50"
                 title="อ่านรูปภาพจากคลิปบอร์ดที่เพิ่งแคปหน้าจอมา (กด Ctrl+V หรือคลิกวางได้เรื่อยๆ หลายรูป)"
               >
                 <Clipboard className="w-3.5 h-3.5" />
@@ -652,7 +652,7 @@ export default function ProducerHub() {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadingRefImage || ideaImages.some(img => img.includes('#omnicut-pending-'))}
-                className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 hover:text-white border border-white/10 flex items-center gap-1.5 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
+                className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 hover:text-white border border-white/10 flex items-center gap-1.5 cursor-pointer motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100"
                 title="เลือกรูปภาพจากเครื่อง (เลือกพร้อมกันได้หลายรูป)"
               >
                 <ImageIcon className="w-3.5 h-3.5 text-cyan-400" />
@@ -701,7 +701,7 @@ export default function ProducerHub() {
             <button
               type="submit"
               disabled={uploadingRefImage || ideaImages.some(img => img.includes('#omnicut-pending-')) || (!ideaText.trim() && !ideaUrl.trim() && ideaImages.length === 0)}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 active:scale-95 disabled:active:scale-100 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md shadow-amber-500/20 disabled:opacity-40 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 active:scale-95 disabled:active:scale-100 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md shadow-amber-500/20 disabled:opacity-40 motion-press active:duration-100"
             >
               {refSaveSuccess ? <Check className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
               <span>{refSaveSuccess ? 'บันทึกเรียบร้อย' : 'บันทึกไอเดีย'}</span>
@@ -722,7 +722,7 @@ export default function ProducerHub() {
                     <button
                       type="button"
                       onClick={() => removeIdeaImage(idx)}
-                      className="absolute top-1 right-1 p-0.5 rounded-md bg-rose-600/90 text-white opacity-90 group-hover/thumb:opacity-100 hover:bg-rose-700 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
+                      className="absolute top-1 right-1 p-0.5 rounded-md bg-rose-600/90 text-white opacity-90 group-hover/thumb:opacity-100 hover:bg-rose-700 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
                       title="ลบรูปนี้"
                     >
                       <X className="w-3 h-3" />
@@ -750,7 +750,7 @@ export default function ProducerHub() {
               return (
                 <div
                   key={item.id}
-                  className={`p-3.5 rounded-xl border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex flex-col justify-between gap-2.5 group ${
+                  className={`p-3.5 rounded-xl border motion-press active:duration-100 flex flex-col justify-between gap-2.5 group ${
                     item.isPinned
                       ? 'bg-amber-500/[0.05] border-amber-500/40 shadow-sm shadow-amber-500/10'
                       : 'bg-slate-800/40 border-white/5 hover:border-amber-500/30'
@@ -788,7 +788,7 @@ export default function ProducerHub() {
                             e.stopPropagation();
                             handleTogglePinNote(item);
                           }}
-                          className={`p-1.5 rounded-lg border text-xs font-semibold flex items-center cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 ${
+                          className={`p-1.5 rounded-lg border text-xs font-semibold flex items-center cursor-pointer motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 ${
                             item.isPinned
                               ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm'
                               : 'bg-white/5 hover:bg-white/10 text-slate-400 border-white/10'
@@ -804,7 +804,7 @@ export default function ProducerHub() {
                             e.stopPropagation();
                             setEditingNote({ ...item, base_revision: notesRevision.current });
                           }}
-                          className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 text-xs font-semibold flex items-center cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
+                          className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 text-xs font-semibold flex items-center cursor-pointer motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100"
                           title="แก้ไขข้อความโน้ต"
                           aria-label="แก้ไขข้อความโน้ต"
                         >
@@ -816,7 +816,7 @@ export default function ProducerHub() {
                             e.stopPropagation();
                             handleDeleteNote(item.id);
                           }}
-                          className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-xs font-semibold flex items-center cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 shadow-sm"
+                          className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-xs font-semibold flex items-center cursor-pointer motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 shadow-sm"
                           title="ลบรายการนี้"
                           aria-label="ลบรายการนี้"
                         >
@@ -880,7 +880,7 @@ export default function ProducerHub() {
                                     setActiveZoomImage(imgUrl);
                                   }
                                 }}
-                                className="relative h-16 rounded-lg overflow-hidden border border-white/10 bg-black/40 cursor-pointer group/thumb hover:border-amber-500/40 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80"
+                                className="relative h-16 rounded-lg overflow-hidden border border-white/10 bg-black/40 cursor-pointer group/thumb hover:border-amber-500/40 motion-press active:duration-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80"
                               >
                                 <img loading="lazy" decoding="async"
                                   src={imgUrl}
@@ -918,7 +918,7 @@ export default function ProducerHub() {
                     <button
                       type="button"
                       onClick={() => handleCopyNoteForBoss(item)}
-                      className="px-2 py-1 rounded-lg bg-slate-700/70 hover:bg-slate-700 text-slate-200 hover:text-white border border-white/5 text-[11px] font-semibold flex items-center gap-1 cursor-pointer active:scale-95 disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+                      className="px-2 py-1 rounded-lg bg-slate-700/70 hover:bg-slate-700 text-slate-200 hover:text-white border border-white/5 text-[11px] font-semibold flex items-center gap-1 cursor-pointer active:scale-95 disabled:active:scale-100 motion-press active:duration-100"
                       title="คัดลอกสรุปไอเดียและรูปภาพทั้งหมดสำหรับส่งไลน์ให้นายหรือทีมงาน"
                     >
                       <Copy className="w-3 h-3 text-cyan-400" />
@@ -928,7 +928,7 @@ export default function ProducerHub() {
                     <button
                       onClick={() => handleRunAiIdeaToScript(item)}
                       disabled={isSynthesizing}
-                      className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] font-bold flex items-center gap-1 cursor-pointer active:scale-95 disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out disabled:opacity-50"
+                      className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] font-bold flex items-center gap-1 cursor-pointer active:scale-95 disabled:active:scale-100 motion-press active:duration-100 disabled:opacity-50"
                       title="ให้ AI วิเคราะห์เรฟนี้แล้วแปลงเป็นมุมมองและสคริปต์สำหรับสินค้า"
                     >
                       {isSynthesizing ? <Loader2 className="w-3 h-3 animate-spin text-amber-400" /> : <Sparkles className="w-3 h-3" />}
@@ -964,7 +964,7 @@ export default function ProducerHub() {
               </div>
               <button
                 onClick={() => setAiProposal(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 active:scale-[0.95] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer"
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 active:scale-[0.95] motion-press active:duration-100 cursor-pointer"
                 aria-label="ปิดข้อเสนอจาก AI"
               >
                 <X className="w-5 h-5" />
@@ -1066,7 +1066,7 @@ export default function ProducerHub() {
               <button
                 onClick={handleConfirmAddAngle}
                 disabled={addingAngle}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 active:scale-95 disabled:active:scale-100 text-slate-950 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-lg shadow-amber-500/20 disabled:opacity-50 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 active:scale-95 disabled:active:scale-100 text-slate-950 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-lg shadow-amber-500/20 disabled:opacity-50 motion-press active:duration-100"
               >
                 {addingAngle ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                 <span>{addingAngle ? 'กำลังบันทึก...' : 'เพิ่มเป็นมุมมองสินค้า (Add to Angles)'}</span>
@@ -1089,7 +1089,7 @@ export default function ProducerHub() {
             <button
               type="button"
               onClick={() => setActiveZoomImage(null)}
-              className="absolute -top-11 right-0 p-2 rounded-full bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white cursor-pointer active:scale-[0.95] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out shadow-lg"
+              className="absolute -top-11 right-0 p-2 rounded-full bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white cursor-pointer active:scale-[0.95] motion-press active:duration-100 shadow-lg"
               title="ปิดรูปขยาย"
               aria-label="ปิดรูปขยาย"
             >
@@ -1147,7 +1147,7 @@ export default function ProducerHub() {
               <button
                 type="button"
                 onClick={() => setEditingNote(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white bg-slate-800 active:scale-[0.95] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer"
+                className="p-1 rounded-lg text-slate-400 hover:text-white bg-slate-800 active:scale-[0.95] motion-press active:duration-100 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1216,7 +1216,7 @@ export default function ProducerHub() {
                   productName: editingNote.productName,
                   url: editingNote.url,
                 })}
-                className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-lg shadow-cyan-500/20 active:scale-95 disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+                className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-lg shadow-cyan-500/20 active:scale-95 disabled:active:scale-100 motion-press active:duration-100"
               >
                 <Check className="w-3.5 h-3.5" />
                 <span>บันทึกการแก้ไข</span>

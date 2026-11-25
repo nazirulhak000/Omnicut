@@ -49,7 +49,7 @@ def test_cover_studio_draft_blocks_switch_without_rendering(motion_fixture_url, 
             page.goto(f"{origin}/?channel=second&mode=desktop", wait_until="domcontentloaded")
             selector = page.get_by_role("combobox", name="เลือกช่อง")
             expect(selector).to_have_value("second")
-            page.get_by_title("4. Export Gallery", exact=True).click()
+            page.get_by_role("button", name="4. Export Gallery", exact=True).click()
             # "ดูรายละเอียด" lives in the card More Actions dropdown.
             page.get_by_title("เมนูเพิ่มเติม (More Actions)", exact=True).first.click()
             page.get_by_role("button", name="ดูรายละเอียด", exact=True).click()

@@ -70,7 +70,7 @@ def test_gallery_shows_in_place_sharpened_clips_as_done_and_reports_a_refused_pa
 
             page.route("**/api/**", api)
             page.goto(f"{origin}/?mode=desktop", wait_until="domcontentloaded")
-            gallery = page.get_by_title("4. Export Gallery", exact=True)
+            gallery = page.get_by_role("button", name="4. Export Gallery", exact=True)
             try:
                 expect(gallery).to_be_visible(timeout=5000)
             except AssertionError:

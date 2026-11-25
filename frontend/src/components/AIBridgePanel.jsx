@@ -116,7 +116,7 @@ export default function AIBridgePanel({ task, prompt, warning, onParsed, onCance
       <button
         onClick={handleUse}
         disabled={parsing || !answer.trim()}
-        className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:opacity-90 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-md transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-95 disabled:active:scale-100 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+        className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:opacity-90 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-md motion-press active:duration-100 active:scale-95 disabled:active:scale-100 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
       >
         <ClipboardPaste className="w-4 h-4" />
         {parsing ? 'กำลังอ่านคำตอบ...' : 'ใช้คำตอบนี้'}

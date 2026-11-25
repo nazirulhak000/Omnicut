@@ -249,7 +249,7 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
         <p className="text-sm text-slate-300">{error || 'ไม่พบข้อมูล'}</p>
         <button
           onClick={fetchData}
-          className="px-4 py-2 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] text-xs font-bold text-white transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer inline-flex items-center gap-2"
+          className="px-4 py-2 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] text-xs font-bold text-white motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer inline-flex items-center gap-2"
         >
           <RefreshCw className="w-4 h-4" />
           <span>ลองใหม่อีกครั้ง</span>
@@ -316,7 +316,7 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
               <button
                 type="button"
                 onClick={() => setTrendMode('clips')}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                   trendMode === 'clips'
                     ? 'bg-white/[0.10] text-white border border-white/[0.14] shadow-sm'
                     : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
@@ -327,7 +327,7 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
               <button
                 type="button"
                 onClick={() => setTrendMode('daily')}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                   trendMode === 'daily'
                     ? 'bg-white/[0.10] text-white border border-white/[0.14] shadow-sm'
                     : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
@@ -406,7 +406,7 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
               {ignoredRows.length > 0 && (
                 <button
                   onClick={() => setShowIgnored((v) => !v)}
-                  className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
+                  className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                     showIgnored
                       ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
                       : 'bg-white/[0.04] hover:bg-white/[0.08] border-white/[0.1] text-slate-300'
@@ -419,7 +419,7 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
                 onClick={handleIgnoreAll}
                 disabled={matchBusy || pendingRows.length === 0}
                 title="บันทึกว่าไม่ใช่คลิปเราทั้งหมด และจะไม่ถูกดึงกลับมาอีกเมื่อซิงก์ใหม่"
-                className="px-2.5 py-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-xs font-bold text-rose-300 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                className="px-2.5 py-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-xs font-bold text-rose-300 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               >
                 ข้ามทั้งหมด ({pendingRows.length})
               </button>
@@ -451,7 +451,7 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
                   <button
                     onClick={() => handleAttach(row)}
                     disabled={matchBusy || !chosenKeys[row.id]}
-                    className="px-3 py-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-[11px] font-bold text-cyan-300 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                    className="px-3 py-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-[11px] font-bold text-cyan-300 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                   >
                     <span>จับคู่</span>
                   </button>
@@ -459,7 +459,7 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
                     onClick={() => handleIgnore(row)}
                     disabled={matchBusy}
                     title="คลิปนี้ไม่ใช่ของเรา ตัดออกจากรายการถาวร"
-                    className="px-2.5 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] text-[11px] font-bold text-slate-300 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                    className="px-2.5 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] text-[11px] font-bold text-slate-300 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                   >
                     <span>ข้ามรายการ</span>
                   </button>
@@ -499,7 +499,7 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
                       onClick={() => handleRestore(item)}
                       disabled={matchBusy}
                       title="นำกลับเข้ามารอจับคู่ใหม่"
-                      className="px-2.5 py-1 rounded bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-[11px] font-bold text-amber-300 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer whitespace-nowrap"
+                      className="px-2.5 py-1 rounded bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-[11px] font-bold text-amber-300 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer whitespace-nowrap"
                     >
                       นำกลับมาจับคู่
                     </button>
@@ -532,7 +532,7 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
             </div>
             <button
               onClick={() => setShowIgnored((v) => !v)}
-              className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
+              className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                 showIgnored
                   ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
                   : 'bg-white/[0.04] hover:bg-white/[0.08] border-white/[0.1] text-slate-300'
@@ -559,7 +559,7 @@ if (loading) return <LoadingSpinner message="กำลังประมวล�
                       onClick={() => handleRestore(item)}
                       disabled={matchBusy}
                       title="นำกลับเข้ามารอจับคู่ใหม่"
-                      className="px-2.5 py-1 rounded bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-[11px] font-bold text-amber-300 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer whitespace-nowrap"
+                      className="px-2.5 py-1 rounded bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-[11px] font-bold text-amber-300 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer whitespace-nowrap"
                     >
                       นำกลับมาจับคู่
                     </button>

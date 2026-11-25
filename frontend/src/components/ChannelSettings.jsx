@@ -12,7 +12,7 @@ const fields = [
   ['avatar_asset_path', 'ไฟล์รูปประจำช่อง', 'พาธจากโปรเจกต์ เช่น 02_Assets/Brand/channel.jpg'],
 ];
 const inputStyle = 'min-h-11 w-full rounded-xl border border-white/[0.1] bg-black/40 px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-[#25F4EE] focus:ring-1 focus:ring-[#25F4EE]/30 disabled:opacity-50 transition-[border-color,box-shadow,background-color] duration-150 ease-out text-sm';
-const buttonStyle = 'min-h-11 rounded-xl border border-white/[0.1] bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 px-4 py-2 text-sm font-semibold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out disabled:opacity-40 cursor-pointer active:scale-95 disabled:active:scale-100';
+const buttonStyle = 'min-h-11 rounded-xl border border-white/[0.1] bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 px-4 py-2 text-sm font-semibold motion-press active:duration-100 disabled:opacity-40 cursor-pointer active:scale-95 disabled:active:scale-100';
 const statusName = {active:'ใช้งาน',draft:'แบบร่าง',archived:'เก็บถาวร'};
 
 export default function ChannelSettings() {

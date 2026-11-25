@@ -160,7 +160,7 @@ export default function Inspector({
         <button
           type="button"
           onClick={() => setActiveTab('properties')}
-          className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] sm:text-xs font-bold flex items-center justify-center gap-1.5 active:scale-[0.96] transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out cursor-pointer ${
+          className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] sm:text-xs font-bold flex items-center justify-center gap-1.5 active:scale-[0.96] motion-press active:duration-100 cursor-pointer ${
             activeTab === 'properties'
               ? 'bg-[#25F4EE]/12 text-[#25F4EE] border border-[#25F4EE]/25'
               : 'text-slate-400 hover:text-white border border-transparent'
@@ -174,7 +174,7 @@ export default function Inspector({
         <button
           type="button"
           onClick={() => setActiveTab('cues')}
-          className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] sm:text-xs font-bold flex items-center justify-center gap-1.5 active:scale-[0.96] transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out cursor-pointer ${
+          className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] sm:text-xs font-bold flex items-center justify-center gap-1.5 active:scale-[0.96] motion-press active:duration-100 cursor-pointer ${
             activeTab === 'cues'
               ? 'bg-[#25F4EE]/12 text-[#25F4EE] border border-[#25F4EE]/25'
               : 'text-slate-400 hover:text-white border border-transparent'
@@ -188,7 +188,7 @@ export default function Inspector({
         <button
           type="button"
           onClick={() => setActiveTab('overview')}
-          className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] sm:text-xs font-bold flex items-center justify-center gap-1.5 active:scale-[0.96] transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out cursor-pointer ${
+          className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] sm:text-xs font-bold flex items-center justify-center gap-1.5 active:scale-[0.96] motion-press active:duration-100 cursor-pointer ${
             activeTab === 'overview'
               ? 'bg-[#25F4EE]/12 text-[#25F4EE] border border-[#25F4EE]/25'
               : 'text-slate-400 hover:text-white border border-transparent'
@@ -214,7 +214,7 @@ export default function Inspector({
                   const firstCue = cuesList[0];
                   if (firstCue) onSelectCue?.(firstCue._uid);
                 }}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold active:scale-[0.96] transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out flex items-center gap-1 flex-shrink-0 cursor-pointer border ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold active:scale-[0.96] motion-press active:duration-100 flex items-center gap-1 flex-shrink-0 cursor-pointer border ${
                   isCaptionSelected
                     ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300'
                     : 'bg-white/[0.04] border-white/[0.08] text-slate-400 hover:text-white'
@@ -233,7 +233,7 @@ export default function Inspector({
                     onAddTextOverlay?.();
                   }
                 }}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold active:scale-[0.96] transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out flex items-center gap-1 flex-shrink-0 cursor-pointer border ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold active:scale-[0.96] motion-press active:duration-100 flex items-center gap-1 flex-shrink-0 cursor-pointer border ${
                   isOverlaySelected
                     ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300'
                     : 'bg-white/[0.04] border-white/[0.08] text-slate-400 hover:text-white'
@@ -246,7 +246,7 @@ export default function Inspector({
               <button
                 type="button"
                 onClick={() => onSelect?.({ type: 'hook' })}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold active:scale-[0.96] transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out flex items-center gap-1 flex-shrink-0 cursor-pointer border ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold active:scale-[0.96] motion-press active:duration-100 flex items-center gap-1 flex-shrink-0 cursor-pointer border ${
                   selection?.type === 'hook'
                     ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
                     : 'bg-white/[0.04] border-white/[0.08] text-slate-400 hover:text-white'
@@ -259,7 +259,7 @@ export default function Inspector({
                 <button
                   type="button"
                   onClick={() => onSelect?.({ type: 'clip', id: selectedSeg.clip.id })}
-                  className="px-2.5 py-1 rounded-lg text-xs font-bold active:scale-[0.96] transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out flex items-center gap-1 flex-shrink-0 cursor-pointer border bg-cyan-500/15 border-cyan-500/40 text-cyan-300"
+                  className="px-2.5 py-1 rounded-lg text-xs font-bold active:scale-[0.96] motion-press active:duration-100 flex items-center gap-1 flex-shrink-0 cursor-pointer border bg-cyan-500/15 border-cyan-500/40 text-cyan-300"
                 >
                   <Film className="w-3 h-3" />
                   <span>คลิปที่ {selectedSeg.index + 1}</span>
@@ -270,7 +270,7 @@ export default function Inspector({
                 <button
                   type="button"
                   onClick={() => onSelect?.({ type: 'sticker', id: selectedSticker.id })}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold active:scale-[0.96] transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out flex items-center gap-1 flex-shrink-0 cursor-pointer border ${
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold active:scale-[0.96] motion-press active:duration-100 flex items-center gap-1 flex-shrink-0 cursor-pointer border ${
                     selection?.type === 'sticker'
                       ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-300'
                       : 'bg-white/[0.04] border-white/[0.08] text-slate-400 hover:text-white'
@@ -284,7 +284,7 @@ export default function Inspector({
               <button
                 type="button"
                 onClick={() => onSelect?.({ type: 'cutout' })}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold active:scale-[0.96] transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out flex items-center gap-1 flex-shrink-0 cursor-pointer border ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold active:scale-[0.96] motion-press active:duration-100 flex items-center gap-1 flex-shrink-0 cursor-pointer border ${
                   selection?.type === 'cutout'
                     ? 'bg-violet-500/15 border-violet-500/40 text-violet-300'
                     : backgroundIsolation?.enabled
@@ -391,7 +391,7 @@ export default function Inspector({
                         <button
                           type="button"
                           onClick={onPasteSettings}
-                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#D97757] hover:bg-[#E89274] text-white font-medium active:scale-[0.97] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer text-xs"
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#D97757] hover:bg-[#E89274] text-white font-medium active:scale-[0.97] motion-press active:duration-100 cursor-pointer text-xs"
                           title="วางการตั้งค่าที่คัดลอกไว้ลงทุกคลิปที่เลือก (Ctrl+Alt+V)"
                         >
                           <ClipboardPaste className="w-3.5 h-3.5" />
@@ -450,7 +450,7 @@ export default function Inspector({
                         setActiveTab('cues');
                       }
                     }}
-                    className="py-2 px-2.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.1] text-xs font-bold text-slate-200 active:scale-[0.97] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer flex items-center justify-center gap-1.5"
+                    className="py-2 px-2.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.1] text-xs font-bold text-slate-200 active:scale-[0.97] motion-press active:duration-100 cursor-pointer flex items-center justify-center gap-1.5"
                   >
                     <Type className="w-3.5 h-3.5 text-[#25F4EE]" />
                     <span>เลือกคำบรรยาย</span>
@@ -459,7 +459,7 @@ export default function Inspector({
                   <button
                     type="button"
                     onClick={onAddTextOverlay}
-                    className="py-2 px-2.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-xs font-bold text-[#25F4EE] active:scale-[0.97] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer flex items-center justify-center gap-1.5"
+                    className="py-2 px-2.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-xs font-bold text-[#25F4EE] active:scale-[0.97] motion-press active:duration-100 cursor-pointer flex items-center justify-center gap-1.5"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>เพิ่มข้อความ</span>

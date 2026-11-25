@@ -347,7 +347,7 @@ export default function RawVaultPanel() {
     return (
       <div
         key={videoPath}
-        className={`group relative rounded-2xl border p-3 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex flex-col justify-between space-y-3 ${
+        className={`group relative rounded-2xl border p-3 motion-press active:duration-100 flex flex-col justify-between space-y-3 ${
           isSelected
             ? 'bg-[#25F4EE]/[0.08] border-[#25F4EE] shadow-lg shadow-[#25F4EE]/10 ring-1 ring-[#25F4EE]/40'
             : 'bg-black/40 border-white/[0.08] hover:border-white/[0.25] hover:bg-white/[0.02]'
@@ -395,7 +395,7 @@ export default function RawVaultPanel() {
               <button
                 type="button"
                 onClick={() => setActivePreviewPath(isPlaying ? null : videoPath)}
-                className="absolute inset-0 m-auto w-11 h-11 rounded-full bg-black/70 hover:bg-[#25F4EE] text-white hover:text-slate-950 flex items-center justify-center transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out opacity-90 sm:opacity-0 sm:group-hover:opacity-100 shadow-xl border border-white/20 hover:border-transparent active:scale-90 cursor-pointer"
+                className="absolute inset-0 m-auto w-11 h-11 rounded-full bg-black/70 hover:bg-[#25F4EE] text-white hover:text-slate-950 flex items-center justify-center motion-press active:duration-100 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 shadow-xl border border-white/20 hover:border-transparent active:scale-90 cursor-pointer"
                 title="เล่นตัวอย่างวิดีโอ"
               >
                 <Play className="w-4 h-4 ml-0.5 fill-current" />
@@ -411,7 +411,7 @@ export default function RawVaultPanel() {
             title={isSelected ? 'ยกเลิกการเลือก' : 'เลือกคลิปนี้'}
           >
             <div
-              className={`w-6 h-6 rounded-lg flex items-center justify-center transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out ${
+              className={`w-6 h-6 rounded-lg flex items-center justify-center motion-press active:duration-100 ${
                 isSelected
                   ? 'bg-[#25F4EE] text-slate-950 shadow-md ring-2 ring-black'
                   : 'bg-black/70 border border-white/[0.3] text-transparent group-hover/chk:border-[#25F4EE]'
@@ -517,7 +517,7 @@ export default function RawVaultPanel() {
                   type="button"
                   onClick={() => handleScanRawVideo(vKey, false)}
                   disabled={isScanningThis}
-                  className="px-2 py-0.5 rounded-md bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-[10px] font-bold flex items-center gap-1 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer disabled:opacity-50"
+                  className="px-2 py-0.5 rounded-md bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-[10px] font-bold flex items-center gap-1 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer disabled:opacity-50"
                   title="เริ่มสแกนสารบัญฉากด้วย Vision AI"
                 >
                   {isScanningThis ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
@@ -532,7 +532,7 @@ export default function RawVaultPanel() {
             <button
               type="button"
               onClick={() => handleStartReassign(video)}
-              className="flex-1 py-2 px-3 rounded-xl bg-white/[0.04] hover:bg-[#25F4EE]/15 active:bg-[#25F4EE]/25 text-slate-300 hover:text-[#25F4EE] border border-white/[0.08] text-xs font-bold flex items-center justify-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer active:scale-98"
+              className="flex-1 py-2 px-3 rounded-xl bg-white/[0.04] hover:bg-[#25F4EE]/15 active:bg-[#25F4EE]/25 text-slate-300 hover:text-[#25F4EE] border border-white/[0.08] text-xs font-bold flex items-center justify-center gap-1.5 motion-press active:duration-100 cursor-pointer active:scale-98"
               title={sourceProductId ? "ย้าย/สลับสินค้า" : "ผูกคลิปเข้ากับสินค้า"}
             >
               <Link2 className="w-3.5 h-3.5 flex-shrink-0" />
@@ -542,7 +542,7 @@ export default function RawVaultPanel() {
             <button
               type="button"
               onClick={() => setPendingDeleteVideo(video)}
-              className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/[0.02] hover:bg-rose-500/20 active:bg-rose-500/30 text-slate-500 hover:text-rose-400 border border-white/[0.04] hover:border-rose-500/30 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer flex-shrink-0"
+              className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/[0.02] hover:bg-rose-500/20 active:bg-rose-500/30 text-slate-500 hover:text-rose-400 border border-white/[0.04] hover:border-rose-500/30 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer flex-shrink-0"
               title="ลบไฟล์คลิปดิบนี้ถาวร"
             >
               <Trash2 className="w-4 h-4" />
@@ -635,7 +635,7 @@ export default function RawVaultPanel() {
             <button
               type="button"
               onClick={() => setActiveFilter('all')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out disabled:active:scale-100 cursor-pointer whitespace-nowrap active:scale-95 ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold motion-press active:duration-100 disabled:active:scale-100 cursor-pointer whitespace-nowrap active:scale-95 ${
                 activeFilter === 'all'
                   ? 'bg-white/15 text-white border border-white/30 shadow-sm'
                   : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
@@ -646,7 +646,7 @@ export default function RawVaultPanel() {
             <button
               type="button"
               onClick={() => setActiveFilter('products')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out disabled:active:scale-100 cursor-pointer whitespace-nowrap flex items-center gap-1.5 active:scale-95 ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold motion-press active:duration-100 disabled:active:scale-100 cursor-pointer whitespace-nowrap flex items-center gap-1.5 active:scale-95 ${
                 activeFilter === 'products'
                   ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
                   : 'text-slate-400 hover:text-[#25F4EE] hover:bg-white/[0.04]'
@@ -658,7 +658,7 @@ export default function RawVaultPanel() {
             <button
               type="button"
               onClick={() => setActiveFilter('unassigned')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out disabled:active:scale-100 cursor-pointer whitespace-nowrap flex items-center gap-1.5 active:scale-95 ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold motion-press active:duration-100 disabled:active:scale-100 cursor-pointer whitespace-nowrap flex items-center gap-1.5 active:scale-95 ${
                 activeFilter === 'unassigned'
                   ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30 shadow-sm'
                   : 'text-slate-400 hover:text-amber-300 hover:bg-white/[0.04]'
@@ -670,7 +670,7 @@ export default function RawVaultPanel() {
             <button
               type="button"
               onClick={() => setActiveFilter('large')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out disabled:active:scale-100 cursor-pointer whitespace-nowrap flex items-center gap-1.5 active:scale-95 ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold motion-press active:duration-100 disabled:active:scale-100 cursor-pointer whitespace-nowrap flex items-center gap-1.5 active:scale-95 ${
                 activeFilter === 'large'
                   ? 'bg-rose-500/15 text-rose-300 border border-rose-500/30 shadow-sm'
                   : 'text-slate-400 hover:text-rose-300 hover:bg-white/[0.04]'
@@ -683,7 +683,7 @@ export default function RawVaultPanel() {
               type="button"
               onClick={() => handleScanRawVideo(null, false)}
               disabled={isScanningRaw || loading}
-              className="px-3.5 py-2 rounded-xl text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out disabled:active:scale-100 cursor-pointer whitespace-nowrap flex items-center gap-1.5 active:scale-95 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 shadow-sm disabled:opacity-50"
+              className="px-3.5 py-2 rounded-xl text-xs font-bold motion-press active:duration-100 disabled:active:scale-100 cursor-pointer whitespace-nowrap flex items-center gap-1.5 active:scale-95 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 shadow-sm disabled:opacity-50"
               title="สแกนสารบัญฉากคลิปดิบทั้งหมดด้วย Vision AI"
             >
               {isScanningRaw ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
@@ -694,7 +694,7 @@ export default function RawVaultPanel() {
               type="button"
               onClick={fetchVault}
               disabled={loading}
-              className="p-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] text-slate-400 hover:text-white border border-white/[0.08] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out disabled:active:scale-100 cursor-pointer ml-1 active:scale-95 flex-shrink-0"
+              className="p-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] text-slate-400 hover:text-white border border-white/[0.08] motion-press active:duration-100 disabled:active:scale-100 cursor-pointer ml-1 active:scale-95 flex-shrink-0"
               title="รีเฟรชข้อมูล"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-[#25F4EE]' : ''}`} />
@@ -713,7 +713,7 @@ export default function RawVaultPanel() {
               <button
                 type="button"
                 onClick={() => setSelectedPaths([])}
-                className="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl text-xs text-slate-400 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer text-center"
+                className="flex-1 sm:flex-initial px-3.5 py-2 rounded-xl text-xs text-slate-400 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer text-center"
               >
                 ยกเลิก
               </button>

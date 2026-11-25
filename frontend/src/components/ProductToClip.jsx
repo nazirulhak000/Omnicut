@@ -39,7 +39,7 @@ import { buildProjectName } from '../lib/projectName';
 import { angleNextStep, angleStage, angleActionLabel, STAGE_LABEL, STAGE_HINT } from '../lib/angleNextStep.js';
 import {
   CHAIN_LABEL, CHAIN_TASK_TYPE, chainConfirmText, chainFollowUp, chainStartError, chainTargets,
-  findProductTask, taskPercent,
+  findProductTask, isActiveTask, taskPercent,
 } from '../lib/productionChain';
 import { getProductProgressStats, getAngleEngineBadge } from '../lib/productProgressStats.js';
 
@@ -180,7 +180,7 @@ const LOT_SECONDARY_BUTTON = 'inline-flex items-center gap-1.5 px-3 py-1.5 round
 const LOT_TOOL_BUTTON = 'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] text-xs font-bold disabled:opacity-50';
 
 // Angle panel footer: the next step filled, the rest outlined.
-const ANGLE_PRIMARY_BUTTON = 'flex-1 sm:flex-initial min-h-[44px] sm:min-h-[40px] py-2 px-4 sm:px-5 rounded-xl bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#25F4EE]/15 cursor-pointer active:scale-[0.98] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out disabled:active:scale-100 whitespace-nowrap disabled:opacity-60 disabled:cursor-wait';
+const ANGLE_PRIMARY_BUTTON = 'flex-1 sm:flex-initial min-h-[44px] sm:min-h-[40px] py-2 px-4 sm:px-5 rounded-xl bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#25F4EE]/15 cursor-pointer active:scale-[0.98] motion-press active:duration-100 disabled:active:scale-100 whitespace-nowrap disabled:opacity-60 disabled:cursor-wait';
 const ANGLE_SECONDARY_BUTTON = 'min-h-[40px] 2xl:min-h-[34px] py-2 2xl:py-1.5 px-3.5 2xl:px-2 2xl:text-xs rounded-xl bg-white/[0.04] hover:bg-white/[0.1] border border-white/[0.12] text-slate-200 text-xs sm:text-sm font-bold whitespace-nowrap transition-colors cursor-pointer disabled:opacity-50';
 const STAGE_DOT = {
   posted: 'bg-emerald-400',
@@ -242,7 +242,7 @@ function ProductCard({ product, isSelected, onSelect, onDoubleClick, onToggleHid
         }
       }}
       title={`${product.name} (คลิกเพื่อเลือก · ดับเบิลคลิกเพื่อดูรายละเอียดสินค้า)`}
-      className={`flex-shrink-0 w-[136px] sm:w-[156px] flex flex-col rounded-xl border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer group snap-center p-2.5 text-left relative select-none ${
+      className={`flex-shrink-0 w-[136px] sm:w-[156px] flex flex-col rounded-xl border motion-press active:duration-100 cursor-pointer group snap-center p-2.5 text-left relative select-none ${
         isSelected
           ? 'bg-[#25F4EE]/[0.08] border-[#25F4EE]/60 shadow-lg shadow-[#25F4EE]/10 ring-1 ring-[#25F4EE]/40'
           : 'bg-[#0A0D14] border-white/[0.08] hover:border-white/[0.18] hover:bg-white/[0.02]'
@@ -265,7 +265,7 @@ function ProductCard({ product, isSelected, onSelect, onDoubleClick, onToggleHid
               onDoubleClick(product);
             }}
             onDoubleClick={(e) => e.stopPropagation()}
-            className="absolute top-1.5 left-1.5 p-1 rounded-lg backdrop-blur-md border bg-black/60 hover:bg-[#25F4EE] hover:text-slate-950 border-white/20 hover:border-[#25F4EE] text-slate-300 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer z-10"
+            className="absolute top-1.5 left-1.5 p-1 rounded-lg backdrop-blur-md border bg-black/60 hover:bg-[#25F4EE] hover:text-slate-950 border-white/20 hover:border-[#25F4EE] text-slate-300 opacity-0 group-hover:opacity-100 focus:opacity-100 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer z-10"
             title="ดูข้อมูลและรายละเอียดสินค้า"
             aria-label="ดูข้อมูลและรายละเอียดสินค้า"
           >
@@ -278,7 +278,7 @@ function ProductCard({ product, isSelected, onSelect, onDoubleClick, onToggleHid
             type="button"
             onClick={(e) => onToggleHide(product, e)}
             onDoubleClick={(e) => e.stopPropagation()}
-            className={`absolute top-1.5 right-1.5 p-1 rounded-lg backdrop-blur-md border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer z-10 ${
+            className={`absolute top-1.5 right-1.5 p-1 rounded-lg backdrop-blur-md border motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer z-10 ${
               product.is_hidden
                 ? 'bg-amber-500/80 border-amber-400 text-slate-950 opacity-100'
                 : 'bg-black/60 hover:bg-rose-500/80 border-white/20 hover:border-rose-400 text-slate-300 hover:text-white opacity-0 group-hover:opacity-100 focus:opacity-100'
@@ -448,7 +448,7 @@ function AngleActiveWorkbench({
   isGeneratingShotList = false, onOpenHookVariants,
   productData, onOpenEditHookHeader, shotListInfo, onDeleteAngle,
   onQuickDraft, draftingAngleId,
-  sceneCatalogsMap = {}, onIndexSceneCatalog, isScanningScenes = false, onOpenSceneCatalog,
+  sceneCatalogsMap = {}, onIndexSceneCatalog, isScanningScenes = false, isClipScanning = null, onOpenSceneCatalog,
   onOpenStoryboard,
   projectName,
 }) {
@@ -630,7 +630,7 @@ function AngleActiveWorkbench({
             <button
               type="button"
               onClick={handleStartEdit}
-              className="px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-amber-300 text-xs font-bold flex items-center gap-1 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
+              className="px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-amber-300 text-xs font-bold flex items-center gap-1 cursor-pointer motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100"
             >
               <Edit3 className="w-3.5 h-3.5" />
               <span>แก้ Hook + บทพูด</span>
@@ -641,7 +641,7 @@ function AngleActiveWorkbench({
               type="button"
               onClick={() => setShowMoreTools((open) => !open)}
               aria-expanded={showMoreTools}
-              className="px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-300 text-xs font-bold flex items-center gap-1 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
+              className="px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-300 text-xs font-bold flex items-center gap-1 cursor-pointer motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100"
             >
               <MoreHorizontal className="w-3.5 h-3.5" />
               <span>เพิ่มเติม</span>
@@ -654,7 +654,7 @@ function AngleActiveWorkbench({
                   <button
                     type="button"
                     onClick={handleStartEdit}
-                    className="hidden px-2 sm:px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-amber-300 text-xs font-bold items-center gap-1 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
+                    className="hidden px-2 sm:px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-amber-300 text-xs font-bold items-center gap-1 cursor-pointer motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100"
                     title="แก้ไข Hook และบทพูดในกล่องนี้โดยตรง"
                   >
                     <Edit3 className="w-3.5 h-3.5" />
@@ -666,7 +666,7 @@ function AngleActiveWorkbench({
                       e.stopPropagation();
                       onOpenFindReplace && onOpenFindReplace(index);
                     }}
-                    className="px-2 sm:px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-cyan-300 text-xs font-bold flex items-center gap-1 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
+                    className="px-2 sm:px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-cyan-300 text-xs font-bold flex items-center gap-1 cursor-pointer motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100"
                     title="ค้นหาและแทนที่คำในสคริปต์"
                   >
                     <Replace className="w-3.5 h-3.5" />
@@ -682,7 +682,7 @@ function AngleActiveWorkbench({
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onCopy(lines.join('\n'), index); }}
-                className="px-2 sm:px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-[#25F4EE] text-xs font-bold flex items-center gap-1 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
+                className="px-2 sm:px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-[#25F4EE] text-xs font-bold flex items-center gap-1 cursor-pointer motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100"
               >
                 {copiedIndex === index
                   ? <><Check className="w-3.5 h-3.5 text-emerald-400" /> <span className="hidden xs:inline sm:inline">คัดลอกแล้ว</span></>
@@ -693,7 +693,7 @@ function AngleActiveWorkbench({
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); onRerollScript && onRerollScript(index); }}
-                    className="px-2 sm:px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-fuchsia-300 text-xs font-bold flex items-center gap-1 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
+                    className="px-2 sm:px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-fuchsia-300 text-xs font-bold flex items-center gap-1 cursor-pointer motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100"
                     title="ให้ AI เขียนสคริปต์ใหม่สำหรับมุมนี้"
                   >
                     <Sparkles className="w-3.5 h-3.5" />
@@ -703,7 +703,7 @@ function AngleActiveWorkbench({
                     type="button"
                     onClick={(e) => { e.stopPropagation(); onGenerateShotList && onGenerateShotList(index); }}
                     disabled={isGeneratingShotList}
-                    className={`px-2 sm:px-2.5 py-1 rounded-lg border text-xs font-bold flex items-center gap-1 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 disabled:opacity-50 disabled:cursor-wait ${
+                    className={`px-2 sm:px-2.5 py-1 rounded-lg border text-xs font-bold flex items-center gap-1 cursor-pointer motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 disabled:opacity-50 disabled:cursor-wait ${
                       shotListInfo?.is_edge_tts
                         ? 'bg-amber-500/20 hover:bg-amber-500/30 border-amber-500/40 text-amber-300 ring-1 ring-amber-400/20 shadow-xs'
                         : shotListInfo?.has_shot_list
@@ -739,7 +739,7 @@ function AngleActiveWorkbench({
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); onDeleteAngle(angle, index); }}
-                  className="px-2 sm:px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-bold flex items-center gap-1 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
+                  className="px-2 sm:px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-bold flex items-center gap-1 cursor-pointer motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100"
                   title="ลบสคริปต์มุมนี้"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -894,7 +894,7 @@ function AngleActiveWorkbench({
       )}
 
       {/* 4. Voice Track & Shot List Status Banner (Main Screen Visibility) */}
-      <div className="hidden rounded-xl overflow-hidden transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out">
+      <div className="hidden rounded-xl overflow-hidden motion-press active:duration-100">
         {shotListInfo?.is_edge_tts ? (
           <div className="p-3 bg-gradient-to-r from-amber-950/40 via-amber-900/25 to-amber-950/40 border border-amber-500/35 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-sm">
             <div className="flex items-center gap-2.5">
@@ -909,7 +909,7 @@ function AngleActiveWorkbench({
             <button
               type="button"
               onClick={() => onGenerateShotList && onGenerateShotList(index)}
-              className="self-end sm:self-auto px-3 py-1 rounded-lg bg-amber-500/25 hover:bg-amber-500/40 border border-amber-400/50 text-amber-200 hover:text-white text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer flex-shrink-0 shadow-xs inline-flex items-center gap-1.5"
+              className="self-end sm:self-auto px-3 py-1 rounded-lg bg-amber-500/25 hover:bg-amber-500/40 border border-amber-400/50 text-amber-200 hover:text-white text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer flex-shrink-0 shadow-xs inline-flex items-center gap-1.5"
             >
               <span>เปิดอัปเกรดเสียง</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -932,7 +932,7 @@ function AngleActiveWorkbench({
               <button
                 type="button"
                 onClick={() => onGenerateShotList && onGenerateShotList(index)}
-                className="px-3 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-slate-200 hover:text-white text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer flex-shrink-0"
+                className="px-3 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-slate-200 hover:text-white text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer flex-shrink-0"
               >
                 เปิดฟังเสียง / ดูแผนถ่าย
               </button>
@@ -950,7 +950,7 @@ function AngleActiveWorkbench({
                   type="button"
                   onClick={() => onGenerateShotList && onGenerateShotList(index)}
                   disabled={isGeneratingShotList}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer flex-shrink-0 disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer flex-shrink-0 disabled:opacity-50"
                 >
                   <Mic className="w-3.5 h-3.5" />
                   <span>สร้างเสียงและแผนถ่าย</span>
@@ -1014,7 +1014,7 @@ function AngleActiveWorkbench({
             <button
               type="button"
               onClick={handleCancelEdit}
-              className="px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 text-xs font-semibold cursor-pointer flex items-center gap-1 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
+              className="px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 text-xs font-semibold cursor-pointer flex items-center gap-1 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100"
             >
               <X className="w-3.5 h-3.5" />
               <span>ยกเลิก</span>
@@ -1022,7 +1022,7 @@ function AngleActiveWorkbench({
             <button
               type="button"
               onClick={handleSave}
-              className="px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md cursor-pointer flex items-center gap-1.5 active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+              className="px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md cursor-pointer flex items-center gap-1.5 active:scale-95 motion-press active:duration-100"
             >
               <Check className="w-3.5 h-3.5" />
               <span>บันทึกสคริปต์</span>
@@ -1197,7 +1197,7 @@ function AngleActiveWorkbench({
                       e.stopPropagation();
                       onOpenSceneCatalog && onOpenSceneCatalog(path, fileName, cat);
                     }}
-                    className="flex-shrink-0 ml-0.5 text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-300 font-bold border border-emerald-500/40 whitespace-nowrap cursor-pointer flex items-center gap-1 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-95 shadow-xs"
+                    className="flex-shrink-0 ml-0.5 text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-300 font-bold border border-emerald-500/40 whitespace-nowrap cursor-pointer flex items-center gap-1 motion-press active:duration-100 active:scale-95 shadow-xs"
                     title={`คลิกเพื่อดูสารบัญฉาก ${cat.scenes_count} ฉาก (ตรวจดูมุมมองและจังหวะตัด)`}
                   >
                     <span>ดู <strong className="font-mono tabular-nums">{cat.scenes_count}</strong> ฉาก</span>
@@ -1211,18 +1211,23 @@ function AngleActiveWorkbench({
                     ไม่พบไฟล์
                   </span>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onIndexSceneCatalog && onIndexSceneCatalog(path);
-                    }}
-                    disabled={isScanningScenes}
-                    className="flex-shrink-0 ml-0.5 text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 cursor-pointer whitespace-nowrap disabled:opacity-50"
-                    title="สแกนสารบัญฉากด้วย Vision AI ทันที"
-                  >
-                    {isScanningScenes ? "กำลังสแกน..." : "สแกนฉาก"}
-                  </button>
+                  (() => {
+                    const isThisClipScanning = typeof isClipScanning === 'function' ? isClipScanning(path) : Boolean(isScanningScenes);
+                    return (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onIndexSceneCatalog && onIndexSceneCatalog(path);
+                        }}
+                        disabled={isThisClipScanning}
+                        className="flex-shrink-0 ml-0.5 text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 cursor-pointer whitespace-nowrap disabled:opacity-50"
+                        title="สแกนสารบัญฉากด้วย Vision AI ทันที"
+                      >
+                        {isThisClipScanning ? "กำลังสแกน..." : "สแกนฉาก"}
+                      </button>
+                    );
+                  })()
                 )}
                 {isLocked ? (
                   <span className="flex-shrink-0 p-0.5 text-slate-400/70 ml-0.5">
@@ -1334,7 +1339,7 @@ function ScriptAccordionItem({
   isGeneratingShotList = false, onOpenHookVariants,
   productData, onOpenEditHookHeader,
   shotListInfo, onQuickDraft, draftingAngleId,
-  sceneCatalogsMap = {}, onIndexSceneCatalog, isScanningScenes = false, onOpenSceneCatalog,
+  sceneCatalogsMap = {}, onIndexSceneCatalog, isScanningScenes = false, isClipScanning = null, onOpenSceneCatalog,
   onOpenStoryboard,
 }) {
   const effectiveBrand = angle.hook_brand ?? productData?.hook_brand ?? guessBrandModel(angle.product_name || productData?.name || productData?.title || '').brand;
@@ -1407,7 +1412,7 @@ function ScriptAccordionItem({
   const selectedVideos = angle.selected_videos || (angle.selected_video ? [angle.selected_video] : []);
 
   return (
-    <div className={`rounded-xl border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out ${
+    <div className={`rounded-xl border motion-press active:duration-100 ${
       isOpen
         ? isLocked ? 'bg-[#080B11] border-white/[0.12] shadow-md' : 'bg-[#0A0D14] border-[#25F4EE]/30 shadow-md'
         : 'bg-[#0A0D14] border-white/[0.08] hover:border-white/[0.16] hover:bg-white/[0.02]'
@@ -1461,7 +1466,7 @@ function ScriptAccordionItem({
               e.stopPropagation();
               onPreviewExportVideo && onPreviewExportVideo(angle);
             }}
-            className="p-1 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/30 flex items-center justify-center flex-shrink-0 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
+            className="p-1 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/30 flex items-center justify-center flex-shrink-0 cursor-pointer motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100"
             title="กดเพื่อดูคลิปวิดีโอที่ Export แล้ว"
           >
             <Play className="w-3 h-3 fill-cyan-300 text-cyan-300" />
@@ -1617,7 +1622,7 @@ function ScriptAccordionItem({
                 <button
                   type="button"
                   onClick={handleCancelEdit}
-                  className="px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 text-xs font-semibold cursor-pointer flex items-center gap-1 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
+                  className="px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 text-xs font-semibold cursor-pointer flex items-center gap-1 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100"
                 >
                   <X className="w-3.5 h-3.5" />
                   <span>ยกเลิก</span>
@@ -1625,7 +1630,7 @@ function ScriptAccordionItem({
                 <button
                   type="button"
                   onClick={handleSave}
-                  className="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md cursor-pointer flex items-center gap-1.5 active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+                  className="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md cursor-pointer flex items-center gap-1.5 active:scale-95 motion-press active:duration-100"
                 >
                   <Check className="w-3.5 h-3.5" />
                   <span>บันทึกสคริปต์</span>
@@ -1761,7 +1766,7 @@ function ScriptAccordionItem({
                     e.stopPropagation();
                     onOpenMediaPicker && onOpenMediaPicker(index);
                   }}
-                  className={`flex-shrink-0 flex items-center gap-1.5 py-1.5 px-3 rounded-lg border text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer shadow-sm active:scale-95 ${
+                  className={`flex-shrink-0 flex items-center gap-1.5 py-1.5 px-3 rounded-lg border text-xs font-bold motion-press active:duration-100 cursor-pointer shadow-sm active:scale-95 ${
                     selectedVideos.length > 0
                       ? 'bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border-[#25F4EE]/40 text-[#25F4EE]'
                       : 'bg-amber-500/15 hover:bg-amber-500/25 border-amber-500/50 text-amber-300 animate-pulse'
@@ -1798,7 +1803,7 @@ function ScriptAccordionItem({
                           e.stopPropagation();
                           onOpenSceneCatalog && onOpenSceneCatalog(path, fileName, cat);
                         }}
-                        className="ml-0.5 text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-300 font-bold border border-emerald-500/40 whitespace-nowrap cursor-pointer flex items-center gap-1 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-95 shadow-xs"
+                        className="ml-0.5 text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/35 text-emerald-300 font-bold border border-emerald-500/40 whitespace-nowrap cursor-pointer flex items-center gap-1 motion-press active:duration-100 active:scale-95 shadow-xs"
                         title={`คลิกเพื่อดูสารบัญฉาก ${cat.scenes_count} ฉาก (ตรวจดูมุมมองและจังหวะตัด)`}
                       >
                         <span>ดู {cat.scenes_count} ฉาก</span>
@@ -1812,18 +1817,23 @@ function ScriptAccordionItem({
                         ไม่พบไฟล์
                       </span>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onIndexSceneCatalog && onIndexSceneCatalog(path);
-                        }}
-                        disabled={isScanningScenes}
-                        className="ml-0.5 text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 cursor-pointer whitespace-nowrap disabled:opacity-50"
-                        title="สแกนสารบัญฉากด้วย Vision AI ทันที"
-                      >
-                        {isScanningScenes ? "กำลังสแกน..." : "สแกนฉาก"}
-                      </button>
+                      (() => {
+                        const isThisClipScanning = typeof isClipScanning === 'function' ? isClipScanning(path) : Boolean(isScanningScenes);
+                        return (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onIndexSceneCatalog && onIndexSceneCatalog(path);
+                            }}
+                            disabled={isThisClipScanning}
+                            className="ml-0.5 text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 cursor-pointer whitespace-nowrap disabled:opacity-50"
+                            title="สแกนสารบัญฉากด้วย Vision AI ทันที"
+                          >
+                            {isThisClipScanning ? "กำลังสแกน..." : "สแกนฉาก"}
+                          </button>
+                        );
+                      })()
                     )}
                     {isLocked ? (
                       <span
@@ -1869,7 +1879,7 @@ function ScriptAccordionItem({
                       e.stopPropagation();
                       onPreviewExportVideo && onPreviewExportVideo(angle);
                     }}
-                    className="py-2 px-3.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer active:scale-95"
+                    className="py-2 px-3.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 hover:text-white text-xs font-bold flex items-center gap-1.5 motion-press active:duration-100 cursor-pointer active:scale-95"
                     title="เปิดดูวิดีโอที่โพสต์แล้วบน TikTok (หลักฐาน)"
                   >
                     <Film className="w-3.5 h-3.5 text-cyan-400" />
@@ -1882,7 +1892,7 @@ function ScriptAccordionItem({
                     e.stopPropagation();
                     onCloneAngle && onCloneAngle(angle, index);
                   }}
-                  className="py-2 px-3.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.12] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+                  className="py-2 px-3.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.12] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 motion-press active:duration-100"
                   title="คัดลอกสคริปต์นี้เป็นฉบับใหม่เพื่อตัดต่อใหม่โดยไม่กระทบคลิปเดิม"
                 >
                   <CopyPlus className="w-3.5 h-3.5 text-[#25F4EE]" />
@@ -1897,7 +1907,7 @@ function ScriptAccordionItem({
                     e.stopPropagation();
                     if (onGoToGallery) onGoToGallery(angle.export_id || angle.video_url || angle.project_name);
                   }}
-                  className="py-2 px-3.5 rounded-xl bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-md shadow-[#25F4EE]/15 cursor-pointer active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+                  className="py-2 px-3.5 rounded-xl bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-md shadow-[#25F4EE]/15 cursor-pointer active:scale-95 motion-press active:duration-100"
                   title="เปิดคลิปนี้ใน Export Gallery (เมนู 4) เพื่อเตรียมโพสต์"
                 >
                   <span>เปิดใน Export Gallery (เมนู 4)</span>
@@ -1910,7 +1920,7 @@ function ScriptAccordionItem({
                       e.stopPropagation();
                       onPreviewExportVideo && onPreviewExportVideo(angle);
                     }}
-                    className="py-2 px-3.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer active:scale-95"
+                    className="py-2 px-3.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 hover:text-white text-xs font-bold flex items-center gap-1.5 motion-press active:duration-100 cursor-pointer active:scale-95"
                     title="เปิดดูวิดีโอที่ตัดต่อและ Export เสร็จแล้ว (ตรวจ QC)"
                   >
                     <Film className="w-3.5 h-3.5 text-cyan-400" />
@@ -1927,7 +1937,7 @@ function ScriptAccordionItem({
                       onSendToStudio(angle, index);
                     }
                   }}
-                  className="py-2 px-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] border border-white/[0.12] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+                  className="py-2 px-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] border border-white/[0.12] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 motion-press active:duration-100"
                   title="เปิดดูวิดีโอที่ตัดเสร็จแล้วในไทม์ไลน์"
                 >
                   <Play className="w-3.5 h-3.5 fill-white text-white" />
@@ -1946,7 +1956,7 @@ function ScriptAccordionItem({
                       onSendToStudio(angle, index);
                     }
                   }}
-                  className="py-2 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-md shadow-amber-500/15 cursor-pointer active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+                  className="py-2 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-md shadow-amber-500/15 cursor-pointer active:scale-95 motion-press active:duration-100"
                   title="เปิดตัดต่อในไทม์ไลน์"
                 >
                   <Play className="w-3.5 h-3.5 fill-slate-950 text-slate-950" />
@@ -1971,7 +1981,7 @@ function ScriptAccordionItem({
                     e.stopPropagation();
                     if (onSendToTracker) onSendToTracker(angle, index);
                   }}
-                  className="py-2 px-3.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 text-purple-300 text-xs font-bold flex items-center gap-1.5 shadow-md cursor-pointer active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+                  className="py-2 px-3.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 text-purple-300 text-xs font-bold flex items-center gap-1.5 shadow-md cursor-pointer active:scale-95 motion-press active:duration-100"
                   title="ส่งมุมนี้เข้าสู่กระบวนการถ่ายทำ (Tracker) เพื่อวางแผนและติดตามความคืบหน้า"
                 >
                   <Kanban className="w-3.5 h-3.5 text-purple-400" />
@@ -1984,7 +1994,7 @@ function ScriptAccordionItem({
                     e.stopPropagation();
                     onSendToStudio(angle, index);
                   }}
-                  className="py-2 px-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] border border-white/[0.12] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+                  className="py-2 px-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] border border-white/[0.12] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 motion-press active:duration-100"
                   title="เปิดตัดต่อทันทีใน Editor"
                 >
                   <Play className="w-3.5 h-3.5 fill-white text-white" />
@@ -1996,7 +2006,7 @@ function ScriptAccordionItem({
                     e.stopPropagation();
                     onOpenMediaPicker && onOpenMediaPicker(index);
                   }}
-                  className="py-2 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center gap-1.5 shadow-md cursor-pointer active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+                  className="py-2 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center gap-1.5 shadow-md cursor-pointer active:scale-95 motion-press active:duration-100"
                   title="คลิกเพื่อเลือกคลิปสำหรับมุมนี้"
                 >
                   <FolderOpen className="w-3.5 h-3.5 text-amber-400" />
@@ -2012,7 +2022,7 @@ function ScriptAccordionItem({
                     if (shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts) onSendToStudio(angle, index);
                     else onGenerateShotList && onGenerateShotList(index);
                   }}
-                  className={`order-2 py-2 px-4 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out ${
+                  className={`order-2 py-2 px-4 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-95 motion-press active:duration-100 ${
                     shotListInfo?.has_shot_list && !shotListInfo?.is_edge_tts
                       ? 'bg-white/[0.06] hover:bg-white/[0.12] text-slate-200 border border-white/[0.12]'
                       : 'bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 shadow-lg shadow-[#25F4EE]/15'
@@ -2032,7 +2042,7 @@ function ScriptAccordionItem({
                       onQuickDraft ? onQuickDraft(angle, index) : onSendToStudio(angle, index);
                     }}
                     disabled={draftingAngleId === angle.angle_id}
-                    className="order-1 py-2 px-3.5 rounded-xl bg-[#25F4EE] hover:bg-[#4ff8f2] border border-[#25F4EE]/50 text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-[#25F4EE]/15 cursor-pointer active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out disabled:active:scale-100 disabled:opacity-50"
+                    className="order-1 py-2 px-3.5 rounded-xl bg-[#25F4EE] hover:bg-[#4ff8f2] border border-[#25F4EE]/50 text-slate-950 text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-[#25F4EE]/15 cursor-pointer active:scale-95 motion-press active:duration-100 disabled:active:scale-100 disabled:opacity-50"
                     title="1-Click Quick Draft: สร้างดราฟต์ไทม์ไลน์อัตโนมัติตามสไตล์ของมุมนี้และเปิดเข้าสู่ไทม์ไลน์ทันที"
                   >
                     {draftingAngleId === angle.angle_id ? (
@@ -2054,7 +2064,7 @@ function ScriptAccordionItem({
                     e.stopPropagation();
                     onOpenStoryboard && onOpenStoryboard(angle, index);
                   }}
-                  className={`hidden w-full sm:w-auto py-3 sm:py-2.5 px-4 rounded-xl border text-xs sm:text-sm font-bold items-center justify-center gap-2 shadow-sm cursor-pointer active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out ${
+                  className={`hidden w-full sm:w-auto py-3 sm:py-2.5 px-4 rounded-xl border text-xs sm:text-sm font-bold items-center justify-center gap-2 shadow-sm cursor-pointer active:scale-95 motion-press active:duration-100 ${
                     angle.manual_shot_map?.length > 0
                       ? 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border-emerald-500/40 shadow-xs'
                       : 'bg-cyan-500/15 hover:bg-cyan-500/25 border-cyan-500/35 text-cyan-300'
@@ -3821,13 +3831,63 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
 
   // ── Scene Catalog (Vision AI) State & Handlers ──
   const [sceneCatalogsMap, setSceneCatalogsMap] = useState({});
-  const [isStartingSceneScan, setIsStartingSceneScan] = useState(false);
+  const [pendingSceneScans, setPendingSceneScans] = useState([]);
 
-  const scanSceneTask = useMemo(() => {
-    return findProductTask(activeTasks, productData?.id, ['index_scene_catalog']);
+  const scanSceneTasks = useMemo(() => {
+    const productId = productData?.id;
+    if (!productId) return [];
+    const wantedTypes = new Set(['scene_indexing', 'index_scene_catalog']);
+    return (activeTasks || []).filter(
+      (task) => wantedTypes.has(task?.type)
+        && task?.payload?.product_id === productId
+        && isActiveTask(task)
+    );
   }, [activeTasks, productData?.id]);
 
-  const isScanningScenes = Boolean(isStartingSceneScan || scanSceneTask);
+  const isClipScanning = useCallback((clipPath) => {
+    if (!clipPath) return false;
+    const norm = (p) => String(p || '').replace(/\\/g, '/').trim().toLowerCase();
+    const target = norm(clipPath);
+    if (!target) return false;
+
+    const productId = productData?.id;
+    const hasPending = pendingSceneScans.some((entry) => {
+      if (entry.productId !== productId) return false;
+      if (!entry.videoPath) return true;
+      return norm(entry.videoPath) === target;
+    });
+    if (hasPending) return true;
+
+    return scanSceneTasks.some((task) => {
+      const payload = task?.payload || {};
+      if (payload.video_path) {
+        return norm(payload.video_path) === target;
+      }
+      if (Array.isArray(payload.videos_to_index) && payload.videos_to_index.length > 0) {
+        return payload.videos_to_index.some((v) => norm(v) === target);
+      }
+      return true;
+    });
+  }, [pendingSceneScans, productData?.id, scanSceneTasks]);
+
+  const isScanningScenes = Boolean(
+    pendingSceneScans.some((entry) => entry.productId === productData?.id)
+    || scanSceneTasks.length > 0
+  );
+
+  // Clear optimistic pending flags only after pollTasks() surfaces the task (or product switches)
+  useEffect(() => {
+    if (pendingSceneScans.length === 0) return;
+    const knownTaskIds = new Set((tasks || []).map((t) => t?.id).filter(Boolean));
+    setPendingSceneScans((prev) => {
+      const next = prev.filter((entry) => {
+        if (entry.productId !== productData?.id) return false;
+        if (entry.taskId && knownTaskIds.has(entry.taskId)) return false;
+        return true;
+      });
+      return next.length === prev.length ? prev : next;
+    });
+  }, [tasks, productData?.id, pendingSceneScans.length]);
 
   const refreshSceneCatalogs = useCallback(async () => {
     if (!productData?.id) return;
@@ -3888,19 +3948,30 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
   };
 
   const handleIndexSceneCatalog = async (videoPath = null, force = false) => {
-    if (!productData?.id) return;
-    setIsStartingSceneScan(true);
+    const productId = productData?.id;
+    if (!productId) return;
+    const scanKey = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    setPendingSceneScans((prev) => [...prev, { key: scanKey, productId, videoPath: videoPath || null, taskId: null }]);
     try {
       showToast('สั่งวิเคราะห์แบ่งสารบัญฉากในเบื้องหลังแล้ว ติดตามที่เมนูกิจกรรมได้สดๆ', 'info');
-      const res = await indexSceneCatalogs(productData.id, { video_path: videoPath, force });
+      const res = await indexSceneCatalogs(productId, { video_path: videoPath, force });
       if (res?.task_id) {
-        pollTasks();
+        setPendingSceneScans((prev) =>
+          prev.map((entry) => (entry.key === scanKey ? { ...entry, taskId: res.task_id } : entry))
+        );
+        await pollTasks();
+        // Keep optimistic flag until tasks effect clears it if task_id appeared;
+        // if task list didn't return it (e.g. already purged), clear now.
+        setPendingSceneScans((prev) =>
+          prev.filter((entry) => entry.key !== scanKey || Boolean(entry.taskId))
+        );
+      } else {
+        setPendingSceneScans((prev) => prev.filter((entry) => entry.key !== scanKey));
       }
     } catch (err) {
       console.error('Scan scene catalog failed:', err);
       showToast('ไม่สามารถสแกนฉากได้: ' + (err.response?.data?.detail || err.message), 'error');
-    } finally {
-      setIsStartingSceneScan(false);
+      setPendingSceneScans((prev) => prev.filter((entry) => entry.key !== scanKey));
     }
   };
 
@@ -4316,7 +4387,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                 <button
                   type="button"
                   onClick={() => setShowAddModal(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-xs font-bold cursor-pointer active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0D14]"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-xs font-bold cursor-pointer active:scale-95 motion-press active:duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0D14]"
                   title="วิเคราะห์สินค้าใหม่"
                 >
                   <Plus className="w-3.5 h-3.5" />
@@ -4333,7 +4404,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   <button
                     type="button"
                     onClick={() => handleScrollCarousel('left')}
-                    className="absolute -left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-slate-900/90 hover:bg-[#25F4EE] hover:text-slate-950 text-white border border-white/20 backdrop-blur-md shadow-2xl flex items-center justify-center transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110 active:scale-95"
+                    className="absolute -left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-slate-900/90 hover:bg-[#25F4EE] hover:text-slate-950 text-white border border-white/20 backdrop-blur-md shadow-2xl flex items-center justify-center motion-press active:duration-100 cursor-pointer [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110 active:scale-95"
                     title="เลื่อนสินค้าก่อนหน้า"
                     aria-label="เลื่อนสินค้าก่อนหน้า"
                   >
@@ -4346,7 +4417,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   <button
                     type="button"
                     onClick={() => handleScrollCarousel('right')}
-                    className="absolute -right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-slate-900/90 hover:bg-[#25F4EE] hover:text-slate-950 text-white border border-white/20 backdrop-blur-md shadow-2xl flex items-center justify-center transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110 active:scale-95"
+                    className="absolute -right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-slate-900/90 hover:bg-[#25F4EE] hover:text-slate-950 text-white border border-white/20 backdrop-blur-md shadow-2xl flex items-center justify-center motion-press active:duration-100 cursor-pointer [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110 active:scale-95"
                     title="เลื่อนสินค้าถัดไป"
                     aria-label="เลื่อนสินค้าถัดไป"
                   >
@@ -4446,7 +4517,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
               <button
                 key={m.id}
                 onClick={() => setInputMode(m.id)}
-                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
+                className={`flex-1 py-2 rounded-lg text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                   inputMode === m.id ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 shadow-sm' : 'text-slate-400 hover:text-white'
                 }`}
               >
@@ -4506,7 +4577,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       showToast('กรุณาแตะอนุญาตการเข้าถึงคลิปบอร์ดบนเบราว์เซอร์', 'info');
                     }
                   }}
-                  className="w-full sm:w-auto min-h-[48px] px-4 py-2.5 rounded-xl bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 active:scale-95 text-[#25F4EE] border border-[#25F4EE]/40 text-sm font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-[#25F4EE]/5"
+                  className="w-full sm:w-auto min-h-[48px] px-4 py-2.5 rounded-xl bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 active:scale-95 text-[#25F4EE] border border-[#25F4EE]/40 text-sm font-bold motion-press active:duration-100 cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-[#25F4EE]/5"
                 >
                   <Copy className="w-4 h-4" />
                   <span>วางลิงก์จากคลิปบอร์ด</span>
@@ -4688,7 +4759,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   key={opt.val}
                   type="button"
                   onClick={() => setAngleCount(opt.val)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 ${
                     angleCount === opt.val
                       ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 ring-1 ring-[#25F4EE]/20'
                       : 'bg-white/[0.05] text-slate-400 border border-white/[0.08] hover:border-white/[0.2] hover:text-white'
@@ -4710,7 +4781,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   key={opt.val}
                   type="button"
                   onClick={() => setDuration(opt.val)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 ${
                     duration === opt.val
                       ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 ring-1 ring-[#25F4EE]/20'
                       : 'bg-white/[0.05] text-slate-400 border border-white/[0.08] hover:border-white/[0.2] hover:text-white'
@@ -4967,7 +5038,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   <button
                     type="button"
                     onClick={() => setViewMode('split')}
-                    className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
+                    className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-lg text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                       viewMode === 'split'
                         ? 'bg-[#25F4EE]/15 text-[#25F4EE] shadow-sm'
                         : 'text-slate-400 hover:text-slate-200'
@@ -4980,7 +5051,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   <button
                     type="button"
                     onClick={() => setViewMode('accordion')}
-                    className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
+                    className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-lg text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                       viewMode === 'accordion'
                         ? 'bg-[#25F4EE]/15 text-[#25F4EE] shadow-sm'
                         : 'text-slate-400 hover:text-slate-200'
@@ -4997,7 +5068,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                     setFindReplaceAngleIdx(activeAngleIdx);
                     setFindReplaceOpen(true);
                   }}
-                  className="px-2.5 py-1 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-xs font-bold text-amber-300 cursor-pointer flex items-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
+                  className="px-2.5 py-1 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-xs font-bold text-amber-300 cursor-pointer flex items-center gap-1.5 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100"
                   title="ค้นหาและแทนที่คำในสคริปต์ทั้งหมด หรือเฉพาะมุมที่เลือก"
                 >
                   <Replace className="w-3.5 h-3.5" />
@@ -5006,7 +5077,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                 <button
                   type="button"
                   onClick={() => handleOpenMediaPicker(-1)}
-                  className="px-2.5 py-1 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-xs font-bold text-[#25F4EE] cursor-pointer flex items-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
+                  className="px-2.5 py-1 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-xs font-bold text-[#25F4EE] cursor-pointer flex items-center gap-1.5 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100"
                   title="เลือกคลิปจากคลังหรืออัปโหลดใหม่ ให้เป็นคลิปเริ่มต้นของทุกสคริปต์"
                 >
                   <FolderOpen className="w-3.5 h-3.5" />
@@ -5015,7 +5086,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                 <button
                   type="button"
                   onClick={() => setBatchRenderOpen(true)}
-                  className="px-2.5 py-1 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-xs font-bold text-cyan-200 cursor-pointer flex items-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
+                  className="px-2.5 py-1 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-xs font-bold text-cyan-200 cursor-pointer flex items-center gap-1.5 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100"
                   title="เปิดหน้าต่างเรนเดอร์หลายมุมมองพร้อมกันในคิวเบื้องหลัง"
                 >
                   <Zap className="w-3.5 h-3.5 text-cyan-400" />
@@ -5032,7 +5103,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   <button
                     type="button"
                     onClick={() => setSelectedBatch('all')}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                       selectedBatch === 'all'
                         ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30'
                         : 'text-slate-400 hover:text-white border border-transparent'
@@ -5048,7 +5119,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         key={b}
                         type="button"
                         onClick={() => setSelectedBatch(b)}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                           selectedBatch === b
                             ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30'
                             : 'text-slate-400 hover:text-white border border-transparent'
@@ -5065,7 +5136,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   <button
                     type="button"
                     onClick={() => setHidePosted(!hidePosted)}
-                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer border ${
+                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer border ${
                       hidePosted
                         ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
                         : 'bg-white/[0.04] text-slate-400 border-white/[0.08] hover:text-white'
@@ -5083,7 +5154,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                 <button
                   type="button"
                   onClick={() => setShowBatchModal(true)}
-                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#FE2C55]/20 to-[#25F4EE]/20 hover:from-[#FE2C55]/30 hover:to-[#25F4EE]/30 border border-[#25F4EE]/40 text-xs font-bold text-[#25F4EE] cursor-pointer flex items-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out shadow-sm active:scale-95"
+                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#FE2C55]/20 to-[#25F4EE]/20 hover:from-[#FE2C55]/30 hover:to-[#25F4EE]/30 border border-[#25F4EE]/40 text-xs font-bold text-[#25F4EE] cursor-pointer flex items-center gap-1.5 motion-press active:duration-100 shadow-sm active:scale-95"
                   title="ให้ AI ศึกษาประวัติมุมเดิม แล้วคิดมุมขายใหม่เพิ่มอีก 4-10 มุมโดยไม่ซ้ำเดิม"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-[#FE2C55]" />
@@ -5153,7 +5224,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                               handleOpenSceneCatalog(firstIndexed, firstIndexed.split(/[/\\]/).pop(), sceneCatalogsMap[firstIndexed]);
                             }
                           }}
-                          className="px-2 py-0.5 rounded-full font-semibold border bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border-emerald-500/30 flex items-center gap-1 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-95 shadow-xs"
+                          className="px-2 py-0.5 rounded-full font-semibold border bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border-emerald-500/30 flex items-center gap-1 cursor-pointer motion-press active:duration-100 active:scale-95 shadow-xs"
                           title={`สแกนสารบัญฉาก Vision AI แล้ว ${totalIndexedScenesCount} ฉาก (คลิกเพื่อดูสารบัญฉาก)`}
                         >
                           <Sparkles className="w-3 h-3 text-emerald-400" />
@@ -5193,7 +5264,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       type="button"
                       onClick={handleBatchGenerateAudio}
                       disabled={isStartingBatchAudio || isStartingBatchDraft || Boolean(batchDraftTask) || activeBatchAngles.length === 0}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out disabled:active:scale-100 flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold motion-press active:duration-100 disabled:active:scale-100 flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 ${
                         activeBatchAngles.length === 0
                           ? 'bg-white/[0.04] text-slate-500 border border-white/[0.06]'
                           : missingAudioCount > 0
@@ -5250,7 +5321,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       type="button"
                       onClick={handleBatchCreateDraft}
                       disabled={isStartingBatchDraft || isStartingBatchAudio || Boolean(batchAudioTask)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out disabled:active:scale-100 flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold shadow-md shadow-emerald-500/15 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold motion-press active:duration-100 disabled:active:scale-100 flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold shadow-md shadow-emerald-500/15 disabled:opacity-50 disabled:cursor-not-allowed"
                       title={`สร้างโปรเจกต์ดราฟต์ไทม์ไลน์สำหรับ ${readyForDraftAngles.length} มุมมองที่เตรียมเสียงแล้ว (ไม่เรนเดอร์ MP4 เสร็จในไม่กี่วินาที พร้อมเปิดตรวจปกและคัตติ้ง)`}
                     >
                       {isStartingBatchDraft ? (
@@ -5278,7 +5349,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       type="button"
                       onClick={() => handleIndexSceneCatalog()}
                       disabled={isScanningScenes}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out disabled:active:scale-100 flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold motion-press active:duration-100 disabled:active:scale-100 flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 ${
                         unindexedVideosCount > 0
                           ? 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/35'
                           : 'bg-white/[0.06] hover:bg-white/[0.1] text-slate-300 border border-white/[0.1]'
@@ -5309,7 +5380,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   <button
                     type="button"
                     onClick={() => setFilmingRecipeModalOpen(true)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 bg-white/[0.05] hover:bg-white/[0.1] text-slate-200 border border-white/[0.1]"
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold motion-press active:duration-100 flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95 bg-white/[0.05] hover:bg-white/[0.1] text-slate-200 border border-white/[0.1]"
                     title="เปิดดูสูตรถ่ายทำ 5 ช็อตมาตรฐานสำหรับสินค้านี้ (Hook, 360°, Macro, Action, CTA) พร้อม QR สแกนขึ้นมือถือ"
                   >
                     <Clapperboard className="w-3.5 h-3.5 text-rose-400" />
@@ -5340,7 +5411,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                           try { navigator.vibrate?.(10); } catch {}
                           setAngleCategoryFilter('all');
                         }}
-                        className={`flex-shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-full border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer active:scale-95 ${
+                        className={`flex-shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-full border motion-press active:duration-100 cursor-pointer active:scale-95 ${
                           angleCategoryFilter === 'all'
                             ? 'bg-[#25F4EE] text-slate-950 border-[#25F4EE] shadow-sm'
                             : 'bg-white/[0.04] text-slate-300 border-white/[0.08] hover:bg-white/[0.08]'
@@ -5361,7 +5432,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                               try { navigator.vibrate?.(10); } catch {}
                               setAngleCategoryFilter(isSelected ? 'all' : cat);
                             }}
-                            className={`flex-shrink-0 text-[11px] font-semibold px-2.5 py-1.5 rounded-full border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer active:scale-95 flex items-center gap-1.5 ${
+                            className={`flex-shrink-0 text-[11px] font-semibold px-2.5 py-1.5 rounded-full border motion-press active:duration-100 cursor-pointer active:scale-95 flex items-center gap-1.5 ${
                               isSelected
                                 ? 'bg-[#25F4EE] text-slate-950 border-[#25F4EE] shadow-sm font-bold'
                                 : 'bg-white/[0.04] text-slate-300 border-white/[0.08] hover:bg-white/[0.08]'
@@ -5489,6 +5560,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       sceneCatalogsMap={sceneCatalogsMap}
                       onIndexSceneCatalog={handleIndexSceneCatalog}
                       isScanningScenes={isScanningScenes}
+                      isClipScanning={isClipScanning}
                       onOpenSceneCatalog={handleOpenSceneCatalog}
                       onOpenStoryboard={handleOpenStoryboard}
                       projectName={buildProjectName({
@@ -5538,6 +5610,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       sceneCatalogsMap={sceneCatalogsMap}
                       onIndexSceneCatalog={handleIndexSceneCatalog}
                       isScanningScenes={isScanningScenes}
+                      isClipScanning={isClipScanning}
                       onOpenSceneCatalog={handleOpenSceneCatalog}
                       onOpenStoryboard={handleOpenStoryboard}
                       projectName={buildProjectName({
@@ -5610,6 +5683,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                       sceneCatalogsMap={sceneCatalogsMap}
                       onIndexSceneCatalog={handleIndexSceneCatalog}
                       isScanningScenes={isScanningScenes}
+                      isClipScanning={isClipScanning}
                       onOpenSceneCatalog={handleOpenSceneCatalog}
                       onOpenStoryboard={handleOpenStoryboard}
                     />
@@ -5655,7 +5729,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
           </div>
           <button
             onClick={() => setShowAddModal(true)}
-            className="mx-auto py-3 px-6 rounded-xl bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-sm font-bold flex items-center gap-2 shadow-md shadow-[#25F4EE]/15 cursor-pointer active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+            className="mx-auto py-3 px-6 rounded-xl bg-[#25F4EE] hover:bg-[#4ff8f2] text-slate-950 text-sm font-bold flex items-center gap-2 shadow-md shadow-[#25F4EE]/15 cursor-pointer active:scale-95 motion-press active:duration-100"
           >
             <Plus className="w-4 h-4 text-slate-950" />
             <span>วิเคราะห์สินค้าแรกของคุณ</span>
@@ -5733,7 +5807,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                     // silently mismatched from what the length selector implies.
                     setRerollExtraBeats(defaultExtraBeatsForDuration(opt.val));
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 ${
                     rerollDuration === opt.val
                       ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 ring-1 ring-[#25F4EE]/20'
                       : 'bg-white/[0.05] text-slate-400 border border-white/[0.08] hover:border-white/[0.2] hover:text-white'
@@ -5847,7 +5921,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                 <button
                   key={tab.id}
                   onClick={() => setProductFilter(tab.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                     productFilter === tab.id
                       ? 'bg-[#25F4EE] text-slate-950 font-bold shadow-sm'
                       : 'text-slate-400 hover:text-white'
@@ -5884,7 +5958,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         setShowMetadataModal(true);
                       }}
                       title={`${p.name} (คลิกเพื่อเลือก · ดับเบิลคลิกเพื่อดูรายละเอียดสินค้า)`}
-                      className={`p-3 rounded-xl border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer group relative flex flex-col justify-between space-y-2.5 ${
+                      className={`p-3 rounded-xl border motion-press active:duration-100 cursor-pointer group relative flex flex-col justify-between space-y-2.5 ${
                         isSelected
                           ? 'bg-[#25F4EE]/[0.08] border-[#25F4EE] shadow-lg shadow-[#25F4EE]/10 ring-1 ring-[#25F4EE]/40'
                           : 'bg-[#0A0D14] border-white/[0.08] hover:border-white/[0.18] hover:bg-white/[0.02]'
@@ -5905,7 +5979,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                         <button
                           type="button"
                           onClick={(e) => handleToggleHideProduct(p, e)}
-                          className={`absolute top-1.5 left-1.5 p-1 rounded-lg backdrop-blur-md border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer z-10 ${
+                          className={`absolute top-1.5 left-1.5 p-1 rounded-lg backdrop-blur-md border motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer z-10 ${
                             p.is_hidden
                               ? 'bg-amber-500/80 border-amber-400 text-slate-950 opacity-100'
                               : 'bg-black/60 hover:bg-rose-500/80 border-white/20 hover:border-rose-400 text-slate-300 hover:text-white opacity-0 group-hover:opacity-100 focus:opacity-100'
@@ -6079,7 +6153,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                     setPreviewExportAngle(null);
                     onGoToGallery();
                   }}
-                  className="flex-1 py-2.5 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-slate-200 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
+                  className="flex-1 py-2.5 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-slate-200 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100"
                   title="ไปที่หน้าคลัง Export ทั้งหมด"
                 >
                   <FolderOpen className="w-3.5 h-3.5 text-slate-400" />
@@ -6094,7 +6168,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                     setPreviewExportAngle(null);
                     handleCloneAngle(ang, openAngleIdx >= 0 ? openAngleIdx : 0);
                   }}
-                  className="flex-1 py-2.5 px-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/[0.12] text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-md active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+                  className="flex-1 py-2.5 px-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/[0.12] text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-md active:scale-95 motion-press active:duration-100"
                   title="คัดลอกสคริปต์นี้เพื่อตัดต่อใหม่"
                 >
                   <CopyPlus className="w-3.5 h-3.5 text-[#25F4EE]" />
@@ -6108,7 +6182,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                     setPreviewExportAngle(null);
                     handleOpenInTimeline(ang, openAngleIdx >= 0 ? openAngleIdx : 0);
                   }}
-                  className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-emerald-500/15 active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+                  className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-emerald-500/15 active:scale-95 motion-press active:duration-100"
                   title="เปิดดูในไทม์ไลน์"
                 >
                   <Play className="w-3.5 h-3.5 fill-slate-950 text-slate-950" />
@@ -6371,7 +6445,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   key={opt.val}
                   type="button"
                   onClick={() => setBatchAngleCount(opt.val)}
-                  className={`flex-1 py-2 rounded-xl text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
+                  className={`flex-1 py-2 rounded-xl text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                     batchAngleCount === opt.val
                       ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 ring-1 ring-[#25F4EE]/20'
                       : 'bg-white/[0.04] text-slate-400 border border-white/[0.08] hover:text-white'
@@ -6391,7 +6465,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
                   key={opt.val}
                   type="button"
                   onClick={() => setBatchDuration(opt.val)}
-                  className={`flex-1 py-2 rounded-xl text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
+                  className={`flex-1 py-2 rounded-xl text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                     batchDuration === opt.val
                       ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 ring-1 ring-[#25F4EE]/20'
                       : 'bg-white/[0.04] text-slate-400 border border-white/[0.08] hover:text-white'
@@ -6444,7 +6518,7 @@ export default function ProductToClip({ status, videos = [], onRefresh, onApplyT
             handleIndexSceneCatalog(inspectingCatalog.videoPath, true);
           }
         }}
-        isRescanning={isScanningScenes}
+        isRescanning={isClipScanning(inspectingCatalog?.videoPath)}
       />
     </div>
   );

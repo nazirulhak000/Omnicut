@@ -22,7 +22,7 @@ function ToolButton({ icon: Icon, label, hint, shortcut, onClick, disabled, acti
       disabled={disabled}
       title={tip}
       aria-label={label}
-      className={`group relative flex h-11 sm:h-9 min-h-[44px] min-w-[44px] items-center justify-center gap-1 rounded-lg px-2 text-sm font-medium transition-[background-color,color,transform,box-shadow] duration-120 active:duration-75 ease-out focus:outline-none focus-visible:ring-1 focus-visible:ring-[#25F4EE] active:scale-[0.96] disabled:active:scale-100 ${
+      className={`group relative flex h-11 sm:h-9 min-h-[44px] min-w-[44px] items-center justify-center gap-1 rounded-lg px-2 text-sm font-medium motion-press duration-120 active:duration-75 focus:outline-none focus-visible:ring-1 focus-visible:ring-[#25F4EE] active:scale-[0.96] disabled:active:scale-100 ${
         disabled
           ? 'cursor-not-allowed text-[#5A554F]'
           : active

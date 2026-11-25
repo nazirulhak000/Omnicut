@@ -178,7 +178,7 @@ export default function DonutChart({
                 key={slice.index}
                 onMouseEnter={() => setHoveredIdx(slice.index)}
                 onMouseLeave={() => setHoveredIdx(null)}
-                className={`flex items-center justify-between p-1 px-2 rounded-lg transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer ${
+                className={`flex items-center justify-between p-1 px-2 rounded-lg motion-press active:duration-100 cursor-pointer ${
                   isHovered
                     ? 'bg-white/[0.08] ring-1 ring-white/20'
                     : 'hover:bg-white/[0.03]'

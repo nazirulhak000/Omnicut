@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Check, X, Scissors, Volume2, Type, AlertCircle } from 'lucide-react';
 
 const ACTION_BUTTON_MOTION =
-  'transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100';
+  'motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100';
 
 export default function ActionApprovalCard({
   action,
@@ -51,7 +51,7 @@ export default function ActionApprovalCard({
   };
 
   return (
-    <div className="mt-2.5 mb-1.5 rounded-xl border border-white/10 bg-slate-900/90 p-3 shadow-lg backdrop-blur-md transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out">
+    <div className="mt-2.5 mb-1.5 rounded-xl border border-white/10 bg-slate-900/90 p-3 shadow-lg backdrop-blur-md motion-press active:duration-100">
       {/* ── Header Badge & Title ── */}
       <div className="flex items-center justify-between gap-2 mb-1.5">
         <div className="flex items-center gap-1.5">

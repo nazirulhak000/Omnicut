@@ -136,7 +136,7 @@ export default function PresetsBar({
               <button
                 key={ang.angle_id || idx}
                 onClick={() => onSelectAngle && onSelectAngle(idx)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 whitespace-nowrap cursor-pointer flex-shrink-0 font-bold ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 whitespace-nowrap cursor-pointer flex-shrink-0 font-bold ${
                   isSelected
                     ? 'bg-gradient-to-r from-[#FE2C55] to-[#FF0050] text-white shadow-lg shadow-[#FE2C55]/25 border border-transparent'
                     : 'bg-black/40 hover:bg-white/[0.05] text-slate-300 border border-white/[0.08]'
@@ -174,7 +174,7 @@ export default function PresetsBar({
             <button
               key={p.id}
               onClick={() => onSelectPreset(p.data)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/40 border border-white/[0.08] hover:bg-white/[0.08] hover:border-white/[0.2] text-slate-200 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 text-xs font-bold whitespace-nowrap flex-shrink-0 cursor-pointer group shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/40 border border-white/[0.08] hover:bg-white/[0.08] hover:border-white/[0.2] text-slate-200 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 text-xs font-bold whitespace-nowrap flex-shrink-0 cursor-pointer group shadow-sm"
             >
               <Icon className="w-3.5 h-3.5 text-slate-400 group-hover:text-[#25F4EE] transition-colors" />
               <span>{p.name}</span>
@@ -187,7 +187,7 @@ export default function PresetsBar({
         {onResetForm && (
           <button
             onClick={onResetForm}
-            className="px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/30 border border-white/[0.08] text-slate-400 text-xs font-bold flex items-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer whitespace-nowrap shadow-sm"
+            className="px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/30 border border-white/[0.08] text-slate-400 text-xs font-bold flex items-center gap-1.5 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer whitespace-nowrap shadow-sm"
             title="รีเซ็ตฟอร์มและล้างข้อมูลทั้งหมดกลับเป็นค่าเริ่มต้น"
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -196,7 +196,7 @@ export default function PresetsBar({
         )}
         <button
           onClick={onGoToProductFlow}
-          className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#25F4EE]/20 to-blue-500/20 hover:bg-[#25F4EE]/30 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold flex items-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer whitespace-nowrap shadow-sm"
+          className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#25F4EE]/20 to-blue-500/20 hover:bg-[#25F4EE]/30 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold flex items-center gap-1.5 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer whitespace-nowrap shadow-sm"
         >
           <Sparkles className="w-3.5 h-3.5 text-[#25F4EE]" />
           <span>สแกนสินค้าใหม่ด้วย AI (เมนู 1)</span>

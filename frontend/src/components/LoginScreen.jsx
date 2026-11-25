@@ -171,7 +171,7 @@ export default function LoginScreen({ onSuccess, notice = '', overlay = false, p
           <button
             type="submit"
             disabled={submitting}
-            className="w-full min-h-12 rounded-2xl bg-[#25F4EE] hover:bg-[#25F4EE]/90 text-slate-950 text-base font-bold flex items-center justify-center gap-2 shadow-sm active:scale-[0.99] disabled:active:scale-100 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+            className="w-full min-h-12 rounded-2xl bg-[#25F4EE] hover:bg-[#25F4EE]/90 text-slate-950 text-base font-bold flex items-center justify-center gap-2 shadow-sm active:scale-[0.99] disabled:active:scale-100 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer motion-press active:duration-100"
           >
             {submitting && <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />}
             <span>{submitting ? 'กำลังเข้าสู่ระบบ' : 'เข้าสู่ระบบ'}</span>
@@ -210,7 +210,7 @@ function UnreachableScreen({ onRetry, retrying }) {
           type="button"
           onClick={onRetry}
           disabled={retrying}
-          className="w-full min-h-12 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.1] text-white text-base font-semibold flex items-center justify-center gap-2 disabled:opacity-60 disabled:active:scale-100 cursor-pointer active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+          className="w-full min-h-12 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.1] text-white text-base font-semibold flex items-center justify-center gap-2 disabled:opacity-60 disabled:active:scale-100 cursor-pointer active:scale-95 motion-press active:duration-100"
         >
           {retrying ? <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" /> : <RefreshCw className="w-5 h-5" aria-hidden="true" />}
           <span>{retrying ? 'กำลังเชื่อมต่อ' : 'ลองเชื่อมต่ออีกครั้ง'}</span>

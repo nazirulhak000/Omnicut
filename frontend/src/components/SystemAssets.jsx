@@ -165,7 +165,7 @@ export default function SystemAssets({
         {/* Global Action Buttons */}
         <div className="flex items-center gap-2 w-full md:w-auto justify-end">
           <label
-            className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold shadow-lg shadow-[#FE2C55]/20 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] cursor-pointer ${
+            className={`relative flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold shadow-lg shadow-[#FE2C55]/20 motion-press active:duration-100 active:scale-[0.97] cursor-pointer ${
               uploadingAsset ? 'opacity-50 pointer-events-none' : ''
             }`}
           >
@@ -205,7 +205,7 @@ export default function SystemAssets({
             <button
               key={tab.id}
               onClick={() => setActiveAssetTab(tab.id)}
-              className={`p-3.5 rounded-2xl border text-left transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 relative cursor-pointer glass-card ${
+              className={`p-3.5 rounded-2xl border text-left motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 relative cursor-pointer glass-card ${
                 isActive
                   ? 'border-[#25F4EE]/50 bg-[#25F4EE]/10 shadow-md ring-1 ring-[#25F4EE]/30'
                   : 'border-white/[0.06] hover:border-white/[0.15]'
@@ -253,7 +253,7 @@ export default function SystemAssets({
               return (
                 <div
                   key={idx}
-                  className={`p-3 rounded-2xl border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex items-center justify-between gap-2.5 glass-card ${
+                  className={`p-3 rounded-2xl border motion-press active:duration-100 flex items-center justify-between gap-2.5 glass-card ${
                     isPlaying 
                       ? 'border-[#25F4EE] bg-[#25F4EE]/15 shadow-lg shadow-[#25F4EE]/20 ring-1 ring-[#25F4EE]' 
                       : 'border-white/[0.06] hover:border-white/[0.15]'
@@ -263,7 +263,7 @@ export default function SystemAssets({
                     onClick={() => playAudio(sf.audio_url, sf.name)}
                     className="flex items-center gap-2.5 flex-1 min-w-0 text-left cursor-pointer group"
                   >
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex-shrink-0 ${
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center motion-press active:duration-100 flex-shrink-0 ${
                       isPlaying 
                         ? 'bg-[#25F4EE] text-slate-950 shadow-md animate-pulse' 
                         : 'bg-white/[0.05] border border-white/[0.08] text-[#25F4EE] group-hover:bg-[#25F4EE]/20'
@@ -335,7 +335,7 @@ export default function SystemAssets({
               return (
                 <div
                   key={idx}
-                  className={`p-4 rounded-2xl border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex flex-col justify-between space-y-3 glass-card ${
+                  className={`p-4 rounded-2xl border motion-press active:duration-100 flex flex-col justify-between space-y-3 glass-card ${
                     isPlaying
                       ? 'border-[#25F4EE] ring-1 ring-[#25F4EE] shadow-lg shadow-[#25F4EE]/20'
                       : isDefault
@@ -383,7 +383,7 @@ export default function SystemAssets({
                   <div className="flex items-center gap-2 pt-2 border-t border-white/[0.06]">
                     <button
                       onClick={() => playAudio(m.audio_url, m.name)}
-                      className={`flex-1 py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
+                      className={`flex-1 py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                         isPlaying 
                           ? 'bg-[#25F4EE] text-slate-950 shadow-md' 
                           : 'bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-100'
@@ -451,7 +451,7 @@ export default function SystemAssets({
               return (
                 <div
                   key={idx}
-                  className="p-4 rounded-2xl glass-card border border-white/[0.06] hover:border-white/[0.15] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out space-y-3"
+                  className="p-4 rounded-2xl glass-card border border-white/[0.06] hover:border-white/[0.15] motion-press active:duration-100 space-y-3"
                 >
                   <div className="flex items-center justify-between">
                     <div>
@@ -499,7 +499,7 @@ export default function SystemAssets({
             {filteredStickers.map((st, idx) => (
               <div
                 key={idx}
-                className="p-3 rounded-2xl glass-card border border-white/[0.06] hover:border-[#25F4EE]/40 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex flex-col items-center justify-between text-center group"
+                className="p-3 rounded-2xl glass-card border border-white/[0.06] hover:border-[#25F4EE]/40 motion-press active:duration-100 flex flex-col items-center justify-between text-center group"
               >
                 <div className="w-full aspect-square p-2 bg-black/40 rounded-xl flex items-center justify-center mb-2 overflow-hidden border border-white/[0.06] group-hover:scale-105 transition-transform">
                   <img
@@ -621,7 +621,7 @@ export default function SystemAssets({
 
             <button
               onClick={() => handleOpen('root')}
-              className="w-full py-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-white text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 shadow-sm cursor-pointer flex items-center justify-center gap-2"
+              className="w-full py-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-white text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 shadow-sm cursor-pointer flex items-center justify-center gap-2"
             >
               <Folder className="w-4 h-4 text-[#25F4EE]" />
               เปิดโฟลเดอร์โปรเจกต์
@@ -718,7 +718,7 @@ export default function SystemAssets({
                   <button
                     key={scale.id}
                     onClick={() => setUiScale && setUiScale(scale.id)}
-                    className={`p-4 rounded-xl text-left border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer relative ${
+                    className={`p-4 rounded-xl text-left border motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer relative ${
                       isActive
                         ? 'bg-cyan-500/10 border-[#25F4EE] shadow-lg shadow-cyan-500/10'
                         : 'bg-black/40 border-white/[0.08] hover:border-white/[0.2] hover:bg-white/[0.03]'
@@ -776,7 +776,7 @@ export default function SystemAssets({
                   <div
                     key={f.id}
                     onClick={() => setUiFont && setUiFont(f.id)}
-                    className={`p-4 rounded-xl border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer relative group ${
+                    className={`p-4 rounded-xl border motion-press active:duration-100 cursor-pointer relative group ${
                       isSelected
                         ? 'bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border-[#25F4EE] shadow-lg shadow-cyan-500/10'
                         : 'bg-black/40 border-white/[0.08] hover:border-white/[0.2] hover:bg-white/[0.03]'

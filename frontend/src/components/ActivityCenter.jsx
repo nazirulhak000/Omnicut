@@ -124,7 +124,7 @@ export function ActivityIndicatorButton({ className = '' }) {
         aria-expanded={isActivityDrawerOpen}
         aria-controls="activity-drawer"
         aria-label={`${activeCount} งานกำลังประมวลผล ${pct == null ? '' : `${pct}%`} เปิดศูนย์ติดตามกิจกรรม${isStale ? ' ข้อมูลอาจไม่ใช่ข้อมูลล่าสุด' : ''}`}
-        className={`px-2.5 sm:px-3 py-1 rounded-xl bg-[#25F4EE]/10 hover:bg-[#25F4EE]/15 border border-[#25F4EE]/30 text-[#25F4EE] flex items-center gap-2 cursor-pointer transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out active:scale-95 group ${className}`}
+        className={`px-2.5 sm:px-3 py-1 rounded-xl bg-[#25F4EE]/10 hover:bg-[#25F4EE]/15 border border-[#25F4EE]/30 text-[#25F4EE] flex items-center gap-2 cursor-pointer motion-press active:duration-100 active:scale-95 group ${className}`}
         title="คลิกเพื่อเปิดศูนย์ติดตามกิจกรรม (Activity Center)"
       >
         <div className="relative flex items-center justify-center">
@@ -147,7 +147,7 @@ export function ActivityIndicatorButton({ className = '' }) {
       aria-haspopup="dialog"
       aria-expanded={isActivityDrawerOpen}
       aria-controls="activity-drawer"
-      className={`p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-black/40 hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/[0.08] text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-[0.96] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out ${className}`}
+      className={`p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-black/40 hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/[0.08] text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-[0.96] motion-press active:duration-100 ${className}`}
       title="ศูนย์ติดตามกิจกรรม (Activity Center)"
     >
       {hasViral ? (
@@ -287,7 +287,7 @@ export function ActivityDrawer() {
               type="button"
               onClick={() => setIsActivityDrawerOpen(false)}
               aria-label="ปิดศูนย์ติดตามกิจกรรม"
-              className="min-h-11 min-w-11 md:min-h-[36px] md:min-w-[36px] pointer-coarse:min-h-11 pointer-coarse:min-w-11 flex items-center justify-center p-2 text-slate-400 hover:text-white hover:bg-white/[0.06] rounded-xl active:scale-[0.95] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer"
+              className="min-h-11 min-w-11 md:min-h-[36px] md:min-w-[36px] pointer-coarse:min-h-11 pointer-coarse:min-w-11 flex items-center justify-center p-2 text-slate-400 hover:text-white hover:bg-white/[0.06] rounded-xl active:scale-[0.95] motion-press active:duration-100 cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -324,7 +324,7 @@ export function ActivityDrawer() {
               role="tab"
               aria-selected={tabFilter === tab.id}
               aria-controls="activity-tabpanel"
-              className={`flex-1 min-h-[36px] py-1.5 px-2 rounded-xl text-xs font-bold cursor-pointer transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out whitespace-nowrap text-center ${
+              className={`flex-1 min-h-[36px] py-1.5 px-2 rounded-xl text-xs font-bold cursor-pointer motion-press active:duration-100 whitespace-nowrap text-center ${
                 tabFilter === tab.id
                   ? 'bg-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/30'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
@@ -539,7 +539,7 @@ export function ActivityDrawer() {
                             <div className="flex items-center gap-1.5">
                               <button
                                 onClick={() => jumpToTaskResult(task, 'gallery')}
-                                className="px-3 py-1 rounded-lg bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center gap-1 cursor-pointer active:scale-95 transition-colors"
+                                className="px-3 py-1 rounded-lg bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center gap-1 cursor-pointer active:scale-95 motion-press active:duration-100"
                                 title="พรีวิวดูคลิปที่เรนเดอร์เสร็จแล้วในคลังผลงาน"
                               >
                                 <Play className="w-3.5 h-3.5 fill-current" />
@@ -547,7 +547,7 @@ export function ActivityDrawer() {
                               </button>
                               <button
                                 onClick={() => jumpToTaskResult(task, 'editor')}
-                                className="px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out"
+                                className="px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1 cursor-pointer motion-press active:duration-100"
                                 title="เปิดแก้ไขต่อในไทม์ไลน์"
                               >
                                 <span>เปิดไทม์ไลน์</span>
@@ -562,7 +562,7 @@ export function ActivityDrawer() {
                             <div className="flex items-center gap-1.5">
                               <button
                                 onClick={() => jumpToTaskResult(task, 'flow')}
-                                className="px-3 py-1 rounded-lg bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center gap-1 cursor-pointer active:scale-95 transition-colors"
+                                className="px-3 py-1 rounded-lg bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center gap-1 cursor-pointer active:scale-95 motion-press active:duration-100"
                                 title="เปิดผลอ่านข้อมูลจากรูปเพื่อตรวจสอบก่อนบันทึก"
                               >
                                 <span>ตรวจผลอ่านรูป</span>
@@ -585,7 +585,7 @@ export function ActivityDrawer() {
                             <div className="flex items-center gap-1.5">
                               <button
                                 onClick={() => jumpToTaskResult(task, 'flow')}
-                                className="px-3 py-1 rounded-lg bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center gap-1 cursor-pointer active:scale-95 transition-colors"
+                                className="px-3 py-1 rounded-lg bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center gap-1 cursor-pointer active:scale-95 motion-press active:duration-100"
                                 title="เปิดดูสคริปต์สินค้าในหน้าสินค้า → คลิป"
                               >
                                 <span>เปิดดูสคริปต์</span>
@@ -607,7 +607,7 @@ export function ActivityDrawer() {
                             <div className="flex items-center gap-1.5">
                               <button
                                 onClick={() => jumpToTaskResult(task, 'flow')}
-                                className="px-3 py-1 rounded-lg bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center gap-1 cursor-pointer active:scale-95 transition-colors"
+                                className="px-3 py-1 rounded-lg bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center gap-1 cursor-pointer active:scale-95 motion-press active:duration-100"
                                 title="เปิดสคริปต์ที่รีสคริปต์ใหม่"
                               >
                                 <span>เปิดสคริปต์ที่รีแล้ว</span>
@@ -634,7 +634,7 @@ export function ActivityDrawer() {
                             <div className="flex items-center gap-1.5">
                               <button
                                 onClick={() => jumpToTaskResult(task, 'flow')}
-                                className="px-3 py-1 rounded-lg bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center gap-1 cursor-pointer active:scale-95 transition-colors"
+                                className="px-3 py-1 rounded-lg bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center gap-1 cursor-pointer active:scale-95 motion-press active:duration-100"
                                 title="เปิดดูสคริปต์และแผนถ่ายของสินค้านี้"
                               >
                                 <span>เปิดหน้าสคริปต์</span>
@@ -658,7 +658,7 @@ export function ActivityDrawer() {
                             <div className="flex items-center gap-1.5">
                               <button
                                 onClick={() => jumpToTaskResult(task, 'flow')}
-                                className="px-3 py-1 rounded-lg bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center gap-1 cursor-pointer active:scale-95 transition-colors"
+                                className="px-3 py-1 rounded-lg bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center gap-1 cursor-pointer active:scale-95 motion-press active:duration-100"
                                 title="เปิดหน้าสคริปต์ที่เพิ่งถ่ายทำเสร็จ"
                               >
                                 <span>เปิดหน้าสคริปต์</span>
@@ -679,7 +679,7 @@ export function ActivityDrawer() {
                             <div className="flex items-center gap-1.5">
                               <button
                                 onClick={() => jumpToTaskResult(task, 'flow')}
-                                className="px-3 py-1 rounded-lg bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center gap-1 cursor-pointer active:scale-95 transition-colors"
+                                className="px-3 py-1 rounded-lg bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center gap-1 cursor-pointer active:scale-95 motion-press active:duration-100"
                                 title="เปิดหน้าสินค้าเพื่อดูสารบัญฉากหรือวางแผนช็อต"
                               >
                                 <span>ดูหน้าสินค้า</span>
@@ -695,7 +695,7 @@ export function ActivityDrawer() {
                           <div className="flex items-center gap-1.5">
                             <button
                               onClick={() => jumpToTaskResult(task, 'editor')}
-                              className="px-3 py-1 rounded-lg bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center gap-1 cursor-pointer active:scale-95 transition-colors"
+                              className="px-3 py-1 rounded-lg bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center gap-1 cursor-pointer active:scale-95 motion-press active:duration-100"
                               title="เปิดโปรเจกต์ในหน้าไทม์ไลน์เพื่อตรวจสอบหรือแก้ไข"
                             >
                               <span>เปิดไทม์ไลน์</span>
@@ -799,7 +799,7 @@ export function GlobalTaskNotification() {
                 href={notificationToast.milestone.tiktok_url}
                 target="_blank"
                 rel="noreferrer"
-                className="py-1.5 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/10 cursor-pointer active:scale-95 transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out"
+                className="py-1.5 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/10 cursor-pointer active:scale-95 motion-press active:duration-100"
               >
                 <span>เปิดดูบน TikTok</span>
                 <ExternalLink className="w-3 h-3" />
@@ -837,7 +837,7 @@ export function GlobalTaskNotification() {
               <div className="flex items-center justify-end gap-2 pt-1">
                 <button
                   onClick={() => jumpToTaskResult(task, 'gallery')}
-                  className="w-full py-2 px-3 rounded-xl bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-colors"
+                  className="w-full py-2 px-3 rounded-xl bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 motion-press active:duration-100"
                 >
                   <Play className="w-3.5 h-3.5 fill-current" />
                   <span>พรีวิวคลิปที่เสร็จทันที</span>
@@ -851,7 +851,7 @@ export function GlobalTaskNotification() {
               <div className="flex items-center justify-end gap-2 pt-1">
                 <button
                   onClick={() => jumpToTaskResult(task, 'flow')}
-                  className="w-full py-2 px-3 rounded-xl bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-colors"
+                  className="w-full py-2 px-3 rounded-xl bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 motion-press active:duration-100"
                   title="เปิดผลอ่านข้อมูลจากรูปเพื่อตรวจสอบก่อนบันทึก"
                 >
                   <span>ตรวจผลอ่านรูป</span>
@@ -872,7 +872,7 @@ export function GlobalTaskNotification() {
               <div className="flex items-center justify-end gap-2 pt-1">
                 <button
                   onClick={() => jumpToTaskResult(task, 'flow')}
-                  className="w-full py-2 px-3 rounded-xl bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-colors"
+                  className="w-full py-2 px-3 rounded-xl bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 motion-press active:duration-100"
                 >
                   <span>เปิดดูสคริปต์ทันที</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -891,7 +891,7 @@ export function GlobalTaskNotification() {
               <div className="flex items-center justify-end gap-2 pt-1">
                 <button
                   onClick={() => jumpToTaskResult(task, 'flow')}
-                  className="w-full py-2 px-3 rounded-xl bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-colors"
+                  className="w-full py-2 px-3 rounded-xl bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 motion-press active:duration-100"
                 >
                   <span>เปิดสคริปต์ที่รีแล้ว</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -910,7 +910,7 @@ export function GlobalTaskNotification() {
               <div className="flex items-center justify-end gap-2 pt-1">
                 <button
                   onClick={() => jumpToTaskResult(task, 'flow')}
-                  className="w-full py-2 px-3 rounded-xl bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-colors"
+                  className="w-full py-2 px-3 rounded-xl bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 motion-press active:duration-100"
                 >
                   <span>เปิดหน้าสคริปต์</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -929,7 +929,7 @@ export function GlobalTaskNotification() {
               <div className="flex items-center justify-end gap-2 pt-1">
                 <button
                   onClick={() => jumpToTaskResult(task, 'flow')}
-                  className="w-full py-2 px-3 rounded-xl bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-colors"
+                  className="w-full py-2 px-3 rounded-xl bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 motion-press active:duration-100"
                 >
                   <span>เปิดหน้าสคริปต์</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -949,7 +949,7 @@ export function GlobalTaskNotification() {
               <div className="flex items-center justify-end gap-2 pt-1">
                 <button
                   onClick={() => jumpToTaskResult(task, 'flow')}
-                  className="w-full py-2 px-3 rounded-xl bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-colors"
+                  className="w-full py-2 px-3 rounded-xl bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 motion-press active:duration-100"
                 >
                   <span>กลับหน้าสินค้า & วางแผนช็อต</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -962,7 +962,7 @@ export function GlobalTaskNotification() {
             <div className="flex items-center justify-end gap-2 pt-1">
               <button
                 onClick={() => jumpToTaskResult(task, 'editor')}
-                className="w-full py-2 px-3 rounded-xl bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-colors"
+                className="w-full py-2 px-3 rounded-xl bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 motion-press active:duration-100"
               >
                 <span>เปิดหน้าไทม์ไลน์ทันที</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -1113,7 +1113,7 @@ export function GlobalLiveRenderWidget({ currentTab, onNavigateToEditor, onNavig
               onNavigateToEditor();
             }
           }}
-          className={`px-3 py-1.5 min-h-11 md:min-h-0 pointer-coarse:min-h-11 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors flex-shrink-0 active:scale-95 ${
+          className={`px-3 py-1.5 min-h-11 md:min-h-0 pointer-coarse:min-h-11 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer motion-press active:duration-100 flex-shrink-0 active:scale-95 ${
             isDone
               ? 'bg-[#25F4EE] text-slate-950 hover:bg-[#20ded8]'
               : 'bg-white/[0.08] hover:bg-white/[0.12] text-white border border-white/[0.08]'
@@ -1127,7 +1127,7 @@ export function GlobalLiveRenderWidget({ currentTab, onNavigateToEditor, onNavig
           onClick={() => setDismissedKey(widgetKey)}
           aria-label="ปิดแถบความคืบหน้าการเรนเดอร์"
           title="ปิดแถบนี้"
-          className="min-h-11 min-w-11 md:min-h-8 md:min-w-8 pointer-coarse:min-h-11 pointer-coarse:min-w-11 -mr-1 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.06] active:scale-[0.95] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer flex-shrink-0"
+          className="min-h-11 min-w-11 md:min-h-8 md:min-w-8 pointer-coarse:min-h-11 pointer-coarse:min-w-11 -mr-1 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.06] active:scale-[0.95] motion-press active:duration-100 cursor-pointer flex-shrink-0"
         >
           <X className="w-4 h-4" />
         </button>

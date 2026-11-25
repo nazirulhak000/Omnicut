@@ -555,7 +555,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
               target="_blank"
               rel="noopener noreferrer"
               onClick={handleOpenStudio}
-              className="flex items-center gap-2 px-4 py-2 min-h-11 rounded-lg bg-rose-600/90 hover:bg-rose-600 text-white font-semibold text-sm transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] border border-rose-500/30"
+              className="flex items-center gap-2 px-4 py-2 min-h-11 rounded-lg bg-rose-600/90 hover:bg-rose-600 text-white font-semibold text-sm motion-press active:duration-100 active:scale-[0.97] border border-rose-500/30"
             >
               <ExternalLink className="w-4 h-4" />
               เปิด HyperFrames Studio
@@ -597,7 +597,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
         <button
           type="button"
           onClick={() => setActiveTab('styles')}
-          className={`flex items-center gap-2 px-4 py-2.5 font-medium text-sm border-b-2 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 ${
+          className={`flex items-center gap-2 px-4 py-2.5 font-medium text-sm border-b-2 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 ${
             activeTab === 'styles'
               ? 'border-cyan-400 text-white bg-white/[0.03] font-semibold'
               : 'border-transparent text-slate-400 hover:text-white'
@@ -610,7 +610,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
         <button
           type="button"
           onClick={() => setActiveTab('compositions')}
-          className={`flex items-center gap-2 px-4 py-2.5 font-medium text-sm border-b-2 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 ${
+          className={`flex items-center gap-2 px-4 py-2.5 font-medium text-sm border-b-2 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 ${
             activeTab === 'compositions'
               ? 'border-cyan-400 text-white bg-white/[0.03] font-semibold'
               : 'border-transparent text-slate-400 hover:text-white'
@@ -623,7 +623,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
         <button
           type="button"
           onClick={() => setActiveTab('create')}
-          className={`flex items-center gap-2 px-4 py-2.5 font-medium text-sm border-b-2 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 ${
+          className={`flex items-center gap-2 px-4 py-2.5 font-medium text-sm border-b-2 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 ${
             activeTab === 'create'
               ? 'border-cyan-400 text-white bg-white/[0.03] font-semibold'
               : 'border-transparent text-slate-400 hover:text-white'
@@ -660,7 +660,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
               return (
                 <div
                   key={st.id}
-                  className={`p-5 rounded-2xl bg-[#0E131E] border border-white/[0.08] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex flex-col sm:flex-row gap-5 group hover:border-white/20 ${extras.accentBorder}`}
+                  className={`p-5 rounded-2xl bg-[#0E131E] border border-white/[0.08] motion-press active:duration-100 flex flex-col sm:flex-row gap-5 group hover:border-white/20 ${extras.accentBorder}`}
                 >
                   {/* Left Column: 9:16 Visual Poster Frame */}
                   <div className="w-full sm:w-44 md:w-48 shrink-0 flex flex-col items-center gap-2">
@@ -757,7 +757,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
                             setSelectedStyle(st.id);
                             setActiveTab('create');
                           }}
-                          className="px-3.5 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-xs font-bold text-slate-950 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
+                          className="px-3.5 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-xs font-bold text-slate-950 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
                         >
                           ดูแบบฟอร์มอ้างอิง
                         </button>
@@ -784,7 +784,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={handleOpenStudio}
-                className="min-h-11 text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1 font-medium transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+                className="min-h-11 text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1 font-medium motion-press active:duration-100"
               >
                 เปิดหน้าต่าง HyperFrames Studio Live Preview
                 <ExternalLink className="w-3 h-3" />
@@ -799,7 +799,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
               return (
                 <div
                   key={comp.id}
-                  className="p-4 rounded-xl bg-[#0E131E] border border-white/[0.08] hover:border-white/20 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex flex-col justify-between space-y-4"
+                  className="p-4 rounded-xl bg-[#0E131E] border border-white/[0.08] hover:border-white/20 motion-press active:duration-100 flex flex-col justify-between space-y-4"
                 >
                   <div className="space-y-2">
                     <div className="flex items-start justify-between gap-2">
@@ -1173,7 +1173,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
 
                 {/* ── Real-time Compatibility Guard & Alert Banner ── */}
                 {compatibilityInfo && (
-                  <div className={`p-3 rounded-xl border text-xs space-y-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out animate-in fade-in ${
+                  <div className={`p-3 rounded-xl border text-xs space-y-1.5 motion-press active:duration-100 animate-in fade-in ${
                     compatibilityInfo.level === 'high'
                       ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-200'
                       : compatibilityInfo.level === 'moderate'
@@ -1211,7 +1211,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
                   <button
                     type="button"
                     onClick={handleAdaptScript}
-                    className="text-[11px] px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 font-medium transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 flex items-center gap-1 cursor-pointer"
+                    className="text-[11px] px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 font-medium motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 flex items-center gap-1 cursor-pointer"
                     title="ปรับประโยคและจังหวะของบทพูดให้ตรงกับสูตร Beat-by-Beat ของสไตล์นี้"
                   >
                     <Wand2 className="w-3 h-3" />
@@ -1231,7 +1231,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
                 <button
                   type="submit"
                   disabled={isCreating || isDuplicateId}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-slate-950 font-bold text-sm transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-slate-950 font-bold text-sm motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
                 >
                   {isCreating ? (
                     <>
@@ -1267,7 +1267,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
               <button
                 type="button"
                 onClick={() => setSelectedStyleDetail(null)}
-                className="absolute top-4 right-4 p-2 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-slate-400 hover:text-white active:scale-[0.95] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out border border-white/[0.08] cursor-pointer"
+                className="absolute top-4 right-4 p-2 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-slate-400 hover:text-white active:scale-[0.95] motion-press active:duration-100 border border-white/[0.08] cursor-pointer"
                 title="ปิดหน้าต่าง"
               >
                 <X className="w-5 h-5" />
@@ -1365,7 +1365,7 @@ export default function HyperFramesHub({ onNavigateToGallery, onNavigateToTracke
                       setSelectedStyleDetail(null);
                       setActiveTab('create');
                     }}
-                    className="flex-1 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-sm transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 text-center cursor-pointer"
+                    className="flex-1 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-sm motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 text-center cursor-pointer"
                   >
                     ดูแบบฟอร์มอ้างอิงของสไตล์นี้
                   </button>

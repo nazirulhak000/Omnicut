@@ -147,6 +147,14 @@
   }
 }
 
+/* Shared press/hover motion utility (Tailwind v4 animates individual `scale`,
+   `translate`, and `rotate` properties rather than `transform`). */
+@utility motion-press {
+  transition-property: transform, translate, scale, rotate, background-color, border-color, color, box-shadow, opacity;
+  transition-timing-function: var(--tw-ease, var(--ease-out));
+  transition-duration: var(--tw-duration, 150ms);
+}
+
 /* ── Typography Utilities ── */
 .font-kanit { font-family: 'Kanit', sans-serif; }
 .font-prompt { font-family: 'Prompt', sans-serif; }
@@ -669,17 +677,17 @@
 }
 
 .animate-fadeIn {
-  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
-/* Individual `scale` avoids `forwards` overriding Modal.jsx inline drag `transform` */
+/* Individual `scale` avoids overriding Modal.jsx inline drag `transform` */
 @keyframes scaleUp {
   from { opacity: 0; scale: 0.95; }
   to   { opacity: 1; scale: 1; }
 }
 
 .animate-scaleUp {
-  animation: scaleUp 200ms var(--ease-out) forwards;
+  animation: scaleUp 200ms var(--ease-out) backwards;
 }
 
 @keyframes slideDown {
@@ -688,7 +696,7 @@
 }
 
 .animate-slideDown {
-  animation: slideDown 180ms var(--ease-out) forwards;
+  animation: slideDown 180ms var(--ease-out) backwards;
 }
 
 @keyframes slideUp {
@@ -697,7 +705,7 @@
 }
 
 .animate-slideUp {
-  animation: slideUp 180ms var(--ease-out) forwards;
+  animation: slideUp 180ms var(--ease-out) backwards;
 }
 
 @keyframes slideLeft {
@@ -706,7 +714,7 @@
 }
 
 .animate-slideLeft {
-  animation: slideLeft 260ms var(--ease-drawer) forwards;
+  animation: slideLeft 260ms var(--ease-drawer) backwards;
 }
 
 @keyframes popoverIn {
@@ -715,7 +723,7 @@
 }
 
 .popover-menu {
-  animation: popoverIn 150ms var(--ease-out) forwards;
+  animation: popoverIn 150ms var(--ease-out) backwards;
 }
 
 /* Composable enter-animation utilities (replaces tailwindcss-animate) */
@@ -731,7 +739,7 @@
 }
 
 .animate-in {
-  animation: enterIn 180ms var(--ease-out) forwards;
+  animation: enterIn 180ms var(--ease-out) backwards;
 }
 .animate-in.duration-100 { animation-duration: 120ms; }
 .animate-in.duration-150 { animation-duration: 150ms; }
@@ -747,7 +755,7 @@
 
 @keyframes exitOut {
   from {
-    opacity: var(--tw-exit-opacity, 1);
+    opacity: 1;
     transform: scale(0.96);
   }
   to {
@@ -760,7 +768,6 @@
   animation: exitOut 220ms var(--ease-out) forwards;
 }
 .animate-out.duration-500 { animation-duration: 420ms; }
-.fade-out { --tw-exit-opacity: 1; }
 
 @keyframes shimmer {
   0% { transform: translateX(-100%); }

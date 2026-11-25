@@ -68,10 +68,12 @@ export default function Sidebar({
       navHoverTimerRef.current = null;
     }
     if (!navTooltipWarm) {
+      // Wait past the initial hover delay + fade-in (150ms + 150ms) so the
+      // first tooltip animates smoothly before switching to instant warm hops.
       navHoverTimerRef.current = setTimeout(() => {
         setNavTooltipWarm(true);
         navHoverTimerRef.current = null;
-      }, 150);
+      }, 320);
     }
   }, [navTooltipWarm]);
 
@@ -181,7 +183,7 @@ export default function Sidebar({
   };
 
   const isMoreActive = activeTab === 'assets' || activeTab === 'analytics' || activeTab === 'settings' || activeTab === 'dashboard';
-  const desktopTooltipClass = `absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 rounded-xl bg-[#0D111A] border border-white/[0.1] text-xs font-semibold text-white whitespace-nowrap opacity-0 scale-95 -translate-x-1 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:translate-x-0 origin-left transition-[opacity,transform] ease-out shadow-2xl z-50 ${
+  const desktopTooltipClass = `absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 rounded-xl bg-[#0D111A] border border-white/[0.1] text-xs font-semibold text-white whitespace-nowrap opacity-0 scale-95 -translate-x-1 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:translate-x-0 origin-left transition-[opacity,transform,translate,scale] ease-out shadow-2xl z-50 ${
     navTooltipWarm ? 'delay-0 duration-0' : 'duration-150 delay-75 group-hover:delay-150'
   }`;
 
@@ -211,7 +213,7 @@ export default function Sidebar({
                 aria-current={isActive ? 'page' : undefined}
                 className={`group relative w-12 h-12 rounded-2xl flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/70
                   before:absolute before:-inset-1 before:rounded-2xl
-                  active:scale-[0.96] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out
+                  active:scale-[0.96] motion-press active:duration-100
                   ${isActive
                     ? 'bg-white/[0.08] text-[#25F4EE] border border-white/[0.12]'
                     : 'text-slate-400 hover:text-white hover:bg-white/[0.05] border border-transparent'
@@ -242,7 +244,7 @@ export default function Sidebar({
             onPointerEnter={handleNavButtonEnter}
             onClick={() => setShowMobileModal(true)}
             aria-label="อัปโหลดผ่านมือถือ (QR Code)"
-            className="group relative w-11 h-11 rounded-xl flex items-center justify-center text-slate-400 hover:text-[#25F4EE] hover:bg-white/[0.05] before:absolute before:-inset-1 before:rounded-xl active:scale-[0.96] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/70"
+            className="group relative w-11 h-11 rounded-xl flex items-center justify-center text-slate-400 hover:text-[#25F4EE] hover:bg-white/[0.05] before:absolute before:-inset-1 before:rounded-xl active:scale-[0.96] motion-press active:duration-100 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/70"
           >
             <Smartphone className="w-5 h-5" strokeWidth={1.8} />
             <span aria-hidden="true" className={desktopTooltipClass}>
@@ -254,7 +256,7 @@ export default function Sidebar({
             onPointerEnter={handleNavButtonEnter}
             onClick={toggleFullscreen}
             aria-label={isFullscreen ? 'ย่อจอ' : 'เต็มจอ'}
-            className="group relative w-11 h-11 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/[0.05] before:absolute before:-inset-1 before:rounded-xl active:scale-[0.96] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/70"
+            className="group relative w-11 h-11 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/[0.05] before:absolute before:-inset-1 before:rounded-xl active:scale-[0.96] motion-press active:duration-100 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/70"
           >
             {isFullscreen
               ? <Minimize className="w-5 h-5" strokeWidth={1.8} />
@@ -274,7 +276,7 @@ export default function Sidebar({
         // the accessibility tree, not just invisible.
         inert={isImmersive || undefined}
         aria-hidden={isImmersive || undefined}
-        className={`md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#050811]/80 backdrop-blur-2xl border-t border-white/[0.12] flex items-stretch justify-around px-1.5 h-[var(--nav-h)] pb-[env(safe-area-inset-bottom)] shadow-2xl transition-[transform,opacity] duration-250 ease-out ${
+        className={`md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#050811]/80 backdrop-blur-2xl border-t border-white/[0.12] flex items-stretch justify-around px-1.5 h-[var(--nav-h)] pb-[env(safe-area-inset-bottom)] shadow-2xl motion-press duration-250 ${
           isImmersive ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
         }`}
       >
@@ -287,7 +289,7 @@ export default function Sidebar({
               type="button"
               onClick={() => { try { navigator.vibrate?.(10); } catch {} setActiveTab(item.id); }}
               aria-current={isActive ? 'page' : undefined}
-              className={`relative flex flex-col items-center justify-center min-h-[48px] py-1 px-1 rounded-xl transition-[color,transform] duration-150 active:duration-100 ease-out cursor-pointer flex-1 min-w-0 select-none active:scale-95 ${
+              className={`relative flex flex-col items-center justify-center min-h-[48px] py-1 px-1 rounded-xl motion-press active:duration-100 cursor-pointer flex-1 min-w-0 select-none active:scale-95 ${
                 isActive
                   ? 'text-[#25F4EE] font-bold'
                   : 'text-slate-400 font-medium hover:text-slate-200'
@@ -311,7 +313,7 @@ export default function Sidebar({
           aria-haspopup="dialog"
           aria-expanded={showMoreDrawer}
           aria-current={isMoreActive ? 'page' : undefined}
-          className={`relative flex flex-col items-center justify-center min-h-[48px] py-1 px-1 rounded-xl transition-[color,transform] duration-150 active:duration-100 ease-out cursor-pointer flex-1 min-w-0 select-none active:scale-95 ${
+          className={`relative flex flex-col items-center justify-center min-h-[48px] py-1 px-1 rounded-xl motion-press active:duration-100 cursor-pointer flex-1 min-w-0 select-none active:scale-95 ${
             isMoreActive
               ? 'text-[#25F4EE] font-bold'
               : 'text-slate-400 font-medium hover:text-slate-200'
@@ -359,7 +361,7 @@ export default function Sidebar({
                 type="button"
                 onClick={closeMoreDrawer}
                 aria-label="ปิดเมนูเพิ่มเติม"
-                className="w-11 h-11 -mr-1 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/[0.06] active:scale-[0.97] transition-[transform,background-color,color] duration-150 active:duration-100 ease-out cursor-pointer"
+                className="w-11 h-11 -mr-1 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/[0.06] active:scale-[0.97] motion-press active:duration-100 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -378,7 +380,7 @@ export default function Sidebar({
                   setActiveTab('assets');
                   closeMoreDrawer();
                 }}
-                className={`w-full flex items-center justify-between min-h-11 p-3.5 rounded-2xl border active:scale-[0.98] transition-[transform,background-color,border-color,color] duration-150 active:duration-100 ease-out cursor-pointer ${
+                className={`w-full flex items-center justify-between min-h-11 p-3.5 rounded-2xl border active:scale-[0.98] motion-press active:duration-100 cursor-pointer ${
                   activeTab === 'assets'
                     ? 'bg-[#25F4EE]/10 border-[#25F4EE]/40 text-[#25F4EE]'
                     : 'bg-white/[0.03] border-white/[0.06] text-slate-200 hover:bg-white/[0.06]'
@@ -402,7 +404,7 @@ export default function Sidebar({
                   setActiveTab('analytics');
                   closeMoreDrawer();
                 }}
-                className={`w-full flex items-center justify-between min-h-11 p-3.5 rounded-2xl border active:scale-[0.98] transition-[transform,background-color,border-color,color] duration-150 active:duration-100 ease-out cursor-pointer ${
+                className={`w-full flex items-center justify-between min-h-11 p-3.5 rounded-2xl border active:scale-[0.98] motion-press active:duration-100 cursor-pointer ${
                   activeTab === 'analytics'
                     ? 'bg-[#25F4EE]/10 border-[#25F4EE]/40 text-[#25F4EE]'
                     : 'bg-white/[0.03] border-white/[0.06] text-slate-200 hover:bg-white/[0.06]'
@@ -431,7 +433,7 @@ export default function Sidebar({
                   setActiveTab('settings');
                   closeMoreDrawer();
                 }}
-                className={`w-full flex items-center justify-between min-h-11 p-3.5 rounded-2xl border active:scale-[0.98] transition-[transform,background-color,border-color,color] duration-150 active:duration-100 ease-out cursor-pointer ${
+                className={`w-full flex items-center justify-between min-h-11 p-3.5 rounded-2xl border active:scale-[0.98] motion-press active:duration-100 cursor-pointer ${
                   activeTab === 'settings'
                     ? 'bg-[#25F4EE]/10 border-[#25F4EE]/40 text-[#25F4EE]'
                     : 'bg-white/[0.03] border-white/[0.06] text-slate-200 hover:bg-white/[0.06]'
@@ -460,7 +462,7 @@ export default function Sidebar({
                     closeMoreDrawer();
                     setShowMobileModal(true);
                   }}
-                  className="pointer-coarse:hidden flex-1 min-h-11 flex items-center justify-center gap-2 p-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-slate-200 text-sm font-bold active:scale-[0.97] transition-[transform,background-color] duration-150 active:duration-100 ease-out cursor-pointer"
+                  className="pointer-coarse:hidden flex-1 min-h-11 flex items-center justify-center gap-2 p-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-slate-200 text-sm font-bold active:scale-[0.97] motion-press active:duration-100 cursor-pointer"
                 >
                   <Smartphone className="w-4 h-4 text-[#25F4EE]" />
                   <span>สแกน QR มือถือ</span>
@@ -472,7 +474,7 @@ export default function Sidebar({
                     toggleFullscreen();
                     closeMoreDrawer();
                   }}
-                  className="flex-1 min-h-11 flex items-center justify-center gap-2 p-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-slate-200 text-sm font-bold active:scale-[0.97] transition-[transform,background-color] duration-150 active:duration-100 ease-out cursor-pointer"
+                  className="flex-1 min-h-11 flex items-center justify-center gap-2 p-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-slate-200 text-sm font-bold active:scale-[0.97] motion-press active:duration-100 cursor-pointer"
                 >
                   {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
                   <span>{isFullscreen ? 'ย่อหน้าจอ' : 'ขยายเต็มหน้าจอ'}</span>
@@ -484,7 +486,7 @@ export default function Sidebar({
                   type="button"
                   onClick={handleLogout}
                   disabled={loggingOut}
-                  className="w-full min-h-11 flex items-center justify-center gap-2 p-3 rounded-2xl bg-rose-500/10 hover:bg-rose-500/15 border border-rose-500/30 text-rose-200 text-sm font-bold active:scale-[0.97] disabled:active:scale-100 transition-[transform,background-color] duration-150 active:duration-100 ease-out cursor-pointer disabled:opacity-60"
+                  className="w-full min-h-11 flex items-center justify-center gap-2 p-3 rounded-2xl bg-rose-500/10 hover:bg-rose-500/15 border border-rose-500/30 text-rose-200 text-sm font-bold active:scale-[0.97] disabled:active:scale-100 motion-press active:duration-100 cursor-pointer disabled:opacity-60"
                 >
                   <LogOut className="w-4 h-4" />
                   <span>{loggingOut ? 'กำลังออกจากระบบ' : 'ออกจากระบบ'}</span>
@@ -506,7 +508,7 @@ export default function Sidebar({
               autoFocus
               onClick={() => setShowMobileModal(false)}
               aria-label="ปิด QR modal"
-              className="absolute top-3 right-3 w-11 h-11 p-2 rounded-xl hover:bg-white/[0.1] text-slate-400 hover:text-white active:scale-[0.97] transition-[transform,background-color,color] duration-150 active:duration-100 ease-out cursor-pointer flex items-center justify-center border border-white/[0.06]"
+              className="absolute top-3 right-3 w-11 h-11 p-2 rounded-xl hover:bg-white/[0.1] text-slate-400 hover:text-white active:scale-[0.97] motion-press active:duration-100 cursor-pointer flex items-center justify-center border border-white/[0.06]"
             >
               <X className="w-5 h-5" />
             </button>
@@ -537,7 +539,7 @@ export default function Sidebar({
                 />
                 <button
                   onClick={copyMobileLink}
-                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:opacity-90 text-white text-xs font-bold flex items-center gap-1 active:scale-[0.97] transition-[transform,opacity,background-color] duration-150 active:duration-100 ease-out flex-shrink-0 cursor-pointer shadow-md"
+                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:opacity-90 text-white text-xs font-bold flex items-center gap-1 active:scale-[0.97] motion-press active:duration-100 flex-shrink-0 cursor-pointer shadow-md"
                 >
                   {copied ? <><Check className="w-3.5 h-3.5 text-white" /> คัดลอกแล้ว</> : <><Copy className="w-3.5 h-3.5" /> คัดลอกลิงก์</>}
                 </button>

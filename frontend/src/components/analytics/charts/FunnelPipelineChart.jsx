@@ -90,7 +90,7 @@ export default function FunnelPipelineChart({
               key={stage.key}
               onMouseEnter={() => setHoveredKey(stage.key)}
               onMouseLeave={() => setHoveredKey(null)}
-              className={`relative rounded-xl border p-4 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex flex-col justify-between overflow-hidden cursor-default ${
+              className={`relative rounded-xl border p-4 motion-press active:duration-100 flex flex-col justify-between overflow-hidden cursor-default ${
                 isHovered
                   ? `${theme.hoverBorder} shadow-lg shadow-black/40 scale-[1.02] bg-zinc-900/90`
                   : `${theme.border} bg-zinc-900/50 hover:bg-zinc-900/70`

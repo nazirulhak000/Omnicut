@@ -18,7 +18,7 @@ export default function ToggleControl({
     <button
       type="button"
       onClick={() => onChange?.(!checked)}
-      className={`w-full py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-between cursor-pointer active:scale-[0.98] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out ${
+      className={`w-full py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-between cursor-pointer active:scale-[0.98] motion-press active:duration-100 ${
         checked ? activeClass : inactiveClass
       }`}
     >

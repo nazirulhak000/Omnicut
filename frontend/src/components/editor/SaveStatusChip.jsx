@@ -50,7 +50,7 @@ export default function SaveStatusChip({
               ? 'มีการแก้ไขที่ยังไม่ได้บันทึก — คลิกเพื่อบันทึกลงโปรเจกต์ (Ctrl+S)'
               : 'บันทึกล่าสุดเรียบร้อย — คลิกเพื่อบันทึกซ้ำ (Ctrl+S)'
       }
-      className={`group inline-flex h-7 sm:h-8 items-center gap-1.5 px-2 sm:px-2.5 rounded-lg border text-xs font-semibold active:scale-[0.96] disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out select-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
+      className={`group inline-flex h-7 sm:h-8 items-center gap-1.5 px-2 sm:px-2.5 rounded-lg border text-xs font-semibold active:scale-[0.96] disabled:active:scale-100 motion-press active:duration-100 select-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
         isSaving
           ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
           : isError

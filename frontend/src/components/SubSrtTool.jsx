@@ -142,7 +142,7 @@ export default function SubSrtTool({ videos = [], selectedVideo }) {
                     key={p.count}
                     type="button"
                     onClick={() => setWordsPerLine(p.count)}
-                    className={`p-2.5 rounded-xl border text-center transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
+                    className={`p-2.5 rounded-xl border text-center motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                       isSel
                         ? 'bg-[#25F4EE]/20 border-[#25F4EE]/60 text-white shadow-md ring-1 ring-[#25F4EE]/40'
                         : 'bg-black/40 border-white/[0.08] text-slate-400 hover:text-white hover:border-white/[0.15]'
@@ -159,10 +159,10 @@ export default function SubSrtTool({ videos = [], selectedVideo }) {
           <button
             onClick={handleTranscribe}
             disabled={transcribing || !targetVideo}
-            className={`w-full py-3.5 px-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out disabled:active:scale-100 shadow-lg ${
+            className={`w-full py-3.5 px-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 motion-press active:duration-100 disabled:active:scale-100 shadow-lg ${
               transcribing || !targetVideo
                 ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-white/[0.06]'
-                : 'bg-gradient-to-r from-[#25F4EE] to-blue-600 hover:brightness-110 text-slate-950 font-black shadow-[#25F4EE]/30 cursor-pointer active:scale-95'
+                : 'bg-gradient-to-r from-[#25F4EE] to-blue-600 hover:brightness-110 text-slate-950 font-black shadow-[#25F4EE]/30 cursor-pointer active:scale-95 motion-press active:duration-100'
             }`}
           >
             {transcribing ? (

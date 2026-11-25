@@ -194,7 +194,7 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/[0.12] text-slate-400 hover:text-white flex items-center justify-center active:scale-[0.95] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer border border-white/[0.06]"
+            className="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/[0.12] text-slate-400 hover:text-white flex items-center justify-center active:scale-[0.95] motion-press active:duration-100 cursor-pointer border border-white/[0.06]"
             aria-label="ปิดหน้าต่าง"
           >
             <X className="w-4 h-4" />
@@ -255,7 +255,7 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <label
-                className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 ease-out ${
+                className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer motion-press ${
                   scope === 'video_only'
                     ? 'bg-[#25F4EE]/[0.06] border-[#25F4EE]/40'
                     : 'bg-black/40 border-white/[0.08] hover:bg-white/[0.02]'
@@ -280,7 +280,7 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
               </label>
 
               <label
-                className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 ease-out ${
+                className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer motion-press ${
                   scope === 'full'
                     ? 'bg-[#25F4EE]/[0.06] border-[#25F4EE]/40'
                     : 'bg-black/40 border-white/[0.08] hover:bg-white/[0.02]'

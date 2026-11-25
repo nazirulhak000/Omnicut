@@ -38,14 +38,31 @@ import { toMediaUrl } from '../lib/mediaUrl.js';
 import { captureChannel, isCurrentChannel, registerChannelSwitchParticipant } from '../lib/channelRuntime.js';
 import { createChannelDraftParticipant } from '../lib/channelDraft.js';
 
-function cleanConciseProductName(name) {
-  if (!name || typeof name !== 'string') return '';
-  let cleaned = name.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '').trim();
-  if (!cleaned || cleaned === 'สินค้า') return '';
-  if (cleaned.length > 35) {
-    cleaned = cleaned.slice(0, 35).trim();
+const BANNED_COVER_SYMBOL_RE = /[\u{1F000}-\u{1FAFF}\u200D\u20E3\u2122\u2190-\u21FF\u2600-\u27BF\u2B00-\u2BFF\uE000-\uF8FF\uFE00-\uFE0F®©]/gu;
+
+function stripCoverBannedSymbols(text) {
+  if (!text || typeof text !== 'string') return '';
+  return text.replace(BANNED_COVER_SYMBOL_RE, '').replace(/\s+/g, ' ').trim();
+}
+
+function sliceThaiGraphemes(text, maxGraphemes = 35) {
+  if (!text) return '';
+  if (typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function') {
+    const segmenter = new Intl.Segmenter('th', { granularity: 'grapheme' });
+    const out = [];
+    for (const { segment } of segmenter.segment(text)) {
+      if (out.length >= maxGraphemes) break;
+      out.push(segment);
+    }
+    return out.join('').trim();
   }
-  return cleaned;
+  return Array.from(text).slice(0, maxGraphemes).join('').trim();
+}
+
+function cleanConciseProductName(name) {
+  const cleaned = stripCoverBannedSymbols(name);
+  if (!cleaned || cleaned === 'สินค้า') return '';
+  return sliceThaiGraphemes(cleaned, 35);
 }
 
 export default function CoverStudioModal({
@@ -53,14 +70,12 @@ export default function CoverStudioModal({
   onClose,
   videoItem,
   onCoverSaved,
-  productName: propProductName,
-  initialHook: propInitialHook,
 }) {
   // Paths & info
   const videoPath = videoItem?.path || videoItem?.rel_path || '';
-  const rawProductName = (propProductName || videoItem?.product_name || videoItem?.name || '').trim();
+  const rawProductName = stripCoverBannedSymbols(videoItem?.product_name || videoItem?.name || '');
   const productName = rawProductName || 'สินค้า';
-  const initialHook = (propInitialHook || videoItem?.hook_title || videoItem?.angle_name || '').trim();
+  const initialHook = stripCoverBannedSymbols(videoItem?.hook_title || videoItem?.angle_name || '');
   const angleTitle = initialHook;
   const timelineSnapshot = videoItem?.timeline_snapshot || null;
   const timelineSnapshotDataUrl = timelineSnapshot?.data_url || '';
@@ -119,7 +134,7 @@ export default function CoverStudioModal({
   const [hookText, setHookText] = useState(
     initialHook || (rawProductName ? `อย่าเพิ่งซื้อ ${rawProductName}\nถ้ายังไม่รู้สิ่งนี้!` : 'อย่าเพิ่งซื้อสินค้านี้\nถ้ายังไม่รู้สิ่งนี้!')
   );
-  const [subText, setSubText] = useState(cleanConciseProductName(rawProductName) || 'พิกัดในตะกร้าลดพิเศษ');
+  const [subText, setSubText] = useState(cleanConciseProductName(rawProductName) || 'พิกัดสินค้าในตะกร้า');
   const [hookPosition, setHookPosition] = useState('top'); // "top" | "center" | "bottom"
 
   // Template & Styling
@@ -211,7 +226,7 @@ export default function CoverStudioModal({
     setCurrentSeconds(timelineSnapshotDataUrl ? timelineSnapshotSeconds : 0.5);
     setLiveFrameUrl(null);
     const cleanSub = cleanConciseProductName(rawProductName);
-    setSubText(cleanSub || 'พิกัดในตะกร้าลดพิเศษ');
+    setSubText(cleanSub || 'พิกัดสินค้าในตะกร้า');
     if (initialHook) {
       setHookText(initialHook);
     } else if (rawProductName && rawProductName !== 'สินค้า') {
@@ -615,8 +630,9 @@ export default function CoverStudioModal({
   // Calculate 3:4 Guide Frame Box position inside 270x480 preview
   // In 270x480 container, 3:4 target height is 270 * (4 / 3) = 360px
   // Max vertical offset = 480 - 360 = 120px
+  const clampedPanY = Math.max(0, Math.min(100, Number(panY) || 0));
   const guideBoxH = 360;
-  const guideBoxTop = Math.round(120 * (panY / 100));
+  const guideBoxTop = Math.round(120 * (clampedPanY / 100));
   const savedPreviewImageSrc = getSavedPreviewImageSrc();
   const previewImageSrc = savedPreviewImageSrc || getPreviewImageSrc();
   const showingSavedPreview = Boolean(savedPreviewImageSrc);
@@ -650,7 +666,7 @@ export default function CoverStudioModal({
             onClick={handleClose}
             aria-label="ปิดสตูดิโอสร้างปก"
             disabled={saving || generatingAi}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] active:scale-[0.95] disabled:active:scale-100 transition-[background-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] active:scale-[0.95] disabled:active:scale-100 motion-press active:duration-100 cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -848,10 +864,10 @@ export default function CoverStudioModal({
                           return (
                             <span
                               key={idx}
-                              className={`font-black uppercase tracking-wider leading-none ${
+                              className={`font-black tracking-wider leading-none ${
                                 isBrand
                                   ? 'text-white text-base sm:text-lg'
-                                  : 'text-[#39FF14] text-lg sm:text-xl italic'
+                                  : 'text-[#39FF14] text-lg sm:text-xl'
                               }`}
                               style={{
                                 textShadow:
@@ -1009,10 +1025,10 @@ export default function CoverStudioModal({
                           return (
                             <span
                               key={idx}
-                              className={`font-black uppercase tracking-wider leading-none ${
+                              className={`font-black tracking-wider leading-none ${
                                 isBrand
                                   ? 'text-white text-xs sm:text-sm'
-                                  : 'text-[#39FF14] text-sm sm:text-base italic'
+                                  : 'text-[#39FF14] text-sm sm:text-base'
                               }`}
                               style={{
                                 textShadow:
@@ -1153,7 +1169,7 @@ export default function CoverStudioModal({
                   <button
                     type="button"
                     onClick={handleSwitchToTimeline}
-                    className={`flex-1 py-1.5 px-2 rounded-lg font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 text-center cursor-pointer ${
+                    className={`flex-1 py-1.5 px-2 rounded-lg font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 text-center cursor-pointer ${
                       activeSourceType === 'timeline'
                         ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30'
                         : 'text-slate-400 hover:text-slate-200'
@@ -1166,7 +1182,7 @@ export default function CoverStudioModal({
                   type="button"
                   onClick={handleSwitchToExported}
                   disabled={!videoPath}
-                  className={`flex-1 py-1.5 px-2 rounded-lg font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 text-center cursor-pointer ${
+                  className={`flex-1 py-1.5 px-2 rounded-lg font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 text-center cursor-pointer ${
                     activeSourceType === 'exported'
                       ? 'bg-white/[0.08] text-white border border-white/[0.12]'
                       : 'text-slate-400 hover:text-slate-200'
@@ -1179,7 +1195,7 @@ export default function CoverStudioModal({
                   <button
                     type="button"
                     onClick={() => handleSwitchToRawSource(rawSources[0].path)}
-                    className={`flex-1 py-1.5 px-2 rounded-lg font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 text-center cursor-pointer ${
+                    className={`flex-1 py-1.5 px-2 rounded-lg font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 text-center cursor-pointer ${
                       activeSourceType === 'raw'
                         ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
                         : 'text-slate-400 hover:text-slate-200'
@@ -1193,7 +1209,7 @@ export default function CoverStudioModal({
                   <button
                     type="button"
                     onClick={handleSwitchToProductRef}
-                    className={`py-1.5 px-3 rounded-lg font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 text-center cursor-pointer flex items-center gap-1.5 ${
+                    className={`py-1.5 px-3 rounded-lg font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 text-center cursor-pointer flex items-center gap-1.5 ${
                       activeSourceType === 'product_ref'
                         ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
                         : 'text-amber-400/80 hover:text-amber-200'
@@ -1207,7 +1223,7 @@ export default function CoverStudioModal({
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className={`py-1.5 px-3 rounded-lg font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 text-center cursor-pointer flex items-center gap-1 ${
+                  className={`py-1.5 px-3 rounded-lg font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 text-center cursor-pointer flex items-center gap-1 ${
                     activeSourceType === 'upload'
                       ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30'
                       : 'text-slate-400 hover:text-slate-200'
@@ -1220,7 +1236,7 @@ export default function CoverStudioModal({
                 <button
                   type="button"
                   onClick={handleSwitchToAiGen}
-                  className={`py-1.5 px-3 rounded-lg font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 text-center cursor-pointer flex items-center gap-1 ${
+                  className={`py-1.5 px-3 rounded-lg font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 text-center cursor-pointer flex items-center gap-1 ${
                     activeSourceType === 'ai_gen'
                       ? 'bg-purple-500/15 text-purple-300 border border-purple-500/30'
                       : 'text-purple-400 hover:text-purple-200'
@@ -1260,7 +1276,7 @@ export default function CoverStudioModal({
                           key={idx}
                           type="button"
                           onClick={() => handleSelectProductRefImage(img)}
-                          className={`group relative aspect-square rounded-lg overflow-hidden border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
+                          className={`group relative aspect-square rounded-lg overflow-hidden border motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                             isSelected
                               ? 'border-amber-400 ring-1 ring-amber-400/50 shadow scale-95'
                               : 'border-white/[0.08] hover:border-amber-400/40 hover:scale-100'
@@ -1284,7 +1300,7 @@ export default function CoverStudioModal({
                     <button
                       type="button"
                       onClick={handleSwitchToAiGen}
-                      className="px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded-md text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 flex items-center gap-1 shadow-sm cursor-pointer"
+                      className="px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded-md text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 flex items-center gap-1 shadow-sm cursor-pointer"
                     >
                       <Sparkles className="w-3 h-3" />
                       ส่งรูปนี้ให้ AI ผสานฉาก
@@ -1340,7 +1356,7 @@ export default function CoverStudioModal({
                                 if (item.method) setAiGenMethod(item.method);
                                 setLastAiCover(item);
                               }}
-                              className={`group relative shrink-0 w-16 h-28 rounded-lg overflow-hidden border-2 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer flex flex-col ${
+                              className={`group relative shrink-0 w-16 h-28 rounded-lg overflow-hidden border-2 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer flex flex-col ${
                                 isActive
                                   ? 'border-amber-400 ring-1 ring-amber-400/50 scale-105 shadow-sm'
                                   : 'border-white/[0.08] opacity-75 hover:opacity-100 hover:border-purple-400/60'
@@ -1397,7 +1413,7 @@ export default function CoverStudioModal({
                           onChange={(e) => setEnableHookText(e.target.checked)}
                           className="sr-only peer"
                         />
-                        <div className="w-9 h-5 bg-white/[0.1] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 transition-colors duration-150 ease-out after:transition-[transform,border-color] after:duration-150 after:ease-out peer-checked:bg-amber-500"></div>
+                        <div className="w-9 h-5 bg-white/[0.1] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 transition-colors duration-150 ease-out after:transition-[transform,translate,scale,rotate,border-color] after:duration-150 after:ease-out peer-checked:bg-amber-500"></div>
                       </label>
                     </div>
 
@@ -1434,7 +1450,7 @@ export default function CoverStudioModal({
                             type="button"
                             onClick={() => {
                               setHookText(`อย่าเพิ่งซื้อ ${productName || 'สินค้านี้'}\nถ้ายังไม่รู้สิ่งนี้!`);
-                              setSubText('พิกัดในตะกร้าลดพิเศษ');
+                              setSubText('พิกัดสินค้าในตะกร้า');
                             }}
                             className="px-2 py-0.5 text-[10px] rounded bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 cursor-pointer transition-colors"
                           >
@@ -1492,7 +1508,7 @@ export default function CoverStudioModal({
                             setCustomImage(null);
                             setCustomImageFile(null);
                           }}
-                          className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[10px] font-medium transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
+                          className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[10px] font-medium motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                             !selectedRefImage
                               ? 'bg-purple-600/25 border-purple-400 text-purple-200 shadow-sm'
                               : 'bg-[#0A0D14] border-white/[0.08] text-slate-400 hover:text-slate-200'
@@ -1512,7 +1528,7 @@ export default function CoverStudioModal({
                                 setCustomImage(img.url);
                                 setCustomImageFile(img.local_path || img.url);
                               }}
-                              className={`shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[10px] font-medium transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
+                              className={`shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[10px] font-medium motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                                 isSel
                                   ? 'bg-amber-500/20 border-amber-400 text-amber-200 ring-1 ring-amber-400/50 shadow-sm'
                                   : 'bg-[#0A0D14] border-white/[0.08] text-slate-400 hover:border-amber-400/40'
@@ -1597,7 +1613,7 @@ export default function CoverStudioModal({
                       type="button"
                       onClick={() => handleGenerateAiCover()}
                       disabled={generatingAi || !aiPrompt.trim()}
-                      className="w-full sm:w-auto px-4 py-2 rounded-lg font-bold text-xs bg-purple-600 hover:bg-purple-500 text-white border border-purple-500/30 disabled:opacity-50 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 flex items-center justify-center gap-2 cursor-pointer"
+                      className="w-full sm:w-auto px-4 py-2 rounded-lg font-bold text-xs bg-purple-600 hover:bg-purple-500 text-white border border-purple-500/30 disabled:opacity-50 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 flex items-center justify-center gap-2 cursor-pointer"
                     >
                       {generatingAi ? (
                         <>
@@ -1644,7 +1660,7 @@ export default function CoverStudioModal({
                         key={idx}
                         type="button"
                         onClick={() => handleSelectCandidate(cand)}
-                        className={`group relative rounded-lg overflow-hidden border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 text-left flex flex-col cursor-pointer ${
+                        className={`group relative rounded-lg overflow-hidden border motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 text-left flex flex-col cursor-pointer ${
                           isSelected
                             ? 'border-amber-400 ring-1 ring-amber-400/40 shadow-sm'
                             : 'border-white/[0.08] hover:border-white/[0.2] opacity-80 hover:opacity-100'
@@ -1767,7 +1783,7 @@ export default function CoverStudioModal({
                             key={i}
                             type="button"
                             onClick={() => setHookText(h.text)}
-                            className={`text-xs px-2.5 py-1 rounded-lg border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 text-left cursor-pointer ${
+                            className={`text-xs px-2.5 py-1 rounded-lg border motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 text-left cursor-pointer ${
                               hookText === h.text
                                 ? 'bg-cyan-500/15 border-cyan-400 text-cyan-300 font-semibold'
                                 : 'bg-white/[0.03] border-white/[0.08] hover:border-white/[0.18] text-slate-300'
@@ -1808,7 +1824,7 @@ export default function CoverStudioModal({
                           type="text"
                           value={subText}
                           onChange={(e) => setSubText(e.target.value)}
-                          placeholder="เช่น พิกัดในตะกร้าลด 50%"
+                          placeholder="เช่น พิกัดสินค้าในตะกร้า"
                           className="w-full px-3 py-1.5 text-xs bg-[#07090E] border border-white/[0.08] rounded-lg text-white focus:outline-none focus:border-cyan-400/60"
                         />
                       </div>
@@ -1892,7 +1908,7 @@ export default function CoverStudioModal({
                         key={t.id}
                         type="button"
                         onClick={() => setTemplate(t.id)}
-                        className={`p-2.5 rounded-xl border text-left transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 flex flex-col justify-between cursor-pointer ${
+                        className={`p-2.5 rounded-xl border text-left motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 flex flex-col justify-between cursor-pointer ${
                           isSel
                             ? 'border-emerald-500 bg-emerald-500/10 text-white shadow-sm'
                             : 'border-white/[0.08] bg-[#07090E] hover:border-white/[0.18]'
@@ -1962,7 +1978,7 @@ export default function CoverStudioModal({
                           key={b.id}
                           type="button"
                           onClick={() => setSelectedBadge(b.id)}
-                          className={`p-1 rounded-lg border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 flex flex-col items-center justify-center cursor-pointer ${
+                          className={`p-1 rounded-lg border motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 flex flex-col items-center justify-center cursor-pointer ${
                             isBActive
                               ? 'border-amber-400 bg-amber-500/10 shadow-sm'
                               : 'border-white/[0.08] bg-[#07090E] hover:border-white/[0.18]'
@@ -2006,7 +2022,7 @@ export default function CoverStudioModal({
                   <button
                     type="button"
                     onClick={() => revealFile(savedResult.cover_path)}
-                    className="px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-200 text-xs font-bold flex items-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer active:scale-95"
+                    className="px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-200 text-xs font-bold flex items-center gap-1.5 motion-press active:duration-100 cursor-pointer active:scale-95"
                   >
                     <Folder className="w-3.5 h-3.5" />
                     <span>เปิดไฟล์ใน Explorer</span>
@@ -2044,7 +2060,7 @@ export default function CoverStudioModal({
                   key={r.id}
                   type="button"
                   onClick={() => setAspectRatio(r.id)}
-                  className={`px-3 py-1 rounded-lg font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
+                  className={`px-3 py-1 rounded-lg font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                     aspectRatio === r.id
                       ? 'bg-amber-500 text-slate-950 shadow-sm'
                       : 'text-slate-400 hover:text-white'
@@ -2061,7 +2077,7 @@ export default function CoverStudioModal({
               <button
                 type="button"
                 onClick={() => revealFile(savedResult.cover_path)}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-200 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex items-center gap-1.5 cursor-pointer active:scale-95"
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-200 motion-press active:duration-100 flex items-center gap-1.5 cursor-pointer active:scale-95"
               >
                 <Folder className="w-3.5 h-3.5" />
                 <span>เปิดโฟลเดอร์ไฟล์ปก</span>
@@ -2079,7 +2095,7 @@ export default function CoverStudioModal({
               type="button"
               onClick={handleSaveCover}
               disabled={saving}
-              className="px-5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 disabled:active:scale-100"
+              className="px-5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md motion-press active:duration-100 flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 disabled:active:scale-100"
             >
               {saving ? (
                 <>

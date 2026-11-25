@@ -81,7 +81,7 @@ export default function EffectInspector({
         <button
           type="button"
           onClick={() => onUpdateEffect?.(effect.id, { normX: 0.5, normY: 0.5 })}
-          className="w-full py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 text-xs font-medium border border-white/[0.06] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
+          className="w-full py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 text-xs font-medium border border-white/[0.06] motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
         >
           จัดกึ่งกลางจอ
         </button>
@@ -92,7 +92,7 @@ export default function EffectInspector({
         <button
           type="button"
           onClick={() => onDeleteEffect?.(effect.id)}
-          className="w-full py-2.5 px-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 flex items-center justify-center gap-2 font-bold text-xs cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 shadow-sm"
+          className="w-full py-2.5 px-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 flex items-center justify-center gap-2 font-bold text-xs cursor-pointer motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 shadow-sm"
           title="ลบเอฟเฟกต์นี้ออกจากไทม์ไลน์"
         >
           <Trash2 className="w-4 h-4" />

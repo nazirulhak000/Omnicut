@@ -176,7 +176,7 @@ export default function FindReplaceModal({
                 key={idx}
                 type="button"
                 onClick={() => handleApplyPreset(p)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold border motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                   findText === p.find && replaceText === p.replace
                     ? 'bg-[#25F4EE]/20 border-[#25F4EE]/50 text-[#25F4EE]'
                     : 'bg-white/[0.04] border-white/[0.08] hover:bg-white/[0.08] text-slate-300'
@@ -298,7 +298,7 @@ export default function FindReplaceModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-3.5 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
+            className="px-3.5 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 text-xs font-semibold cursor-pointer flex items-center gap-1.5 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100"
           >
             <X className="w-3.5 h-3.5" />
             <span>ยกเลิก</span>
@@ -307,9 +307,9 @@ export default function FindReplaceModal({
             type="button"
             disabled={totalMatches === 0 || !findText.trim()}
             onClick={handleExecuteReplace}
-            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out disabled:active:scale-100 shadow-md ${
+            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 motion-press active:duration-100 disabled:active:scale-100 shadow-md ${
               totalMatches > 0 && findText.trim()
-                ? 'bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:brightness-110 text-white cursor-pointer active:scale-95'
+                ? 'bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:brightness-110 text-white cursor-pointer active:scale-95 motion-press active:duration-100'
                 : 'bg-white/[0.05] text-slate-500 border border-white/[0.06] cursor-not-allowed'
             }`}
           >

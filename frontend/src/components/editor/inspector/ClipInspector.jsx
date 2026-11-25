@@ -85,7 +85,7 @@ function ApplyAllButton({ onClick, disabled = false, title }) {
       disabled={disabled}
       title={title}
       onClick={onClick}
-      className="text-xs text-[#25F4EE] hover:underline active:scale-[0.97] disabled:active:scale-100 transition-[color,transform,opacity] duration-150 active:duration-100 ease-out disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed cursor-pointer"
+      className="text-xs text-[#25F4EE] hover:underline active:scale-[0.97] disabled:active:scale-100 motion-press active:duration-100 disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed cursor-pointer"
     >
       ใช้กับทุกคลิป
     </button>
@@ -210,7 +210,7 @@ export default function ClipInspector({
               type="button"
               onClick={onCopySettings}
               title="คัดลอกความเร็ว ซูม/แพน+คีย์เฟรมกล้อง สี และทรานซิชันของคลิปนี้ (Ctrl+Alt+C)"
-              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-medium text-slate-300 hover:text-white transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
+              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs font-medium text-slate-300 hover:text-white motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
             >
               <ClipboardCopy className="w-3.5 h-3.5 text-[#25F4EE]" />
               <span>คัดลอกการตั้งค่า</span>
@@ -220,7 +220,7 @@ export default function ClipInspector({
               disabled={!canPasteSettings}
               onClick={onPasteSettings}
               title={canPasteSettings ? 'วางการตั้งค่าที่คัดลอกไว้ลงคลิปนี้ (Ctrl+Alt+V)' : 'ยังไม่ได้คัดลอกการตั้งค่าจากคลิปไหน'}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg border text-xs font-medium transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 ${
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg border text-xs font-medium motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 ${
                 canPasteSettings
                   ? 'bg-[#D97757]/20 border-[#D97757]/40 text-[#E89274] hover:bg-[#D97757]/30 cursor-pointer'
                   : 'bg-black/20 border-white/[0.04] text-slate-600 cursor-not-allowed'
@@ -274,7 +274,7 @@ export default function ClipInspector({
                   type="button"
                   aria-pressed={active}
                   onClick={() => onClipChange?.({ speed: s === 1 ? undefined : clampSpeed(s) })}
-                  className={`py-1 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer border ${
+                  className={`py-1 rounded-lg text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer border ${
                     active
                       ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
                       : 'bg-black/40 border-white/[0.08] text-slate-400 hover:text-white'
@@ -348,7 +348,7 @@ export default function ClipInspector({
               <button
                 type="button"
                 onClick={() => onClipChange?.({ rotation: undefined })}
-                className="text-xs text-[#E89274] hover:underline active:scale-[0.97] disabled:active:scale-100 transition-[color,transform,opacity] duration-150 active:duration-100 ease-out cursor-pointer"
+                className="text-xs text-[#E89274] hover:underline active:scale-[0.97] disabled:active:scale-100 motion-press active:duration-100 cursor-pointer"
               >
                 รีเซ็ต 0°
               </button>
@@ -363,7 +363,7 @@ export default function ClipInspector({
                   type="button"
                   aria-pressed={active}
                   onClick={() => onClipChange?.({ rotation: deg === 0 ? undefined : clampRotation(deg) })}
-                  className={`py-1 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer border ${
+                  className={`py-1 rounded-lg text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer border ${
                     active
                       ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
                       : 'bg-black/40 border-white/[0.08] text-slate-400 hover:text-white'
@@ -381,7 +381,7 @@ export default function ClipInspector({
           type="button"
           aria-pressed={!!clip.mirror}
           onClick={() => onClipChange?.({ mirror: !clip.mirror })}
-          className={`w-full py-1.5 px-3 rounded-xl text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer border ${
+          className={`w-full py-1.5 px-3 rounded-xl text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer border ${
             clip.mirror
               ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
               : 'bg-black/40 border-white/[0.08] text-slate-300 hover:text-white'
@@ -405,7 +405,7 @@ export default function ClipInspector({
               type="button"
               onClick={() => onClipChange?.({ volume: (clip.volume || 0) > 0 ? 0 : 1.0 })}
               aria-label={(clip.volume || 0) > 0 ? 'ปิดเสียงคลิปต้นฉบับ' : 'เปิดเสียงคลิปต้นฉบับ'}
-              className="text-xs font-mono font-bold text-[#25F4EE] hover:underline active:scale-[0.97] disabled:active:scale-100 transition-[color,transform,opacity] duration-150 active:duration-100 ease-out cursor-pointer"
+              className="text-xs font-mono font-bold text-[#25F4EE] hover:underline active:scale-[0.97] disabled:active:scale-100 motion-press active:duration-100 cursor-pointer"
             >
               {Math.round((clip.volume || 0) * 100)}%
             </button>
@@ -445,7 +445,7 @@ export default function ClipInspector({
                 type="button"
                 disabled={zoom === 1 && !clip.pan_x && !clip.pan_y && cam.points === 0}
                 onClick={() => onClipChange?.(framingResetPatch(clip))}
-                className="text-xs text-slate-400 hover:text-white active:scale-[0.97] disabled:active:scale-100 transition-[color,transform,opacity] duration-150 active:duration-100 ease-out disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                className="text-xs text-slate-400 hover:text-white active:scale-[0.97] disabled:active:scale-100 motion-press active:duration-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
               >
                 รีเซ็ต
               </button>
@@ -459,7 +459,7 @@ export default function ClipInspector({
               <button
                 type="button"
                 onClick={() => onClipChange?.(clearCameraMotionPatch(clip))}
-                className="rounded-lg border border-amber-500/40 bg-amber-500/15 px-2 py-1 text-xs font-bold text-amber-200 hover:bg-amber-500/25 active:scale-[0.97] disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer"
+                className="rounded-lg border border-amber-500/40 bg-amber-500/15 px-2 py-1 text-xs font-bold text-amber-200 hover:bg-amber-500/25 active:scale-[0.97] disabled:active:scale-100 motion-press active:duration-100 cursor-pointer"
               >
                 ล้างการเคลื่อนกล้อง
               </button>
@@ -484,7 +484,7 @@ export default function ClipInspector({
                 disabled={!prevKf}
                 onClick={() => prevKf && handleSeekToKeyframe(prevKf)}
                 title={prevKf ? `ไปยังคีย์เฟรมก่อนหน้า (${Number(prevKf.time).toFixed(2)}s) · ปุ่ม ,` : 'ไม่มีคีย์เฟรมก่อนหน้า'}
-                className="p-1 rounded text-slate-400 hover:text-white active:scale-[0.97] disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                className="p-1 rounded text-slate-400 hover:text-white active:scale-[0.97] disabled:active:scale-100 motion-press active:duration-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
               </button>
@@ -496,7 +496,7 @@ export default function ClipInspector({
                 title={!playheadInClip
                   ? 'เลื่อนหัวอ่านเข้ามาในคลิปนี้ก่อน'
                   : hasKeyframeAtPlayhead ? 'ลบคีย์เฟรมที่หัวอ่าน (◆) · ปุ่ม D' : 'เพิ่มคีย์เฟรมที่หัวอ่าน (◇) · ปุ่ม D'}
-                className={`flex h-7 w-7 items-center justify-center rounded-lg border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
+                className={`flex h-7 w-7 items-center justify-center rounded-lg border motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
                   hasKeyframeAtPlayhead
                     ? 'border-amber-400 bg-amber-500/25 text-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.4)]'
                     : 'border-white/[0.12] bg-black/60 text-slate-400 hover:border-[#25F4EE] hover:text-[#25F4EE]'
@@ -513,7 +513,7 @@ export default function ClipInspector({
                 disabled={!nextKf}
                 onClick={() => nextKf && handleSeekToKeyframe(nextKf)}
                 title={nextKf ? `ไปยังคีย์เฟรมถัดไป (${Number(nextKf.time).toFixed(2)}s) · ปุ่ม .` : 'ไม่มีคีย์เฟรมถัดไป'}
-                className="p-1 rounded text-slate-400 hover:text-white active:scale-[0.97] disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                className="p-1 rounded text-slate-400 hover:text-white active:scale-[0.97] disabled:active:scale-100 motion-press active:duration-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
               >
                 <ChevronRight className="h-3.5 w-3.5" />
               </button>
@@ -524,7 +524,7 @@ export default function ClipInspector({
               type="button"
               aria-pressed={bgBlur}
               onClick={() => onClipChange?.({ bg_blur: bgBlur ? undefined : true, fit_mode: bgBlur ? undefined : 'blur' })}
-              className={`flex-1 rounded-xl border px-2 py-1 text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
+              className={`flex-1 rounded-xl border px-2 py-1 text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                 bgBlur
                   ? 'border-[#25F4EE] bg-[#25F4EE]/15 text-[#25F4EE]'
                   : 'border-white/[0.1] bg-black/40 text-slate-400 hover:text-white'
@@ -608,7 +608,7 @@ export default function ClipInspector({
                     disabled={!patch}
                     title={patch ? undefined : 'ซูมปัจจุบันสูงสุดแล้ว หรือคลิปสั้นเกินไป'}
                     onClick={() => patch && onClipChange?.(patch)}
-                    className="rounded-lg border border-white/[0.08] bg-black/40 py-1 text-xs font-bold text-slate-300 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                    className="rounded-lg border border-white/[0.08] bg-black/40 py-1 text-xs font-bold text-slate-300 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                   >
                     {preset.label}
                   </button>
@@ -618,7 +618,7 @@ export default function ClipInspector({
                 type="button"
                 disabled={cam.points === 0}
                 onClick={() => onClipChange?.(clearCameraMotionPatch(clip))}
-                className="rounded-lg border border-white/[0.08] bg-black/40 py-1 text-xs font-bold text-slate-300 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                className="rounded-lg border border-white/[0.08] bg-black/40 py-1 text-xs font-bold text-slate-300 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
               >
                 ล้าง
               </button>
@@ -636,7 +636,7 @@ export default function ClipInspector({
                     type="button"
                     disabled={!patch}
                     onClick={() => patch && onClipChange?.(patch)}
-                    className="rounded-lg border border-[#25F4EE]/30 bg-[#25F4EE]/10 py-1 text-xs font-bold text-[#25F4EE] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 hover:bg-[#25F4EE]/20 disabled:opacity-30 cursor-pointer"
+                    className="rounded-lg border border-[#25F4EE]/30 bg-[#25F4EE]/10 py-1 text-xs font-bold text-[#25F4EE] motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 hover:bg-[#25F4EE]/20 disabled:opacity-30 cursor-pointer"
                   >
                     {preset.label}
                   </button>
@@ -679,7 +679,7 @@ export default function ClipInspector({
                 type="button"
                 disabled={!colorTouched}
                 onClick={() => onClipChange?.({ brightness: undefined, contrast: undefined, saturation: undefined, temperature: undefined, gamma: undefined, shadows: undefined, highlights: undefined, vibrance: undefined, vignette: undefined })}
-                className="text-xs text-slate-400 hover:text-white active:scale-[0.97] disabled:active:scale-100 transition-[color,transform,opacity] duration-150 active:duration-100 ease-out disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                className="text-xs text-slate-400 hover:text-white active:scale-[0.97] disabled:active:scale-100 motion-press active:duration-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
               >
                 รีเซ็ต
               </button>
@@ -728,7 +728,7 @@ export default function ClipInspector({
                       type="button"
                       aria-pressed={clip.capcut_transition_preset === preset.id}
                       onClick={() => onClipChange?.(applyCapcutHighSpeedTransition(clip, preset.id))}
-                      className={`py-1 px-1.5 rounded-lg text-[11px] font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer border ${
+                      className={`py-1 px-1.5 rounded-lg text-[11px] font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer border ${
                         clip.capcut_transition_preset === preset.id
                           ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
                           : 'bg-black/40 border-white/[0.08] text-slate-300 hover:text-white'
@@ -748,7 +748,7 @@ export default function ClipInspector({
                       transition_in: t.id,
                       transition_duration: durTrans,
                     })}
-                    className={`flex items-center justify-center gap-1.5 py-1 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer border ${
+                    className={`flex items-center justify-center gap-1.5 py-1 rounded-lg text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer border ${
                       kind === t.id
                         ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
                         : 'bg-black/40 border-white/[0.08] text-slate-400 hover:text-white'

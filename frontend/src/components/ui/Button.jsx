@@ -15,7 +15,7 @@ export const Button = forwardRef(function Button(
   },
   ref
 ) {
-  const baseStyles = 'inline-flex items-center justify-center font-bold transition-[transform,background-color,border-color,color,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer select-none active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100';
+  const baseStyles = 'inline-flex items-center justify-center font-bold motion-press active:duration-100 cursor-pointer select-none active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100';
 
   // Touch targets: on phones (<768px) and any coarse pointer every size is at
   // least 44x44 with 14px text; desktop mouse layouts keep their density.

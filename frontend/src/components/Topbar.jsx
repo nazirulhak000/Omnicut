@@ -204,7 +204,7 @@ export default memo(function Topbar({
         <button
           type="button"
           onClick={() => setIphoneModalOpen(true)}
-          className="h-8 sm:h-9 px-2 sm:px-2.5 rounded-xl bg-white/[0.04] hover:bg-sky-500/10 active:bg-sky-500/20 active:scale-95 border border-white/[0.08] hover:border-sky-500/30 text-slate-300 hover:text-sky-300 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-[transform,background-color,border-color,color,box-shadow] duration-150 active:duration-100 ease-out shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70"
+          className="h-8 sm:h-9 px-2 sm:px-2.5 rounded-xl bg-white/[0.04] hover:bg-sky-500/10 active:bg-sky-500/20 active:scale-95 border border-white/[0.08] hover:border-sky-500/30 text-slate-300 hover:text-sky-300 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer motion-press active:duration-100 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70"
           title="ดึงคลิปตรงจาก iPhone (USB Direct Ingest)"
         >
           <Smartphone className="w-3.5 h-3.5 text-sky-400" />
@@ -218,7 +218,7 @@ export default memo(function Topbar({
             type="button"
             onClick={handleRefreshWithPing}
             disabled={isRefreshing}
-            className="h-8 sm:h-9 p-1.5 sm:px-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] active:bg-white/[0.12] active:scale-95 disabled:active:scale-100 border border-white/[0.08] text-slate-300 hover:text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-[transform,background-color,border-color,color,box-shadow] duration-150 active:duration-100 ease-out shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70"
+            className="h-8 sm:h-9 p-1.5 sm:px-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] active:bg-white/[0.12] active:scale-95 disabled:active:scale-100 border border-white/[0.08] text-slate-300 hover:text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer motion-press active:duration-100 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70"
             title="รีเฟรชข้อมูลทั้งระบบ"
           >
             <RefreshCw className={`w-3.5 h-3.5 text-slate-400 ${isRefreshing ? 'animate-spin text-cyan-400' : ''}`} />
@@ -231,7 +231,7 @@ export default memo(function Topbar({
         <button
           type="button"
           onClick={onOpenShortcuts}
-          className="hidden md:flex items-center gap-1.5 h-8 sm:h-9 bg-white/[0.04] hover:bg-white/[0.08] px-2.5 rounded-xl border border-white/[0.08] text-xs font-semibold text-slate-300 hover:text-white cursor-pointer active:scale-[0.96] transition-[transform,background-color,border-color,color] duration-150 active:duration-100 ease-out shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70"
+          className="hidden md:flex items-center gap-1.5 h-8 sm:h-9 bg-white/[0.04] hover:bg-white/[0.08] px-2.5 rounded-xl border border-white/[0.08] text-xs font-semibold text-slate-300 hover:text-white cursor-pointer active:scale-[0.96] motion-press active:duration-100 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70"
           title="คีย์ลัดด่วน (กด ? เพื่อเปิดดู)"
         >
           <Keyboard className="w-3.5 h-3.5 text-slate-400" />
@@ -251,7 +251,7 @@ export default memo(function Topbar({
               ? `Google Flow (Veo): ออนไลน์ · ${flowStatus?.active_account?.name || 'บัญชีหลัก'} (${flowStatus?.active_account?.credits ?? flowStatus?.credits_remaining ?? 0} cr)`
               : 'Google Flow (Veo): ออฟไลน์ · คลิกเพื่อเปิดระบบ'
           }
-          className="flex items-center justify-center gap-1.5 min-h-11 sm:min-h-0 sm:h-9 px-2 sm:px-2.5 rounded-xl text-xs font-semibold border cursor-pointer active:scale-95 transition-[transform,background-color,border-color,color] duration-150 active:duration-100 ease-out bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50"
+          className="flex items-center justify-center gap-1.5 min-h-11 sm:min-h-0 sm:h-9 px-2 sm:px-2.5 rounded-xl text-xs font-semibold border cursor-pointer active:scale-95 motion-press active:duration-100 bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50"
         >
           <span className="sr-only">
             {flowStatus?.service_online
@@ -284,7 +284,7 @@ export default memo(function Topbar({
           role="button"
           tabIndex={0}
           title={isOnline ? `ระบบออนไลน์พร้อมใช้งาน ${latencyMs ? `(${latencyMs}ms)` : ''} (แตะเพื่อรีเฟรช)` : "ขาดการเชื่อมต่อ (แตะเพื่อรีเฟรชเชื่อมต่อใหม่)"}
-          className={`flex items-center justify-center gap-1.5 min-h-11 sm:min-h-0 sm:h-9 px-2.5 sm:px-3 rounded-xl text-xs font-semibold border cursor-pointer active:scale-95 transition-[transform,background-color,border-color,color,box-shadow] duration-150 active:duration-100 ease-out shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70 ${
+          className={`flex items-center justify-center gap-1.5 min-h-11 sm:min-h-0 sm:h-9 px-2.5 sm:px-3 rounded-xl text-xs font-semibold border cursor-pointer active:scale-95 motion-press active:duration-100 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70 ${
             isOnline
               ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25'
               : 'bg-rose-500/10 text-rose-300 border-rose-500/25'

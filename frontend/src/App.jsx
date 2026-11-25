@@ -1532,7 +1532,7 @@ export default function App() {
 
             aria-label="เลื่อนขึ้นบนสุด"
 
-            className="fixed bottom-[calc(var(--nav-h,4rem)+env(safe-area-inset-bottom,0px)+0.75rem)] right-4 z-40 flex h-11 w-11 items-center justify-center rounded-full bg-slate-900/90 text-[#25F4EE] border border-white/15 shadow-2xl backdrop-blur-xl active:scale-[0.94] transition-[background-color,border-color,color,transform,opacity] duration-150 active:duration-100 ease-out cursor-pointer animate-fadeIn"
+            className="fixed bottom-[calc(var(--nav-h,4rem)+env(safe-area-inset-bottom,0px)+0.75rem)] right-4 z-40 flex h-11 w-11 items-center justify-center rounded-full bg-slate-900/90 text-[#25F4EE] border border-white/15 shadow-2xl backdrop-blur-xl active:scale-[0.94] motion-press active:duration-100 cursor-pointer animate-fadeIn"
 
           >
 

@@ -69,7 +69,7 @@ export default function EditorChannelSelector() {
         aria-expanded={open}
         aria-label={`สลับช่องทำงาน ปัจจุบันเลือกช่อง ${currentDisplayName}`}
         title={`ช่อง: ${currentDisplayName} ${currentHandle} (${canStart ? 'พร้อมผลิต' : isDraft ? 'แบบร่าง' : isArchived ? 'เก็บถาวร' : 'พร้อมใช้งาน'})`}
-        className={`group flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border px-1.5 sm:px-2.5 text-xs font-semibold active:scale-[0.97] disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70 ${
+        className={`group flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border px-1.5 sm:px-2.5 text-xs font-semibold active:scale-[0.97] disabled:active:scale-100 motion-press active:duration-100 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70 ${
           open
             ? 'border-cyan-400/60 bg-cyan-500/15 text-white shadow-lg shadow-cyan-500/10'
             : 'border-white/[0.1] bg-white/[0.04] text-slate-200 hover:border-white/[0.22] hover:bg-white/[0.08] hover:text-white'
@@ -137,7 +137,7 @@ export default function EditorChannelSelector() {
                   role="option"
                   aria-selected={isSelected}
                   onClick={() => handleSelectChannel(ch.id)}
-                  className={`w-full text-left p-2 rounded-xl flex items-center justify-between gap-2 active:scale-[0.98] transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out cursor-pointer ${
+                  className={`w-full text-left p-2 rounded-xl flex items-center justify-between gap-2 active:scale-[0.98] motion-press active:duration-100 cursor-pointer ${
                     isSelected
                       ? 'bg-cyan-500/15 border border-cyan-500/40 text-white shadow-sm'
                       : 'hover:bg-white/[0.06] border border-transparent text-slate-300 hover:text-white'

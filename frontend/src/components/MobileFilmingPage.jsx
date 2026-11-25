@@ -575,7 +575,7 @@ export default function MobileFilmingPage({ sessionId, onExit }) {
                   key={z}
                   type="button"
                   onClick={() => setZoomLevel(z)}
-                  className={`w-11 h-8 rounded-full text-xs font-bold border backdrop-blur-sm transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
+                  className={`w-11 h-8 rounded-full text-xs font-bold border backdrop-blur-sm motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                     zoomLevel === z
                       ? 'bg-amber-400 text-slate-950 border-amber-400'
                       : 'bg-black/45 text-white border-white/20'
@@ -721,7 +721,7 @@ export default function MobileFilmingPage({ sessionId, onExit }) {
               <button
                 type="button"
                 onClick={() => handleSendAll(confirmedClips)}
-                className="px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 text-sm font-black flex items-center justify-center gap-2 shadow-xl active:scale-95 disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer"
+                className="px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 text-sm font-black flex items-center justify-center gap-2 shadow-xl active:scale-95 disabled:active:scale-100 motion-press active:duration-100 cursor-pointer"
               >
                 <RotateCw className="w-5 h-5" /> ลองส่งอีกครั้ง
               </button>
@@ -731,7 +731,7 @@ export default function MobileFilmingPage({ sessionId, onExit }) {
               <button
                 type="button"
                 onClick={handleExit}
-                className="flex-1 py-4 rounded-2xl bg-gradient-to-r from-[#25F4EE] to-blue-500 text-slate-950 text-sm font-black flex items-center justify-center gap-2 shadow-xl active:scale-95 disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer"
+                className="flex-1 py-4 rounded-2xl bg-gradient-to-r from-[#25F4EE] to-blue-500 text-slate-950 text-sm font-black flex items-center justify-center gap-2 shadow-xl active:scale-95 disabled:active:scale-100 motion-press active:duration-100 cursor-pointer"
               >
                 <Home className="w-5 h-5" />
                 เสร็จแล้ว กลับไปหน้าหลัก

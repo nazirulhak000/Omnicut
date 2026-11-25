@@ -42,9 +42,9 @@ def test_removed_creative_menu_migrates_saved_tab_and_preserves_tracker_gallery(
             page.route("**/api/**", api)
             page.goto(f"{origin.scheme}://{origin.netloc}/?channel=main&mode=desktop", wait_until="domcontentloaded")
             expect(page.get_by_text("Tracker existing product", exact=True).first).to_be_visible(timeout=15000)
-            expect(page.get_by_title("3.1 Creative Studio", exact=True)).to_have_count(0)
+            expect(page.get_by_role("button", name="3.1 Creative Studio", exact=True)).to_have_count(0)
             expect(page.get_by_text("Creative Studio", exact=True)).to_have_count(0)
-            expect(page.get_by_title("Gadget Media", exact=True)).to_have_count(0)
+            expect(page.get_by_role("button", name="Gadget Media", exact=True)).to_have_count(0)
             expect(page.get_by_text("Gadget Media", exact=True)).to_have_count(0)
             expect(page.get_by_text("3.1 HyperFrames Motion", exact=True)).to_have_count(0)
             # appNav.LEGACY_TAB_MAP folds the removed creative/gadget tabs into "flow"
@@ -60,7 +60,7 @@ def test_removed_creative_menu_migrates_saved_tab_and_preserves_tracker_gallery(
                 if width == 390:
                     page.get_by_role("button", name="Tracker", exact=True).click()
                 else:
-                    page.get_by_title("2. แทร็กเกอร์ 4 เฟส", exact=True).click()
+                    page.get_by_role("button", name="2. แทร็กเกอร์ 4 เฟส", exact=True).click()
             if via_activity:
                 page.get_by_title("คลิกเพื่อเปิดศูนย์ติดตามกิจกรรม (Activity Center)", exact=True).click()
                 expect(page.get_by_text("Existing HF job", exact=True).first).to_be_visible()
@@ -70,7 +70,7 @@ def test_removed_creative_menu_migrates_saved_tab_and_preserves_tracker_gallery(
             if width == 390:
                 page.get_by_role("button", name="Gallery", exact=True).click()
             else:
-                page.get_by_title("4. Export Gallery", exact=True).click()
+                page.get_by_role("button", name="4. Export Gallery", exact=True).click()
             page.wait_for_function("localStorage.getItem('capcut_active_tab') === 'gallery'")
             # Switching the tab happens before the lazy component finishes loading.
             # Await the actual gallery before checking errors (the old check raced it).

@@ -6,7 +6,7 @@ import {
 import ActionApprovalCard from './ActionApprovalCard.jsx';
 
 const INTERACTIVE_BUTTON_MOTION =
-  'transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100';
+  'motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100';
 
 export default function OmniCutAgentDock({
   isOpen = false,
@@ -181,7 +181,7 @@ export default function OmniCutAgentDock({
   return (
     <div
       data-testid="omnicut-agent-dock"
-      className="fixed bottom-4 right-4 z-50 origin-bottom-right flex h-[620px] w-[460px] max-w-[calc(100vw-2rem)] flex-col rounded-2xl border border-white/[0.08] bg-[#0A0D14]/95 shadow-[0_12px_40px_rgba(0,0,0,0.85)] backdrop-blur-md transition-[opacity,transform,box-shadow] duration-200 ease-out animate-in fade-in slide-in-from-bottom-4"
+      className="fixed bottom-4 right-4 z-50 origin-bottom-right flex h-[620px] w-[460px] max-w-[calc(100vw-2rem)] flex-col rounded-2xl border border-white/[0.08] bg-[#0A0D14]/95 shadow-[0_12px_40px_rgba(0,0,0,0.85)] backdrop-blur-md motion-press duration-200 animate-in fade-in slide-in-from-bottom-4"
     >
       {/* ── Dock Header ── */}
       <div className="flex items-center justify-between border-b border-white/[0.08] bg-white/[0.02] px-4 py-3 rounded-t-2xl">
@@ -308,7 +308,7 @@ export default function OmniCutAgentDock({
         }}
         className="p-3 border-t border-white/[0.08] bg-black/40 rounded-b-2xl"
       >
-        <div className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 focus-within:border-cyan-500/40 focus-within:ring-1 focus-within:ring-cyan-500/40 transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out">
+        <div className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 focus-within:border-cyan-500/40 focus-within:ring-1 focus-within:ring-cyan-500/40 motion-press active:duration-100">
           <input
             ref={inputRef}
             type="text"

@@ -57,7 +57,7 @@ export default function CutoutInspector({
       <button
         type="button"
         onClick={() => onToggleBackgroundIsolation?.(!isEnabled)}
-        className={`w-full py-2 px-3 rounded-xl text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 flex items-center justify-center gap-2 cursor-pointer border ${
+        className={`w-full py-2 px-3 rounded-xl text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 flex items-center justify-center gap-2 cursor-pointer border ${
           isEnabled
             ? 'bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border-[#25F4EE]/40 text-[#25F4EE]'
             : 'bg-white/[0.04] hover:bg-white/[0.08] border-white/[0.08] text-slate-300'
@@ -77,7 +77,7 @@ export default function CutoutInspector({
                 type="button"
                 onClick={() => onCutoutPreviewModeChange?.('composite')}
                 title="แสดงคลิปแยกพื้นหลังปกติ พร้อมข้อความด้านหลัง"
-                className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 text-center cursor-pointer ${
+                className={`py-1.5 px-2 rounded-lg text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 text-center cursor-pointer ${
                   cutoutPreviewMode === 'composite'
                     ? 'bg-white/[0.12] text-white border border-white/[0.16] shadow-sm'
                     : 'text-slate-400 hover:text-white'
@@ -89,7 +89,7 @@ export default function CutoutInspector({
                 type="button"
                 onClick={() => onCutoutPreviewModeChange?.('checkerboard')}
                 title="แสดงพื้นหลังตารางหมากรุก เพื่อตรวจเช็กความโปร่งใสและขอบไดคัท"
-                className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 text-center cursor-pointer ${
+                className={`py-1.5 px-2 rounded-lg text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 text-center cursor-pointer ${
                   cutoutPreviewMode === 'checkerboard'
                     ? 'bg-white/[0.12] text-white border border-white/[0.16] shadow-sm'
                     : 'text-slate-400 hover:text-white'
@@ -101,7 +101,7 @@ export default function CutoutInspector({
                 type="button"
                 onClick={() => onCutoutPreviewModeChange?.('matte')}
                 title="แสดงมาสก์ขาวดำ (Alpha Matte) เพื่อตรวจเช็กรอยรั่วและรูโหว่"
-                className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 text-center cursor-pointer ${
+                className={`py-1.5 px-2 rounded-lg text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 text-center cursor-pointer ${
                   cutoutPreviewMode === 'matte'
                     ? 'bg-white/[0.12] text-white border border-white/[0.16] shadow-sm'
                     : 'text-slate-400 hover:text-white'
@@ -129,7 +129,7 @@ export default function CutoutInspector({
               <button
                 type="button"
                 onClick={onToggleSubjectPickMode}
-                className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 flex items-center justify-center gap-1.5 cursor-pointer border ${
+                className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 flex items-center justify-center gap-1.5 cursor-pointer border ${
                   subjectPickMode
                     ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.3)] animate-pulse'
                     : 'bg-white/5 border-white/10 text-slate-300 hover:text-white hover:bg-white/10'
@@ -143,7 +143,7 @@ export default function CutoutInspector({
                   type="button"
                   onClick={onClearSubjectPoints}
                   title="ล้างจุดที่เลือกทั้งหมด"
-                  className="px-2.5 py-1.5 rounded-xl border border-white/10 bg-white/5 text-xs text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
+                  className="px-2.5 py-1.5 rounded-xl border border-white/10 bg-white/5 text-xs text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 cursor-pointer motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100"
                 >
                   ล้างจุด
                 </button>

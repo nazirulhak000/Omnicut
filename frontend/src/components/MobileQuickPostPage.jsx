@@ -295,7 +295,7 @@ export default function MobileQuickPostPage({ onExit }) {
           <button
             type="button"
             onClick={handleDownloadVideo}
-            className="w-full min-h-11 py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:brightness-110 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-cyan-900/20 active:scale-95 disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer"
+            className="w-full min-h-11 py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:brightness-110 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-cyan-900/20 active:scale-95 disabled:active:scale-100 motion-press active:duration-100 cursor-pointer"
           >
             <Download className="w-4 h-4" />
             <span>ดาวน์โหลดวิดีโอ MP4</span>
@@ -348,7 +348,7 @@ export default function MobileQuickPostPage({ onExit }) {
           <button
             type="button"
             onClick={handleCopyCaption}
-            className={`w-full min-h-11 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer active:scale-95 disabled:active:scale-100 ${
+            className={`w-full min-h-11 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 motion-press active:duration-100 cursor-pointer active:scale-95 disabled:active:scale-100 ${
               copiedCaption
                 ? 'bg-emerald-500 text-slate-950 font-black'
                 : 'bg-white/[0.08] hover:bg-white/[0.12] border border-white/[0.1] text-white'
@@ -385,7 +385,7 @@ export default function MobileQuickPostPage({ onExit }) {
             <button
               type="button"
               onClick={handleCopyProductName}
-              className="min-h-11 py-1 px-3 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center gap-1 flex-shrink-0 cursor-pointer active:scale-95 disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
+              className="min-h-11 py-1 px-3 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center gap-1 flex-shrink-0 cursor-pointer active:scale-95 disabled:active:scale-100 motion-press active:duration-100"
             >
               {copiedProduct ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
               <span>{copiedProduct ? 'คัดลอกแล้ว' : 'คัดลอก'}</span>
@@ -401,7 +401,7 @@ export default function MobileQuickPostPage({ onExit }) {
           <button
             type="button"
             onClick={handleLaunchTikTok}
-            className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-[#FE2C55] via-pink-600 to-[#25F4EE] hover:brightness-110 text-white text-sm sm:text-base font-black flex items-center justify-center gap-2 shadow-xl shadow-[#FE2C55]/25 active:scale-95 disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer"
+            className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-[#FE2C55] via-pink-600 to-[#25F4EE] hover:brightness-110 text-white text-sm sm:text-base font-black flex items-center justify-center gap-2 shadow-xl shadow-[#FE2C55]/25 active:scale-95 disabled:active:scale-100 motion-press active:duration-100 cursor-pointer"
           >
             <ExternalLink className="w-5 h-5 flex-shrink-0" />
             <span>4. เปิดแอป TikTok ทันที</span>
@@ -414,7 +414,7 @@ export default function MobileQuickPostPage({ onExit }) {
             type="button"
             onClick={() => setShowPostConfirm(true)}
             disabled={isPosted || !canMarkPosted || markingPosted}
-            className={`w-full min-h-11 py-3 px-4 rounded-xl disabled:opacity-60 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer active:scale-95 disabled:active:scale-100 ${
+            className={`w-full min-h-11 py-3 px-4 rounded-xl disabled:opacity-60 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 motion-press active:duration-100 cursor-pointer active:scale-95 disabled:active:scale-100 ${
               isPosted
                 ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 cursor-default'
                 : 'bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] text-slate-300 hover:text-white'

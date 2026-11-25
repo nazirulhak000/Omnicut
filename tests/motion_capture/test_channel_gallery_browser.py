@@ -51,7 +51,7 @@ def test_secondary_gallery_preview_download_cover_and_qr_keep_channel(motion_fix
             page.route("**/api/**", api)
             page.goto(f"{origin}/?channel=second&mode=desktop", wait_until="domcontentloaded")
             expect(page.get_by_role("combobox", name="เลือกช่อง")).to_have_value("second")
-            gallery = page.get_by_title("4. Export Gallery", exact=True)
+            gallery = page.get_by_role("button", name="4. Export Gallery", exact=True)
             try:
                 expect(gallery).to_be_visible(timeout=5000)
             except AssertionError:
@@ -91,7 +91,7 @@ def test_secondary_gallery_preview_download_cover_and_qr_keep_channel(motion_fix
             page.get_by_placeholder("แบรนด์", exact=True).fill("Second brand")
             selector = page.get_by_role("combobox", name="เลือกช่อง")
             selector.select_option("main")
-            page.get_by_title("4. Export Gallery", exact=True).click()
+            page.get_by_role("button", name="4. Export Gallery", exact=True).click()
             page.get_by_role("button", name="ใส่ข้อความบนปก (ไม่บังคับ)", exact=True).click()
             expect(page.get_by_placeholder("แบรนด์", exact=True)).to_have_value("")
             page.get_by_placeholder("แบรนด์", exact=True).fill("Main brand")

@@ -100,7 +100,7 @@ export function Modal({
               <button
                 type="button"
                 onClick={onClose}
-                className="w-11 h-11 sm:w-9 sm:h-9 pointer-coarse:w-11 pointer-coarse:h-11 rounded-xl bg-white/[0.05] hover:bg-white/[0.12] text-slate-400 hover:text-white active:scale-[0.95] transition-[background-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer flex items-center justify-center flex-shrink-0 border border-white/[0.06]"
+                className="w-11 h-11 sm:w-9 sm:h-9 pointer-coarse:w-11 pointer-coarse:h-11 rounded-xl bg-white/[0.05] hover:bg-white/[0.12] text-slate-400 hover:text-white active:scale-[0.95] motion-press active:duration-100 cursor-pointer flex items-center justify-center flex-shrink-0 border border-white/[0.06]"
                 aria-label="ปิดหน้าต่าง"
               >
                 <X className="w-5 h-5 sm:w-4 sm:h-4" />

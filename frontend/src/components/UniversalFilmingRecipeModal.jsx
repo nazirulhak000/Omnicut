@@ -109,7 +109,7 @@ export default function UniversalFilmingRecipeModal({
             <button
               type="button"
               onClick={() => setShowQr(!showQr)}
-              className={`py-1.5 px-3 rounded-xl border text-xs font-bold flex items-center gap-1.5 active:scale-[0.97] transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 active:duration-100 ease-out cursor-pointer ${
+              className={`py-1.5 px-3 rounded-xl border text-xs font-bold flex items-center gap-1.5 active:scale-[0.97] motion-press active:duration-100 cursor-pointer ${
                 showQr
                   ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
                   : 'bg-black/40 border-white/[0.1] text-slate-300 hover:text-white hover:border-white/30'
@@ -123,7 +123,7 @@ export default function UniversalFilmingRecipeModal({
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 active:scale-[0.95] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 active:scale-[0.95] motion-press active:duration-100 cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -154,7 +154,7 @@ export default function UniversalFilmingRecipeModal({
                   <button
                     type="button"
                     onClick={handleCopyLink}
-                    className="py-1 px-3 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-medium flex items-center gap-1.5 cursor-pointer transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 active:duration-100 ease-out active:scale-95"
+                    className="py-1 px-3 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-medium flex items-center gap-1.5 cursor-pointer motion-press active:duration-100 active:scale-95"
                   >
                     {copiedLink ? (
                       <>
@@ -198,7 +198,7 @@ export default function UniversalFilmingRecipeModal({
               {recipe.shots.map((shot, idx) => (
                 <div
                   key={idx}
-                  className="p-4 rounded-xl bg-[#0D121D] border border-white/[0.08] hover:border-white/[0.16] transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 ease-out flex flex-col sm:flex-row gap-3 sm:gap-4 items-start"
+                  className="p-4 rounded-xl bg-[#0D121D] border border-white/[0.08] hover:border-white/[0.16] motion-press flex flex-col sm:flex-row gap-3 sm:gap-4 items-start"
                 >
                   {/* Step Badge */}
                   <div className="flex items-center gap-2 sm:flex-col sm:items-center sm:justify-center w-full sm:w-16 flex-shrink-0">
@@ -266,7 +266,7 @@ export default function UniversalFilmingRecipeModal({
           <button
             type="button"
             onClick={onClose}
-            className="py-1.5 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold active:scale-[0.97] transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 active:duration-100 ease-out cursor-pointer"
+            className="py-1.5 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold active:scale-[0.97] motion-press active:duration-100 cursor-pointer"
           >
             เข้าใจแล้ว & ปิด
           </button>

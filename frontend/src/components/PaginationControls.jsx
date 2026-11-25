@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 
 const PAGE_BUTTON_MOTION =
-  'cursor-pointer active:scale-[0.95] disabled:active:scale-100 transition-[background-color,border-color,color,transform] duration-120 active:duration-75 ease-out';
+  'cursor-pointer active:scale-[0.95] disabled:active:scale-100 motion-press duration-120 active:duration-75';
 
 const buildPageWindow = (page, totalPages) => {
   const start = Math.max(1, Math.min(page - 2, totalPages - 4));

@@ -344,7 +344,7 @@ export default function SystemSettings({
                   <button
                     type="button"
                     onClick={() => handleToggleOrbs(!currentOrbs)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer active:scale-95 ${
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full motion-press active:duration-100 cursor-pointer active:scale-95 ${
                       currentOrbs ? 'bg-[#25F4EE]' : 'bg-black/60 border border-white/[0.1]'
                     }`}
                     aria-label="สลับการแสดงผลแสงสะท้อนเบื้องหลัง"
@@ -366,7 +366,7 @@ export default function SystemSettings({
                     <div
                       key={preset.id}
                       onClick={() => handleSelectTheme(preset.id)}
-                      className={`p-4 rounded-xl border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer relative group active:scale-95 min-h-[48px] ${
+                      className={`p-4 rounded-xl border motion-press active:duration-100 cursor-pointer relative group active:scale-95 min-h-[48px] ${
                         isSelected
                           ? 'bg-[#0D111A] border-[#25F4EE] ring-1 ring-[#25F4EE]/30 shadow-sm'
                           : 'bg-[#0A0D14] border-white/[0.08] text-slate-300 hover:border-white/[0.2] hover:bg-white/[0.02]'
@@ -435,7 +435,7 @@ export default function SystemSettings({
                 <button
                   type="button"
                   onClick={handleResetGlass}
-                  className="px-3 py-1.5 rounded-xl bg-black/40 border border-white/[0.08] text-xs text-slate-300 hover:text-white hover:border-[#25F4EE]/40 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out self-start sm:self-auto cursor-pointer active:scale-95"
+                  className="px-3 py-1.5 rounded-xl bg-black/40 border border-white/[0.08] text-xs text-slate-300 hover:text-white hover:border-[#25F4EE]/40 motion-press active:duration-100 self-start sm:self-auto cursor-pointer active:scale-95"
                 >
                   คืนค่ามาตรฐาน Pulse Hub
                 </button>
@@ -452,7 +452,7 @@ export default function SystemSettings({
                       key={preset.id}
                       type="button"
                       onClick={() => handleApplyGlassPreset(preset)}
-                      className={`p-3 rounded-xl text-left border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer relative active:scale-95 ${
+                      className={`p-3 rounded-xl text-left border motion-press active:duration-100 cursor-pointer relative active:scale-95 ${
                         isActive
                           ? 'bg-[#25F4EE]/10 border-[#25F4EE] ring-1 ring-[#25F4EE]/30 text-white'
                           : 'bg-black/40 border-white/[0.08] text-slate-300 hover:border-white/[0.2]'
@@ -629,7 +629,7 @@ export default function SystemSettings({
                     <button
                       key={scale.id}
                       onClick={() => setUiScale && setUiScale(scale.id)}
-                      className={`p-3.5 rounded-xl text-left border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer relative active:scale-95 ${
+                      className={`p-3.5 rounded-xl text-left border motion-press active:duration-100 cursor-pointer relative active:scale-95 ${
                         isActive
                           ? 'bg-[#25F4EE]/10 border-[#25F4EE] ring-1 ring-[#25F4EE]/30'
                           : 'bg-black/40 border-white/[0.08] text-slate-300 hover:border-white/[0.2]'
@@ -685,7 +685,7 @@ export default function SystemSettings({
                     <div
                       key={f.id}
                       onClick={() => setUiFont && setUiFont(f.id)}
-                      className={`p-3.5 rounded-xl border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer relative group active:scale-95 ${
+                      className={`p-3.5 rounded-xl border motion-press active:duration-100 cursor-pointer relative group active:scale-95 ${
                         isSelected
                           ? 'bg-[#0D111A] border-[#25F4EE] ring-1 ring-[#25F4EE]/30 shadow-sm'
                           : 'bg-[#0A0D14] border-white/[0.08] text-slate-300 hover:border-white/[0.2] hover:bg-white/[0.02]'
@@ -740,7 +740,7 @@ export default function SystemSettings({
                   return (
                     <div
                       key={pf.id}
-                      className="p-3 sm:p-3.5 rounded-xl bg-black/40 border border-white/[0.08] flex items-center justify-between group hover:border-[#25F4EE]/30 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out gap-2"
+                      className="p-3 sm:p-3.5 rounded-xl bg-black/40 border border-white/[0.08] flex items-center justify-between group hover:border-[#25F4EE]/30 motion-press active:duration-100 gap-2"
                     >
                       <div className="flex items-center gap-2.5 min-w-0 flex-1">
                         <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center flex-shrink-0">
@@ -753,7 +753,7 @@ export default function SystemSettings({
                       </div>
                       <button
                         onClick={() => handleOpen(pf.id)}
-                        className="px-2.5 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-slate-200 text-xs font-semibold border border-white/[0.08] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex-shrink-0 cursor-pointer active:scale-95"
+                        className="px-2.5 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-slate-200 text-xs font-semibold border border-white/[0.08] motion-press active:duration-100 flex-shrink-0 cursor-pointer active:scale-95"
                       >
                         เปิดโฟลเดอร์
                       </button>
@@ -764,7 +764,7 @@ export default function SystemSettings({
 
               <button
                 onClick={() => handleOpen('root')}
-                className="w-full py-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out shadow-sm cursor-pointer flex items-center justify-center gap-2 mt-2 active:scale-95"
+                className="w-full py-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white text-xs font-bold motion-press active:duration-100 shadow-sm cursor-pointer flex items-center justify-center gap-2 mt-2 active:scale-95"
               >
                 <Folder className="w-4 h-4 text-[#25F4EE]" />
                 เปิดโฟลเดอร์รากของโปรเจกต์ (Project Root)
@@ -971,7 +971,7 @@ export default function SystemSettings({
                   type="button"
                   onClick={handleCreateBackup}
                   disabled={backupLoading}
-                  className="px-3.5 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 text-xs font-bold flex items-center gap-2 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer disabled:opacity-50 flex-shrink-0"
+                  className="px-3.5 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 text-xs font-bold flex items-center gap-2 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer disabled:opacity-50 flex-shrink-0"
                 >
                   {backupLoading ? (
                     <>
@@ -1031,7 +1031,7 @@ export default function SystemSettings({
                           <a
                             href={`/api/backup/download/${encodeURIComponent(b.backup_name)}`}
                             download={b.backup_name}
-                            className="px-2.5 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-cyan-300 font-bold text-xs border border-white/[0.08] flex items-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97]"
+                            className="px-2.5 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-cyan-300 font-bold text-xs border border-white/[0.08] flex items-center gap-1.5 motion-press active:duration-100 active:scale-[0.97]"
                           >
                             <Download className="w-3.5 h-3.5" />
                             ดาวน์โหลด
@@ -1039,7 +1039,7 @@ export default function SystemSettings({
                           <button
                             type="button"
                             onClick={() => handleDeleteBackup(b.backup_name)}
-                            className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
+                            className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
                             title="ลบไฟล์สำรองนี้"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -1068,7 +1068,7 @@ export default function SystemSettings({
                   type="button"
                   onClick={handleScanDedup}
                   disabled={dedupLoading}
-                  className="px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center gap-2 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer disabled:opacity-50 flex-shrink-0"
+                  className="px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center gap-2 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer disabled:opacity-50 flex-shrink-0"
                 >
                   {dedupLoading ? (
                     <>
@@ -1123,7 +1123,7 @@ export default function SystemSettings({
                           type="button"
                           onClick={handleCleanDedup}
                           disabled={cleanLoading}
-                          className="px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 text-xs font-bold flex items-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer disabled:opacity-50"
+                          className="px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 text-xs font-bold flex items-center gap-1.5 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer disabled:opacity-50"
                         >
                           {cleanLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                           ย้ายไฟล์ซ้ำเข้าถังขยะ ({dedupResult.reclaimable_mb} MB)
@@ -1228,7 +1228,7 @@ export default function SystemSettings({
               <button
                 type="button"
                 onClick={() => setViewMode('split')}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                   viewMode === 'split'
                     ? 'bg-[#25F4EE]/15 text-[#25F4EE] shadow-sm'
                     : 'text-slate-400 hover:text-slate-200'
@@ -1241,7 +1241,7 @@ export default function SystemSettings({
               <button
                 type="button"
                 onClick={() => setViewMode('classic')}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                   viewMode === 'classic'
                     ? 'bg-[#25F4EE]/15 text-[#25F4EE] shadow-sm'
                     : 'text-slate-400 hover:text-slate-200'
@@ -1280,7 +1280,7 @@ export default function SystemSettings({
                   try { navigator.vibrate?.(10); } catch {}
                   setActiveTab(s.id);
                 }}
-                className={`flex-shrink-0 snap-center min-h-[48px] px-3 py-2 rounded-xl border text-left transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer flex items-center gap-2 max-w-[210px] active:scale-95 ${
+                className={`flex-shrink-0 snap-center min-h-[48px] px-3 py-2 rounded-xl border text-left motion-press active:duration-100 cursor-pointer flex items-center gap-2 max-w-[210px] active:scale-95 ${
                   isSelected
                     ? 'bg-[#25F4EE]/10 border-[#25F4EE] ring-1 ring-[#25F4EE]/30'
                     : 'bg-[#0A0D14] border-white/[0.08] text-slate-300 hover:border-white/[0.2]'
@@ -1322,7 +1322,7 @@ export default function SystemSettings({
                 <div
                   key={s.id}
                   onClick={() => setActiveTab(s.id)}
-                  className={`p-3 rounded-xl border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer text-left group relative active:scale-98 ${
+                  className={`p-3 rounded-xl border motion-press active:duration-100 cursor-pointer text-left group relative active:scale-98 ${
                     isSelected
                       ? 'bg-[#0D111A] border-[#25F4EE]/60 ring-1 ring-[#25F4EE]/30'
                       : 'bg-[#0A0D14] border-white/[0.08] text-slate-300 hover:border-white/[0.2] hover:bg-white/[0.02]'
@@ -1381,7 +1381,7 @@ export default function SystemSettings({
                 <button
                   key={t.id}
                   onClick={() => setActiveTab(t.id)}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer flex-1 justify-center border ${
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer flex-1 justify-center border ${
                     isActive
                       ? 'bg-[#25F4EE]/15 text-[#25F4EE] border-[#25F4EE]/40 shadow-sm'
                       : 'text-slate-400 hover:text-white hover:bg-white/[0.04] border-transparent'

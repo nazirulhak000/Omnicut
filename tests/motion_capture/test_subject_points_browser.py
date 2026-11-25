@@ -330,6 +330,11 @@ def test_ready_cutout_allows_multiple_points_after_first_point_invalidates_artif
                 page.wait_for_function("[...document.querySelectorAll('video')].some(v=>v.videoWidth>0 && v.readyState>=2)")
                 _open_cutout_panel(page)
                 page.get_by_role('button', name=re.compile(PICK_BUTTON_ANY)).click()
+                page.wait_for_function("""() => {
+                    const canvas = document.querySelector('canvas[data-preview-quality]');
+                    const v = [...document.querySelectorAll('video')].find(el => el.videoWidth > 0);
+                    return canvas?.dataset.subjectPromptSourceTime === '0' && v && v.readyState >= 2 && !v.seeking;
+                }""", timeout=10000)
                 _click_fraction(page, 0.3, 0.6)
                 page.locator(MARKERS).first.wait_for(timeout=5000)
                 saved = _save(page, manifest)

@@ -71,13 +71,13 @@ export default class ErrorBoundary extends React.Component {
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
               <button
                 onClick={this.handleReset}
-                className="flex-1 min-h-12 py-3 px-4 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-white text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
+                className="flex-1 min-h-12 py-3 px-4 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-white text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
               >
                 ลองกู้คืนหน้าจอเดิม
               </button>
               <button
                 onClick={this.handleReload}
-                className="flex-1 min-h-12 py-3 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:opacity-90 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#FE2C55]/20 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
+                className="flex-1 min-h-12 py-3 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:opacity-90 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#FE2C55]/20 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span>รีเฟรชหน้าเว็บ</span>
