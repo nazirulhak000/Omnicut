@@ -26,18 +26,18 @@
     "video_path": "04_Exports/Ready_to_post/COD01-แกะกล่องว้าว_1_20261112_205200.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/278990ec32c8415f9858a96fa110eb29/COD01-แกะกล่องว้าว_1_20261112_205200_cover.jpg",
-        "sha256": "4e3e65dcf59a81bdddc006fd9a3f81cdac10e06765a6231169de0939ad8ed066",
+        "path": "05_Covers_Thumbnails/main/90e528d295ea422fbf6b82b96cbf6442/COD01-แกะกล่องว้าว_1_20261112_205200_cover.jpg",
+        "sha256": "1fac1c34351d2df008e0f2bab4522f9871900f19b8655bfc20359d8db5146175",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/278990ec32c8415f9858a96fa110eb29/COD01-แกะกล่องว้าว_1_20261112_205200_cover_3x4.jpg",
-        "sha256": "b1c3b4836d35529b901d9087503f5b891737fa47f3d5b447edad3f89655132d3",
+        "path": "05_Covers_Thumbnails/main/90e528d295ea422fbf6b82b96cbf6442/COD01-แกะกล่องว้าว_1_20261112_205200_cover_3x4.jpg",
+        "sha256": "553d465be3ba30ca5a449d297861485fff96a8a3d50fc9d973b18f45a5ee10c2",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794491548.0030181,
+    "revision": 2,
+    "updated_at": 1795456297.2755191,
     "source": "auto"
   },
   {
@@ -47,18 +47,18 @@
     "video_path": "04_Exports/Ready_to_post/COD01-โปรไฟลุก_1_20261112_205830.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/a9c1ede4bff642f2939967141b67f8f9/COD01-โปรไฟลุก_1_20261112_205830_cover.jpg",
-        "sha256": "595cd67c0625761d057bc82a6564f6b1412addfc193f3df081466a4fd7115d8a",
+        "path": "05_Covers_Thumbnails/main/511e53fa9a1c4f3a8ddfe106c80ca4eb/COD01-โปรไฟลุก_1_20261112_205830_cover.jpg",
+        "sha256": "fa571de9a7e9212ff60d6f2b69a993d2c373cd211db55de70f1bb14a216918bc",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/a9c1ede4bff642f2939967141b67f8f9/COD01-โปรไฟลุก_1_20261112_205830_cover_3x4.jpg",
-        "sha256": "bf57035ff457d34b59d12c9220b5301e06a50cd566513fb57ecede59e941200d",
+        "path": "05_Covers_Thumbnails/main/511e53fa9a1c4f3a8ddfe106c80ca4eb/COD01-โปรไฟลุก_1_20261112_205830_cover_3x4.jpg",
+        "sha256": "6188b5b29590687f16727808164313c1f2b3dda1557b5b2abfd9622e8129e491",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794491962.793668,
+    "revision": 2,
+    "updated_at": 1795456323.479969,
     "source": "auto"
   },
   {
@@ -68,18 +68,18 @@
     "video_path": "04_Exports/Ready_to_post/COD01-ทริกลึก_1_20261112_210516.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/2aeac4a922ab4e9586be667bc31308a9/COD01-ทริกลึก_1_20261112_210516_cover.jpg",
-        "sha256": "9ea0b583059747e650919d562020deb122eabf0abaa57bc74779da1ab0195633",
+        "path": "05_Covers_Thumbnails/main/0d4285bd8b4946eaa790df2658b717c0/COD01-ทริกลึก_1_20261112_210516_cover.jpg",
+        "sha256": "c429be885ac24555d5630b8f60601088dc7580110e843bd120b4bdcf7587dcf8",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/2aeac4a922ab4e9586be667bc31308a9/COD01-ทริกลึก_1_20261112_210516_cover_3x4.jpg",
-        "sha256": "08bad87d346cfcc34a74346db8438f24b7d4b9e14722b2a2e0409241e28d131d",
+        "path": "05_Covers_Thumbnails/main/0d4285bd8b4946eaa790df2658b717c0/COD01-ทริกลึก_1_20261112_210516_cover_3x4.jpg",
+        "sha256": "b04cc106308f255abe700bcd11dc66037ffd622e1270443e49f3eb7c1a48c387",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794492362.3240156,
+    "revision": 2,
+    "updated_at": 1795456324.2964077,
     "source": "auto"
   },
   {
@@ -89,18 +89,18 @@
     "video_path": "04_Exports/Ready_to_post/COD01-เทียบของเดิม_1_20261112_210519.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/6ad45e84fd084bba8d86d50ee293d294/COD01-เทียบของเดิม_1_20261112_210519_cover.jpg",
-        "sha256": "f734f4a1fb42a758fac2702e880cd448168d12e2e62f8970a80cec2505f1dcb9",
+        "path": "05_Covers_Thumbnails/main/67c5d9051ae7443fb3835f32b32a4b92/COD01-เทียบของเดิม_1_20261112_210519_cover.jpg",
+        "sha256": "6a284b5735989fd1320e19fd61088695d0a6c33a11d7d22460d9d917b85ac448",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/6ad45e84fd084bba8d86d50ee293d294/COD01-เทียบของเดิม_1_20261112_210519_cover_3x4.jpg",
-        "sha256": "8b42e2195fca3cbec019aaffb4bad7a0a11a33d7b62e0700ec88b3868009354a",
+        "path": "05_Covers_Thumbnails/main/67c5d9051ae7443fb3835f32b32a4b92/COD01-เทียบของเดิม_1_20261112_210519_cover_3x4.jpg",
+        "sha256": "bd53efda6eba27c28fe35b732c1086f1ec865a300d922a27f1cbf61676986241",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794492377.727434,
+    "revision": 2,
+    "updated_at": 1795456325.024672,
     "source": "auto"
   },
   {
@@ -110,18 +110,18 @@
     "video_path": "04_Exports/Ready_to_post/COD01-เตือนภัย_1_20261112_210519.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/b215fa49f81b405f879ae2436f5e7568/COD01-เตือนภัย_1_20261112_210519_cover.jpg",
-        "sha256": "c46d7d239bc62ab4b99547377d3bd7b159c475da71501db3c62be86324fa28be",
+        "path": "05_Covers_Thumbnails/main/5aa02c7f5096414a9e608a7366441d54/COD01-เตือนภัย_1_20261112_210519_cover.jpg",
+        "sha256": "c9e776345357a463316756d935f481c980d33e3a88bdb191047e9b6cd8ca0353",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/b215fa49f81b405f879ae2436f5e7568/COD01-เตือนภัย_1_20261112_210519_cover_3x4.jpg",
-        "sha256": "e27a3602df3c68e3c459661de7bdde590e7ef0910bca4d6c873fdbf426c0a59c",
+        "path": "05_Covers_Thumbnails/main/5aa02c7f5096414a9e608a7366441d54/COD01-เตือนภัย_1_20261112_210519_cover_3x4.jpg",
+        "sha256": "9dbb953da161f3f37bd1ba62d621fa9a0f0db6178aada570d5f09c0088d87c03",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794492389.643818,
+    "revision": 2,
+    "updated_at": 1795456326.0172598,
     "source": "auto"
   },
   {
@@ -131,18 +131,18 @@
     "video_path": "04_Exports/Ready_to_post/ESS06-รีวิวสเปก_1_20261112_212402.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/65c7976441244b55baf552a4dea151fc/ESS06-รีวิวสเปก_1_20261112_212402_cover.jpg",
-        "sha256": "97524ba5fec4ffa8bf888c4948d012076a4d94a0640f0cc83baafdeeb5eae8f1",
+        "path": "05_Covers_Thumbnails/main/3029b53d02244845ab4f171e6bb9b323/ESS06-รีวิวสเปก_1_20261112_212402_cover.jpg",
+        "sha256": "0d09a5d1e41d42f15fdc95d7dd6b470f9395f4159d0286b74c02b01f5e90a9cb",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/65c7976441244b55baf552a4dea151fc/ESS06-รีวิวสเปก_1_20261112_212402_cover_3x4.jpg",
-        "sha256": "d7464b4ef23bb89c603e5e87c05e7acc75c7a1d9351404a6d0767ba93f5e7ed0",
+        "path": "05_Covers_Thumbnails/main/3029b53d02244845ab4f171e6bb9b323/ESS06-รีวิวสเปก_1_20261112_212402_cover_3x4.jpg",
+        "sha256": "cb598548c09d426f4c84f4641eb3b28828e29e8a06c0f4af2b1e12fe07bc5097",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794493489.8835595,
+    "revision": 2,
+    "updated_at": 1795456326.8797786,
     "source": "auto"
   },
   {
@@ -152,18 +152,18 @@
     "video_path": "04_Exports/Ready_to_post/ESS06-แกะกล่องว้าว_1_20261112_212405.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/b01aab21231b4dec9a1bad32ab36a400/ESS06-แกะกล่องว้าว_1_20261112_212405_cover.jpg",
-        "sha256": "a2edc4f3111cc57aaf2e4b90ddd73386641c20742688037e47dd3f24d77e795c",
+        "path": "05_Covers_Thumbnails/main/3f81072d0aac497e9424b4e7bf6f14ed/ESS06-แกะกล่องว้าว_1_20261112_212405_cover.jpg",
+        "sha256": "386ff3c316e5483a1fb424a734e97a43f9bf86135a4a3171db05f956bcc7b2b2",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/b01aab21231b4dec9a1bad32ab36a400/ESS06-แกะกล่องว้าว_1_20261112_212405_cover_3x4.jpg",
-        "sha256": "6e0ee1f79dcb2a5e155b04cd03e3a228d957ec2ecd675ed27e6bbdd49b7e9c1f",
+        "path": "05_Covers_Thumbnails/main/3f81072d0aac497e9424b4e7bf6f14ed/ESS06-แกะกล่องว้าว_1_20261112_212405_cover_3x4.jpg",
+        "sha256": "5711967880157eb4030d506a664501c536205c2c48b30383602de4f1821b5906",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794493516.0696313,
+    "revision": 2,
+    "updated_at": 1795456327.7203696,
     "source": "auto"
   },
   {
@@ -173,18 +173,18 @@
     "video_path": "04_Exports/Ready_to_post/ESS06-เทียบของเดิม_1_20261112_212407.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/8dad621c355d4f6f8ba390b09a5dd3ed/ESS06-เทียบของเดิม_1_20261112_212407_cover.jpg",
-        "sha256": "5dfde7b594d916c693c89add165aea067e1a981d9ce444741e67775a4324141b",
+        "path": "05_Covers_Thumbnails/main/24c54d7d167d4e9ea62c64703c90b9cc/ESS06-เทียบของเดิม_1_20261112_212407_cover.jpg",
+        "sha256": "265759358c9b51c91a127d8c5d36db85aa8029130a825ddaa4bff8c4fe271538",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/8dad621c355d4f6f8ba390b09a5dd3ed/ESS06-เทียบของเดิม_1_20261112_212407_cover_3x4.jpg",
-        "sha256": "cb2cd6823a57a80e70f0aa92d14f8da0028a04ad54edf18f35b069a27444a185",
+        "path": "05_Covers_Thumbnails/main/24c54d7d167d4e9ea62c64703c90b9cc/ESS06-เทียบของเดิม_1_20261112_212407_cover_3x4.jpg",
+        "sha256": "b24fb871011f91cde34c13d35e630284b323d6f66fc7c634f06b0313dd09faf8",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794493522.1401126,
+    "revision": 2,
+    "updated_at": 1795456328.528877,
     "source": "auto"
   },
   {
@@ -194,18 +194,18 @@
     "video_path": "04_Exports/Ready_to_post/ESS06-โปรไฟลุก_1_20261112_212407.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/21b47830b23b4cc8afab790a324b3cf3/ESS06-โปรไฟลุก_1_20261112_212407_cover.jpg",
-        "sha256": "9f404f86af4be827388287b66ff9e81bca3acdab72760c14e8fd281fb8f8a633",
+        "path": "05_Covers_Thumbnails/main/2d6438a20e644733889fbc34ef0a5a31/ESS06-โปรไฟลุก_1_20261112_212407_cover.jpg",
+        "sha256": "a78bda1c8fe7820423a17cc77b6c160692387695654137891896e9f7765d4b21",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/21b47830b23b4cc8afab790a324b3cf3/ESS06-โปรไฟลุก_1_20261112_212407_cover_3x4.jpg",
-        "sha256": "900089d6a5575ceec0a99c788c85e89256102829ddce231894abb535201bbe19",
+        "path": "05_Covers_Thumbnails/main/2d6438a20e644733889fbc34ef0a5a31/ESS06-โปรไฟลุก_1_20261112_212407_cover_3x4.jpg",
+        "sha256": "9f7589b53ae05fe861681194b66f0722ff560b089ede9dd0f5757095647a9815",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794493533.7262557,
+    "revision": 2,
+    "updated_at": 1795456329.4170556,
     "source": "auto"
   },
   {
@@ -215,18 +215,18 @@
     "video_path": "04_Exports/Ready_to_post/ESS06-ทริกลึก_1_20261112_212500.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/5fcdc60d6e944d399b04c0699375c68b/ESS06-ทริกลึก_1_20261112_212500_cover.jpg",
-        "sha256": "564da82b872e8a5334a4f08ff42931bc3770e6049604a7cf0f186e0c55bd68cd",
+        "path": "05_Covers_Thumbnails/main/48184f0f5b1f4b8e98835bd0bf3885a7/ESS06-ทริกลึก_1_20261112_212500_cover.jpg",
+        "sha256": "e1367c1328ae6f3ca0267d461d1838251943dde0d04bb17565fbbce43b297756",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/5fcdc60d6e944d399b04c0699375c68b/ESS06-ทริกลึก_1_20261112_212500_cover_3x4.jpg",
-        "sha256": "cbcf1c64486a01d4fcaaf956be9e4af6b1ae0193268255fe7a9908370c50d046",
+        "path": "05_Covers_Thumbnails/main/48184f0f5b1f4b8e98835bd0bf3885a7/ESS06-ทริกลึก_1_20261112_212500_cover_3x4.jpg",
+        "sha256": "d127ed701f57687c0447a6049b67ea52046dfefce65e3e4ec3b04ef4d2d0249a",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794493551.397249,
+    "revision": 2,
+    "updated_at": 1795456330.240205,
     "source": "auto"
   },
   {
@@ -236,18 +236,18 @@
     "video_path": "04_Exports/Ready_to_post/ESS06-เตือนภัย_1_20261112_212525.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/e2ac891fa7e4440bad87e7f89740673d/ESS06-เตือนภัย_1_20261112_212525_cover.jpg",
-        "sha256": "50875de21390422d76b119774f1fb2c2fa6ce23fa71c230beb0e5782b04fcbc4",
+        "path": "05_Covers_Thumbnails/main/f2f6d871d07746d0985e15c7cce24cd2/ESS06-เตือนภัย_1_20261112_212525_cover.jpg",
+        "sha256": "ec539fa93994e193adab7fd674752ccba7666ecf80258cd5e9a8fe19f475b41c",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/e2ac891fa7e4440bad87e7f89740673d/ESS06-เตือนภัย_1_20261112_212525_cover_3x4.jpg",
-        "sha256": "eb6f3d78d4df3c048332d52339a7fad021bae8951bb9eef1982c4f1d5118d707",
+        "path": "05_Covers_Thumbnails/main/f2f6d871d07746d0985e15c7cce24cd2/ESS06-เตือนภัย_1_20261112_212525_cover_3x4.jpg",
+        "sha256": "9d7089ea9c7e0db0b1b98ae61959cc323400ab13382f956ce4712fd399779dc9",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794493572.9425163,
+    "revision": 2,
+    "updated_at": 1795456331.000797,
     "source": "auto"
   },
   {
@@ -257,18 +257,18 @@
     "video_path": "04_Exports/Ready_to_post/POW01-เทียบของเดิม_1_20261112_215334.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/564759c6c4634c4eb9dbce051250a74e/POW01-เทียบของเดิม_1_20261112_215334_cover.jpg",
-        "sha256": "aef678a3459a9f53fbcb09b6f0274e1119b31f541ea6adf4eb719ac5d5e649f9",
+        "path": "05_Covers_Thumbnails/main/a53601341e1640489d2f009a9f8955d5/POW01-เทียบของเดิม_1_20261112_215334_cover.jpg",
+        "sha256": "c5194decd990ee5f5e1c73c7879ef46261e95c647752764b70881dbe2164fa1b",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/564759c6c4634c4eb9dbce051250a74e/POW01-เทียบของเดิม_1_20261112_215334_cover_3x4.jpg",
-        "sha256": "0e6ada05a2dd8c0ceefa3733b5bbc94ea5dbb507bafd9aad1f522f190cf62318",
+        "path": "05_Covers_Thumbnails/main/a53601341e1640489d2f009a9f8955d5/POW01-เทียบของเดิม_1_20261112_215334_cover_3x4.jpg",
+        "sha256": "1fa4463fa86660a42bcda71a13cf2c8f2c4e0cff3343629cb888d8c5b04b9cca",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794495267.1364486,
+    "revision": 2,
+    "updated_at": 1795456331.7858577,
     "source": "auto"
   },
   {
@@ -278,18 +278,18 @@
     "video_path": "04_Exports/Ready_to_post/POW01-ทริกลึก_1_20261112_215331.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/5a7ed4aad82a4d1d9fb999f2ebc88ecc/POW01-ทริกลึก_1_20261112_215331_cover.jpg",
-        "sha256": "da6bd43a2fba5defec311fd6cea2095956b5cb385e3d98eadab3f60723612086",
+        "path": "05_Covers_Thumbnails/main/706e1cc2c7ee406b9cc25ca8abf01893/POW01-ทริกลึก_1_20261112_215331_cover.jpg",
+        "sha256": "21a2a48ce7a17b0867cf34876ec6178804878416c34cf4126e9a95293468f7ac",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/5a7ed4aad82a4d1d9fb999f2ebc88ecc/POW01-ทริกลึก_1_20261112_215331_cover_3x4.jpg",
-        "sha256": "57b549bef400497dcb9c7dfcdb99f50781edf2f4c818aa553edc1b96ecbc8f7c",
+        "path": "05_Covers_Thumbnails/main/706e1cc2c7ee406b9cc25ca8abf01893/POW01-ทริกลึก_1_20261112_215331_cover_3x4.jpg",
+        "sha256": "559c4013f5c1d5bc44d4cffc5ced7681bc0dc8cb6be86d66466bebb9e2bc8fe1",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794495271.3724692,
+    "revision": 2,
+    "updated_at": 1795456332.483951,
     "source": "auto"
   },
   {
@@ -299,18 +299,18 @@
     "video_path": "04_Exports/Ready_to_post/POW01-แกะกล่องว้าว_1_20261112_215334.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/458dd1872fc54b2d87daa3ad05b70a39/POW01-แกะกล่องว้าว_1_20261112_215334_cover.jpg",
-        "sha256": "74cf68657534ce8cb9b856367a334452dd07eb48cfc55530a64125855fc760a3",
+        "path": "05_Covers_Thumbnails/main/d024ff9603a1495681945f2210a8a523/POW01-แกะกล่องว้าว_1_20261112_215334_cover.jpg",
+        "sha256": "1346852721c4d404eace363cc310ce9e2c63d21e2deb691b723fe2220ecc915c",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/458dd1872fc54b2d87daa3ad05b70a39/POW01-แกะกล่องว้าว_1_20261112_215334_cover_3x4.jpg",
-        "sha256": "859e4503767c91991dd99fc3618e2aa49cad544c4a498bc78a1c0938b41716aa",
+        "path": "05_Covers_Thumbnails/main/d024ff9603a1495681945f2210a8a523/POW01-แกะกล่องว้าว_1_20261112_215334_cover_3x4.jpg",
+        "sha256": "ccc1a10e1673d66b5dcba47151eda9e7fa1af2fab8e8dd4f962e89833a4431e4",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794495286.4538321,
+    "revision": 2,
+    "updated_at": 1795456333.3003461,
     "source": "auto"
   },
   {
@@ -320,18 +320,18 @@
     "video_path": "04_Exports/Ready_to_post/POW01-โปรไฟลุก_1_20261112_215332.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/481c887056e2414485836e0bbdbd37a8/POW01-โปรไฟลุก_1_20261112_215332_cover.jpg",
-        "sha256": "188ad25f271c7a7af93ac62881500248c3914ab1dd10f9dfcbce8dee7a7d50ea",
+        "path": "05_Covers_Thumbnails/main/6eb7a27520cb473d830116de6d42a145/POW01-โปรไฟลุก_1_20261112_215332_cover.jpg",
+        "sha256": "c68caed1f2d518585c051d949ae632bb6510d0312e5af9d46b4b25e860600698",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/481c887056e2414485836e0bbdbd37a8/POW01-โปรไฟลุก_1_20261112_215332_cover_3x4.jpg",
-        "sha256": "fbb6608c0cb49edaa25dbd0a6cd7bffa649482d597b9a0626b4b16491d383562",
+        "path": "05_Covers_Thumbnails/main/6eb7a27520cb473d830116de6d42a145/POW01-โปรไฟลุก_1_20261112_215332_cover_3x4.jpg",
+        "sha256": "bb222d3288d426595f05e738c114699500fa6fc458693b9f80fe049d391ea4ec",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794495287.6284864,
+    "revision": 2,
+    "updated_at": 1795456333.997578,
     "source": "auto"
   },
   {
@@ -341,18 +341,18 @@
     "video_path": "04_Exports/Ready_to_post/POW01-เตือนภัย_1_20261112_215436.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/ac442e449fac417897d8ec124a572fca/POW01-เตือนภัย_1_20261112_215436_cover.jpg",
-        "sha256": "8a19d43ca64cca13e73b56951b57dff15ff22eb7507779eeb19cea889ace5967",
+        "path": "05_Covers_Thumbnails/main/b3342bcf2a244a05bfcb32976665dae8/POW01-เตือนภัย_1_20261112_215436_cover.jpg",
+        "sha256": "fffd82e590cb2cff25f6b8a2af874138024ed25572dc45336a811895ff8d530b",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/ac442e449fac417897d8ec124a572fca/POW01-เตือนภัย_1_20261112_215436_cover_3x4.jpg",
-        "sha256": "b5d5b4b8c4fb997a66173ae8fb236fb95f61643b11a9d9cad30934b8b8b25d02",
+        "path": "05_Covers_Thumbnails/main/b3342bcf2a244a05bfcb32976665dae8/POW01-เตือนภัย_1_20261112_215436_cover_3x4.jpg",
+        "sha256": "7be319de595292e1bc18833720d4fdb5334d3c0206c54ff899bcb9d74a4d0be5",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794495324.6274548,
+    "revision": 2,
+    "updated_at": 1795456334.7949762,
     "source": "auto"
   },
   {
@@ -362,18 +362,18 @@
     "video_path": "04_Exports/Ready_to_post/ESS07-ปัญหาก่อนใช้_1_20261113_000024.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/a115f797758f4099bceb00e4106ffadf/ESS07-ปัญหาก่อนใช้_1_20261113_000024_cover.jpg",
-        "sha256": "c4cd619f85833d1217da4b5a09d7fc330cd6b4ac50ed6306db3aa7c452196f1b",
+        "path": "05_Covers_Thumbnails/main/fbbf1014fb11403190cb2829f131fd37/ESS07-ปัญหาก่อนใช้_1_20261113_000024_cover.jpg",
+        "sha256": "60ca537d793d7973c707f1742ca425b3f892349d2b7c761e0e49045a270af41d",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/a115f797758f4099bceb00e4106ffadf/ESS07-ปัญหาก่อนใช้_1_20261113_000024_cover_3x4.jpg",
-        "sha256": "2e8722c73e3bd103beee5c5e7e29fa3f4e756315ff9f96b53ee4913053249daa",
+        "path": "05_Covers_Thumbnails/main/fbbf1014fb11403190cb2829f131fd37/ESS07-ปัญหาก่อนใช้_1_20261113_000024_cover_3x4.jpg",
+        "sha256": "36095d74e939442039e4fc063b254dc3e31291a7576d1cbfe585ee72a90b47af",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794502842.4292245,
+    "revision": 2,
+    "updated_at": 1795456335.6061928,
     "source": "auto"
   },
   {
@@ -383,18 +383,18 @@
     "video_path": "04_Exports/Ready_to_post/ESS07-รีวิวสเปก_1_20261113_000318.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/8ecdcc140d1545a9be651c241e8e023e/ESS07-รีวิวสเปก_1_20261113_000318_cover.jpg",
-        "sha256": "d4fa9281d88fa3cc72854f8823e507a383cfc97a494edb50e44b358abc1e6e50",
+        "path": "05_Covers_Thumbnails/main/9b36f3a608fa4d5eb310e7d875366a71/ESS07-รีวิวสเปก_1_20261113_000318_cover.jpg",
+        "sha256": "b2baa12e21953b220a312886222d1dc1e5f4526b104e23b5f42dadf4ea7d120f",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/8ecdcc140d1545a9be651c241e8e023e/ESS07-รีวิวสเปก_1_20261113_000318_cover_3x4.jpg",
-        "sha256": "e2876dcdc9aefbdc1946a1d3142a57bb502fedee35c340138d579f995ff73118",
+        "path": "05_Covers_Thumbnails/main/9b36f3a608fa4d5eb310e7d875366a71/ESS07-รีวิวสเปก_1_20261113_000318_cover_3x4.jpg",
+        "sha256": "199e43fcded26f396ca326d35b9fe58364a8505fcd7addf570d548f882bcdca6",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794503057.5889907,
+    "revision": 2,
+    "updated_at": 1795456336.3919234,
     "source": "auto"
   },
   {
@@ -404,18 +404,18 @@
     "video_path": "04_Exports/Ready_to_post/ESS07-เทียบของเดิม_1_20261113_000321.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/2951b550c9304221986fabace1526588/ESS07-เทียบของเดิม_1_20261113_000321_cover.jpg",
-        "sha256": "bf9fcd75f77014032d75a354a1f6354c09f1a423e13c763ac1812acc079b3b52",
+        "path": "05_Covers_Thumbnails/main/8a08a096d7754617badcf91da2dd3885/ESS07-เทียบของเดิม_1_20261113_000321_cover.jpg",
+        "sha256": "e9018c79153e1d06e2d1983bddc8368d09ae6c00e3102d399ae4dc3fe4a4842b",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/2951b550c9304221986fabace1526588/ESS07-เทียบของเดิม_1_20261113_000321_cover_3x4.jpg",
-        "sha256": "83697d3b2112d4bd6ad02731995fff8bc0b7150a6b97404d0d65a98a97eccbe9",
+        "path": "05_Covers_Thumbnails/main/8a08a096d7754617badcf91da2dd3885/ESS07-เทียบของเดิม_1_20261113_000321_cover_3x4.jpg",
+        "sha256": "031bdf2cc5f9c95fdef7b846d19af1d77b5cfa02e65e817707b96bccb4d0133e",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794503064.6681669,
+    "revision": 2,
+    "updated_at": 1795456337.1601768,
     "source": "auto"
   },
   {
@@ -425,18 +425,18 @@
     "video_path": "04_Exports/Ready_to_post/ESS07-แกะกล่องว้าว_1_20261113_000317.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/b4c5200d19f242d6a4aa1d45d5476a8e/ESS07-แกะกล่องว้าว_1_20261113_000317_cover.jpg",
-        "sha256": "f39a24ff94287d50a719144a2eb7d854d176c92ab50054f0e6df73d750749f31",
+        "path": "05_Covers_Thumbnails/main/c93f33b22b3f45a9b8e43dc75a337ac2/ESS07-แกะกล่องว้าว_1_20261113_000317_cover.jpg",
+        "sha256": "3d7d060cd8cdad7d6f67c684fea1be4711d74d467d384b1233069364a4ff12d7",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/b4c5200d19f242d6a4aa1d45d5476a8e/ESS07-แกะกล่องว้าว_1_20261113_000317_cover_3x4.jpg",
-        "sha256": "c2178ece550084b64610716a644f5d9348eef0d1b31d15c5262d8574ef76a1fb",
+        "path": "05_Covers_Thumbnails/main/c93f33b22b3f45a9b8e43dc75a337ac2/ESS07-แกะกล่องว้าว_1_20261113_000317_cover_3x4.jpg",
+        "sha256": "cc491328d6088295bc2ca57e5c5f7280c0bdc10f2279ca195b63b74d6990b910",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794503065.3336506,
+    "revision": 2,
+    "updated_at": 1795456337.8997521,
     "source": "auto"
   },
   {
@@ -446,18 +446,18 @@
     "video_path": "04_Exports/Ready_to_post/ESS07-โปรไฟลุก_1_20261113_000321.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/47a67be0c41d4240ab38077645318067/ESS07-โปรไฟลุก_1_20261113_000321_cover.jpg",
-        "sha256": "99007b6f9f292f2362ab4b89b3cd297dca01434fe3b662b1de7203fb7618845c",
+        "path": "05_Covers_Thumbnails/main/9f8b6bb656ad4d32be3468574732cc73/ESS07-โปรไฟลุก_1_20261113_000321_cover.jpg",
+        "sha256": "a049fd6978e12b1f8f342ad75cf9d92b9858cae03fb41fabb11e8e6d5a8bd05b",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/47a67be0c41d4240ab38077645318067/ESS07-โปรไฟลุก_1_20261113_000321_cover_3x4.jpg",
-        "sha256": "9109ec7f31059ce5a3f129151e21518de68cdcb21f3aa8ffa3ceb05abc60ce92",
+        "path": "05_Covers_Thumbnails/main/9f8b6bb656ad4d32be3468574732cc73/ESS07-โปรไฟลุก_1_20261113_000321_cover_3x4.jpg",
+        "sha256": "1cfba3df660eb8e2536c8911bffb42300e7aae713c08381c03e7d8bf075bc1b0",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794503081.2335527,
+    "revision": 2,
+    "updated_at": 1795456338.6652124,
     "source": "auto"
   },
   {
@@ -467,18 +467,18 @@
     "video_path": "04_Exports/Ready_to_post/ESS07-ทริกลึก_1_20261113_000425.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/9692642aaa484c68ba6cc68800f25992/ESS07-ทริกลึก_1_20261113_000425_cover.jpg",
-        "sha256": "a5ff2e822fcf1c747f8dbda5aeb763027fb613b389298df0443e8d66de949420",
+        "path": "05_Covers_Thumbnails/main/a027ae5b4b9c4a208aa449f81943725b/ESS07-ทริกลึก_1_20261113_000425_cover.jpg",
+        "sha256": "9cecd3e47be33d50e8deab3c0ab77782f7b05c3835ba979968043fad81bc3da9",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/9692642aaa484c68ba6cc68800f25992/ESS07-ทริกลึก_1_20261113_000425_cover_3x4.jpg",
-        "sha256": "cf5bbc1c9026bf34724ee4d669727bc0b194c55cbc4fb1616932353f3a8a29ba",
+        "path": "05_Covers_Thumbnails/main/a027ae5b4b9c4a208aa449f81943725b/ESS07-ทริกลึก_1_20261113_000425_cover_3x4.jpg",
+        "sha256": "02989076f012c81099a79251c68aac40622ce0e18b456db449aeafdb6c732b71",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794503097.5457666,
+    "revision": 2,
+    "updated_at": 1795456339.4231293,
     "source": "auto"
   },
   {
@@ -488,18 +488,18 @@
     "video_path": "04_Exports/Ready_to_post/ESS07-เตือนภัย_1_20261113_000432.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/3838e962fd51442384ce5ec2bd614fd0/ESS07-เตือนภัย_1_20261113_000432_cover.jpg",
-        "sha256": "0df2a3ed8c950ad141af5f3b84151c36d6974653d5713869c95e10e8e3ff5abb",
+        "path": "05_Covers_Thumbnails/main/8804119268ca4c1fb9ce609f21798b87/ESS07-เตือนภัย_1_20261113_000432_cover.jpg",
+        "sha256": "31e5e8a1390ba0421dd8fbd0cdd85f8bd209c119fb1d1d91e9c8d2620b9bd969",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/3838e962fd51442384ce5ec2bd614fd0/ESS07-เตือนภัย_1_20261113_000432_cover_3x4.jpg",
-        "sha256": "7f04a8fb820d091ef8ee8cf051bf4cb74a937d0d60288caf8d94bc095093be8c",
+        "path": "05_Covers_Thumbnails/main/8804119268ca4c1fb9ce609f21798b87/ESS07-เตือนภัย_1_20261113_000432_cover_3x4.jpg",
+        "sha256": "07b40452e5baacd9bfe4dc1e23d7de0f77ea97c61537edfe8534a89f49e65a36",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794503115.157291,
+    "revision": 2,
+    "updated_at": 1795456340.2190795,
     "source": "auto"
   },
   {
@@ -509,18 +509,18 @@
     "video_path": "04_Exports/Ready_to_post/TRA01-รีวิวสเปก_1_20261113_003507.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/931a11b7e2ec4a6baffd627cbbd6dad8/TRA01-รีวิวสเปก_1_20261113_003507_cover.jpg",
-        "sha256": "f79d48209d15f115e3e08b0b4af244dcc1a173d245199211e708d6812b805904",
+        "path": "05_Covers_Thumbnails/main/e4f553a15276433b969ae17197c5b9d1/TRA01-รีวิวสเปก_1_20261113_003507_cover.jpg",
+        "sha256": "95c9ab2784fe5e4ffad05ff2c703bab8b2d574219f78ce0cd8829855b5d84164",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/931a11b7e2ec4a6baffd627cbbd6dad8/TRA01-รีวิวสเปก_1_20261113_003507_cover_3x4.jpg",
-        "sha256": "e364e7e7aae6a70a63a4d563edd4ea80a013e5db83fcea3b11c9a3b9e865f456",
+        "path": "05_Covers_Thumbnails/main/e4f553a15276433b969ae17197c5b9d1/TRA01-รีวิวสเปก_1_20261113_003507_cover_3x4.jpg",
+        "sha256": "d366a1016dc77e6456c8046ad64bee8f0f83c42be27489e43716188f8e9171db",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794504968.1423872,
+    "revision": 2,
+    "updated_at": 1795456341.0509865,
     "source": "auto"
   },
   {
@@ -530,18 +530,18 @@
     "video_path": "04_Exports/Ready_to_post/TRA01-โปรไฟลุก_1_20261113_003509.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/ca7c7df6a7134234a75e024a7126e07c/TRA01-โปรไฟลุก_1_20261113_003509_cover.jpg",
-        "sha256": "e4a246f77b0a9795f37a4553a8d058fd0ea246a974ad21e8874ee8fe74f7adbb",
+        "path": "05_Covers_Thumbnails/main/ec7e6cade3fc40ef86e94c756a837f26/TRA01-โปรไฟลุก_1_20261113_003509_cover.jpg",
+        "sha256": "78ade1143ea376d56c4030faef8eced102a91d393cecc0ff4cc3e7b5e0c8349b",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/ca7c7df6a7134234a75e024a7126e07c/TRA01-โปรไฟลุก_1_20261113_003509_cover_3x4.jpg",
-        "sha256": "29a0bb3d31dc86e0615983f981d3ef6423764dfc8b799437ad55f15a30ea2a17",
+        "path": "05_Covers_Thumbnails/main/ec7e6cade3fc40ef86e94c756a837f26/TRA01-โปรไฟลุก_1_20261113_003509_cover_3x4.jpg",
+        "sha256": "f90fcb505b24bb113e4e20aa01566f54ab488a2438b06497c26347c74ac818c6",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794505006.862402,
+    "revision": 2,
+    "updated_at": 1795456341.8967998,
     "source": "auto"
   },
   {
@@ -551,18 +551,18 @@
     "video_path": "04_Exports/Ready_to_post/TRA01-เทียบของเดิม_1_20261113_003510.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/16396c0e2e5646e09a92254bd4731504/TRA01-เทียบของเดิม_1_20261113_003510_cover.jpg",
-        "sha256": "8cd5c06fc6345c7aa76f73a30c4153b7cff5291d81add00900db6a715e69dec7",
+        "path": "05_Covers_Thumbnails/main/01ae0c611a2446b180c3d2b155028c32/TRA01-เทียบของเดิม_1_20261113_003510_cover.jpg",
+        "sha256": "aaaaff8870aa2f074fe918d1eeff0845ae81e321f7181fea9dd4f15edea75205",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/16396c0e2e5646e09a92254bd4731504/TRA01-เทียบของเดิม_1_20261113_003510_cover_3x4.jpg",
-        "sha256": "a61c6a91c9640d6ed7fbb067670560b0b2dd499ba1580ca07cb0641b1d5d9c86",
+        "path": "05_Covers_Thumbnails/main/01ae0c611a2446b180c3d2b155028c32/TRA01-เทียบของเดิม_1_20261113_003510_cover_3x4.jpg",
+        "sha256": "0547d466a2e15c001e56ab303b8358e502cb5cf38a90169136028b93e737251d",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794505012.948881,
+    "revision": 2,
+    "updated_at": 1795456342.7365766,
     "source": "auto"
   },
   {
@@ -572,18 +572,18 @@
     "video_path": "04_Exports/Ready_to_post/TRA01-แกะกล่องว้าว_1_20261113_003509.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/5fa771157ea9449fb3b7c0cc4e05caa0/TRA01-แกะกล่องว้าว_1_20261113_003509_cover.jpg",
-        "sha256": "7649fd4b414641fdb77172798290caf0868a7dc1139f106694d9c9ade8c6f0a5",
+        "path": "05_Covers_Thumbnails/main/1485956c7c0b4170a38c985bd529f71d/TRA01-แกะกล่องว้าว_1_20261113_003509_cover.jpg",
+        "sha256": "1c44124ac6217dc9391a377e9d7a53b6e4a0fa7ccf15479eff8c8ecc1a56e5b0",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/5fa771157ea9449fb3b7c0cc4e05caa0/TRA01-แกะกล่องว้าว_1_20261113_003509_cover_3x4.jpg",
-        "sha256": "307ad70180bbeac7707b135cc47275999c2018ce258ed12f1a63076590b4844a",
+        "path": "05_Covers_Thumbnails/main/1485956c7c0b4170a38c985bd529f71d/TRA01-แกะกล่องว้าว_1_20261113_003509_cover_3x4.jpg",
+        "sha256": "4cb77fa14b2099cc0fca812f42f8257b1cf29afb245f311e3dd2bb69b594b94d",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794505018.236682,
+    "revision": 2,
+    "updated_at": 1795456343.646531,
     "source": "auto"
   },
   {
@@ -593,18 +593,18 @@
     "video_path": "04_Exports/Ready_to_post/TRA01-ทริกลึก_1_20261113_003617.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/6ffea88899444026bf3564b6613ebd07/TRA01-ทริกลึก_1_20261113_003617_cover.jpg",
-        "sha256": "04c46a1629389a56e47f30c3e48832752b46897332be92f3f2e72f4f510eff08",
+        "path": "05_Covers_Thumbnails/main/5b43dab744404505817d00fbfd477498/TRA01-ทริกลึก_1_20261113_003617_cover.jpg",
+        "sha256": "dd84009399c1a369190f72e8cafba622abc9ab93c584392991731d40cba06661",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/6ffea88899444026bf3564b6613ebd07/TRA01-ทริกลึก_1_20261113_003617_cover_3x4.jpg",
-        "sha256": "bd52392fc78be685769b2ca3349ebb940822b89448423b778692f416d2d5e454",
+        "path": "05_Covers_Thumbnails/main/5b43dab744404505817d00fbfd477498/TRA01-ทริกลึก_1_20261113_003617_cover_3x4.jpg",
+        "sha256": "565ec96f60b31a9b5ade6215268d4307234dd42bd4ea179d4ed3056b469b3c13",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794505030.4719036,
+    "revision": 2,
+    "updated_at": 1795456344.4804897,
     "source": "auto"
   },
   {
@@ -614,18 +614,18 @@
     "video_path": "04_Exports/Ready_to_post/TRA01-เตือนภัย_1_20261113_003655.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/b0e6d1179200474ba75f93f58932429a/TRA01-เตือนภัย_1_20261113_003655_cover.jpg",
-        "sha256": "0301417e3468fdb2c6fcab80b28d0df7ddccc6190b954e639a2e4b723b48c2e9",
+        "path": "05_Covers_Thumbnails/main/073e8036f6034608a8abfa4f8a915db1/TRA01-เตือนภัย_1_20261113_003655_cover.jpg",
+        "sha256": "62813a9c4fc884bbda11c414056af2224f986e883ec095be667a6a665a172852",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/b0e6d1179200474ba75f93f58932429a/TRA01-เตือนภัย_1_20261113_003655_cover_3x4.jpg",
-        "sha256": "a777e7d9758a6841d7b7cd4aa1797cd100bd7372a80f1cc4c4279f4ded5512ed",
+        "path": "05_Covers_Thumbnails/main/073e8036f6034608a8abfa4f8a915db1/TRA01-เตือนภัย_1_20261113_003655_cover_3x4.jpg",
+        "sha256": "4709f6e4d6c6f1c9568822ba4b1f21f285698aa9ec780ac4fdc662ed0f5c42d0",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794505060.7739196,
+    "revision": 2,
+    "updated_at": 1795456345.2699988,
     "source": "auto"
   },
   {
@@ -635,18 +635,18 @@
     "video_path": "04_Exports/Ready_to_post/ESS05-รีวิวสเปก_1_20261113_004456.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/df25798626844bd5bebba684409ddfb1/ESS05-รีวิวสเปก_1_20261113_004456_cover.jpg",
-        "sha256": "4cb62ebbf9ee8cea17cdbce2a12047d42bce4de73dafec0d8bd2d79c0d54d474",
+        "path": "05_Covers_Thumbnails/main/c04bcbdbe144450188fc09f433ed83cf/ESS05-รีวิวสเปก_1_20261113_004456_cover.jpg",
+        "sha256": "6e0acdb937482de2365ba2028e744df3d2b3d71d8137cd42e5da1de880a691fd",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/df25798626844bd5bebba684409ddfb1/ESS05-รีวิวสเปก_1_20261113_004456_cover_3x4.jpg",
-        "sha256": "5c10944795311bca56083e83d9664fa864ae37f7b7a50e9c08d0ff320122d68c",
+        "path": "05_Covers_Thumbnails/main/c04bcbdbe144450188fc09f433ed83cf/ESS05-รีวิวสเปก_1_20261113_004456_cover_3x4.jpg",
+        "sha256": "f5bfdf3ead8b98f4e01e1b2dd5899d330c1b3eb3cfadeb119adb5f295c4815f6",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794505563.5681894,
+    "revision": 2,
+    "updated_at": 1795456345.9820573,
     "source": "auto"
   },
   {
@@ -656,18 +656,18 @@
     "video_path": "04_Exports/Ready_to_post/ESS05-ปัญหาก่อนใช้_1_20261113_004453.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/69b68e6aa2ae45f6ba2e893c05672558/ESS05-ปัญหาก่อนใช้_1_20261113_004453_cover.jpg",
-        "sha256": "136d4af1066ff535cc68198fd8619155173677081d2752193674a79efdb0f745",
+        "path": "05_Covers_Thumbnails/main/f5e76ba775534d38b2259063192546b3/ESS05-ปัญหาก่อนใช้_1_20261113_004453_cover.jpg",
+        "sha256": "e94de61d3cc2c802a373529696d3f27569da3382972940584d6efc6d7b02535a",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/69b68e6aa2ae45f6ba2e893c05672558/ESS05-ปัญหาก่อนใช้_1_20261113_004453_cover_3x4.jpg",
-        "sha256": "badf1bf52fdceb9d1afc506cd1bca5a75bf7478943cd1b37e48575c286999bd8",
+        "path": "05_Covers_Thumbnails/main/f5e76ba775534d38b2259063192546b3/ESS05-ปัญหาก่อนใช้_1_20261113_004453_cover_3x4.jpg",
+        "sha256": "50abbe4acf0159683018b2003a28e472e2b2c90a3406f27a5bc8bf0a95af76ac",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794505567.5352325,
+    "revision": 2,
+    "updated_at": 1795456346.754698,
     "source": "auto"
   },
   {
@@ -677,18 +677,18 @@
     "video_path": "04_Exports/Ready_to_post/ESS05-แกะกล่องว้าว_1_20261113_004455.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/a4be9a7f4c874348ac5f681fdee689d4/ESS05-แกะกล่องว้าว_1_20261113_004455_cover.jpg",
-        "sha256": "e0d02cd15cc8d26f03ca1aa2cc492d6b3f1a486a767f0ae21d16b4e440e041c7",
+        "path": "05_Covers_Thumbnails/main/3f25fceedab74f7aa02887cf82a04901/ESS05-แกะกล่องว้าว_1_20261113_004455_cover.jpg",
+        "sha256": "5d95ad7b2abb4d09dfae38e6efb07b26f327e998c79ac502767e2269cc6c74b8",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/a4be9a7f4c874348ac5f681fdee689d4/ESS05-แกะกล่องว้าว_1_20261113_004455_cover_3x4.jpg",
-        "sha256": "a6af98fefbe6bd414f5dd79d4947a50d138476c3dc9a3a1eae094dc0343c701a",
+        "path": "05_Covers_Thumbnails/main/3f25fceedab74f7aa02887cf82a04901/ESS05-แกะกล่องว้าว_1_20261113_004455_cover_3x4.jpg",
+        "sha256": "e6da84ca62c189b98f725b51e28df66204d7a46ffd89d23ced1d892ccfbbb822",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794505577.6123476,
+    "revision": 2,
+    "updated_at": 1795456347.5258193,
     "source": "auto"
   },
   {
@@ -698,18 +698,18 @@
     "video_path": "04_Exports/Ready_to_post/ESS05-โปรไฟลุก_1_20261113_004457.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/fb044d5f4c0847c898a3e95b6e8c8a59/ESS05-โปรไฟลุก_1_20261113_004457_cover.jpg",
-        "sha256": "0da4bdbefb03e4c8ec13adac40b05e36c166725cf0ebb963add11876c0e1519c",
+        "path": "05_Covers_Thumbnails/main/2254da12ac514bf3a02e90096362950a/ESS05-โปรไฟลุก_1_20261113_004457_cover.jpg",
+        "sha256": "9383702259b9eb38d76a0d62a0660115f2dd8180294266bd849f7f9d36c6045a",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/fb044d5f4c0847c898a3e95b6e8c8a59/ESS05-โปรไฟลุก_1_20261113_004457_cover_3x4.jpg",
-        "sha256": "bfd5e66fdf957dff04bba92c2f14ac3506abc972686f4cfb4e3c6e82e3cd834b",
+        "path": "05_Covers_Thumbnails/main/2254da12ac514bf3a02e90096362950a/ESS05-โปรไฟลุก_1_20261113_004457_cover_3x4.jpg",
+        "sha256": "e1e8606b8b9ff6cc1d3c1b7e7b4bfe5fc50d1c4a5b0d0e76ed8025cc16502f49",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794505583.5593946,
+    "revision": 2,
+    "updated_at": 1795456348.2829835,
     "source": "auto"
   },
   {
@@ -719,18 +719,18 @@
     "video_path": "04_Exports/Ready_to_post/ESS05-เทียบของเดิม_1_20261113_004612.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/50908043073f4c618fc700e7cabd6c5a/ESS05-เทียบของเดิม_1_20261113_004612_cover.jpg",
-        "sha256": "2be28e4e10ae5b21c6733d9dc302161880a7fb9f3a68ca2184bc480f0fd6b4f8",
+        "path": "05_Covers_Thumbnails/main/a3f1ea48ca6c4f64869e05fbf5d4f3d1/ESS05-เทียบของเดิม_1_20261113_004612_cover.jpg",
+        "sha256": "dd5ff1e7a31df3f1ca5ac750dfce4daee6f92db614f818de98373339d680884b",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/50908043073f4c618fc700e7cabd6c5a/ESS05-เทียบของเดิม_1_20261113_004612_cover_3x4.jpg",
-        "sha256": "99262e2af1e5ee45ec6d6c4acdeef24c1f88c8fcda555c386530c3bb2485b0e5",
+        "path": "05_Covers_Thumbnails/main/a3f1ea48ca6c4f64869e05fbf5d4f3d1/ESS05-เทียบของเดิม_1_20261113_004612_cover_3x4.jpg",
+        "sha256": "e033ad6b8a3057005cf73851af1e0c152ff172f93e655beaf5f541a9a7dbd1ce",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794505615.9856832,
+    "revision": 2,
+    "updated_at": 1795456349.0555027,
     "source": "auto"
   },
   {
@@ -740,18 +740,18 @@
     "video_path": "04_Exports/Ready_to_post/ESS05-ทริกลึก_1_20261113_004618.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/8650ed5f2e494dd392dd9f8c6b1eb5ba/ESS05-ทริกลึก_1_20261113_004618_cover.jpg",
-        "sha256": "6b09c626e7d770f2be0263999214cd8bee53f5cc9901595d9f9a10f47dc6ca8d",
+        "path": "05_Covers_Thumbnails/main/a0f54664e0054df2b9e44e63361058f0/ESS05-ทริกลึก_1_20261113_004618_cover.jpg",
+        "sha256": "a63466332fa600f01da1c8ac96bd0792aab105354a7dd880331dfadd646cd2fe",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/8650ed5f2e494dd392dd9f8c6b1eb5ba/ESS05-ทริกลึก_1_20261113_004618_cover_3x4.jpg",
-        "sha256": "215b3a323c49c552f488f47c2ce00922219817363c7c0a6709fd755700540cdc",
+        "path": "05_Covers_Thumbnails/main/a0f54664e0054df2b9e44e63361058f0/ESS05-ทริกลึก_1_20261113_004618_cover_3x4.jpg",
+        "sha256": "0ee1521b67a8b09c348995574d784255e291e1340ba316a1f2a3b350709c7852",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794505622.8612034,
+    "revision": 2,
+    "updated_at": 1795456349.852044,
     "source": "auto"
   },
   {
@@ -761,18 +761,18 @@
     "video_path": "04_Exports/Ready_to_post/ESS05-เตือนภัย_1_20261113_004625.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/b212d20462004eada56fba3d9802a3a6/ESS05-เตือนภัย_1_20261113_004625_cover.jpg",
-        "sha256": "fe31d519d0bf918ab38fe2ae04f15feab04c47bd1111ee7a1a6e134259b24500",
+        "path": "05_Covers_Thumbnails/main/61b0278564334d20a9b6a8535d2d1039/ESS05-เตือนภัย_1_20261113_004625_cover.jpg",
+        "sha256": "5fe614375339f7e125c13506e678d00c18937ec02be5fde2cccd146bd98e81a3",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/b212d20462004eada56fba3d9802a3a6/ESS05-เตือนภัย_1_20261113_004625_cover_3x4.jpg",
-        "sha256": "475b68ae5cabf9a412371f218aee504967c67ceff31789706e7ab8c89bb30ac0",
+        "path": "05_Covers_Thumbnails/main/61b0278564334d20a9b6a8535d2d1039/ESS05-เตือนภัย_1_20261113_004625_cover_3x4.jpg",
+        "sha256": "e25709d920e9d246fc923fdfc394422c2bd7924ee57a3b8644f1c736caab2ce9",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794505627.119972,
+    "revision": 2,
+    "updated_at": 1795456350.6612136,
     "source": "auto"
   },
   {
@@ -782,18 +782,18 @@
     "video_path": "04_Exports/Ready_to_post/ESS04-แกะกล่องว้าว_1_20261113_005448.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/208285f84797455d93d9a8a533d1c1cf/ESS04-แกะกล่องว้าว_1_20261113_005448_cover.jpg",
-        "sha256": "923a2f3acb38bebfd7008c4b8dcb99765ea0a41af9a1dd41cbe8939b3411f1d6",
+        "path": "05_Covers_Thumbnails/main/11482a05a3ff4789ad094d2eb7537c71/ESS04-แกะกล่องว้าว_1_20261113_005448_cover.jpg",
+        "sha256": "1cd31445e42840074d48be5b365b23eb6f23749580589bcd17d06d67979d9f5a",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/208285f84797455d93d9a8a533d1c1cf/ESS04-แกะกล่องว้าว_1_20261113_005448_cover_3x4.jpg",
-        "sha256": "9c1c4d6d68877b75db816ea637fcf92927485c33e61e37b14a804bc955cc1920",
+        "path": "05_Covers_Thumbnails/main/11482a05a3ff4789ad094d2eb7537c71/ESS04-แกะกล่องว้าว_1_20261113_005448_cover_3x4.jpg",
+        "sha256": "892d05f9c594244b4c2200ae8cc8974ac4bbed851bd00ca4101939ebcaf90dde",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794506166.8319128,
+    "revision": 2,
+    "updated_at": 1795456351.4618664,
     "source": "auto"
   },
   {
@@ -803,18 +803,18 @@
     "video_path": "04_Exports/Ready_to_post/ESS04-เทียบของเดิม_1_20261113_005451.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/60101bd94603405ead95ca7e678b0aea/ESS04-เทียบของเดิม_1_20261113_005451_cover.jpg",
-        "sha256": "c5a329e84c3e0c71a1ec2504209c63f95a05a67a95d5d1b7450adceb31e4013e",
+        "path": "05_Covers_Thumbnails/main/ef37579e59d5440fbb40c83d30370e47/ESS04-เทียบของเดิม_1_20261113_005451_cover.jpg",
+        "sha256": "71bf36f3d12ec52063271a9292ffdc0fec3cfa4f2ead7c230d8c73a65c54fa4d",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/60101bd94603405ead95ca7e678b0aea/ESS04-เทียบของเดิม_1_20261113_005451_cover_3x4.jpg",
-        "sha256": "7319416b1ef57d418f00e4b65b3954b2391375537979b65b007adeb746a4a806",
+        "path": "05_Covers_Thumbnails/main/ef37579e59d5440fbb40c83d30370e47/ESS04-เทียบของเดิม_1_20261113_005451_cover_3x4.jpg",
+        "sha256": "2ef169e8a30ecc4eb567535a7a829e5109aae690ce63ebb35feef9375645ceda",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794506168.3221638,
+    "revision": 2,
+    "updated_at": 1795456352.265558,
     "source": "auto"
   },
   {
@@ -824,18 +824,18 @@
     "video_path": "04_Exports/Ready_to_post/ESS04-โปรไฟลุก_1_20261113_005451.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/b4c274a0f07f413ea0df8efbd8502ac7/ESS04-โปรไฟลุก_1_20261113_005451_cover.jpg",
-        "sha256": "5249a29c58ee94b93c6a14f94df0806fbe3d5b30f344a00453eb3ade3763c664",
+        "path": "05_Covers_Thumbnails/main/73207dc5f432459294499acf8002f9c1/ESS04-โปรไฟลุก_1_20261113_005451_cover.jpg",
+        "sha256": "80dc7b8c32c7becd319dfa55d062b037f29d711ea00c072c740b9597515d0873",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/b4c274a0f07f413ea0df8efbd8502ac7/ESS04-โปรไฟลุก_1_20261113_005451_cover_3x4.jpg",
-        "sha256": "d3e722b03ebbf3dbcc0fbff4293ad92a483bf90412e441227688c7ea8c742491",
+        "path": "05_Covers_Thumbnails/main/73207dc5f432459294499acf8002f9c1/ESS04-โปรไฟลุก_1_20261113_005451_cover_3x4.jpg",
+        "sha256": "084dece2c74890edb79eaed8ccf53181f242ba49759034cae43a5cebaaa58ad9",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794506169.2060168,
+    "revision": 2,
+    "updated_at": 1795456353.7474992,
     "source": "auto"
   },
   {
@@ -845,18 +845,18 @@
     "video_path": "04_Exports/Ready_to_post/ESS04-ทริกลึก_1_20261113_005452.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/abce3d4062024378affa6b210e668d35/ESS04-ทริกลึก_1_20261113_005452_cover.jpg",
-        "sha256": "c8d6616d59b563edf5c24e126c59a53c236a125698fd94e155bb974b28184801",
+        "path": "05_Covers_Thumbnails/main/e1da1e67ba3143b7b91e79e6add93cfc/ESS04-ทริกลึก_1_20261113_005452_cover.jpg",
+        "sha256": "32c40c909597e934d1bf6abc6421642940702c0488e4ef12d5d757ab8891dec5",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/abce3d4062024378affa6b210e668d35/ESS04-ทริกลึก_1_20261113_005452_cover_3x4.jpg",
-        "sha256": "bd4871f52397267871b5cdea341de8bd76503576e20ebd1fed7e45508a7b2c39",
+        "path": "05_Covers_Thumbnails/main/e1da1e67ba3143b7b91e79e6add93cfc/ESS04-ทริกลึก_1_20261113_005452_cover_3x4.jpg",
+        "sha256": "d5ea831b67cd31bf5e6c5ecdce263be3bd888a4ba41e3c6d28163ff438c24441",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794506172.4808235,
+    "revision": 2,
+    "updated_at": 1795456354.5979092,
     "source": "auto"
   },
   {
@@ -866,18 +866,18 @@
     "video_path": "04_Exports/Ready_to_post/ESS04-เตือนภัย_1_20261113_005615.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/3fcd4c99a51c4cf1a84a3759a5778876/ESS04-เตือนภัย_1_20261113_005615_cover.jpg",
-        "sha256": "c57107a8d6df142c6cee644e9e302de096d1c2fac34fb73d0d2dfdded76f7247",
+        "path": "05_Covers_Thumbnails/main/c015c4b706054e8ba5a73b5884da8af4/ESS04-เตือนภัย_1_20261113_005615_cover.jpg",
+        "sha256": "0abdc11ea5976edb422ddf1edcfc276d2db82c8ae50e1a7c52e9292fb379ccb3",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/3fcd4c99a51c4cf1a84a3759a5778876/ESS04-เตือนภัย_1_20261113_005615_cover_3x4.jpg",
-        "sha256": "c034082f9b44c221ae8931064267e2dadd785308216ca1054855935c87d66738",
+        "path": "05_Covers_Thumbnails/main/c015c4b706054e8ba5a73b5884da8af4/ESS04-เตือนภัย_1_20261113_005615_cover_3x4.jpg",
+        "sha256": "71ad532432d83ad625817d6fbe05b0db104f68361ce2f846440956a1123d6eab",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794506217.4050536,
+    "revision": 2,
+    "updated_at": 1795456355.2673016,
     "source": "auto"
   },
   {
@@ -887,18 +887,18 @@
     "video_path": "04_Exports/Ready_to_post/TRA03-ปัญหาก่อนใช้_1_20261116_235100.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/f97bdb195b744df88de116353e6a8169/TRA03-ปัญหาก่อนใช้_1_20261116_235100_cover.jpg",
-        "sha256": "1bcd46cf2db18dc7022a7907eb2a22df72db2380163688386a344a0afe3068a1",
+        "path": "05_Covers_Thumbnails/main/b8c8be4f89e748b3b5320a6783e948a9/TRA03-ปัญหาก่อนใช้_1_20261116_235100_cover.jpg",
+        "sha256": "3b10289af4ce14db851fa1f65bc5bbc95ec06a5aa22e795234c1fd1c5801fca5",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/f97bdb195b744df88de116353e6a8169/TRA03-ปัญหาก่อนใช้_1_20261116_235100_cover_3x4.jpg",
-        "sha256": "a78bf5e31ebde12ee722a02ae02c4079883c3872aa39872ef6f6568d45ecc613",
+        "path": "05_Covers_Thumbnails/main/b8c8be4f89e748b3b5320a6783e948a9/TRA03-ปัญหาก่อนใช้_1_20261116_235100_cover_3x4.jpg",
+        "sha256": "9b6992647a8f6308816126cce8a6b3c2fe0b6897c6187d23c1200c1e33bdf724",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794847916.8096564,
+    "revision": 2,
+    "updated_at": 1795456356.0825496,
     "source": "auto"
   },
   {
@@ -908,18 +908,18 @@
     "video_path": "04_Exports/Ready_to_post/TRA03-แกะกล่องว้าว_1_20261116_235100.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/f6f1be4e3e9644229d63b8c97ba20725/TRA03-แกะกล่องว้าว_1_20261116_235100_cover.jpg",
-        "sha256": "cbb6948a1970fc5a27daaecc89c828d343c793b2183eeeaf735d4b0126781972",
+        "path": "05_Covers_Thumbnails/main/99aeb95c6fa84e04b6681b11b085420d/TRA03-แกะกล่องว้าว_1_20261116_235100_cover.jpg",
+        "sha256": "2607425ad6170c9d4958ebd892f073c7159177887ab55474b7fed113094df51a",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/f6f1be4e3e9644229d63b8c97ba20725/TRA03-แกะกล่องว้าว_1_20261116_235100_cover_3x4.jpg",
-        "sha256": "dc1b56aa0e29e743bd68f838bcc90d5ca178f120fa3e89ebcb4433df6d790c1e",
+        "path": "05_Covers_Thumbnails/main/99aeb95c6fa84e04b6681b11b085420d/TRA03-แกะกล่องว้าว_1_20261116_235100_cover_3x4.jpg",
+        "sha256": "dceb984b83d3642a7fa1edec9740e6aa3124efc797b9cf16708d9d9e782a11fe",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794847917.6742218,
+    "revision": 2,
+    "updated_at": 1795456356.852657,
     "source": "auto"
   },
   {
@@ -929,18 +929,18 @@
     "video_path": "04_Exports/Ready_to_post/TRA03-รีวิวสเปก_1_20261116_235103.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/4b1f5a26053d4893bb4d8b3ca2449572/TRA03-รีวิวสเปก_1_20261116_235103_cover.jpg",
-        "sha256": "8d3569279dbff9da8abd95cd5c39fd41eda1df8a90b0f983ea970cea4a7333d8",
+        "path": "05_Covers_Thumbnails/main/3fde26ca842b4d07b470c96a38502338/TRA03-รีวิวสเปก_1_20261116_235103_cover.jpg",
+        "sha256": "5745f7e2088c10bc3ad8414c6f31ba7d083692566abc09a3c6c77f0776b90262",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/4b1f5a26053d4893bb4d8b3ca2449572/TRA03-รีวิวสเปก_1_20261116_235103_cover_3x4.jpg",
-        "sha256": "65fb17976810e7337b1a593450da5dfa13d1eac6bc58a0f252edd388e4ca5a75",
+        "path": "05_Covers_Thumbnails/main/3fde26ca842b4d07b470c96a38502338/TRA03-รีวิวสเปก_1_20261116_235103_cover_3x4.jpg",
+        "sha256": "de540ad312325dbaf315217e547777ca8588f1c137ae8b09f8b057cf551bdf4a",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794847922.528704,
+    "revision": 2,
+    "updated_at": 1795456357.648807,
     "source": "auto"
   },
   {
@@ -950,18 +950,18 @@
     "video_path": "04_Exports/Ready_to_post/TRA03-โปรไฟลุก_1_20261116_235104.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/6b0b15267bba4568aa6809d5964a94a0/TRA03-โปรไฟลุก_1_20261116_235104_cover.jpg",
-        "sha256": "855d80bf7f5169cb0cae038d26f606f4de9a408178ace8ac1fa901a34b7a0701",
+        "path": "05_Covers_Thumbnails/main/fc4ee69fb4cd4d9bb66f78731ee1d514/TRA03-โปรไฟลุก_1_20261116_235104_cover.jpg",
+        "sha256": "67faeb1df940739e638086ea84b7c2a3c68c282b228eb76363a94f0e0fba54be",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/6b0b15267bba4568aa6809d5964a94a0/TRA03-โปรไฟลุก_1_20261116_235104_cover_3x4.jpg",
-        "sha256": "b038dd28d13840fa21aa2d176a039ee2bb0c7140c6a4d3a4f60e700c620805e5",
+        "path": "05_Covers_Thumbnails/main/fc4ee69fb4cd4d9bb66f78731ee1d514/TRA03-โปรไฟลุก_1_20261116_235104_cover_3x4.jpg",
+        "sha256": "3c8cb8c0196d9ba1f014ea320d96c96ffe8c86a79d847f167ecf11162606210f",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794847935.950187,
+    "revision": 2,
+    "updated_at": 1795456358.417143,
     "source": "auto"
   },
   {
@@ -971,18 +971,18 @@
     "video_path": "04_Exports/Ready_to_post/TRA03-ทริกลึก_1_20261116_235209.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/942b77b52e1442dbadef6f8f33b30e7a/TRA03-ทริกลึก_1_20261116_235209_cover.jpg",
-        "sha256": "ee2897eef4ff28d186856472297d090f53788d19a82e0126a981a232e61f1b66",
+        "path": "05_Covers_Thumbnails/main/e4a2ee3f6a8d48d997dec0489565db07/TRA03-ทริกลึก_1_20261116_235209_cover.jpg",
+        "sha256": "962cef0d54b9ba1dee7ae4a26c30afa9d63c831c4f8a68d4a0e98e9b1f1ad81e",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/942b77b52e1442dbadef6f8f33b30e7a/TRA03-ทริกลึก_1_20261116_235209_cover_3x4.jpg",
-        "sha256": "5f18966560f9d62fd26ff8bb76f21255fd970c23ca1c259a5283ea8b37e26a42",
+        "path": "05_Covers_Thumbnails/main/e4a2ee3f6a8d48d997dec0489565db07/TRA03-ทริกลึก_1_20261116_235209_cover_3x4.jpg",
+        "sha256": "e1cab0c12cc2e416ac4684f0bfc633bf661aa960639b1619aabbdd582320e048",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794847971.1472635,
+    "revision": 2,
+    "updated_at": 1795456359.1858757,
     "source": "auto"
   },
   {
@@ -992,18 +992,18 @@
     "video_path": "04_Exports/Ready_to_post/TRA03-เทียบของเดิม_1_20261116_235208.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/23668726f9e24eeb904d1fc86a8661ef/TRA03-เทียบของเดิม_1_20261116_235208_cover.jpg",
-        "sha256": "a84d2403b2242442f5917e40a1c8b804acaf0c855c546856ff48641f3ee9c08b",
+        "path": "05_Covers_Thumbnails/main/c3f3ee8aff73463fbdadc47294533889/TRA03-เทียบของเดิม_1_20261116_235208_cover.jpg",
+        "sha256": "f49faacec3d00bd2f9c325cf810c02247061349f0431320daae0e554a36d4499",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/23668726f9e24eeb904d1fc86a8661ef/TRA03-เทียบของเดิม_1_20261116_235208_cover_3x4.jpg",
-        "sha256": "6459acd74f9afffde6e7e11a4129c3a5e045c8916aa0674485d214ec1dfb1c98",
+        "path": "05_Covers_Thumbnails/main/c3f3ee8aff73463fbdadc47294533889/TRA03-เทียบของเดิม_1_20261116_235208_cover_3x4.jpg",
+        "sha256": "4d7f6b5704fc26de1d70308503c677d9dc054e11e27b1527841295bc00ea31ec",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794847972.060172,
+    "revision": 2,
+    "updated_at": 1795456360.0234797,
     "source": "auto"
   },
   {
@@ -1013,18 +1013,18 @@
     "video_path": "04_Exports/Ready_to_post/TRA03-เตือนภัย_1_20261116_235215.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/c6224228f4cd4948b63bebf88fd87cda/TRA03-เตือนภัย_1_20261116_235215_cover.jpg",
-        "sha256": "fb686b465fd13d2590b2ea096d4853a4d3f494b877d7785750332255cc683d70",
+        "path": "05_Covers_Thumbnails/main/5188db302a9e4ab4897bb5042980e530/TRA03-เตือนภัย_1_20261116_235215_cover.jpg",
+        "sha256": "65b072290e8c93426bb8918d54c83a6b19949c27fe425850aaf14ecfe39da7f1",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/c6224228f4cd4948b63bebf88fd87cda/TRA03-เตือนภัย_1_20261116_235215_cover_3x4.jpg",
-        "sha256": "43fa771cd793185bc6bad0ae3f1d8932c3b318748a5d038acb37ffee49dfa936",
+        "path": "05_Covers_Thumbnails/main/5188db302a9e4ab4897bb5042980e530/TRA03-เตือนภัย_1_20261116_235215_cover_3x4.jpg",
+        "sha256": "afe120f2c4aaeee3265cd818da48a166eed871249b292c557647910a99a0113c",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794847979.8226311,
+    "revision": 2,
+    "updated_at": 1795456360.73239,
     "source": "auto"
   },
   {
@@ -1034,18 +1034,18 @@
     "video_path": "04_Exports/Ready_to_post/TRA02-รีวิวสเปก_1_20261116_235842.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/0fc968ec42ae4fe1839fe8dbb20b8cee/TRA02-รีวิวสเปก_1_20261116_235842_cover.jpg",
-        "sha256": "3ac3b069e65336e00646e97151adb1baced04b260d9f9738f32250d7b3a0ce15",
+        "path": "05_Covers_Thumbnails/main/d52b5eafb5e5495abb83508e54f285e4/TRA02-รีวิวสเปก_1_20261116_235842_cover.jpg",
+        "sha256": "0335cf5469dc87ed39398de00f4f6844a639501860b8a864bfdc1f9a4df91dd4",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/0fc968ec42ae4fe1839fe8dbb20b8cee/TRA02-รีวิวสเปก_1_20261116_235842_cover_3x4.jpg",
-        "sha256": "7d5006a0770f68189df56ecc5a270298b72546d8f5f1438f831d2917731b41ea",
+        "path": "05_Covers_Thumbnails/main/d52b5eafb5e5495abb83508e54f285e4/TRA02-รีวิวสเปก_1_20261116_235842_cover_3x4.jpg",
+        "sha256": "3db8cee2ad14ef65470223850574b95f9f07ac899c53ec40d42492adac6896e9",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794848363.796802,
+    "revision": 2,
+    "updated_at": 1795456361.6745617,
     "source": "auto"
   },
   {
@@ -1055,18 +1055,18 @@
     "video_path": "04_Exports/Ready_to_post/TRA02-ปัญหาก่อนใช้_1_20261116_235838.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/630640dc7d15410598701c074c91846e/TRA02-ปัญหาก่อนใช้_1_20261116_235838_cover.jpg",
-        "sha256": "8e70d57ed1f099823331fa614b70f37a2b289d6cd2287f1a8b062b972394d4e0",
+        "path": "05_Covers_Thumbnails/main/01bfbb5a49e64b1a8dbca3f88230df5a/TRA02-ปัญหาก่อนใช้_1_20261116_235838_cover.jpg",
+        "sha256": "b275c7f85c147f815c14a9ab389424094d1330ce5a9a9c9b0a570910de9c700a",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/630640dc7d15410598701c074c91846e/TRA02-ปัญหาก่อนใช้_1_20261116_235838_cover_3x4.jpg",
-        "sha256": "f930f420728decb3732527ae3eddf087b981a053c0b2247b86ec22cd49e36d3e",
+        "path": "05_Covers_Thumbnails/main/01bfbb5a49e64b1a8dbca3f88230df5a/TRA02-ปัญหาก่อนใช้_1_20261116_235838_cover_3x4.jpg",
+        "sha256": "417d180ebb0e327b1b2db93c06a752e34dedb9e5a76f01e03dcdf3cc5fc4677a",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794848372.1700299,
+    "revision": 2,
+    "updated_at": 1795456362.5603573,
     "source": "auto"
   },
   {
@@ -1076,18 +1076,18 @@
     "video_path": "04_Exports/Ready_to_post/TRA02-แกะกล่องว้าว_1_20261116_235841.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/3b665ef7d6fa4c42a08499b3d637c494/TRA02-แกะกล่องว้าว_1_20261116_235841_cover.jpg",
-        "sha256": "ec1e30415b45e55203e8a329c0eb9bb07830edb433f5bb5124b083f8a749dd50",
+        "path": "05_Covers_Thumbnails/main/581a04c887b74e5a83ac3de7e09508a5/TRA02-แกะกล่องว้าว_1_20261116_235841_cover.jpg",
+        "sha256": "65925c118a6962b3c7e019298ed0cb312d8a0ee4e57340c37d995af2aff7aa8b",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/3b665ef7d6fa4c42a08499b3d637c494/TRA02-แกะกล่องว้าว_1_20261116_235841_cover_3x4.jpg",
-        "sha256": "30e17150bcbcc3cd4ccd9d1455a6141b219a37e967c1ed01421012cff921b1f8",
+        "path": "05_Covers_Thumbnails/main/581a04c887b74e5a83ac3de7e09508a5/TRA02-แกะกล่องว้าว_1_20261116_235841_cover_3x4.jpg",
+        "sha256": "fec18fe2dcb4540d0ca5e4d803a239189862e44045e103c42b98f07287f1e0f4",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794848374.5084958,
+    "revision": 2,
+    "updated_at": 1795456363.41083,
     "source": "auto"
   },
   {
@@ -1097,18 +1097,774 @@
     "video_path": "04_Exports/Ready_to_post/TRA02-โปรไฟลุก_1_20261116_235842.mp4",
     "selections": {
       "9:16": {
-        "path": "05_Covers_Thumbnails/main/b9d7574dd6a242adaa6d4eee223c1b65/TRA02-โปรไฟลุก_1_20261116_235842_cover.jpg",
-        "sha256": "b3d4eebe4d2526141bcd8ce53779a3d8635efd4afb431ce6feeb80af7cda5a64",
+        "path": "05_Covers_Thumbnails/main/1046ef0b4bd9412e90ec693d3aee3ce5/TRA02-โปรไฟลุก_1_20261116_235842_cover.jpg",
+        "sha256": "e7ad8e55a4a95d125239ce0552b2e5b261f94e4b9d924d7242438f0cbb8c1256",
         "format": "9:16"
       },
       "3:4": {
-        "path": "05_Covers_Thumbnails/main/b9d7574dd6a242adaa6d4eee223c1b65/TRA02-โปรไฟลุก_1_20261116_235842_cover_3x4.jpg",
-        "sha256": "3754446221513a92c79e0b0d3deece929317a1e55bb44ed2976b06839da6e842",
+        "path": "05_Covers_Thumbnails/main/1046ef0b4bd9412e90ec693d3aee3ce5/TRA02-โปรไฟลุก_1_20261116_235842_cover_3x4.jpg",
+        "sha256": "a913ef85bfc9ba14905fa9939a1f41cbcf001060e90eca56338c3c83a8d99aa5",
         "format": "3:4"
       }
     },
-    "revision": 1,
-    "updated_at": 1794848383.8376484,
+    "revision": 2,
+    "updated_at": 1795456364.2983856,
+    "source": "auto"
+  },
+  {
+    "id": "cover_75fb0c680dee76b59c6657ace28dc97aee04d96e7fe37995e25fe3d5f2cf7497",
+    "channel_id": "main",
+    "export_id": "exp_019ea4a718aa422f914e52f889097047",
+    "video_path": "04_Exports/Ready_to_post/BUD01-รีวิวสเปก_1_20261117_200331.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/2c96450606674db8a29d7305a6474cfd/BUD01-รีวิวสเปก_1_20261117_200331_cover.jpg",
+        "sha256": "df29d868e02ce555cc9445e0f247843ec771208f3c7ff677cd2af6b6e82f2516",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/2c96450606674db8a29d7305a6474cfd/BUD01-รีวิวสเปก_1_20261117_200331_cover_3x4.jpg",
+        "sha256": "7a8fc961f7205d95e39a894b98de60b0c4a98244ce8995e478c702665c9d67e0",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456365.1177363,
+    "source": "auto"
+  },
+  {
+    "id": "cover_86faf13e4e614813952a8f46f0ef8cbb0c34dccd2a648015064afa82478de85c",
+    "channel_id": "main",
+    "export_id": "exp_7e993ce3d6fa4e42a4397e12478265f7",
+    "video_path": "04_Exports/Ready_to_post/BUD01-ปัญหาก่อนใช้_1_20261117_200331.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/9a7a517927cf44f9817bb76200725462/BUD01-ปัญหาก่อนใช้_1_20261117_200331_cover.jpg",
+        "sha256": "e777bd6480d700afabd670fc5b5d7ed9dc775163de055b6b9f868c66d196f1ec",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/9a7a517927cf44f9817bb76200725462/BUD01-ปัญหาก่อนใช้_1_20261117_200331_cover_3x4.jpg",
+        "sha256": "f8c8857717ebcab564b6f5b07feb9f748e14ec7eab90687d974db86f29538990",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456365.9892275,
+    "source": "auto"
+  },
+  {
+    "id": "cover_7e99a5d40703a938903af1e2d5b61e36a73dfa95d416ef6e0809590939339b24",
+    "channel_id": "main",
+    "export_id": "exp_5d98fcf2b62b4349bd924384cb72ec10",
+    "video_path": "04_Exports/Ready_to_post/BUD01-แกะกล่องว้าว_1_20261117_200331.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/695c83e4627744aa9df26035c415d0f1/BUD01-แกะกล่องว้าว_1_20261117_200331_cover.jpg",
+        "sha256": "a8e30210b4e5e288559ab5b34db442ec604c6d90ab6d23a9f0b2db5bcc6a0c2f",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/695c83e4627744aa9df26035c415d0f1/BUD01-แกะกล่องว้าว_1_20261117_200331_cover_3x4.jpg",
+        "sha256": "52950cd900a2b66f4d2546258105d6472e524cbe723d471468ff2dc65704fd8c",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456366.836269,
+    "source": "auto"
+  },
+  {
+    "id": "cover_9b71ec6ac7aaf0598aacf0703e581e4dfee046420aefdf275a89a79a674dbf9d",
+    "channel_id": "main",
+    "export_id": "exp_443600485ddf4db2abe92a387a0e4ade",
+    "video_path": "04_Exports/Ready_to_post/MEM01-รีวิวสเปก_1_20261117_200554.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/4beadf021194478eaf07cc3bb11c7064/MEM01-รีวิวสเปก_1_20261117_200554_cover.jpg",
+        "sha256": "7563b6156a6adbb107150d4a6ebb18f3b35fc2a7f4da7213b89877c6ce085316",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/4beadf021194478eaf07cc3bb11c7064/MEM01-รีวิวสเปก_1_20261117_200554_cover_3x4.jpg",
+        "sha256": "6f010753e736dadb193473832f7400d7df54dd09dd93f41c194593f9be8e9ae5",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456367.7854617,
+    "source": "auto"
+  },
+  {
+    "id": "cover_fd82f9314a3729ecb390db4d680b1e699b866c7efa81b7d810c53bb7f2c204c5",
+    "channel_id": "main",
+    "export_id": "exp_ee4945e0270742128c5dada977950d90",
+    "video_path": "04_Exports/Ready_to_post/MEM01-ปัญหาก่อนใช้_1_20261117_200634.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/d592a8ec85f24f3e8c1ab225c0835969/MEM01-ปัญหาก่อนใช้_1_20261117_200634_cover.jpg",
+        "sha256": "327ff3c9eac8b2f34ca7d5c24460ab2f1e7a4816253e1fcb6b495084ea7058c3",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/d592a8ec85f24f3e8c1ab225c0835969/MEM01-ปัญหาก่อนใช้_1_20261117_200634_cover_3x4.jpg",
+        "sha256": "c97a12d5c30ef9f16a095bb56dd6562212c30652202cf7051a9b88430651f1aa",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456368.6149988,
+    "source": "auto"
+  },
+  {
+    "id": "cover_5a37c25bcf185e3ecd62b69dc5463aa6e824977d85bc24453c2a5774fea8595e",
+    "channel_id": "main",
+    "export_id": "exp_a2067ecfd1594b5e9ae8fc3ff879fc5a",
+    "video_path": "04_Exports/Ready_to_post/MEM01-แกะกล่องว้าว_1_20261117_200654.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/2204975ba0d24570b6767c0b1623fda7/MEM01-แกะกล่องว้าว_1_20261117_200654_cover.jpg",
+        "sha256": "bd2191a0c7cdf3f3d169496364761748b3522a6a0503b33705c8d40be613fd86",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/2204975ba0d24570b6767c0b1623fda7/MEM01-แกะกล่องว้าว_1_20261117_200654_cover_3x4.jpg",
+        "sha256": "b770b7692ce4dd94607158fae650ccf4fd1f00845cab664ff9c3859e1050aff1",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456369.5095599,
+    "source": "auto"
+  },
+  {
+    "id": "cover_7a5a583497037a8835df78e6150d7c33f23b84184a66dcefe9635475da55e7bc",
+    "channel_id": "main",
+    "export_id": "exp_e6f36052b2014edb9b662534c57f10bf",
+    "video_path": "04_Exports/Ready_to_post/MEM01-โปรไฟลุก_1_20261117_200651.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/04118ea7497a433aaf4352db8fa27fd2/MEM01-โปรไฟลุก_1_20261117_200651_cover.jpg",
+        "sha256": "10a80ea2d48f1611929dc756af3c0f8bb53d4ec9014fb382d4708fce4b92cc36",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/04118ea7497a433aaf4352db8fa27fd2/MEM01-โปรไฟลุก_1_20261117_200651_cover_3x4.jpg",
+        "sha256": "94405c7083914b66b3840b88a00e4c29f0e3e44f033a89a7fcc0e743efd2c71d",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456370.328354,
+    "source": "auto"
+  },
+  {
+    "id": "cover_5a2d7e9fc71a06558886be37001a8e6dbb53d2e63fe207744b95d27080b30e07",
+    "channel_id": "main",
+    "export_id": "exp_2ec953c9406e4b909c3c6fc5a9313372",
+    "video_path": "04_Exports/Ready_to_post/ESS08-ปัญหาก่อนใช้_1_20261117_200816.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/bf1a9328d8bb467a8f82e44e9f98cc1d/ESS08-ปัญหาก่อนใช้_1_20261117_200816_cover.jpg",
+        "sha256": "ff98f43b68bafe518f7306c576914a49b35557950b1488509f48e9bcfd4415b9",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/bf1a9328d8bb467a8f82e44e9f98cc1d/ESS08-ปัญหาก่อนใช้_1_20261117_200816_cover_3x4.jpg",
+        "sha256": "f3285ba2dde78cd0c78a7874a351da28fde7e3e5a231c0b710577f63c7c3d91c",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456371.1419487,
+    "source": "auto"
+  },
+  {
+    "id": "cover_11121351eea91b7fa6d390076fb29936134bdaf244bec46c9a5d025a85812823",
+    "channel_id": "main",
+    "export_id": "exp_06ad3f00e068415286f0e9936284586b",
+    "video_path": "04_Exports/Ready_to_post/ESS08-รีวิวสเปก_1_20261117_200813.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/063569a2d520499fbf69a2d206ca3cee/ESS08-รีวิวสเปก_1_20261117_200813_cover.jpg",
+        "sha256": "325609a6c7fdb4977ce849fb102235f69813ab3f44527010132439fb4f7c2d4f",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/063569a2d520499fbf69a2d206ca3cee/ESS08-รีวิวสเปก_1_20261117_200813_cover_3x4.jpg",
+        "sha256": "c224a28d5ba309f6b4e099a77b0387124faa7c9b3899480d67fca3a2ef18f27a",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456372.0344963,
+    "source": "auto"
+  },
+  {
+    "id": "cover_b523e067693e57f8908d29c21269ce5ee19dd1cb1b214934f26701c84270aef0",
+    "channel_id": "main",
+    "export_id": "exp_a6b0d8ac83c6488fa80b0f7922111275",
+    "video_path": "04_Exports/Ready_to_post/ESS08-แกะกล่องว้าว_1_20261117_200813.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/f8822fe823844eecb5af01c4ddddedff/ESS08-แกะกล่องว้าว_1_20261117_200813_cover.jpg",
+        "sha256": "124afa1659fa2580092c9f6f8956c3c40a0d4a0adefd8e001972418bf0cf7bab",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/f8822fe823844eecb5af01c4ddddedff/ESS08-แกะกล่องว้าว_1_20261117_200813_cover_3x4.jpg",
+        "sha256": "c6883412b0d8d53494b8f36f4a36f40e325a113653b6e86f373b0a5a46013a47",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456372.8227558,
+    "source": "auto"
+  },
+  {
+    "id": "cover_457fc339d9b530cb2b5a38701be577a45d4ad6bc199d0dcb6052e5c0608cef6f",
+    "channel_id": "main",
+    "export_id": "exp_572ff97158424054810685f97d318d0e",
+    "video_path": "04_Exports/Ready_to_post/ESS08-โปรไฟลุก_1_20261117_200817.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/3dd537ca2ecd42efb6f3e21a82644cd4/ESS08-โปรไฟลุก_1_20261117_200817_cover.jpg",
+        "sha256": "4e91d240b0e07824c162cfb6cab8e0cf9089cdb31b9847ab35d20bb95094aa30",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/3dd537ca2ecd42efb6f3e21a82644cd4/ESS08-โปรไฟลุก_1_20261117_200817_cover_3x4.jpg",
+        "sha256": "e8235056aeae95c18e87fb9afc13f792cf8453290c151cf59bd1a84bc025f872",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456373.686058,
+    "source": "auto"
+  },
+  {
+    "id": "cover_c0f5d35075983784d162875d1b7044da1ba508fa07fac0f1c88e70bf5ac0908f",
+    "channel_id": "main",
+    "export_id": "exp_c2ad7f8127da4c829efea206fce6a561",
+    "video_path": "04_Exports/Ready_to_post/ESS08-ทริกลึก_1_20261117_200917.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/cd7deb949c0a477da9f61a2e959f52b7/ESS08-ทริกลึก_1_20261117_200917_cover.jpg",
+        "sha256": "168be9a678f7536754c95966660bfb6d35530f288ede09b31049d1346d4cfef8",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/cd7deb949c0a477da9f61a2e959f52b7/ESS08-ทริกลึก_1_20261117_200917_cover_3x4.jpg",
+        "sha256": "042169d29f27f5724d42349f428035e08cf7ae5dcb3933ad46636a7d6c526e2b",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456374.502783,
+    "source": "auto"
+  },
+  {
+    "id": "cover_cd32f85c02a52c499b1ec330de3a78596ca4d3e636e4dc3f63557854a546b965",
+    "channel_id": "main",
+    "export_id": "exp_101c96d472a444ae9a4e9c445fd97ae6",
+    "video_path": "04_Exports/Ready_to_post/ESS08-เตือนภัย_1_20261117_200932.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/9dcc9a559757493ea166a4b71674e9cd/ESS08-เตือนภัย_1_20261117_200932_cover.jpg",
+        "sha256": "ff7412e6092f27258c807c926627383cb005dcf587dc0e2f7aafc9956c4d1c63",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/9dcc9a559757493ea166a4b71674e9cd/ESS08-เตือนภัย_1_20261117_200932_cover_3x4.jpg",
+        "sha256": "3e3668dfeabea22d01df797ee2b6ab03f667de236041373df4ddf7bead6d7f39",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456375.3239732,
+    "source": "auto"
+  },
+  {
+    "id": "cover_9caa3485bf123db5a8433ce00ae4034d065430b6810b17ee7e3376c1b74ef7b3",
+    "channel_id": "main",
+    "export_id": "exp_1c7451e1dd744d11a1f5b1b53b35927c",
+    "video_path": "04_Exports/Ready_to_post/ESS08-เทียบของเดิม_1_20261117_200935.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/fcb492be9e4a447a89f21b835881a51e/ESS08-เทียบของเดิม_1_20261117_200935_cover.jpg",
+        "sha256": "7d37326712c0992a29069bbfc779a4223841e346343be046a3fa8db59ffdb5bc",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/fcb492be9e4a447a89f21b835881a51e/ESS08-เทียบของเดิม_1_20261117_200935_cover_3x4.jpg",
+        "sha256": "0e7bf17a2c5a138ddb9d5eaba7122e575758a1a04ce437316d83c43c0f29dfe0",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456376.137253,
+    "source": "auto"
+  },
+  {
+    "id": "cover_22d042d9e33ce8bec78562c20104b5a674bddb360d043efe9fef5322e4b4ed76",
+    "channel_id": "main",
+    "export_id": "exp_620901b1d9204a0d8f3128576c9128be",
+    "video_path": "04_Exports/Ready_to_post/BUD01-โปรไฟลุก_1_20261117_210149.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/76e62f14e0ba42218defe2fb1603c472/BUD01-โปรไฟลุก_1_20261117_210149_cover.jpg",
+        "sha256": "c36bd3eba2c21efe9d0fc88034aa874f086094a9b4730467f1ba1992ebca577a",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/76e62f14e0ba42218defe2fb1603c472/BUD01-โปรไฟลุก_1_20261117_210149_cover_3x4.jpg",
+        "sha256": "3b69a4000555a5f680d3b4b20636657ed2f95b0814982d00a46a8e817b94ec7c",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456376.9808183,
+    "source": "auto"
+  },
+  {
+    "id": "cover_6f326c0f2d69fe30fd5b3aacbab68d49df0fcaa01e06f9b249bef4ef81fa3d59",
+    "channel_id": "main",
+    "export_id": "exp_137949943b2f417eb5a454fa36ff27eb",
+    "video_path": "04_Exports/Ready_to_post/OKD01-ปัญหาก่อนใช้_1_20261117_211237.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/f840ea9c2d534c1cb22950b559a38cfb/OKD01-ปัญหาก่อนใช้_1_20261117_211237_cover.jpg",
+        "sha256": "f618ebaf627ff5e7ae6520c326c97b847f7de8f43894dc51717de70005545ba8",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/f840ea9c2d534c1cb22950b559a38cfb/OKD01-ปัญหาก่อนใช้_1_20261117_211237_cover_3x4.jpg",
+        "sha256": "6fb4dbb8a6f1f88321e5c9feaec70b5febda9104932c308606edb2618150658c",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456377.9170735,
+    "source": "auto"
+  },
+  {
+    "id": "cover_362bbf46f4f5d49b8808372ce21566df02fdf0c2ce5b60ba92cf505f7fda4888",
+    "channel_id": "main",
+    "export_id": "exp_6592d856d22e4b1a8dd69a9ae97c0e6e",
+    "video_path": "04_Exports/Ready_to_post/OKD01-แกะกล่องว้าว_1_20261117_211240.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/0909846896014db78a49d6cc00d6aef3/OKD01-แกะกล่องว้าว_1_20261117_211240_cover.jpg",
+        "sha256": "f72339ebfcdd5ebd828240403c978da4d797fba133a67d7672f1314f6c03e4b1",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/0909846896014db78a49d6cc00d6aef3/OKD01-แกะกล่องว้าว_1_20261117_211240_cover_3x4.jpg",
+        "sha256": "e3983e26a0973feba99e0c8a1deb66be1177ea4194aab5bb231ed6c0923b4578",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456378.789528,
+    "source": "auto"
+  },
+  {
+    "id": "cover_8f5077411f7356f79e4162ecaba71ed85ab938c40101863a11fdba7def02a305",
+    "channel_id": "main",
+    "export_id": "exp_1f9fc962115e4b2f99f674aefe94c017",
+    "video_path": "04_Exports/Ready_to_post/OKD01-รีวิวสเปก_1_20261117_211247.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/a67b35d1bf0240a3bbe34d5ad87e7b4b/OKD01-รีวิวสเปก_1_20261117_211247_cover.jpg",
+        "sha256": "292143e7c797cc9f7e296f889223de39d6957caf27326869f6f6bc37e3563940",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/a67b35d1bf0240a3bbe34d5ad87e7b4b/OKD01-รีวิวสเปก_1_20261117_211247_cover_3x4.jpg",
+        "sha256": "589e12622a61084a66ff8c346aab3a76170b0bee6d4da637f7b51c6369bb98b9",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456379.7170992,
+    "source": "auto"
+  },
+  {
+    "id": "cover_10aeae42fd859a17fd7d293592619f081a563de975c5e02a8fdd93917e53d1c5",
+    "channel_id": "main",
+    "export_id": "exp_87941f5f1d1d44f38da888862d888b88",
+    "video_path": "04_Exports/Ready_to_post/OKD01-โปรไฟลุก_1_20261117_211341.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/e746f6448f104722a16aeba285278820/OKD01-โปรไฟลุก_1_20261117_211341_cover.jpg",
+        "sha256": "cb698bb5e65cca8583c0be8b92fce50ba39f59fced65783a40282bfa4ef9075d",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/e746f6448f104722a16aeba285278820/OKD01-โปรไฟลุก_1_20261117_211341_cover_3x4.jpg",
+        "sha256": "6cc6df6ca24c850fdaac71784b7384c00daffee9a5f16d4871da497b139c9533",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456380.6430051,
+    "source": "auto"
+  },
+  {
+    "id": "cover_9af292de820c76f7543a77a76db9b585b267c690af8c873eb1435cbf4c379525",
+    "channel_id": "main",
+    "export_id": "exp_e18b20db7fd8433fb2163200e83030de",
+    "video_path": "04_Exports/Ready_to_post/OKD01-เทียบของเดิม_1_20261117_211403.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/343d20c3f1b74bf0b926ddd40e665433/OKD01-เทียบของเดิม_1_20261117_211403_cover.jpg",
+        "sha256": "0f40346fd404689c87feaf5449c9accf211a0c6ff607fdd9ccb995224c75b061",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/343d20c3f1b74bf0b926ddd40e665433/OKD01-เทียบของเดิม_1_20261117_211403_cover_3x4.jpg",
+        "sha256": "b10ee647efe534505a797d4ee4be75ccef6a52a9bdcd800a7ab054f9d40df585",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456381.6040092,
+    "source": "auto"
+  },
+  {
+    "id": "cover_ba4897d13ee515ae516da894ebc9959c3eb76d4bcaf69fa0f87d881a7312512a",
+    "channel_id": "main",
+    "export_id": "exp_b2bea2dfe36940f68bd8700c2213b286",
+    "video_path": "04_Exports/Ready_to_post/OKD01-ทริกลึก_1_20261117_211431.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/7728e1261540402c8893a4ff847687f1/OKD01-ทริกลึก_1_20261117_211431_cover.jpg",
+        "sha256": "93fc9b6cdf1aebb084ee6f8274c2f39c9e988d404dbded7126b4e6867efced3e",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/7728e1261540402c8893a4ff847687f1/OKD01-ทริกลึก_1_20261117_211431_cover_3x4.jpg",
+        "sha256": "6c820ba4637b6893239c27c4f8c2f81570eca244031d26b1cdabecd8a2557e0b",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456382.4291635,
+    "source": "auto"
+  },
+  {
+    "id": "cover_5f6154b89da984bb009fb4b1155bfe6422ab7f096f8232ff6796e1ddff0a1710",
+    "channel_id": "main",
+    "export_id": "exp_275200c3d312448d9628ba6d34547bdb",
+    "video_path": "04_Exports/Ready_to_post/OKD01-เตือนภัย_1_20261117_211457.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/9c12852c0cc14c21936988a36097384b/OKD01-เตือนภัย_1_20261117_211457_cover.jpg",
+        "sha256": "3ab38b6e5cbd40f27a135b906406ef46fc58e1e478f7f69bb92ab4ee72dbd337",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/9c12852c0cc14c21936988a36097384b/OKD01-เตือนภัย_1_20261117_211457_cover_3x4.jpg",
+        "sha256": "f56545ff355c486a904ed6005732ffa9b4157c4f972e215bf7a8de49964e9cf3",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456383.6785367,
+    "source": "auto"
+  },
+  {
+    "id": "cover_dcf1455e9b05f450fb7e1a3c6014a4582c500c82d04e9af5ae008c12612c691f",
+    "channel_id": "main",
+    "export_id": "exp_9b9396e9f67348cf9deff53efb7c3c6e",
+    "video_path": "04_Exports/Ready_to_post/OKD01-คำนวณคุ้มค่า_1_20261117_211636.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/0a6ce24764d143ca9b8102c4f76fc472/OKD01-คำนวณคุ้มค่า_1_20261117_211636_cover.jpg",
+        "sha256": "d96d34b9df679fecd88a1e1dd7c6eeb3e3c86aa296d1983d90f821cd91bc9a89",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/0a6ce24764d143ca9b8102c4f76fc472/OKD01-คำนวณคุ้มค่า_1_20261117_211636_cover_3x4.jpg",
+        "sha256": "da44b3dbe5ea44566baa1dc10182e611958ff4e5d1492888998ae94fdc9af70b",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456384.5619285,
+    "source": "auto"
+  },
+  {
+    "id": "cover_9cdbe29adcaae65a58fc60cde9aef6c3328c2dcae5c388e09fc65cd8ed8bd475",
+    "channel_id": "main",
+    "export_id": "exp_bb283952e7754baf8adccad7602d5b88",
+    "video_path": "04_Exports/Ready_to_post/HOC01-เทียบของเดิม_1_20261117_211638.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/84c031a695eb4e0fa26f5ddb0b5d4729/HOC01-เทียบของเดิม_1_20261117_211638_cover.jpg",
+        "sha256": "0cef74c5e19736fb03d3e12df3a191f91a2674f0f841cf5a380db3ef17256792",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/84c031a695eb4e0fa26f5ddb0b5d4729/HOC01-เทียบของเดิม_1_20261117_211638_cover_3x4.jpg",
+        "sha256": "95087afec3e71d37cd8af9180a9334069ae2e471a2c2db0a298db891cc92787a",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456385.3482857,
+    "source": "auto"
+  },
+  {
+    "id": "cover_ea3fbb91cbbb0c9edc9d0b54c14f145958d5aa2e6003971cb22bd37ea1f93dd4",
+    "channel_id": "main",
+    "export_id": "exp_e0ce0241870f44909f5901f972328ef1",
+    "video_path": "04_Exports/Ready_to_post/HOC01-แกะกล่องว้าว_1_20261117_211651.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/0cff2fea58f64dd790914e9cf9072dae/HOC01-แกะกล่องว้าว_1_20261117_211651_cover.jpg",
+        "sha256": "d2915e6ed6dfc6e1bd0b84d51ad51a2e2caf7ec8939d7b54a55af06e3dce5679",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/0cff2fea58f64dd790914e9cf9072dae/HOC01-แกะกล่องว้าว_1_20261117_211651_cover_3x4.jpg",
+        "sha256": "dc5f838f14dce3ebb7890b49b6fc365dfc15d7f3af7c2252d5da7a6f6576282c",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456386.1540115,
+    "source": "auto"
+  },
+  {
+    "id": "cover_4bd2bcd0ac7de4e77e536c5013871b36f8f2275855cc0209c7a5bbc829503057",
+    "channel_id": "main",
+    "export_id": "exp_61db377382ff4a0e8be541238ee804ae",
+    "video_path": "04_Exports/Ready_to_post/OKD01-รีวิวใช้จริง_1_20261117_211654.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/2aa4f5baebab4901afd439c422cd1e1f/OKD01-รีวิวใช้จริง_1_20261117_211654_cover.jpg",
+        "sha256": "80c2b0e98917a80560842f0cd741f57f6a5adea75fa7a36342a6d7c65720bb60",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/2aa4f5baebab4901afd439c422cd1e1f/OKD01-รีวิวใช้จริง_1_20261117_211654_cover_3x4.jpg",
+        "sha256": "1d1ed398486209db7de1ec19980b8a6293f5ceaabca5fe59bceb41cad568d094",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456387.0666912,
+    "source": "auto"
+  },
+  {
+    "id": "cover_fefa8bcb49450943bc974e764ade5b3a6226607572dd05083eaceb55055e2c0c",
+    "channel_id": "main",
+    "export_id": "exp_35390dd89ea54fd9b56db6378f5fa553",
+    "video_path": "04_Exports/Ready_to_post/HOC01-โปรไฟลุก_1_20261117_211709.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/e64ef5bcc18c48928e10b06e0b3d7f8b/HOC01-โปรไฟลุก_1_20261117_211709_cover.jpg",
+        "sha256": "a85ed149ae80906c19f0b2b4b71d1a8539be9961d62dbd8112fd0401701aab66",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/e64ef5bcc18c48928e10b06e0b3d7f8b/HOC01-โปรไฟลุก_1_20261117_211709_cover_3x4.jpg",
+        "sha256": "a22dbd3bbc884fc5d80d706f9922eef2d0c92a473329011b8f162a2ad4bae407",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456387.8718438,
+    "source": "auto"
+  },
+  {
+    "id": "cover_15ecb4896805771f5612fbebad3428c03f11558153b129c72e255d99351d778a",
+    "channel_id": "main",
+    "export_id": "exp_ed28c53301724687bbaeb04b5c616d65",
+    "video_path": "04_Exports/Ready_to_post/TYP01-รีวิวสเปก_1_20261117_211748.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/5d9981abe2504810bf7a9de424897bf8/TYP01-รีวิวสเปก_1_20261117_211748_cover.jpg",
+        "sha256": "928e5c9094a81fadc7b4f273006917e42db6c9a228686c3fe5e5d4b28c998370",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/5d9981abe2504810bf7a9de424897bf8/TYP01-รีวิวสเปก_1_20261117_211748_cover_3x4.jpg",
+        "sha256": "15b2f73051b076e73497cedd8f71cb49a58ad05a67a2c8b30b4641d73d572ca9",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456388.6826649,
+    "source": "auto"
+  },
+  {
+    "id": "cover_64ab0a5ed23aee173f63fa6abd33419dd4dfb50070ad236242ee0a285fd5a7de",
+    "channel_id": "main",
+    "export_id": "exp_91aa21e2f97844acb41aee3871df02f5",
+    "video_path": "04_Exports/Ready_to_post/HOC01-ปัญหาก่อนใช้_1_20261117_211725.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/c65107744f294681ae97b66ee7821ce7/HOC01-ปัญหาก่อนใช้_1_20261117_211725_cover.jpg",
+        "sha256": "763ea2228bb76a223fb6a3bc6e7b4abb29711e11116362e9bd996d45522eadb3",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/c65107744f294681ae97b66ee7821ce7/HOC01-ปัญหาก่อนใช้_1_20261117_211725_cover_3x4.jpg",
+        "sha256": "0bcd2978140c6b565f7d00df8ae798324283731e7442cba20288c88416fd43d6",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456389.4347463,
+    "source": "auto"
+  },
+  {
+    "id": "cover_01d0172a88f5c5d928f3cd7b2156646a09730b576a131bf44182b5c7d3c129fe",
+    "channel_id": "main",
+    "export_id": "exp_1e0faf2326064bcbb8b677a69e713476",
+    "video_path": "04_Exports/Ready_to_post/HOC01-ทริกลึก_1_20261117_211806.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/2b24381a912346bf93b36e188d678105/HOC01-ทริกลึก_1_20261117_211806_cover.jpg",
+        "sha256": "58866c6e75f597aac5be4572abdffdccb6581c89c94590c34399fa656955e335",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/2b24381a912346bf93b36e188d678105/HOC01-ทริกลึก_1_20261117_211806_cover_3x4.jpg",
+        "sha256": "fd9071b2ce0cf438cb9e71fd45cf7cd9c5a49db1349c41fdd0d88fe41853efbe",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456390.1867383,
+    "source": "auto"
+  },
+  {
+    "id": "cover_b795f121a67c92fcf19d5645c3cac3b0882e3a9160ed9f26943c162311be7d66",
+    "channel_id": "main",
+    "export_id": "exp_7f38804a9ef24e1fac26847932ca13c0",
+    "video_path": "04_Exports/Ready_to_post/TYP01-โปรไฟลุก_1_20261117_211755.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/302cc7ab48ae414fa2e2a6e3b76479e8/TYP01-โปรไฟลุก_1_20261117_211755_cover.jpg",
+        "sha256": "366e6aae454aee5c2a4facad227fb03e590d8afe4703e3b4fb08e5d73c0e805f",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/302cc7ab48ae414fa2e2a6e3b76479e8/TYP01-โปรไฟลุก_1_20261117_211755_cover_3x4.jpg",
+        "sha256": "50e7f4e14368196acc5cf011db68fb824ff53baecec1a9d5a8e567725bd4b680",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456390.9896307,
+    "source": "auto"
+  },
+  {
+    "id": "cover_8d36bea2e19a2149ac03cb134d7392938222c175a5e951e16a671680a4f4f7ff",
+    "channel_id": "main",
+    "export_id": "exp_37f22782d36643d19dbf1d1b3c91ac8a",
+    "video_path": "04_Exports/Ready_to_post/HOC01-เตือนภัย_1_20261117_211824.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/a90b7b5581104a0599524f559daa61a2/HOC01-เตือนภัย_1_20261117_211824_cover.jpg",
+        "sha256": "5298771c087c68f9cec351f0c196ae5d034e03b2ec8deae279ffb40929ccd7cc",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/a90b7b5581104a0599524f559daa61a2/HOC01-เตือนภัย_1_20261117_211824_cover_3x4.jpg",
+        "sha256": "7eb06b9cdf9ec12633dcc8e3cac3ef41ab0295a29bb4137fb49714d0f36e463b",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456391.786496,
+    "source": "auto"
+  },
+  {
+    "id": "cover_38ab6df759beec916b5a417055f62394759f254626ff9abcb54ec4dc2030920b",
+    "channel_id": "main",
+    "export_id": "exp_a0abab19fff84a7f9a0aa4d269d7589c",
+    "video_path": "04_Exports/Ready_to_post/OKD01-เจาะกลุ่ม_1_20261117_212706.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/ce998e81feb147e1a4e906971d82f497/OKD01-เจาะกลุ่ม_1_20261117_212706_cover.jpg",
+        "sha256": "ce04d3a4ea4167222ad9651605bb08c6c4dc22905dc61fa1997fb496cafa3d8a",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/ce998e81feb147e1a4e906971d82f497/OKD01-เจาะกลุ่ม_1_20261117_212706_cover_3x4.jpg",
+        "sha256": "ee0ef1b3957cc2c86c5c637e85abf0f4d0236b3ae8f880dbbb79b2a1f3cea8c8",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456392.7244208,
+    "source": "auto"
+  },
+  {
+    "id": "cover_335137fc9cc97678fc316b94ac5323fd9ef5fe809c58e13055e113fc6fc26a31",
+    "channel_id": "main",
+    "export_id": "exp_819f890a9a804030b2874224d6fe6317",
+    "video_path": "04_Exports/Ready_to_post/HOC01-รีวิวสเปก_1_20261117_214242.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/28727c4334104a6f9341c2d45ff809a8/HOC01-รีวิวสเปก_1_20261117_214242_cover.jpg",
+        "sha256": "ecbd53b5d8bb7d10fd701a5b529044a99e9c734ae5a60f4f9cff9b8e2544a8be",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/28727c4334104a6f9341c2d45ff809a8/HOC01-รีวิวสเปก_1_20261117_214242_cover_3x4.jpg",
+        "sha256": "743dd25743b5ea6d9068209488ee38127c3f7034d8f61fdddc37496a64b53db8",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456393.515829,
+    "source": "auto"
+  },
+  {
+    "id": "cover_53a7ac43e7b1b95888144b0e1c3caf042b255cad29d75d6e8709fbf9f58b2373",
+    "channel_id": "main",
+    "export_id": "exp_818e9b67910c49898f5e5ea1520b05be",
+    "video_path": "04_Exports/Ready_to_post/TYP01-แกะกล่องว้าว_1_20261117_214248.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/f257377328bf4708bf09eff27458eaa7/TYP01-แกะกล่องว้าว_1_20261117_214248_cover.jpg",
+        "sha256": "c9b44e540fe722d62e5517703b18ccb962e24293654528657869be6af728a44c",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/f257377328bf4708bf09eff27458eaa7/TYP01-แกะกล่องว้าว_1_20261117_214248_cover_3x4.jpg",
+        "sha256": "e68d9ee7e205b78c5a00a56cdc205eb3f4cdf40369cbed6aa041ac7a60d083ec",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456394.378987,
+    "source": "auto"
+  },
+  {
+    "id": "cover_0e257f7c2ebf45e532c9f56ab76f711e296cfe2852408f17b440f57eb4a8bb25",
+    "channel_id": "main",
+    "export_id": "exp_d706ff78bdd14d4e9d3cdeff83495192",
+    "video_path": "04_Exports/Ready_to_post/TYP01-ปัญหาก่อนใช้_1_20261117_214250.mp4",
+    "selections": {
+      "9:16": {
+        "path": "05_Covers_Thumbnails/main/e33625a23c404c5d8aac1f29ba6c66e9/TYP01-ปัญหาก่อนใช้_1_20261117_214250_cover.jpg",
+        "sha256": "a98cca85b9e9b3bda18fc780519578b362b05f2cfd991ff82515e8e33892cddc",
+        "format": "9:16"
+      },
+      "3:4": {
+        "path": "05_Covers_Thumbnails/main/e33625a23c404c5d8aac1f29ba6c66e9/TYP01-ปัญหาก่อนใช้_1_20261117_214250_cover_3x4.jpg",
+        "sha256": "894d051eb31bed4e9faa41288a77511f4a59cabba584342be5b824b55d011f83",
+        "format": "3:4"
+      }
+    },
+    "revision": 2,
+    "updated_at": 1795456395.1940632,
     "source": "auto"
   }
 ]

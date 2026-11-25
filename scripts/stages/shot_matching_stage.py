@@ -152,7 +152,10 @@ def _plan_split_points(
     return points
 
 
-def _split_groups(groups, boundary_times, boundary_onsets, split_fn, skip_ids=frozenset()):
+def _split_groups(
+    groups, boundary_times, boundary_onsets, split_fn, skip_ids=frozenset(),
+    matches=None, raw_duration=None, min_subclip_sec=0.5, overrides=None
+):
     """Split each group's span at ``split_fn(start, end)`` (time, onset) points.
 
     Pieces keep the SAME group list object, so downstream code treats them as
@@ -163,7 +166,44 @@ def _split_groups(groups, boundary_times, boundary_onsets, split_fn, skip_ids=fr
     out_groups, out_times, out_onsets = [], [boundary_times[0]], [boundary_onsets[0]]
     for idx, group in enumerate(groups):
         start, end = boundary_times[idx], boundary_times[idx + 1]
-        points = [] if id(group) in skip_ids else split_fn(start, end)
+        group_dur = end - start
+        skip_split = id(group) in skip_ids
+
+        # Never split a group into sub-clips if the assigned source span is
+        # shorter than group["duration"] - 0.1 (would force freeze)
+        if not skip_split and (matches or overrides) and group:
+            match = None
+            if overrides and id(group) in overrides:
+                match = overrides[id(group)][1]
+            elif matches and isinstance(matches, (list, tuple)) and group[0] < len(matches):
+                match = matches[group[0]]
+            if isinstance(match, dict):
+                raw_d = float(raw_duration or 60.0)
+                s_start = max(0.0, float(match.get("start_time", match.get("scene_start", 0.0))))
+                s_end = min(float(match.get("end_time", match.get("scene_end", raw_d))), float(match.get("scene_end", raw_d)), raw_d)
+                source_span = max(0.0, s_end - s_start)
+                if source_span < group_dur - 0.1:
+                    skip_split = True
+
+        points = [] if skip_split else split_fn(start, end)
+
+        # Never split if any resulting sub-clip would have less than min_subclip_sec of playable footage
+        if points and (matches or overrides) and group:
+            match = None
+            if overrides and id(group) in overrides:
+                match = overrides[id(group)][1]
+            elif matches and isinstance(matches, (list, tuple)) and group[0] < len(matches):
+                match = matches[group[0]]
+            if isinstance(match, dict):
+                raw_d = float(raw_duration or 60.0)
+                s_start = max(0.0, float(match.get("start_time", match.get("scene_start", 0.0))))
+                s_end = min(float(match.get("end_time", match.get("scene_end", raw_d))), float(match.get("scene_end", raw_d)), raw_d)
+                source_span = max(0.0, s_end - s_start)
+                first_subclip_dur = points[0][0] - start
+                remaining_source = source_span - first_subclip_dur
+                if remaining_source < min_subclip_sec:
+                    points = []
+
         for point, onset in points:
             out_groups.append(group)
             out_times.append(point)
@@ -1404,6 +1444,9 @@ class ShotMatchingStage:
                             s, e, lambda _t: MAX_SHOT_DURATION, split_candidates
                         ) if e - s > SHOT_CAP + 1e-6 else [],
                         skip_ids=exhausted_holds,
+                        matches=ai_matched_shots,
+                        raw_duration=raw_duration,
+                        overrides=window_overrides,
                     )
                     if HOOK_MAX_SHOT > 0 and HOOK_WINDOW > 0:
                         groups, boundary_times, boundary_onsets = _split_groups(
@@ -1414,6 +1457,9 @@ class ShotMatchingStage:
                                 split_candidates,
                             ),
                             skip_ids=exhausted_holds,
+                            matches=ai_matched_shots,
+                            raw_duration=raw_duration,
+                            overrides=window_overrides,
                         )
 
                     def _snap_keeps_caps(prev_b: float, candidate: float, next_b: float, current: float) -> bool:
@@ -1685,7 +1731,8 @@ class ShotMatchingStage:
                             if current is not None and current < HOOK_MOTION_THRESHOLD:
                                 alt = _best_motion_window(motion_times, motion_scores, min(c_dur, w_hi - w_lo), w_lo, w_hi)
                                 if alt and alt[1] >= HOOK_MOTION_THRESHOLD:
-                                    ai_start = alt[0]
+                                    topic_needed = max(c_dur, float(ai_shot.get("needed_duration") or 0.0))
+                                    ai_start = min(alt[0], max(w_lo, w_hi - topic_needed))
                         allocation = source_ledger.allocate(ai_shot, raw_duration, ai_start, c_dur) if bounded else None
                         reuse_match = ai_shot if allocation else None
                         if allocation is None and use_short_raw:

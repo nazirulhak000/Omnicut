@@ -40,7 +40,7 @@ export default function ViewToggleGroup({
               ? 'เปิดแถบซ้าย (คลังสื่อ)'
               : 'ซ่อนแถบซ้าย'
         }
-        className={`h-7 w-7 sm:h-8 sm:w-8 rounded-md flex items-center justify-center transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+        className={`h-7 w-7 sm:h-8 sm:w-8 rounded-md flex items-center justify-center active:scale-[0.95] disabled:active:scale-100 transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
           !leftSidebarCollapsed
             ? 'bg-[#25F4EE]/12 text-[#25F4EE] border border-[#25F4EE]/30'
             : 'text-slate-400 hover:text-white hover:bg-white/[0.06] border border-transparent'
@@ -67,7 +67,7 @@ export default function ViewToggleGroup({
               ? 'ออกจากโหมดโฟกัส (เปิดพาเนลข้าง)'
               : 'เข้าโหมดโฟกัส (ซ่อนพาเนลข้างทั้งหมด)'
         }
-        className={`h-7 w-7 sm:h-8 sm:w-8 rounded-md flex items-center justify-center transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+        className={`h-7 w-7 sm:h-8 sm:w-8 rounded-md flex items-center justify-center active:scale-[0.95] disabled:active:scale-100 transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
           activeFocus
             ? 'bg-amber-400/15 text-amber-300 border border-amber-400/30'
             : 'text-slate-400 hover:text-white hover:bg-white/[0.06] border border-transparent'
@@ -90,7 +90,7 @@ export default function ViewToggleGroup({
               ? 'เปิดแถบขวา (คำบรรยาย)'
               : 'ซ่อนแถบขวา'
         }
-        className={`h-7 w-7 sm:h-8 sm:w-8 rounded-md flex items-center justify-center transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+        className={`h-7 w-7 sm:h-8 sm:w-8 rounded-md flex items-center justify-center active:scale-[0.95] disabled:active:scale-100 transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
           !rightSidebarCollapsed
             ? 'bg-[#D97757]/15 text-[#E08A6D] border border-[#D97757]/30'
             : 'text-slate-400 hover:text-white hover:bg-white/[0.06] border border-transparent'

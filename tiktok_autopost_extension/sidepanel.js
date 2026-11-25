@@ -1512,6 +1512,20 @@ async function loadExports() {
 
   filterAndRenderClips();
   updateLinkDueButton(allQueueRaw);
+
+  // Fallback quota from backend queue: if TikTok live check is pending/unknown, show queue count
+  const backendScheduledCount = (allQueueRaw || []).filter(item => {
+    if (item.status !== 'scheduled_on_platform') return false;
+    const at = item.scheduled_at ? Date.parse(item.scheduled_at) : 0;
+    return at >= Date.now() - 15 * 60 * 1000;
+  }).length;
+  if (currentQuotaState.scheduledCount == null && backendScheduledCount > 0) {
+    currentQuotaState.scheduledCount = backendScheduledCount;
+    currentQuotaState.remainingSchedule = Math.max(0, (currentQuotaState.maxSchedule || 30) - backendScheduledCount);
+    updateQuotaUI();
+    updateBatchCountDisplay();
+  }
+
   checkTikTokQuota(true);
   autoLinkDueContent();
 }

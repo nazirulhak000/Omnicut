@@ -35,6 +35,11 @@
   --glare-opacity: 0.95;
   --orbs-opacity: 0.75;
 
+  /* Motion Easing Tokens (Emil Kowalski Design Engineering) */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
   /* Every type size in the app is a rem, so this one number scales the whole
      interface. It used to exist while 214 sizes were hardcoded in px, which
      made it a lever attached to nothing. See _Docs/PLAN_*.md. */
@@ -227,15 +232,19 @@
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border-radius: 14px;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 160ms var(--ease-out), background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, color 150ms ease, opacity 150ms ease;
 }
 .glass-btn:hover {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.08) 100%);
   border-color: rgba(255, 255, 255, 0.4);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 4px 14px rgba(0, 0, 0, 0.4);
-  transform: translateY(-1px);
 }
-.glass-btn:active {
+@media (hover: hover) and (pointer: fine) {
+  .glass-btn:hover {
+    transform: translateY(-1px);
+  }
+}
+.glass-btn:active:not(:disabled) {
   transform: translateY(1px) scale(0.97);
 }
 
@@ -265,7 +274,7 @@
   border-top: 1px solid rgba(255, 255, 255, 0.5);
   border-radius: 20px;
   box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.25);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 160ms var(--ease-out), background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, color 150ms ease, opacity 150ms ease;
 }
 
 .glass-card:hover, .claude-card:hover {
@@ -465,7 +474,7 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 160ms var(--ease-out), background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, color 150ms ease, opacity 150ms ease;
 }
 
 .obsidian-card:hover {
@@ -479,17 +488,22 @@
   border-radius: 12px;
   font-weight: 700;
   box-shadow: 0 4px 20px rgba(34, 211, 238, 0.35);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 160ms var(--ease-out), background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, color 150ms ease, opacity 150ms ease;
 }
 
 .obsidian-hero-btn:hover:not(:disabled) {
   background: linear-gradient(135deg, #67e8f9 0%, #06b6d4 100%);
   box-shadow: 0 6px 28px rgba(34, 211, 238, 0.55);
-  transform: translateY(-1px);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .obsidian-hero-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
 }
 
 .obsidian-hero-btn:active:not(:disabled) {
-  transform: translateY(0);
+  transform: translateY(0) scale(0.97);
 }
 
 .neon-glow-cyan {
@@ -520,14 +534,19 @@
   backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 160ms var(--ease-out), background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, color 150ms ease, opacity 150ms ease;
 }
 
 .asset-card-obsidian:hover {
   background: rgba(18, 24, 38, 0.95);
   border-color: rgba(37, 244, 238, 0.35);
-  transform: translateY(-1px);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35), 0 0 15px rgba(37, 244, 238, 0.06);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .asset-card-obsidian:hover {
+    transform: translateY(-1px);
+  }
 }
 
 .asset-card-active {
@@ -562,7 +581,7 @@
   border-radius: 12px;
   font-weight: 700;
   box-shadow: 0 4px 14px rgba(254, 44, 85, 0.25);
-  transition: all 0.15s ease;
+  transition: transform 160ms var(--ease-out), background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, color 150ms ease, opacity 150ms ease;
 }
 
 .claude-btn-primary:hover {
@@ -581,7 +600,7 @@
   box-shadow: none;
 }
 
-.claude-btn-primary:active {
+.claude-btn-primary:active:not(:disabled) {
   transform: scale(0.98);
 }
 
@@ -591,12 +610,16 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   font-weight: 600;
-  transition: all 0.15s ease;
+  transition: transform 160ms var(--ease-out), background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, color 150ms ease, opacity 150ms ease;
 }
 
 .claude-btn-secondary:hover {
   background-color: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.2);
+}
+
+.claude-btn-secondary:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 /* ── Minimal Dark Scrollbars ── */
@@ -648,6 +671,96 @@
 .animate-fadeIn {
   animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+/* Individual `scale` avoids `forwards` overriding Modal.jsx inline drag `transform` */
+@keyframes scaleUp {
+  from { opacity: 0; scale: 0.95; }
+  to   { opacity: 1; scale: 1; }
+}
+
+.animate-scaleUp {
+  animation: scaleUp 200ms var(--ease-out) forwards;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-12px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-slideDown {
+  animation: slideDown 180ms var(--ease-out) forwards;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-slideUp {
+  animation: slideUp 180ms var(--ease-out) forwards;
+}
+
+@keyframes slideLeft {
+  from { opacity: 0; transform: translateX(100%); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.animate-slideLeft {
+  animation: slideLeft 260ms var(--ease-drawer) forwards;
+}
+
+@keyframes popoverIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.popover-menu {
+  animation: popoverIn 150ms var(--ease-out) forwards;
+}
+
+/* Composable enter-animation utilities (replaces tailwindcss-animate) */
+@keyframes enterIn {
+  from {
+    opacity: var(--tw-enter-opacity, 1);
+    transform: translate3d(var(--tw-enter-translate-x, 0), var(--tw-enter-translate-y, 0), 0) scale(var(--tw-enter-scale, 1));
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.animate-in {
+  animation: enterIn 180ms var(--ease-out) forwards;
+}
+.animate-in.duration-100 { animation-duration: 120ms; }
+.animate-in.duration-150 { animation-duration: 150ms; }
+.animate-in.duration-200 { animation-duration: 200ms; }
+.animate-in.duration-300 { animation-duration: 240ms; }
+.fade-in { --tw-enter-opacity: 0; }
+.zoom-in-95 { --tw-enter-scale: 0.95; }
+.slide-in-from-top-1 { --tw-enter-translate-y: -0.25rem; }
+.slide-in-from-top-2 { --tw-enter-translate-y: -0.5rem; }
+.slide-in-from-top-3 { --tw-enter-translate-y: -0.75rem; }
+.slide-in-from-bottom-3 { --tw-enter-translate-y: 0.75rem; }
+.slide-in-from-bottom-4 { --tw-enter-translate-y: 1rem; }
+
+@keyframes exitOut {
+  from {
+    opacity: var(--tw-exit-opacity, 1);
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.06);
+  }
+}
+
+.animate-out {
+  animation: exitOut 220ms var(--ease-out) forwards;
+}
+.animate-out.duration-500 { animation-duration: 420ms; }
+.fade-out { --tw-exit-opacity: 1; }
 
 @keyframes shimmer {
   0% { transform: translateX(-100%); }
@@ -852,7 +965,10 @@
   .animate-scaleUp,
   .animate-slideDown,
   .animate-slideUp,
+  .animate-slideLeft,
   .animate-in,
+  .animate-out,
+  .popover-menu,
   [class*="animate-fade"],
   [class*="animate-slide"],
   [class*="animate-scale"] {

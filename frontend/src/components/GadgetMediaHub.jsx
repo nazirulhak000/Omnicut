@@ -308,7 +308,7 @@ function CampaignPlanner({ onCreateProductProject }) {
               <button
                 type="button"
                 onClick={() => setActiveViewMode('slots')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 ${
                   activeViewMode === 'slots'
                     ? 'bg-cyan-400 text-black shadow-sm'
                     : 'text-slate-300 hover:text-white'
@@ -319,7 +319,7 @@ function CampaignPlanner({ onCreateProductProject }) {
               <button
                 type="button"
                 onClick={() => setActiveViewMode('analytics')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 flex items-center gap-1.5 ${
                   activeViewMode === 'analytics'
                     ? 'bg-cyan-400 text-black shadow-sm'
                     : 'text-slate-300 hover:text-white'

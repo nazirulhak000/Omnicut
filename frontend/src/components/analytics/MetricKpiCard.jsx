@@ -25,7 +25,7 @@ export default function MetricKpiCard({
 
   return (
     <div
-      className={`relative p-4 rounded-2xl border ${borderColor} ${bgColor} backdrop-blur-xl shadow-sm hover:border-white/[0.16] hover:bg-[#0D111A] min-h-[136px] flex flex-col justify-between transition-all duration-200 group ${className}`}
+      className={`relative p-4 rounded-2xl border ${borderColor} ${bgColor} backdrop-blur-xl shadow-sm hover:border-white/[0.16] hover:bg-[#0D111A] min-h-[136px] flex flex-col justify-between transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out group ${className}`}
       title={tooltip || undefined}
     >
       {/* Header: Title & Icon */}

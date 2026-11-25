@@ -137,6 +137,32 @@ def test_automatic_cover_is_reused_until_the_video_is_newer(studio):
     assert (studio.root / first["cover_path"]).is_file()
 
 
+def test_modified_3x4_cover_causes_auto_heal(studio):
+    first = studio.run()
+    assert first["status"] == "created"
+    assert studio.bindings.get(CHANNEL, EXPORT_ID, format="3:4")["path"] == first["cover_3x4_path"]
+
+    # Modify 3:4 file on disk without updating binding
+    path_3x4 = studio.root / first["cover_3x4_path"]
+    path_3x4.write_bytes(b"corrupted or modified bytes")
+
+    # Direct get should raise ChannelError 409
+    with pytest.raises(ChannelError) as exc_info:
+        studio.bindings.get(CHANNEL, EXPORT_ID, format="3:4")
+    assert exc_info.value.status_code == 409
+    assert exc_info.value.code == "export_cover_selection_changed"
+
+    # ensure_default_cover should auto-heal by regenerating both covers and re-binding
+    healed = studio.run()
+    assert healed["status"] == "created"
+    assert healed["bound"] is True
+    # Verify bindings are now valid for both 9:16 and 3:4 without raising ChannelError
+    b9 = studio.bindings.get(CHANNEL, EXPORT_ID, format="9:16")
+    b3 = studio.bindings.get(CHANNEL, EXPORT_ID, format="3:4")
+    assert b9["path"] == healed["cover_path"]
+    assert b3["path"] == healed["cover_3x4_path"]
+
+
 def test_person_saving_a_cover_after_an_automatic_one_takes_over(studio):
     studio.run()
     cover = _manual_cover(studio)

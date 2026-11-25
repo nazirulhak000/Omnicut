@@ -10,13 +10,54 @@ export function Toast({
 }) {
   const managedDuration = Number.isFinite(Number(duration)) ? Number(duration) : 3000;
 
+  const [isHovered, setIsHovered] = useState(false);
+  const [isTouching, setIsTouching] = useState(false);
+  const [isTabHidden, setIsTabHidden] = useState(() =>
+    typeof document !== 'undefined' ? document.hidden : false
+  );
+  const isPaused = isHovered || isTouching || isTabHidden;
+
+  const remainingRef = useRef(managedDuration);
+  const startTimeRef = useRef(0);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
-    if (!message || managedDuration <= 0) return undefined;
+    if (typeof document === 'undefined') return undefined;
+    const handleVisibilityChange = () => {
+      setIsTabHidden(document.hidden);
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
+  useEffect(() => {
+    remainingRef.current = managedDuration;
+    startTimeRef.current = 0;
+    if (!message) {
+      setIsHovered(false);
+      setIsTouching(false);
+    }
+  }, [message, managedDuration]);
+
+  useEffect(() => {
+    if (!message || managedDuration <= 0 || isPaused) return undefined;
+    const delay = Math.max(0, remainingRef.current);
+    startTimeRef.current = performance.now();
     const timer = setTimeout(() => {
-      onClose?.();
-    }, managedDuration);
-    return () => clearTimeout(timer);
-  }, [message, managedDuration, onClose]);
+      startTimeRef.current = 0;
+      remainingRef.current = 0;
+      onCloseRef.current?.();
+    }, delay);
+    return () => {
+      clearTimeout(timer);
+      if (startTimeRef.current > 0) {
+        const elapsed = performance.now() - startTimeRef.current;
+        remainingRef.current = Math.max(0, remainingRef.current - elapsed);
+        startTimeRef.current = 0;
+      }
+    };
+  }, [message, managedDuration, isPaused]);
 
   // popover="manual" puts the toast in the top layer, above any modal <dialog>
   // that is already open (a fixed z-index cannot beat the top layer). Engines
@@ -100,6 +141,15 @@ export function Toast({
       className="toast-layer fixed inset-x-3 top-[calc(env(safe-area-inset-top,0px)+8px)] md:top-auto md:inset-x-auto md:bottom-6 md:right-6 z-[9999] flex justify-center md:block animate-slideDown select-none pointer-events-none"
     >
       <div
+        onPointerEnter={(e) => {
+          if (e.pointerType !== 'touch') setIsHovered(true);
+        }}
+        onPointerLeave={(e) => {
+          if (e.pointerType !== 'touch') setIsHovered(false);
+        }}
+        onTouchStart={() => setIsTouching(true)}
+        onTouchEnd={() => setIsTouching(false)}
+        onTouchCancel={() => setIsTouching(false)}
         className={`flex items-center gap-2.5 py-2.5 px-4 rounded-full border backdrop-blur-2xl shadow-2xl text-xs sm:text-sm font-semibold w-full md:w-auto max-w-md min-w-0 pointer-events-auto ${config.style}`}
       >
         <Icon className={`w-4 h-4 flex-shrink-0 ${config.iconColor}`} />
@@ -109,7 +159,7 @@ export function Toast({
             type="button"
             onClick={onClose}
             aria-label="ปิดการแจ้งเตือน"
-            className="p-1 max-md:min-h-11 max-md:min-w-11 pointer-coarse:min-h-11 pointer-coarse:min-w-11 flex items-center justify-center flex-shrink-0 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
+            className="p-1 max-md:min-h-11 max-md:min-w-11 pointer-coarse:min-h-11 pointer-coarse:min-w-11 flex items-center justify-center flex-shrink-0 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white active:scale-[0.95] transition-[background-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer"
           >
             <X className="w-3.5 h-3.5" />
           </button>

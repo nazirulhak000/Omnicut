@@ -360,7 +360,7 @@ export default function OverlayInspector({
           <button
             type="button"
             onClick={onToggleHookHeader}
-            className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-colors cursor-pointer ${
+            className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
               showHookHeader
                 ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
                 : 'bg-white/[0.05] text-slate-500 border-white/[0.08]'
@@ -385,7 +385,7 @@ export default function OverlayInspector({
                   onClick={onHookStyleReset}
                   disabled={!hasHookOverrides}
                   title="คืนทุกแถวกลับเป็นค่าของสไตล์นี้"
-                  className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[10px] font-bold transition-all ${
+                  className={`flex items-center gap-1 rounded-lg px-2 py-0.5 text-[10px] font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 ${
                     hasHookOverrides
                       ? 'text-[#E6C24A] hover:bg-[#E6C24A]/10 cursor-pointer'
                       : 'text-slate-600 cursor-not-allowed'
@@ -410,7 +410,7 @@ export default function OverlayInspector({
                       type="button"
                       onClick={() => onHookTemplate(key)}
                       title={tpl.label_th || tpl.name || key}
-                      className={`group relative flex flex-col gap-1.5 rounded-xl border p-2 text-left transition-all hover:-translate-y-0.5 cursor-pointer overflow-hidden ${
+                      className={`group relative flex flex-col gap-1.5 rounded-xl border p-2 text-left transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out [@media(hover:hover)_and_(pointer:fine)]:hover:-translate-y-0.5 active:scale-[0.98] cursor-pointer overflow-hidden ${
                         isSelected
                           ? isCustom
                             ? 'border-[#25F4EE] bg-[#25F4EE]/10 shadow-[0_0_15px_rgba(37,244,238,0.2)] ring-1 ring-[#25F4EE]/50'
@@ -432,7 +432,7 @@ export default function OverlayInspector({
                             }
                           }}
                           title="ลบแม่แบบนี้"
-                          className="absolute top-1 right-1 z-20 p-1 rounded bg-black/70 hover:bg-red-500/80 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                          className="absolute top-1 right-1 z-20 p-1 rounded bg-black/70 hover:bg-red-500/80 text-slate-400 hover:text-white transition-[background-color,color,transform] duration-150 active:duration-100 ease-out active:scale-[0.95] cursor-pointer"
                         >
                           <Trash2 className="w-2.5 h-2.5" />
                         </span>
@@ -526,7 +526,7 @@ export default function OverlayInspector({
                     type="button"
                     onClick={handleSaveCustom}
                     disabled={!newTemplateName.trim() || isSavingCustom}
-                    className="flex items-center gap-1 rounded-lg bg-[#25F4EE] hover:bg-[#1fe2dc] disabled:opacity-40 disabled:cursor-not-allowed px-2.5 py-1 text-xs font-bold text-black transition-all cursor-pointer shrink-0"
+                    className="flex items-center gap-1 rounded-lg bg-[#25F4EE] hover:bg-[#1fe2dc] disabled:opacity-40 disabled:cursor-not-allowed px-2.5 py-1 text-xs font-bold text-black transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer shrink-0"
                   >
                     {isSavingCustom ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -694,7 +694,7 @@ export default function OverlayInspector({
                               type="button"
                               onClick={() => patchHookTier(idx, { bold: !look.bold })}
                               title="ตัวหนา"
-                              className={`h-6 w-6 flex items-center justify-center rounded-lg border text-[11px] font-black transition-all cursor-pointer ${
+                              className={`h-6 w-6 flex items-center justify-center rounded-lg border text-[11px] font-black transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                                 look.bold
                                   ? 'border-[#E6C24A] bg-[#E6C24A]/20 text-[#E6C24A]'
                                   : 'border-white/[0.08] bg-black/30 text-slate-500 hover:text-white'
@@ -706,7 +706,7 @@ export default function OverlayInspector({
                               type="button"
                               onClick={() => patchHookTier(idx, { italic: !look.italic })}
                               title="ตัวเอียง"
-                              className={`h-6 w-6 flex items-center justify-center rounded-lg border text-[11px] font-bold italic transition-all cursor-pointer font-serif ${
+                              className={`h-6 w-6 flex items-center justify-center rounded-lg border text-[11px] font-bold italic transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer font-serif ${
                                 look.italic
                                   ? 'border-[#E6C24A] bg-[#E6C24A]/20 text-[#E6C24A]'
                                   : 'border-white/[0.08] bg-black/30 text-slate-500 hover:text-white'
@@ -718,7 +718,7 @@ export default function OverlayInspector({
                               type="button"
                               onClick={() => patchHookTier(idx, { underline: !look.underline })}
                               title="ขีดเส้นใต้"
-                              className={`h-6 w-6 flex items-center justify-center rounded-lg border text-[11px] font-bold underline transition-all cursor-pointer ${
+                              className={`h-6 w-6 flex items-center justify-center rounded-lg border text-[11px] font-bold underline transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                                 look.underline
                                   ? 'border-[#E6C24A] bg-[#E6C24A]/20 text-[#E6C24A]'
                                   : 'border-white/[0.08] bg-black/30 text-slate-500 hover:text-white'
@@ -730,7 +730,7 @@ export default function OverlayInspector({
                               type="button"
                               onClick={() => patchHookTier(idx, { upper: !look.upper })}
                               title="ตัวพิมพ์ใหญ่ทั้งบรรทัด"
-                              className={`h-6 w-6 flex items-center justify-center rounded-lg border text-[10px] font-black transition-all cursor-pointer ${
+                              className={`h-6 w-6 flex items-center justify-center rounded-lg border text-[10px] font-black transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                                 look.upper
                                   ? 'border-[#E6C24A] bg-[#E6C24A]/20 text-[#E6C24A]'
                                   : 'border-white/[0.08] bg-black/30 text-slate-500 hover:text-white'
@@ -838,7 +838,7 @@ export default function OverlayInspector({
                                   }
                                 }}
                                 title={swatch}
-                                className="w-4 h-4 rounded-full border border-black/40 hover:scale-110 transition-transform cursor-pointer"
+                                className="w-4 h-4 rounded-full border border-black/40 [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110 active:scale-95 transition-transform duration-150 active:duration-100 ease-out cursor-pointer"
                               />
                             ))}
                           </div>
@@ -854,7 +854,7 @@ export default function OverlayInspector({
                                   });
                                 }
                               }}
-                              className="ml-auto text-[9px] px-1.5 py-0.5 rounded bg-white/[0.06] hover:bg-white/[0.12] text-slate-400 hover:text-white transition-colors cursor-pointer"
+                              className="ml-auto text-[9px] px-1.5 py-0.5 rounded bg-white/[0.06] hover:bg-white/[0.12] text-slate-400 hover:text-white transition-[background-color,color,transform] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
                               title="รีเซ็ตกลับไปใช้สีตามแถวไฮไลต์อัตโนมัติ"
                             >
                               อัตโนมัติ
@@ -882,7 +882,7 @@ export default function OverlayInspector({
                         key={spd.id}
                         type="button"
                         onClick={() => onHookMotionChange('speed', spd.id)}
-                        className={`py-1 px-1 text-[10px] font-bold rounded transition-all cursor-pointer truncate text-center ${
+                        className={`py-1 px-1 text-[10px] font-bold rounded transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer truncate text-center ${
                           isCurrent
                             ? 'bg-[#E6C24A] text-black shadow-sm'
                             : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
@@ -957,7 +957,7 @@ export default function OverlayInspector({
         <button
           type="button"
           onClick={() => onDeleteOverlay?.(selectedTextOverlay.id)}
-          className="text-rose-400 hover:text-rose-300 text-[11px] font-bold flex items-center gap-1 px-2 py-0.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 cursor-pointer transition-colors"
+          className="text-rose-400 hover:text-rose-300 text-[11px] font-bold flex items-center gap-1 px-2 py-0.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 cursor-pointer transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
           title="ลบข้อความเสริมนี้"
         >
           <Trash2 className="w-3 h-3" />
@@ -969,7 +969,7 @@ export default function OverlayInspector({
         <button
           type="button"
           onClick={handleResetFormat}
-          className="px-2 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-[11px] font-semibold text-slate-300 hover:text-white flex items-center gap-1 transition-all cursor-pointer"
+          className="px-2 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-[11px] font-semibold text-slate-300 hover:text-white flex items-center gap-1 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
           title="คืนค่าตำแหน่งและขนาดเริ่มต้น"
         >
           <RotateCcw className="w-3 h-3 text-slate-400" />
@@ -1068,7 +1068,7 @@ export default function OverlayInspector({
                 key={s}
                 type="button"
                 onClick={() => patchOverlayLook({ size_pct: Math.round(s * 100) })}
-                className={`flex-1 py-1 rounded-lg text-[10px] sm:text-[11px] font-bold border transition-all cursor-pointer ${
+                className={`flex-1 py-1 rounded-lg text-[10px] sm:text-[11px] font-bold border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                   Math.abs(currentScale - s) < 0.05
                     ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE] shadow-sm'
                     : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
@@ -1101,7 +1101,7 @@ export default function OverlayInspector({
                   <button
                     type="button"
                     onClick={() => patchOverlayLook({ skew: isItalic ? 0.0 : -0.25 })}
-                    className={`flex-1 py-1 rounded-lg text-xs font-bold italic border transition-all cursor-pointer ${
+                    className={`flex-1 py-1 rounded-lg text-xs font-bold italic border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                       isItalic
                         ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
                         : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
@@ -1129,7 +1129,7 @@ export default function OverlayInspector({
                 key={pos}
                 type="button"
                 onClick={() => onUpdateOverlay?.(selectedTextOverlay.id, { position: pos, x: null, y: null })}
-                className={`py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
+                className={`py-1 rounded-lg text-[11px] font-bold border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                   currentPosition === pos
                     ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
                     : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
@@ -1293,7 +1293,7 @@ export default function OverlayInspector({
                 key={preset.id}
                 type="button"
                 onClick={() => patchOverlayLook({ color: preset.color })}
-                className={`flex flex-col items-center justify-center p-1.5 rounded-xl border transition-all cursor-pointer group ${
+                className={`flex flex-col items-center justify-center p-1.5 rounded-xl border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer group ${
                   isCurrent
                     ? 'border-[#25F4EE] bg-[#25F4EE]/10 ring-1 ring-[#25F4EE]/40 shadow-sm'
                     : 'border-white/[0.08] bg-black/60 hover:border-white/20'
@@ -1342,7 +1342,7 @@ export default function OverlayInspector({
                 key={a.id}
                 type="button"
                 onClick={() => onUpdateOverlay?.(selectedTextOverlay.id, { anim: { ...(selectedTextOverlay.anim || {}), in: a.id } })}
-                className={`py-1 px-1 rounded-lg text-xs font-bold border transition-all cursor-pointer truncate text-center ${
+                className={`py-1 px-1 rounded-lg text-xs font-bold border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer truncate text-center ${
                   (selectedTextOverlay.anim?.in || 'snap') === a.id
                     ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
                     : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
@@ -1370,7 +1370,7 @@ export default function OverlayInspector({
                   key={s.id}
                   type="button"
                   onClick={() => onUpdateOverlay?.(selectedTextOverlay.id, { anim: { ...(selectedTextOverlay.anim || {}), word_stagger_ms: s.id } })}
-                  className={`py-1 px-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer truncate text-center ${
+                  className={`py-1 px-1 rounded-lg text-[11px] font-bold border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer truncate text-center ${
                     currentStagger === s.id
                       ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
                       : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
@@ -1399,7 +1399,7 @@ export default function OverlayInspector({
                 key={lp.id}
                 type="button"
                 onClick={() => onUpdateOverlay?.(selectedTextOverlay.id, { anim: { ...(selectedTextOverlay.anim || {}), loop: lp.id } })}
-                className={`py-1 px-1 rounded-lg text-xs font-bold border transition-all cursor-pointer truncate text-center ${
+                className={`py-1 px-1 rounded-lg text-xs font-bold border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer truncate text-center ${
                   (selectedTextOverlay.anim?.loop || 'none') === lp.id
                     ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
                     : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
@@ -1426,7 +1426,7 @@ export default function OverlayInspector({
                 key={o.id}
                 type="button"
                 onClick={() => onUpdateOverlay?.(selectedTextOverlay.id, { anim: { ...(selectedTextOverlay.anim || {}), out: o.id } })}
-                className={`py-1 px-1 rounded-lg text-xs font-bold border transition-all cursor-pointer truncate text-center ${
+                className={`py-1 px-1 rounded-lg text-xs font-bold border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer truncate text-center ${
                   (selectedTextOverlay.anim?.out || 'fade') === o.id
                     ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
                     : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
@@ -1453,7 +1453,7 @@ export default function OverlayInspector({
                 key={bg.id}
                 type="button"
                 onClick={() => patchOverlayLook({ pill: pillForBgStyle(bg.id) })}
-                className={`py-1 px-1 rounded-lg text-xs font-bold border transition-all cursor-pointer truncate text-center ${
+                className={`py-1 px-1 rounded-lg text-xs font-bold border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer truncate text-center ${
                   bgStyleOf(selectedLook.pill) === bg.id
                     ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
                     : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
@@ -1515,7 +1515,7 @@ export default function OverlayInspector({
               <button
                 type="button"
                 onClick={() => playSfxAudio(selectedTextOverlay.sfx)}
-                className="px-2 py-0.5 rounded-md bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 text-[10px] font-bold flex items-center gap-1 border border-amber-400/40 cursor-pointer transition-all"
+                className="px-2 py-0.5 rounded-md bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 text-[10px] font-bold flex items-center gap-1 border border-amber-400/40 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
                 title="ทดลองฟังเสียงสด"
               >
                 <Play className="w-2.5 h-2.5 fill-current" />

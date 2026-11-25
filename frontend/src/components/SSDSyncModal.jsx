@@ -231,7 +231,7 @@ export default function SSDSyncModal({ isOpen, onClose, onRefreshData }) {
 
   return (
     <ModalLayer onClose={onClose} aria-label="ซิงก์ข้อมูลกับ SSD" className="fixed inset-0 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-3xl rounded-3xl bg-[#070b14] border border-white/[0.12] shadow-2xl flex flex-col max-h-[92vh] overflow-hidden relative">
+      <div className="w-full max-w-3xl rounded-3xl bg-[#070b14] border border-white/[0.12] shadow-2xl flex flex-col max-h-[92vh] overflow-hidden relative animate-scaleUp">
         {/* Ambient Top Glow */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-emerald-500/10 via-[#25F4EE]/10 to-transparent rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
 
@@ -257,7 +257,7 @@ export default function SSDSyncModal({ isOpen, onClose, onRefreshData }) {
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-400 hover:text-white flex items-center justify-center transition-all cursor-pointer"
+            className="w-8 h-8 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-400 hover:text-white flex items-center justify-center active:scale-[0.95] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -273,7 +273,7 @@ export default function SSDSyncModal({ isOpen, onClose, onRefreshData }) {
             <select
               value={selectedDrive}
               onChange={(e) => setSelectedDrive(e.target.value)}
-              className="flex-1 bg-slate-900/90 border border-white/[0.15] focus:border-emerald-400 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none transition-all cursor-pointer font-mono"
+              className="flex-1 bg-slate-900/90 border border-white/[0.15] focus:border-emerald-400 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 ease-out cursor-pointer font-mono"
             >
               {drives.length === 0 ? (
                 <option value="">-- ไม่พบไดรฟ์ภายนอก --</option>
@@ -290,7 +290,7 @@ export default function SSDSyncModal({ isOpen, onClose, onRefreshData }) {
             type="button"
             onClick={fetchDrives}
             disabled={loadingDrives}
-            className="px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] text-xs font-medium text-slate-300 hover:text-white flex items-center justify-center gap-1.5 transition-all cursor-pointer flex-shrink-0"
+            className="px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] text-xs font-medium text-slate-300 hover:text-white flex items-center justify-center gap-1.5 active:scale-[0.97] disabled:active:scale-100 transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 active:duration-100 ease-out cursor-pointer flex-shrink-0"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loadingDrives ? 'animate-spin text-emerald-400' : ''}`} />
             <span>ค้นหาไดรฟ์ใหม่</span>
@@ -302,7 +302,7 @@ export default function SSDSyncModal({ isOpen, onClose, onRefreshData }) {
           <button
             type="button"
             onClick={() => setActiveTab('stage')}
-            className={`px-4 py-2.5 rounded-t-2xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer border-b-2 ${
+            className={`px-4 py-2.5 rounded-t-2xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 ease-out cursor-pointer border-b-2 ${
               activeTab === 'stage'
                 ? 'border-emerald-400 text-emerald-300 bg-emerald-500/10'
                 : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-white/[0.02]'
@@ -320,7 +320,7 @@ export default function SSDSyncModal({ isOpen, onClose, onRefreshData }) {
           <button
             type="button"
             onClick={() => setActiveTab('reconcile')}
-            className={`px-4 py-2.5 rounded-t-2xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer border-b-2 ${
+            className={`px-4 py-2.5 rounded-t-2xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 ease-out cursor-pointer border-b-2 ${
               activeTab === 'reconcile'
                 ? 'border-[#25F4EE] text-[#25F4EE] bg-[#25F4EE]/10'
                 : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-white/[0.02]'
@@ -338,7 +338,7 @@ export default function SSDSyncModal({ isOpen, onClose, onRefreshData }) {
           <button
             type="button"
             onClick={() => setActiveTab('guide')}
-            className={`px-4 py-2.5 rounded-t-2xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer border-b-2 ${
+            className={`px-4 py-2.5 rounded-t-2xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 ease-out cursor-pointer border-b-2 ${
               activeTab === 'guide'
                 ? 'border-amber-400 text-amber-300 bg-amber-500/10'
                 : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-white/[0.02]'
@@ -383,14 +383,14 @@ export default function SSDSyncModal({ isOpen, onClose, onRefreshData }) {
                     <button
                       type="button"
                       onClick={handleSelectAll}
-                      className="px-2 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white transition-all cursor-pointer"
+                      className="px-2 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white active:scale-[0.97] transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 active:duration-100 ease-out cursor-pointer"
                     >
                       เลือกทั้งหมด
                     </button>
                     <button
                       type="button"
                       onClick={handleDeselectAll}
-                      className="px-2 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-slate-400 hover:text-slate-200 transition-all cursor-pointer"
+                      className="px-2 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-slate-400 hover:text-slate-200 active:scale-[0.97] transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 active:duration-100 ease-out cursor-pointer"
                     >
                       ยกเลิกทั้งหมด
                     </button>
@@ -416,7 +416,7 @@ export default function SSDSyncModal({ isOpen, onClose, onRefreshData }) {
                         <div
                           key={expId}
                           onClick={() => toggleSelectClip(expId)}
-                          className={`p-2.5 rounded-xl border transition-all flex items-center justify-between gap-3 cursor-pointer select-none ${
+                          className={`p-2.5 rounded-xl border transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 ease-out flex items-center justify-between gap-3 cursor-pointer select-none ${
                             isSelected
                               ? 'bg-emerald-500/10 border-emerald-500/40 shadow-sm'
                               : 'bg-slate-900/40 border-white/[0.06] hover:border-white/[0.15]'
@@ -600,7 +600,7 @@ export default function SSDSyncModal({ isOpen, onClose, onRefreshData }) {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <div
                       onClick={() => setRetentionMode('archive')}
-                      className={`p-3 rounded-xl border transition-all cursor-pointer select-none ${
+                      className={`p-3 rounded-xl border transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 ease-out cursor-pointer select-none ${
                         retentionMode === 'archive'
                           ? 'bg-cyan-500/10 border-cyan-400/50 shadow-sm ring-1 ring-cyan-400/30'
                           : 'bg-black/30 border-white/[0.08] hover:border-white/[0.2]'
@@ -617,7 +617,7 @@ export default function SSDSyncModal({ isOpen, onClose, onRefreshData }) {
 
                     <div
                       onClick={() => setRetentionMode('delete')}
-                      className={`p-3 rounded-xl border transition-all cursor-pointer select-none ${
+                      className={`p-3 rounded-xl border transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 ease-out cursor-pointer select-none ${
                         retentionMode === 'delete'
                           ? 'bg-red-500/10 border-red-400/50 shadow-sm ring-1 ring-red-400/30'
                           : 'bg-black/30 border-white/[0.08] hover:border-white/[0.2]'
@@ -634,7 +634,7 @@ export default function SSDSyncModal({ isOpen, onClose, onRefreshData }) {
 
                     <div
                       onClick={() => setRetentionMode('keep')}
-                      className={`p-3 rounded-xl border transition-all cursor-pointer select-none ${
+                      className={`p-3 rounded-xl border transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 ease-out cursor-pointer select-none ${
                         retentionMode === 'keep'
                           ? 'bg-amber-500/10 border-amber-400/50 shadow-sm ring-1 ring-amber-400/30'
                           : 'bg-black/30 border-white/[0.08] hover:border-white/[0.2]'

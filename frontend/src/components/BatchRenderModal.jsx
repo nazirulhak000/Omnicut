@@ -196,7 +196,7 @@ export default function BatchRenderModal({
               </div>
               <div className="w-full h-2.5 bg-black/40 rounded-full overflow-hidden border border-white/10">
                 <div
-                  className="h-full bg-gradient-to-r from-cyan-500 to-emerald-500 transition-all duration-300 rounded-full"
+                  className="h-full bg-gradient-to-r from-cyan-500 to-emerald-500 transition-[width] duration-300 ease-linear rounded-full"
                   style={{ width: `${Math.max(activeBatch.progress || 0, isRunning ? 5 : 0)}%` }}
                 />
               </div>
@@ -302,7 +302,7 @@ export default function BatchRenderModal({
                   <div
                     key={aid}
                     onClick={() => !isPosted && toggleSelectAngle(aid)}
-                    className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer select-none ${
+                    className={`flex items-center justify-between p-3 rounded-xl border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer select-none ${
                       isSelected
                         ? 'bg-cyan-500/10 border-cyan-500/40 text-cyan-100'
                         : isPosted

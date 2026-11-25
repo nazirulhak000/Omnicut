@@ -29,7 +29,7 @@ test('Sidebar enforces 72px rail and Obsidian Pro Dark NLE chrome', () => {
     'Active nav item must use clean studio active tokens'
   );
   assert.ok(
-    sidebarSource.includes("bg-[#25F4EE] shadow-[0_0_8px_#25F4EE]"),
+    sidebarSource.includes("bg-[#25F4EE] shadow-[0_0_12px_rgba(37,244,238,0.25)]"),
     'Active nav item must have solid cyan accent indicator'
   );
 

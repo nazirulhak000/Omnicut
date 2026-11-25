@@ -1881,6 +1881,16 @@ class ProductScraper:
 
 7. **กฎพิเศษกรณีดึงข้อมูลจาก URL (Shopee / TikTok Shop / เว็บไซต์)**:
    - หากรายละเอียดมีสั้น ให้ดึงความรู้สเปกจริงอย่างเป็นทางการ (Official Hardware Specs) มาเขียนให้ตรงความจริง 100% ห้ามมั่วสเปก
+
+8. **กฎเหล็กแฮชแท็ก TikTok 4-5 อันเท่านั้น (Strict 4-5 Hashtags TikTok Rule - สำคัญมาก)**:
+   - ฟิลด์ `tiktok_hashtags` ต้องมี **4-5 แฮชแท็กเท่านั้น ห้ามต่ำกว่า 3 และห้ามเกิน 5 อันเด็ดขาด** (เพื่อป้องกันระบบ TikTok ลดคะแนนการนำส่งจากการสแปมแท็ก)
+   - โครงสร้าง 5 แฮชแท็กต้องจัดเรียงตามสูตรเร่งยอดขาย TikTok Shop Affiliate:
+     1. `#ชื่อแบรนด์หรือรุ่นสินค้า` (เช่น `#LogitechWaveKeys` หรือ `#OrsenS6`)
+     2. `#หมวดหมู่หรือฟังก์ชันหลัก` (เช่น `#คีย์บอร์ดบลูทูธ` หรือ `#สายชาร์จเร็ว`)
+     3. `#TikTokป้ายยา` (แท็กดันฟีดคนช้อปปิ้ง)
+     4. `#ของดีบอกต่อ` (แท็กดันฟีดทั่วไป)
+     5. `#พิกัดในตะกร้า` (แท็กกระตุ้นการสั่งซื้อ)
+   - ห้ามมีแฮชแท็กเกี่ยวกับราคา ส่วนลด โปรโมชั่นเด็ดขาด (ห้าม #ลดราคา #ราคาถูก #ส่งฟรี)
 {image_rule}{extra_beat_rule}
 {angle_list_section}
 
@@ -1904,7 +1914,7 @@ class ProductScraper:
   "ad_tone": "{DEFAULT_AD_TONE}",
   "script_lines": {example_script_lines_json},
   "tiktok_caption": "บอกลาอาการปวดข้อมือ! อัปเกรดชีวิตด้วย {{product_name}} คีย์บอร์ดเพื่อสุขภาพที่นุ่มสบายที่สุด พิกัดในตะกร้าเลย 👇",
-  "tiktok_hashtags": "#นายหน้าtiktok #รีวิวของดี #ของมันต้องมี #tiktokป้ายยา #พิกัดในตะกร้า"
+  "tiktok_hashtags": "#LogitechWaveKeys #คีย์บอร์ดบลูทูธ #TikTokป้ายยา #ของดีบอกต่อ #พิกัดในตะกร้า"
 }}
 
 ตอบกลับเฉพาะ JSON array เท่านั้น ห้ามใส่คำเกริ่นนำหรือ markdown formatting อื่น
@@ -2000,8 +2010,11 @@ class ProductScraper:
                         if "hook_title" in a and isinstance(a["hook_title"], str):
                             a["hook_title"] = re.sub(r'\s+', ' ', re.sub(r'[\.]{2,}|…', ' ', a["hook_title"])).strip()
                     # The prompt forbids prices; this makes it a guarantee (a model that ignores the rule never reaches a caption)
+                    from scripts.hashtag_utils import normalize_tiktok_hashtags
                     for a in angles:
                         scrub_angle_price_text(a, title, script_lines=True)
+                        if "tiktok_hashtags" in a:
+                            a["tiktok_hashtags"] = normalize_tiktok_hashtags(a["tiktok_hashtags"], title)
                     # Add TTS-ready lines via sanitizer
                     from scripts.tts_sanitizer import TTSSanitizer
                     angles = TTSSanitizer.process_angles(angles[:count])
@@ -2017,6 +2030,7 @@ class ProductScraper:
 
         # Robust Fallback 10-Angle Matrix (30-38s, strictly male tone)
         base_name = title[:30] or "สินค้าตัวนี้"
+        clean_tag = re.sub(r"[^\w\u0E00-\u0E7F]+", "", base_name)[:15] or "ของใช้ดี"
         from scripts.tts_sanitizer import TTSSanitizer
         fallback_angles = [
             {
@@ -2037,7 +2051,7 @@ class ProductScraper:
                     "สนใจกดตะกร้าสีเหลืองซ้ายล่าง ดูรายละเอียดได้เลยครับ"
                 ],
                 "tiktok_caption": f"เบื่อปัญหาเดิมๆ ลองดู {base_name} ดูรายละเอียดในตะกร้าซ้ายล่างเลยครับ 👇",
-                "tiktok_hashtags": "#รีวิวของดี #tiktokป้ายยา #ของใช้จำเป็น #พิกัดในตะกร้า"
+                "tiktok_hashtags": f"#{clean_tag} #ของใช้จำเป็น #TikTokป้ายยา #ของดีบอกต่อ #พิกัดในตะกร้า"
             },
             {
                 "angle_id": "unboxing",
@@ -2057,7 +2071,7 @@ class ProductScraper:
                     "สนใจกดตะกร้าสีเหลืองซ้ายล่าง ดูรายละเอียดได้เลยครับ"
                 ],
                 "tiktok_caption": f"แกะกล่องให้ดูของจริง {base_name} พิกัดในตะกร้าซ้ายล่างเลยครับ 🛒✨",
-                "tiktok_hashtags": "#แกะกล่อง #ของดีบอกต่อ #tiktokป้ายยา #fyp"
+                "tiktok_hashtags": f"#{clean_tag} #แกะกล่อง #TikTokป้ายยา #ของดีบอกต่อ #พิกัดในตะกร้า"
             },
             {
                 "angle_id": "spec_review",
@@ -2077,7 +2091,7 @@ class ProductScraper:
                     "สนใจกดดูรายละเอียดในตะกร้าซ้ายล่างได้เลยครับ"
                 ],
                 "tiktok_caption": f"ลองใช้งานให้ดูแบบชัดๆ {base_name} ดูรายละเอียดในตะกร้าได้เลยครับ 👇",
-                "tiktok_hashtags": "#รีวิวเจาะลึก #สายไอที #tiktokพาช้อป"
+                "tiktok_hashtags": f"#{clean_tag} #สายไอที #TikTokป้ายยา #ของดีบอกต่อ #พิกัดในตะกร้า"
             },
             {
                 "angle_id": "fomo_deal",
@@ -2097,7 +2111,7 @@ class ProductScraper:
                     "สนใจกดตะกร้าซ้ายล่าง ดูรายละเอียดได้เลยครับ"
                 ],
                 "tiktok_caption": f"⚡ ของมันต้องมี! {base_name} ดูรายละเอียดในตะกร้าได้เลยครับ 🛍️",
-                "tiktok_hashtags": "#ของมันต้องมี #ของดีบอกต่อ #tiktokป้ายยา #พิกัดในตะกร้า"
+                "tiktok_hashtags": f"#{clean_tag} #ของมันต้องมี #TikTokป้ายยา #ของดีบอกต่อ #พิกัดในตะกร้า"
             },
             {
                 "angle_id": "comparison",
@@ -2117,7 +2131,7 @@ class ProductScraper:
                     "อยากเปลี่ยนชีวิตให้ง่ายขึ้น จิ้มตะกร้าสีเหลืองซ้ายล่างได้เลยครับ"
                 ],
                 "tiktok_caption": f"เทียบกันชัดๆ ทำไมต้องเปลี่ยนมาใช้ {base_name} ดูแล้วจะเข้าใจครับ! 👇",
-                "tiktok_hashtags": "#เปรียบเทียบ #ของดีบอกต่อ #ชีวิตง่ายขึ้น #ป้ายยา"
+                "tiktok_hashtags": f"#{clean_tag} #เปรียบเทียบ #TikTokป้ายยา #ของดีบอกต่อ #พิกัดในตะกร้า"
             },
             {
                 "angle_id": "life_hack",
@@ -2137,7 +2151,7 @@ class ProductScraper:
                     "พิกัดไอเทมลับ จิ้มในตะกร้าสีเหลืองซ้ายล่างได้เลยครับ"
                 ],
                 "tiktok_caption": f"ไอเทมที่หลายคนยังไม่รู้จัก {base_name} พิกัดตะกร้าซ้ายล่างเลยครับ 💡",
-                "tiktok_hashtags": "#lifehack #ไอเทมลับ #รู้งี้ซื้อนานแล้ว #ของมันต้องมี"
+                "tiktok_hashtags": f"#{clean_tag} #ไอเทมลับ #TikTokป้ายยา #ของดีบอกต่อ #พิกัดในตะกร้า"
             },
             {
                 "angle_id": "stop_scroll",
@@ -2157,7 +2171,7 @@ class ProductScraper:
                     "เพื่อความชัวร์ กดสั่งจากตะกร้าทางการซ้ายล่างตรงนี้ได้เลยครับ"
                 ],
                 "tiktok_caption": f"⚠️ เช็กให้ดีก่อนซื้อ {base_name} ดูรายละเอียดในตะกร้าได้เลยครับ 👇",
-                "tiktok_hashtags": "#เช็กก่อนซื้อ #tiktokป้ายยา"
+                "tiktok_hashtags": f"#{clean_tag} #เช็กก่อนซื้อ #TikTokป้ายยา #ของดีบอกต่อ #พิกัดในตะกร้า"
             },
             {
                 "angle_id": "niche_target",
@@ -2177,7 +2191,7 @@ class ProductScraper:
                     "พิกัดไอเทมจัดโต๊ะ จิ้มตะกร้าซ้ายล่างได้เลยครับ"
                 ],
                 "tiktok_caption": f"ไอเทมที่ชาวจัดโต๊ะคอมและ WFH ต้องมี! {base_name} พิกัดในตะกร้าเลยครับ 🖥️✨",
-                "tiktok_hashtags": "#จัดโต๊ะคอม #wfh #เกมเมอร์ #สายออฟฟิศ #desksetup"
+                "tiktok_hashtags": f"#{clean_tag} #จัดโต๊ะคอม #TikTokป้ายยา #ของดีบอกต่อ #พิกัดในตะกร้า"
             },
             {
                 "angle_id": "longterm_review",
@@ -2197,7 +2211,7 @@ class ProductScraper:
                     "ใครกำลังเล็งอยู่ ไม่ต้องคิดเยอะ จิ้มตะกร้าซ้ายล่างได้เลยครับ"
                 ],
                 "tiktok_caption": f"สรุปก่อนซื้อ {base_name} ดูรายละเอียดในตะกร้าได้เลยครับ ⭐",
-                "tiktok_hashtags": "#รีวิวใช้จริง #ไม่อวย #ของดีบอกต่อ #ใช้แล้วชอบ"
+                "tiktok_hashtags": f"#{clean_tag} #รีวิวใช้จริง #TikTokป้ายยา #ของดีบอกต่อ #พิกัดในตะกร้า"
             },
             {
                 "angle_id": "math_value",
@@ -2217,7 +2231,7 @@ class ProductScraper:
                     "สนใจกดตะกร้าซ้ายล่าง ดูรายละเอียดได้เลยครับ"
                 ],
                 "tiktok_caption": f"{base_name} ดูรายละเอียดในตะกร้าเลยครับ 👇",
-                "tiktok_hashtags": "#ของดีบอกต่อ #tiktokป้ายยา"
+                "tiktok_hashtags": f"#{clean_tag} #รีวิวของดี #TikTokป้ายยา #ของดีบอกต่อ #พิกัดในตะกร้า"
             }
         ]
         fallback_selection = fallback_angles
@@ -2228,6 +2242,8 @@ class ProductScraper:
             ]
         for fallback in fallback_selection:
             scrub_angle_price_text(fallback, title, script_lines=True)
+            if "tiktok_hashtags" in fallback:
+                fallback["tiktok_hashtags"] = normalize_tiktok_hashtags(fallback["tiktok_hashtags"], title)
         angles = TTSSanitizer.process_angles(fallback_selection[:count])
         for angle in angles:
             apply_angle_content_metadata(

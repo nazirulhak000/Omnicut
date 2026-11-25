@@ -204,7 +204,7 @@ export default function CaptionInspector({
               <button
                 type="button"
                 onClick={onCloseAllCaptionGaps}
-                className="px-2 py-1 rounded-lg bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[11px] font-semibold text-[#25F4EE] hover:text-[#52fffb] flex items-center gap-1 transition-all cursor-pointer"
+                className="px-2 py-1 rounded-lg bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[11px] font-semibold text-[#25F4EE] hover:text-[#52fffb] flex items-center gap-1 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
                 title="ดูดกล่องคำบรรยายทุกตัวให้ขยับมาเรียงชิดติดกันต่อเนื่องโดยไม่มีช่องว่าง"
               >
                 <Magnet className="w-3 h-3 text-[#25F4EE]" />
@@ -215,7 +215,7 @@ export default function CaptionInspector({
               <button
                 type="button"
                 onClick={onResetSubtitleTimings}
-                className="px-2 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-[11px] font-semibold text-amber-300 hover:text-amber-200 flex items-center gap-1 transition-all cursor-pointer"
+                className="px-2 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-[11px] font-semibold text-amber-300 hover:text-amber-200 flex items-center gap-1 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
                 title="รีเซ็ตเวลาเริ่มต้นและสิ้นสุดของคำบรรยายทุกตัวกลับสู่ค่าตั้งต้นเดิม"
               >
                 <Clock className="w-3 h-3 text-amber-400" />
@@ -225,7 +225,7 @@ export default function CaptionInspector({
             <button
               type="button"
               onClick={handleResetFormat}
-              className="px-2 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-[11px] font-semibold text-slate-300 hover:text-white flex items-center gap-1 transition-all cursor-pointer"
+              className="px-2 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-[11px] font-semibold text-slate-300 hover:text-white flex items-center gap-1 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
               title="คืนค่าขนาด 100%, ฟอนต์ IBM Plex Sans Thai, สีขาว และตำแหน่งกึ่งกลางล่าง"
             >
               <RotateCcw className="w-3 h-3 text-slate-400" />
@@ -238,7 +238,7 @@ export default function CaptionInspector({
           <button
             type="button"
             onClick={() => toggleApplyToAll?.(false)}
-            className={`py-1.5 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+            className={`py-1.5 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
               !effectiveApplyToAll
                 ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 shadow-sm'
                 : 'text-slate-400 hover:text-white border border-transparent'
@@ -250,7 +250,7 @@ export default function CaptionInspector({
           <button
             type="button"
             onClick={() => toggleApplyToAll?.(true)}
-            className={`py-1.5 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+            className={`py-1.5 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
               effectiveApplyToAll
                 ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 shadow-sm'
                 : 'text-slate-400 hover:text-white border border-transparent'
@@ -329,7 +329,7 @@ export default function CaptionInspector({
                   role="radio"
                   aria-checked={active}
                   onClick={() => { if (!active) onStyleChange?.({ ghostReveal: mode.on }); }}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[#25F4EE] ${
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 focus:outline-none focus:ring-2 focus:ring-[#25F4EE] ${
                     active ? 'bg-[#25F4EE] text-black' : 'text-slate-300 hover:text-white'
                   }`}
                 >
@@ -383,7 +383,7 @@ export default function CaptionInspector({
                 key={s}
                 type="button"
                 onClick={() => handleScaleChange(s)}
-                className={`flex-1 py-1 rounded-lg text-[10px] sm:text-[11px] font-bold border transition-all cursor-pointer ${
+                className={`flex-1 py-1 rounded-lg text-[10px] sm:text-[11px] font-bold border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                   Math.abs(currentScale - s) < 0.05
                     ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE] shadow-sm'
                     : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
@@ -418,7 +418,7 @@ export default function CaptionInspector({
                 key={pos}
                 type="button"
                 onClick={() => handlePositionChange(pos)}
-                className={`py-1 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
+                className={`py-1 rounded-lg text-[11px] font-bold border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                   currentPosition === pos
                     ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
                     : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
@@ -467,7 +467,7 @@ export default function CaptionInspector({
                 key={preset.id}
                 type="button"
                 onClick={() => handleColorChange(preset.color)}
-                className={`flex flex-col items-center justify-center p-1.5 rounded-xl border transition-all cursor-pointer group ${
+                className={`flex flex-col items-center justify-center p-1.5 rounded-xl border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer group ${
                   isCurrent
                     ? 'border-[#25F4EE] bg-[#25F4EE]/10 ring-1 ring-[#25F4EE]/40 shadow-sm'
                     : 'border-white/[0.08] bg-black/60 hover:border-white/20'
@@ -500,7 +500,7 @@ export default function CaptionInspector({
         <button
           type="button"
           onClick={() => onSeek?.(selectedCaption.start)}
-          className="py-1.5 px-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+          className="py-1.5 px-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
         >
           <Play className="w-3.5 h-3.5 fill-current text-emerald-400" />
           <span>เล่นท่อนนี้</span>
@@ -508,7 +508,7 @@ export default function CaptionInspector({
         <button
           type="button"
           onClick={() => onSplitCueAtPlayhead?.(selectedCaption._uid)}
-          className="py-1.5 px-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+          className="py-1.5 px-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
         >
           <Scissors className="w-3.5 h-3.5 text-[#25F4EE]" />
           <span>ตัดที่หัวอ่าน</span>

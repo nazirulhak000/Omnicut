@@ -24,26 +24,29 @@ export function Modal({
 
   const [dragY, setDragY] = useState(0);
   const touchStartY = useRef(null);
+  const touchStartTime = useRef(0);
 
   const handleTouchStart = (e) => {
     touchStartY.current = e.touches[0].clientY;
+    touchStartTime.current = performance.now();
   };
 
   const handleTouchMove = (e) => {
     if (touchStartY.current === null) return;
     const diff = e.touches[0].clientY - touchStartY.current;
-    if (diff > 0) {
-      setDragY(diff);
-    }
+    setDragY(diff < 0 ? diff * 0.15 : diff);
   };
 
   const handleTouchEnd = () => {
-    if (dragY > 80) {
+    const elapsed = Math.max(1, performance.now() - (touchStartTime.current || performance.now()));
+    const velocity = Math.max(0, dragY) / elapsed;
+    if (dragY > 80 || (dragY > 20 && velocity > 0.11)) {
       try { navigator.vibrate?.(10); } catch {}
       onClose?.();
     }
     setDragY(0);
     touchStartY.current = null;
+    touchStartTime.current = 0;
   };
 
   if (!isOpen) return null;
@@ -64,8 +67,8 @@ export function Modal({
       <div
         className={`relative w-full ${maxWidth} glass-panel border border-white/[0.18] shadow-2xl rounded-t-3xl rounded-b-none sm:rounded-3xl z-10 flex flex-col max-h-[90dvh] overflow-hidden animate-scaleUp mt-auto sm:my-auto pb-[env(safe-area-inset-bottom)] sm:pb-0 outline-none`}
         style={{
-          transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
-          transition: dragY === 0 ? 'transform 0.2s cubic-bezier(0.25, 1, 0.5, 1)' : 'none'
+          transform: dragY !== 0 ? `translateY(${dragY}px)` : undefined,
+          transition: dragY === 0 ? 'transform 250ms var(--ease-drawer, cubic-bezier(0.32, 0.72, 0, 1))' : 'none'
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -97,7 +100,7 @@ export function Modal({
               <button
                 type="button"
                 onClick={onClose}
-                className="w-11 h-11 sm:w-9 sm:h-9 pointer-coarse:w-11 pointer-coarse:h-11 rounded-xl bg-white/[0.05] hover:bg-white/[0.12] text-slate-400 hover:text-white transition-colors cursor-pointer flex items-center justify-center flex-shrink-0 border border-white/[0.06]"
+                className="w-11 h-11 sm:w-9 sm:h-9 pointer-coarse:w-11 pointer-coarse:h-11 rounded-xl bg-white/[0.05] hover:bg-white/[0.12] text-slate-400 hover:text-white active:scale-[0.95] transition-[background-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer flex items-center justify-center flex-shrink-0 border border-white/[0.06]"
                 aria-label="ปิดหน้าต่าง"
               >
                 <X className="w-5 h-5 sm:w-4 sm:h-4" />

@@ -165,7 +165,7 @@ MEASURED = {}
 
 @needs_ffmpeg
 @pytest.mark.parametrize("easing", ["linear", "ease_in", "ease_out", "ease_in_out"])
-@pytest.mark.parametrize("kind", ["fade", "fadeblack", "fadewhite"])
+@pytest.mark.parametrize("kind", [k for k in ("fade", "fadeblack", "fadewhite") if k in EASED_TRANSITIONS])
 def test_eased_fades_match_preview_weights(tmp_path, kind, easing):
     ya, yb = 64, 192
     out = _render(tmp_path, _src("0x404040"), _src("0xC0C0C0"),

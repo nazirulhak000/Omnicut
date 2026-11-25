@@ -252,7 +252,7 @@ export default function ShotListModal({
               type="button"
               onClick={handleBatchGenerate}
               disabled={batchGenerating || shotList.length === 0}
-              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 active:scale-95 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-purple-950/50 disabled:opacity-50 disabled:cursor-wait transition-all cursor-pointer"
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 active:scale-95 disabled:active:scale-100 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-purple-950/50 disabled:opacity-50 disabled:cursor-wait transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer"
               title="สั่งสร้าง B-roll อัตโนมัติทุกช็อตด้วย Google Flow"
             >
               {batchGenerating ? (
@@ -422,7 +422,7 @@ export default function ShotListModal({
                         <button
                           type="button"
                           onClick={() => handleOpenFlowForShot(beat)}
-                          className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-purple-500/15 to-cyan-500/15 hover:from-purple-500/25 hover:to-cyan-500/25 border border-purple-500/30 hover:border-cyan-500/40 text-cyan-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-sm"
+                          className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-purple-500/15 to-cyan-500/15 hover:from-purple-500/25 hover:to-cyan-500/25 border border-purple-500/30 hover:border-cyan-500/40 text-cyan-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-95 disabled:active:scale-100 cursor-pointer shadow-sm"
                           title="สร้าง B-roll สำหรับช็อตนี้ด้วย Google Flow (Veo)"
                         >
                           <Zap className="w-3.5 h-3.5 text-amber-400 fill-amber-400/80 shrink-0" />

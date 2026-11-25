@@ -186,8 +186,9 @@ def recover_startup_work() -> dict[str, int]:
         from scripts.flow_service import get_flow_service
         flow_client = get_flow_client()
         flow_service = get_flow_service()
-        flow_online = flow_client.ensure_service_running(timeout=3.0)
-        pending_jobs = flow_service.recover_pending_jobs() if hasattr(flow_service, "recover_pending_jobs") else 0
+        flow_autostart = os.environ.get("FLOW_MCP_AUTOSTART", "0").lower() in ("1", "true")
+        flow_online = flow_client.ensure_service_running(timeout=3.0) if flow_autostart else flow_client.is_healthy(timeout=0.5)
+        pending_jobs = flow_service.recover_pending_jobs() if (flow_online and hasattr(flow_service, "recover_pending_jobs")) else 0
         recovered["flow_service"] = 1 if flow_online else 0
         recovered["flow_pending_jobs"] = pending_jobs
         if flow_online:

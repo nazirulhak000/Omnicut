@@ -49,9 +49,9 @@ HOOK_LINE_MIN_SIZE_SHARE = 0.70
 # too: 860 * 1.25 = 1075. At rest the margins are (1080 - 860) / 2 = 110 px.
 HOOK_LINE_MAX_WIDTH_PX = 860
 # Vertical centre as a fraction of frame height: where the nameplate's first
-# tier sits (180 px top anchor + half a line), so the nameplate replaces the
-# hook line in the same band. 225 px is also well below the TikTok status bar.
-HOOK_LINE_CENTER_Y = 225.0 / 1920.0
+# tier sits (260 px top anchor + half a line), so the nameplate replaces the
+# hook line in the same band. 320 px is safely below the TikTok search bar (240 px).
+HOOK_LINE_CENTER_Y = 320.0 / 1920.0
 
 HOOK_LINE_ROLE = "hook_line"
 HOOK_LINE_ID = "ovl_hook_line"

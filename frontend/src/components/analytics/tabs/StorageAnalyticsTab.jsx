@@ -117,7 +117,7 @@ export default function StorageAnalyticsTab() {
         <p className="text-sm text-slate-300">{error || 'ไม่พบข้อมูล'}</p>
         <button
           onClick={() => fetchData(true)}
-          className="px-4 py-2 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] text-xs font-bold text-white transition-all cursor-pointer inline-flex items-center gap-2"
+          className="px-4 py-2 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] text-xs font-bold text-white transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer inline-flex items-center gap-2"
         >
           <RefreshCw className="w-4 h-4" />
           <span>สแกนพื้นที่ใหม่อีกครั้ง</span>
@@ -191,7 +191,7 @@ export default function StorageAnalyticsTab() {
           <button
             onClick={() => fetchData(true)}
             disabled={scanning}
-            className="px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-xs font-bold text-slate-200 transition-all cursor-pointer flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-xs font-bold text-slate-200 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer flex items-center gap-1.5"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${scanning ? 'animate-spin' : ''}`} />
             <span>{scanning ? 'กำลังสแกน...' : 'สแกนพื้นที่ใหม่'}</span>
@@ -200,7 +200,7 @@ export default function StorageAnalyticsTab() {
           {safe_purge_mb > 0 && (
             <button
               onClick={() => setShowPurgeModal(true)}
-              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 border border-purple-500/30 text-purple-200 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 border border-purple-500/30 text-purple-200 text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer flex items-center gap-1.5"
             >
               <Trash2 className="w-3.5 h-3.5 text-purple-400" />
               <span>ล้างไฟล์แคช ({safe_purge_mb} MB)</span>
@@ -241,7 +241,7 @@ export default function StorageAnalyticsTab() {
             <button
               type="button"
               onClick={() => openFolder('04_Exports/Posted')}
-              className="px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-xs font-semibold text-slate-300 hover:text-white transition-all cursor-pointer inline-flex items-center gap-1.5"
+              className="px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-xs font-semibold text-slate-300 hover:text-white transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer inline-flex items-center gap-1.5"
             >
               <FolderOpen className="w-3.5 h-3.5" />
               <span>เปิด 04_Exports/Posted</span>
@@ -249,7 +249,7 @@ export default function StorageAnalyticsTab() {
             <button
               type="button"
               onClick={() => setShowArchiveDetail(!showArchiveDetail)}
-              className="px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-[#25F4EE] text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5 active:scale-95"
+              className="px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-[#25F4EE] text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer inline-flex items-center gap-1.5 active:scale-95"
             >
               <FolderArchive className="w-3.5 h-3.5" />
               <span>{showArchiveDetail ? 'ซ่อนรายการ' : `ดูรายการ (${posted_archive_potential.items_count || 0} รายการ)`}</span>
@@ -443,7 +443,7 @@ export default function StorageAnalyticsTab() {
                     </span>
                     <button
                       onClick={() => openFolder(dir.folder)}
-                      className="p-1 rounded bg-white/[0.05] hover:bg-white/[0.1] text-slate-400 hover:text-white transition-all cursor-pointer"
+                      className="p-1 rounded bg-white/[0.05] hover:bg-white/[0.1] text-slate-400 hover:text-white transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
                       title={`เปิดโฟลเดอร์ ${dir.folder} ใน Explorer`}
                     >
                       <FolderOpen className="w-3.5 h-3.5" />
@@ -451,7 +451,7 @@ export default function StorageAnalyticsTab() {
                   </div>
                   <div className="w-full h-1.5 rounded-full bg-white/[0.04] overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all"
+                      className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500 transition-[width,background-color,opacity] duration-300 ease-out"
                       style={{ width: `${Math.max(4, pct)}%` }}
                     />
                   </div>
@@ -471,7 +471,7 @@ export default function StorageAnalyticsTab() {
           </div>
           <button
             onClick={() => openFolder('01_Raw')}
-            className="px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-xs font-semibold text-slate-300 hover:text-white transition-all cursor-pointer inline-flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-xs font-semibold text-slate-300 hover:text-white transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer inline-flex items-center gap-1.5"
           >
             <FolderOpen className="w-3.5 h-3.5" />
             <span>เปิด 01_Raw</span>
@@ -508,7 +508,7 @@ export default function StorageAnalyticsTab() {
                   <td className="py-2.5 px-3 text-right">
                     <button
                       onClick={() => openFolder(`01_Raw/${item.name}`)}
-                      className="px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 text-[11px] font-semibold transition-all cursor-pointer inline-flex items-center gap-1"
+                      className="px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 text-[11px] font-semibold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer inline-flex items-center gap-1"
                     >
                       <FolderOpen className="w-3 h-3 text-purple-400" />
                       <span>เปิดโฟลเดอร์</span>

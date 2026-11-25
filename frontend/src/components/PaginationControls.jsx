@@ -1,5 +1,8 @@
 import React, { useMemo } from 'react';
 
+const PAGE_BUTTON_MOTION =
+  'cursor-pointer active:scale-[0.95] disabled:active:scale-100 transition-[background-color,border-color,color,transform] duration-120 active:duration-75 ease-out';
+
 const buildPageWindow = (page, totalPages) => {
   const start = Math.max(1, Math.min(page - 2, totalPages - 4));
   const end = Math.min(totalPages, start + 4);
@@ -25,7 +28,7 @@ export default function PaginationControls({
   if (compact) {
     return (
       <div className="flex items-center justify-between gap-2 pt-1.5 text-xs">
-        <div className="text-[11px] text-slate-400 font-medium whitespace-nowrap min-w-0 truncate">
+        <div className="text-[11px] text-slate-400 font-medium tabular-nums whitespace-nowrap min-w-0 truncate">
           {totalItems === 0 ? `ไม่พบ${itemLabel}` : `${firstItem}-${lastItem} จาก ${totalItems} ${itemLabel}`}
         </div>
         <nav className="flex items-center gap-1 shrink-0" aria-label={`หน้า${itemLabel}`}>
@@ -33,20 +36,20 @@ export default function PaginationControls({
             type="button"
             onClick={() => onPageChange(Math.max(1, page - 1))}
             disabled={disabled || page <= 1}
-            className="flex h-6 w-6 items-center justify-center rounded-md border border-white/[0.1] text-xs text-slate-300 hover:bg-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            className={`flex h-6 w-6 items-center justify-center rounded-md border border-white/[0.1] text-xs text-slate-300 hover:bg-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed ${PAGE_BUTTON_MOTION}`}
             aria-label="หน้าก่อนหน้า"
             title="หน้าก่อนหน้า"
           >
             ‹
           </button>
-          <span className="px-1.5 text-[11px] font-mono text-slate-300 font-semibold whitespace-nowrap select-none">
+          <span className="px-1.5 text-[11px] font-mono tabular-nums text-slate-300 font-semibold whitespace-nowrap select-none">
             {page} / {totalPages}
           </span>
           <button
             type="button"
             onClick={() => onPageChange(Math.min(totalPages, page + 1))}
             disabled={disabled || page >= totalPages}
-            className="flex h-6 w-6 items-center justify-center rounded-md border border-white/[0.1] text-xs text-slate-300 hover:bg-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            className={`flex h-6 w-6 items-center justify-center rounded-md border border-white/[0.1] text-xs text-slate-300 hover:bg-white/[0.08] disabled:opacity-30 disabled:cursor-not-allowed ${PAGE_BUTTON_MOTION}`}
             aria-label="หน้าถัดไป"
             title="หน้าถัดไป"
           >
@@ -60,7 +63,7 @@ export default function PaginationControls({
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-3 border-t border-white/[0.06]">
       <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400 whitespace-nowrap shrink-0">
-        <span>{totalItems === 0 ? `ไม่พบ${itemLabel}` : `แสดง ${firstItem}-${lastItem} จาก ${totalItems} ${itemLabel}`}</span>
+        <span className="tabular-nums">{totalItems === 0 ? `ไม่พบ${itemLabel}` : `แสดง ${firstItem}-${lastItem} จาก ${totalItems} ${itemLabel}`}</span>
         {onPageSizeChange && (
           <label className="inline-flex items-center gap-1.5 whitespace-nowrap">
             <span>ต่อหน้า</span>
@@ -82,7 +85,7 @@ export default function PaginationControls({
           type="button"
           onClick={() => onPageChange(1)}
           disabled={disabled || page <= 1}
-          className="px-2 py-1.5 rounded-lg border border-white/[0.1] text-xs text-slate-300 hover:bg-white/[0.08] disabled:opacity-40 disabled:cursor-not-allowed"
+          className={`px-2 py-1.5 rounded-lg border border-white/[0.1] text-xs text-slate-300 hover:bg-white/[0.08] disabled:opacity-40 disabled:cursor-not-allowed ${PAGE_BUTTON_MOTION}`}
           aria-label="หน้าแรก"
         >
           «
@@ -91,7 +94,7 @@ export default function PaginationControls({
           type="button"
           onClick={() => onPageChange(Math.max(1, page - 1))}
           disabled={disabled || page <= 1}
-          className="px-2.5 py-1.5 rounded-lg border border-white/[0.1] text-xs text-slate-300 hover:bg-white/[0.08] disabled:opacity-40 disabled:cursor-not-allowed"
+          className={`px-2.5 py-1.5 rounded-lg border border-white/[0.1] text-xs text-slate-300 hover:bg-white/[0.08] disabled:opacity-40 disabled:cursor-not-allowed ${PAGE_BUTTON_MOTION}`}
           aria-label="หน้าก่อนหน้า"
         >
           ‹
@@ -103,7 +106,7 @@ export default function PaginationControls({
             onClick={() => onPageChange(pageNumber)}
             disabled={disabled && pageNumber === page}
             aria-current={pageNumber === page ? 'page' : undefined}
-            className={`min-w-8 px-2 py-1.5 rounded-lg border text-xs font-bold transition-colors ${
+            className={`min-w-8 px-2 py-1.5 rounded-lg border text-xs font-bold tabular-nums ${PAGE_BUTTON_MOTION} ${
               pageNumber === page
                 ? 'border-[#25F4EE]/50 bg-[#25F4EE]/15 text-[#25F4EE]'
                 : 'border-white/[0.1] text-slate-300 hover:bg-white/[0.08]'
@@ -116,7 +119,7 @@ export default function PaginationControls({
           type="button"
           onClick={() => onPageChange(Math.min(totalPages, page + 1))}
           disabled={disabled || page >= totalPages}
-          className="px-2.5 py-1.5 rounded-lg border border-white/[0.1] text-xs text-slate-300 hover:bg-white/[0.08] disabled:opacity-40 disabled:cursor-not-allowed"
+          className={`px-2.5 py-1.5 rounded-lg border border-white/[0.1] text-xs text-slate-300 hover:bg-white/[0.08] disabled:opacity-40 disabled:cursor-not-allowed ${PAGE_BUTTON_MOTION}`}
           aria-label="หน้าถัดไป"
         >
           ›
@@ -125,7 +128,7 @@ export default function PaginationControls({
           type="button"
           onClick={() => onPageChange(totalPages)}
           disabled={disabled || page >= totalPages}
-          className="px-2.5 py-1.5 rounded-lg border border-white/[0.1] text-xs text-slate-300 hover:bg-white/[0.08] disabled:opacity-40 disabled:cursor-not-allowed"
+          className={`px-2.5 py-1.5 rounded-lg border border-white/[0.1] text-xs text-slate-300 hover:bg-white/[0.08] disabled:opacity-40 disabled:cursor-not-allowed ${PAGE_BUTTON_MOTION}`}
           aria-label="หน้าสุดท้าย"
         >
           »

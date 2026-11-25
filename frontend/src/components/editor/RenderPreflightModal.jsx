@@ -30,7 +30,7 @@ export default function RenderPreflightModal({ isOpen, onClose, report, onSeek }
       onClick={onClose}
     >
       <div
-        className="relative flex max-h-[85vh] w-full max-w-2xl flex-col rounded-3xl border border-white/[0.12] bg-[#0F1420] p-6 shadow-2xl"
+        className="relative flex max-h-[85vh] w-full max-w-2xl flex-col rounded-3xl border border-white/[0.12] bg-[#0F1420] p-6 shadow-2xl animate-scaleUp"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -53,7 +53,7 @@ export default function RenderPreflightModal({ isOpen, onClose, report, onSeek }
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/10 hover:text-white cursor-pointer"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-white/10 hover:text-white active:scale-[0.95] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer"
             title="ปิดหน้าต่าง (Esc)"
           >
             <X className="h-5 w-5" />
@@ -142,7 +142,7 @@ export default function RenderPreflightModal({ isOpen, onClose, report, onSeek }
                         onSeek(issue.start);
                         onClose();
                       }}
-                      className="flex-shrink-0 flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-amber-300 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
+                      className="flex-shrink-0 flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-amber-300 hover:bg-white/10 hover:text-white active:scale-[0.97] transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 active:duration-100 ease-out cursor-pointer"
                     >
                       <span>ดูช่วงนี้</span>
                       <ExternalLink className="w-3 h-3" />

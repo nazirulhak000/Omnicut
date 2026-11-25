@@ -507,7 +507,7 @@ export default function MediaAssetsHub({ status }) {
               <button
                 type="button"
                 onClick={() => setViewMode('split')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                   viewMode === 'split'
                     ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
                     : 'text-slate-400 hover:text-white'
@@ -520,7 +520,7 @@ export default function MediaAssetsHub({ status }) {
               <button
                 type="button"
                 onClick={() => setViewMode('grid')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                   viewMode === 'grid'
                     ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
                     : 'text-slate-400 hover:text-white'
@@ -535,7 +535,7 @@ export default function MediaAssetsHub({ status }) {
             {/* Upload Button */}
             {activeAssetTab !== 'system' && (
               <label
-                className={`relative flex items-center justify-center gap-2 flex-1 sm:flex-initial px-3.5 sm:px-4 py-2 rounded-xl bg-[#E0244A] hover:bg-[#C81D40] text-white text-xs font-bold shadow-sm transition-all cursor-pointer active:scale-95 ${
+                className={`relative flex items-center justify-center gap-2 flex-1 sm:flex-initial px-3.5 sm:px-4 py-2 rounded-xl bg-[#E0244A] hover:bg-[#C81D40] text-white text-xs font-bold shadow-sm transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer active:scale-95 ${
                   uploadingAsset ? 'opacity-50 pointer-events-none' : ''
                 }`}
               >
@@ -556,7 +556,7 @@ export default function MediaAssetsHub({ status }) {
             <button
               type="button"
               onClick={() => handleOpen(activeAssetTab === 'system' ? 'root' : 'assets')}
-              className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-200 text-xs font-bold border border-white/[0.08] transition-all cursor-pointer active:scale-95 flex-shrink-0"
+              className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-200 text-xs font-bold border border-white/[0.08] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer active:scale-95 flex-shrink-0"
               title="เปิดโฟลเดอร์ Assets"
             >
               <Folder className="w-3.5 h-3.5 text-[#25F4EE]" />
@@ -591,7 +591,7 @@ export default function MediaAssetsHub({ status }) {
                     key={cat.id}
                     type="button"
                     onClick={() => setActiveAssetTab(cat.id)}
-                    className={`flex-shrink-0 snap-start min-w-[150px] sm:min-w-0 p-3 sm:p-3.5 rounded-2xl border text-left transition-all relative cursor-pointer active:scale-95 ${
+                    className={`flex-shrink-0 snap-start min-w-[150px] sm:min-w-0 p-3 sm:p-3.5 rounded-2xl border text-left transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out relative cursor-pointer active:scale-95 ${
                       isActive
                         ? `${cat.activeBg} ${cat.borderColor} shadow-lg ring-1 ${cat.borderColor}`
                         : 'bg-[#080B11]/80 border-white/[0.06] hover:border-white/[0.15] hover:bg-white/[0.02]'
@@ -615,7 +615,7 @@ export default function MediaAssetsHub({ status }) {
                     <div className="text-[10px] text-slate-400 truncate mt-1">
                       {cat.sublabel}
                     </div>
-                    <div className={`h-1 w-full mt-2 rounded-full transition-all ${
+                    <div className={`h-1 w-full mt-2 rounded-full transition-colors duration-150 ease-out ${
                       isActive ? (cat.indicatorBg || 'bg-[#25F4EE]') : 'bg-white/[0.04]'
                     }`} />
                   </button>
@@ -656,7 +656,7 @@ export default function MediaAssetsHub({ status }) {
                           key={sc.id}
                           type="button"
                           onClick={() => setSfxCategory(sc.id)}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex-shrink-0 ${
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 whitespace-nowrap cursor-pointer flex-shrink-0 ${
                             isActive
                               ? 'bg-[#25F4EE] text-slate-950 shadow-md shadow-[#25F4EE]/20'
                               : 'bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 border border-white/[0.08]'
@@ -686,7 +686,7 @@ export default function MediaAssetsHub({ status }) {
                           key={sc.id}
                           type="button"
                           onClick={() => setEffectsCategory(sc.id)}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex-shrink-0 ${
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 whitespace-nowrap cursor-pointer flex-shrink-0 ${
                             isActive
                               ? 'bg-fuchsia-400 text-slate-950 shadow-md shadow-fuchsia-400/20'
                               : 'bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 border border-white/[0.08]'
@@ -728,7 +728,7 @@ export default function MediaAssetsHub({ status }) {
               <button
                 type="button"
                 onClick={() => handleOpen('root')}
-                className="px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                className="px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-white text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer flex items-center gap-1.5"
               >
                 <Folder className="w-3.5 h-3.5 text-[#25F4EE]" />
                 <span>เปิดโฟลเดอร์โปรเจกต์</span>
@@ -741,7 +741,7 @@ export default function MediaAssetsHub({ status }) {
                 return (
                   <div
                     key={dir.id}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-xl bg-black/40 border border-white/[0.06] hover:border-white/[0.15] transition-all gap-3 group"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-xl bg-black/40 border border-white/[0.06] hover:border-white/[0.15] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out gap-3 group"
                   >
                     <div className="min-w-0 flex-1 space-y-0.5">
                       <div className="flex items-center gap-2">
@@ -764,7 +764,7 @@ export default function MediaAssetsHub({ status }) {
                       <button
                         type="button"
                         onClick={() => handleOpen(dir.id)}
-                        className="px-3 py-1.5 rounded-lg bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/30 text-[#25F4EE] hover:text-white text-xs font-bold transition-all cursor-pointer active:scale-95"
+                        className="px-3 py-1.5 rounded-lg bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/30 text-[#25F4EE] hover:text-white text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer active:scale-95"
                       >
                         เปิดโฟลเดอร์
                       </button>
@@ -937,7 +937,7 @@ export default function MediaAssetsHub({ status }) {
                     <div
                       key={item.name || idx}
                       onClick={() => setSelectedAsset(item)}
-                      className={`p-2.5 sm:p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-2.5 group ${
+                      className={`p-2.5 sm:p-3 rounded-xl border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer flex items-center justify-between gap-2.5 group ${
                         isSelected
                           ? 'border-[#25F4EE] bg-[#25F4EE]/10 shadow-md ring-1 ring-[#25F4EE]/30'
                           : 'glass-tile hover:border-white/[0.25]'
@@ -952,7 +952,7 @@ export default function MediaAssetsHub({ status }) {
                               e.stopPropagation();
                               playAudio(item, item.name);
                             }}
-                            className={`w-11 h-11 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center transition-all flex-shrink-0 cursor-pointer ${
+                            className={`w-11 h-11 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 flex-shrink-0 cursor-pointer ${
                               isPlaying
                                 ? 'bg-[#25F4EE] text-slate-950 scale-95 shadow-md shadow-[#25F4EE]/30'
                                 : 'bg-white/[0.06] text-slate-300 hover:bg-[#25F4EE]/20 hover:text-[#25F4EE]'
@@ -1105,7 +1105,7 @@ export default function MediaAssetsHub({ status }) {
                             <div
                               key={i}
                               style={{ height: `${heightPct}%` }}
-                              className={`w-1 sm:w-1.5 rounded-full transition-all duration-75 ${
+                              className={`w-1 sm:w-1.5 rounded-full transition-[height,background-color] duration-75 ease-linear ${
                                 isPlayingThis
                                   ? 'bg-gradient-to-t from-[#FE2C55] to-[#25F4EE]'
                                   : 'bg-white/[0.12]'
@@ -1118,7 +1118,7 @@ export default function MediaAssetsHub({ status }) {
                       {/* Audio Progress Bar */}
                       <div className="w-full bg-white/[0.08] h-1.5 rounded-full overflow-hidden">
                         <div
-                          className="bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] h-full transition-all duration-100"
+                          className="bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] h-full transition-[width] duration-300 ease-linear"
                           style={{ width: `${audioProgress}%` }}
                         />
                       </div>
@@ -1128,7 +1128,7 @@ export default function MediaAssetsHub({ status }) {
                         <button
                           type="button"
                           onClick={() => playAudio(selectedAsset, selectedAsset.name)}
-                          className="min-h-[44px] px-6 py-2.5 rounded-xl bg-[#25F4EE] hover:bg-[#1ee0da] text-slate-950 font-bold text-xs flex items-center gap-2 shadow-sm active:scale-95 transition-all cursor-pointer"
+                          className="min-h-[44px] px-6 py-2.5 rounded-xl bg-[#25F4EE] hover:bg-[#1ee0da] text-slate-950 font-bold text-xs flex items-center gap-2 shadow-sm active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer"
                         >
                           {currentlyPlayingAudio === selectedAsset.name ? (
                             <>
@@ -1258,7 +1258,7 @@ export default function MediaAssetsHub({ status }) {
                       <img
                         src={selectedAsset.img_url || selectedAsset.url || (selectedAsset.rel_path ? `/api/media/${selectedAsset.rel_path}` : '')}
                         alt={selectedAsset.name}
-                        className="max-w-full max-h-full object-contain drop-shadow-2xl transition-transform hover:scale-105"
+                        className="max-w-full max-h-full object-contain drop-shadow-2xl transition-transform duration-150 active:duration-100 ease-out [@media(hover:hover)_and_(pointer:fine)]:hover:scale-105 active:scale-[0.96]"
                       />
                     </div>
 
@@ -1361,7 +1361,7 @@ export default function MediaAssetsHub({ status }) {
                   <button
                     type="button"
                     onClick={() => handleOpen('assets')}
-                    className="px-4 py-2.5 rounded-xl bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                    className="px-4 py-2.5 rounded-xl bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold flex items-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
                   >
                     <Folder className="w-3.5 h-3.5" />
                     <span>เปิดโฟลเดอร์</span>
@@ -1387,7 +1387,7 @@ export default function MediaAssetsHub({ status }) {
                 return (
                   <div
                     key={sfx.name}
-                    className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between group glass-card ${
+                    className={`p-3.5 rounded-2xl border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex items-center justify-between group glass-card ${
                       isPlaying
                         ? 'border-[#25F4EE] bg-[#25F4EE]/10 shadow-lg shadow-[#25F4EE]/10'
                         : 'border-white/[0.06] hover:border-white/[0.15]'
@@ -1398,7 +1398,7 @@ export default function MediaAssetsHub({ status }) {
                         type="button"
                         onClick={() => playAudio(sfx, sfx.name)}
                         aria-label={`${isPlaying ? 'หยุดเสียง' : 'ฟังเสียง'} ${sfx.label || sfx.name}`}
-                        className={`w-11 h-11 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer flex-shrink-0 active:scale-95 ${
+                        className={`w-11 h-11 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer flex-shrink-0 active:scale-95 ${
                           isPlaying
                             ? 'bg-[#25F4EE] text-slate-950 scale-95 shadow-md shadow-[#25F4EE]/30'
                             : 'bg-white/[0.06] text-slate-300 hover:bg-[#25F4EE]/20 hover:text-[#25F4EE]'
@@ -1420,7 +1420,7 @@ export default function MediaAssetsHub({ status }) {
                       <button
                         type="button"
                         onClick={(e) => handleToggleStar(sfx, e)}
-                        className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                        className={`p-1.5 rounded-lg transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                           sfx.starred ? 'text-amber-400 hover:text-amber-300' : 'text-slate-500 opacity-0 group-hover:opacity-100 hover:text-amber-400'
                         }`}
                         title={sfx.starred ? 'เอาดาวออก' : 'ติดดาว (ใช้ในตัดต่อ)'}
@@ -1430,7 +1430,7 @@ export default function MediaAssetsHub({ status }) {
                       <button
                         type="button"
                         onClick={() => setDeleteTarget(sfx)}
-                        className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+                        className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
                         title="ลบไฟล์เสียง"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -1450,7 +1450,7 @@ export default function MediaAssetsHub({ status }) {
                 return (
                   <div
                     key={bgm.name}
-                    className={`p-4 rounded-2xl border transition-all flex items-center justify-between group glass-card ${
+                    className={`p-4 rounded-2xl border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex items-center justify-between group glass-card ${
                       isPlaying
                         ? 'border-[#FE2C55] bg-[#FE2C55]/10 shadow-lg shadow-[#FE2C55]/10'
                         : 'border-white/[0.06] hover:border-white/[0.15]'
@@ -1460,7 +1460,7 @@ export default function MediaAssetsHub({ status }) {
                       <button
                         type="button"
                         onClick={() => playAudio(bgm, bgm.name)}
-                        className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all cursor-pointer flex-shrink-0 active:scale-95 ${
+                        className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer flex-shrink-0 active:scale-95 ${
                           isPlaying
                             ? 'bg-[#E0244A] text-white scale-95 shadow-md shadow-[#FE2C55]/30'
                             : 'bg-white/[0.06] text-slate-300 hover:bg-[#FE2C55]/20 hover:text-[#FE2C55]'
@@ -1482,7 +1482,7 @@ export default function MediaAssetsHub({ status }) {
                       <button
                         type="button"
                         onClick={(e) => handleToggleStar(bgm, e)}
-                        className={`p-2 rounded-xl transition-all cursor-pointer ${
+                        className={`p-2 rounded-xl transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                           bgm.starred ? 'text-amber-400 hover:text-amber-300' : 'text-slate-500 opacity-0 group-hover:opacity-100 hover:text-amber-400'
                         }`}
                         title={bgm.starred ? 'เอาดาวออก' : 'ติดดาว (ใช้ในตัดต่อ)'}
@@ -1492,7 +1492,7 @@ export default function MediaAssetsHub({ status }) {
                       <button
                         type="button"
                         onClick={() => setDeleteTarget(bgm)}
-                        className="opacity-0 group-hover:opacity-100 p-2 rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+                        className="opacity-0 group-hover:opacity-100 p-2 rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -1536,7 +1536,7 @@ export default function MediaAssetsHub({ status }) {
                   <button
                     type="button"
                     onClick={() => setDeleteTarget(sticker)}
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-black/60 text-slate-400 hover:text-red-400 transition-all cursor-pointer"
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-black/60 text-slate-400 hover:text-red-400 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -1562,7 +1562,7 @@ export default function MediaAssetsHub({ status }) {
                   <button
                     type="button"
                     onClick={() => setDeleteTarget(lut)}
-                    className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+                    className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -1595,7 +1595,7 @@ export default function MediaAssetsHub({ status }) {
                   <button
                     type="button"
                     onClick={(e) => handleToggleStar(fx, e)}
-                    className={`absolute top-2 left-2 p-1.5 rounded-lg bg-black/60 transition-all cursor-pointer ${
+                    className={`absolute top-2 left-2 p-1.5 rounded-lg bg-black/60 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                       fx.starred ? 'text-amber-400' : 'text-slate-400 opacity-0 group-hover:opacity-100 hover:text-amber-400'
                     }`}
                     title={fx.starred ? 'เอาดาวออก' : 'ติดดาว (ใช้ในตัดต่อ)'}
@@ -1605,7 +1605,7 @@ export default function MediaAssetsHub({ status }) {
                   <button
                     type="button"
                     onClick={() => setDeleteTarget(fx)}
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-black/60 text-slate-400 hover:text-red-400 transition-all cursor-pointer"
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-black/60 text-slate-400 hover:text-red-400 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -1701,7 +1701,7 @@ export default function MediaAssetsHub({ status }) {
               }
               setCurrentlyPlayingAudio(null);
             }}
-            className="px-3.5 py-1.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+            className="px-3.5 py-1.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] text-xs font-bold text-white flex items-center gap-1.5 cursor-pointer active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
           >
             <Square className="w-3.5 h-3.5 fill-current" />
             <span>หยุดเล่น</span>

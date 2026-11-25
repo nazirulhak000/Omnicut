@@ -2,18 +2,17 @@ import os
 import sys
 import json
 from pathlib import Path
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
-if sys.stdout and hasattr(sys.stdout, "reconfigure"):
-    try:
-        sys.stdout.reconfigure(encoding="utf-8", errors="ignore")
-    except Exception:
-        pass
-
-load_dotenv()
-from google import genai
-
-client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+try:
+    from google import genai
+    client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+except Exception:
+    client = None
 
 script = """1. ทุกคน! อย่าเพิ่งซื้อสายชาร์จธรรมดา ถ้ายังไม่เห็นตัวนี้
 2. บอกเลยว่า Esseger สายชาร์จแม่เหล็ก 3-in-1 คือดูดแน่นมากกก ชาร์จไว 66W

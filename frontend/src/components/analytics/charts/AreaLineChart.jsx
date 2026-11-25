@@ -116,7 +116,7 @@ export default function AreaLineChart({
         {yTicks.map((tick, idx) => {
           const y = padding.top + innerHeight - (tick / (maxVal || 1)) * innerHeight;
           return (
-            <g key={idx} className="transition-all">
+            <g key={idx} className="transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out">
               <line
                 x1={padding.left}
                 y1={y}
@@ -139,7 +139,7 @@ export default function AreaLineChart({
         })}
 
         {/* ── Subtle Atmospheric Area Fill ── */}
-        <path d={areaPath} fill="url(#areaGlowGrad)" className="transition-all duration-300" />
+        <path d={areaPath} fill="url(#areaGlowGrad)" className="transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out" />
 
         {/* ── Clean Precision Hairline Line (Zero Neon Slop) ── */}
         <path
@@ -178,7 +178,7 @@ export default function AreaLineChart({
           if (points.length > 20 && !isHovered) return null;
 
           return (
-            <g key={idx} className="transition-all pointer-events-none">
+            <g key={idx} className="transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out pointer-events-none">
               {isHovered ? (
                 <>
                   <circle

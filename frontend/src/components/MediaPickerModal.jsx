@@ -331,7 +331,7 @@ export default function MediaPickerModal({
 
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white hover:bg-white/[0.08] rounded-xl transition-colors cursor-pointer"
+            className="p-1.5 text-slate-400 hover:text-white hover:bg-white/[0.08] active:scale-[0.95] rounded-xl transition-[background-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -345,7 +345,7 @@ export default function MediaPickerModal({
               <button
                 type="button"
                 onClick={() => setActiveTab('product')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
                   activeTab === 'product'
                     ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/40 ring-1 ring-[#25F4EE]/20 shadow-sm'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
@@ -359,7 +359,7 @@ export default function MediaPickerModal({
             <button
               type="button"
               onClick={() => setActiveTab('all')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
                 activeTab === 'all'
                   ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/40 ring-1 ring-[#25F4EE]/20 shadow-sm'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
@@ -372,7 +372,7 @@ export default function MediaPickerModal({
             <button
               type="button"
               onClick={() => setActiveTab('upload')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
                 activeTab === 'upload'
                   ? 'bg-[#FE2C55]/15 text-[#FE2C55] border border-[#FE2C55]/40 ring-1 ring-[#FE2C55]/20'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
@@ -386,7 +386,7 @@ export default function MediaPickerModal({
             <button
               type="button"
               onClick={() => setIphoneModalOpen(true)}
-              className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap text-sky-400 hover:text-sky-300 hover:bg-sky-500/10 border border-sky-500/20 active:scale-95"
+              className="px-3 py-1.5 rounded-xl text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer flex items-center gap-1.5 whitespace-nowrap text-sky-400 hover:text-sky-300 hover:bg-sky-500/10 border border-sky-500/20 active:scale-95"
               title="ดึงคลิปตรงจาก iPhone ผ่านสาย USB"
             >
               <Smartphone className="w-3.5 h-3.5" />
@@ -403,7 +403,7 @@ export default function MediaPickerModal({
                 placeholder="ค้นหาชื่อไฟล์คลิป..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-black/50 border border-white/[0.1] focus:border-[#25F4EE] focus:ring-1 focus:ring-[#25F4EE] rounded-xl pl-8 pr-7 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none transition-all"
+                className="w-full bg-black/50 border border-white/[0.1] focus:border-[#25F4EE] focus:ring-1 focus:ring-[#25F4EE] rounded-xl pl-8 pr-7 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none transition-[border-color,box-shadow,background-color] duration-150 ease-out"
               />
               {searchQuery && (
                 <button
@@ -472,7 +472,7 @@ export default function MediaPickerModal({
                   placeholder="เช่น มุมแกะกล่อง, รีวิวสวิตช์ (เว้นว่างไว้จะใช้ชื่อไฟล์เดิม)"
                   value={customClipName}
                   onChange={(e) => setCustomClipName(e.target.value)}
-                  className="w-full bg-black/60 border border-white/[0.12] focus:border-[#25F4EE] focus:ring-1 focus:ring-[#25F4EE] rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none transition-all"
+                  className="w-full bg-black/60 border border-white/[0.12] focus:border-[#25F4EE] focus:ring-1 focus:ring-[#25F4EE] rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none transition-[border-color,box-shadow,background-color] duration-150 ease-out"
                 />
                 <p className="text-[11px] text-slate-500 leading-relaxed">
                   ตั้งชื่อคลิปก่อนเลือกไฟล์ เพื่อให้ค้นหาและหยิบไปตัดต่อง่าย
@@ -482,7 +482,7 @@ export default function MediaPickerModal({
               {/* Native Label-based iOS/Desktop Dropzone */}
               <label
                 htmlFor="media-picker-file-input"
-                className="relative block p-6 sm:p-8 rounded-2xl border-2 border-dashed border-[#25F4EE]/40 hover:border-[#25F4EE] bg-[#25F4EE]/[0.02] hover:bg-[#25F4EE]/[0.05] active:bg-[#25F4EE]/[0.08] transition-all text-center space-y-3 cursor-pointer select-none"
+                className="relative block p-6 sm:p-8 rounded-2xl border-2 border-dashed border-[#25F4EE]/40 hover:border-[#25F4EE] bg-[#25F4EE]/[0.02] hover:bg-[#25F4EE]/[0.05] active:bg-[#25F4EE]/[0.08] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out text-center space-y-3 cursor-pointer select-none"
               >
                 <input
                   id="media-picker-file-input"
@@ -514,7 +514,7 @@ export default function MediaPickerModal({
                     <span className="text-white font-mono tabular-nums">{uploadProgress}%</span>
                   </div>
                   <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-[#25F4EE] rounded-full transition-all duration-200" style={{ width: `${uploadProgress}%` }} />
+                    <div className="h-full bg-[#25F4EE] rounded-full transition-[width] duration-300 ease-linear" style={{ width: `${uploadProgress}%` }} />
                   </div>
                 </div>
               )}
@@ -585,14 +585,14 @@ export default function MediaPickerModal({
                   <div
                     key={videoPath}
                     onClick={() => toggleSelect(videoPath)}
-                    className={`group relative rounded-xl border p-3 transition-all cursor-pointer flex flex-col justify-between space-y-2.5 ${
+                    className={`group relative rounded-xl border p-3 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer flex flex-col justify-between space-y-2.5 ${
                       isSelected
                         ? 'bg-[#25F4EE]/[0.08] border-[#25F4EE] shadow-lg shadow-[#25F4EE]/10 ring-1 ring-[#25F4EE]/40'
                         : 'bg-[#0B0F19] border-white/[0.08] hover:border-white/[0.25] hover:bg-white/[0.02]'
                     }`}
                   >
                     {/* Video Player / Thumbnail Preview Area */}
-                    <div className="relative w-full aspect-[9/16] rounded-xl overflow-hidden bg-black border border-white/[0.08] flex items-center justify-center group-hover:shadow-md transition-all">
+                    <div className="relative w-full aspect-[9/16] rounded-xl overflow-hidden bg-black border border-white/[0.08] flex items-center justify-center group-hover:shadow-md transition-[box-shadow] duration-150 ease-out">
                       {isPlaying ? (
                         <video
                           src={videoUrl}
@@ -630,7 +630,7 @@ export default function MediaPickerModal({
                               e.stopPropagation();
                               setPreviewVideoPath(isPlaying ? null : videoPath);
                             }}
-                            className="absolute inset-0 m-auto w-10 h-10 rounded-full bg-black/60 hover:bg-[#25F4EE] text-white hover:text-slate-950 flex items-center justify-center transition-all opacity-80 sm:opacity-0 sm:group-hover:opacity-100 shadow-lg cursor-pointer z-10"
+                            className="absolute inset-0 m-auto w-10 h-10 rounded-full bg-black/60 hover:bg-[#25F4EE] text-white hover:text-slate-950 flex items-center justify-center transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 shadow-lg cursor-pointer z-10"
                             title="ดูตัวอย่างวิดีโอ"
                           >
                             <Play className="w-4 h-4 ml-0.5" />
@@ -640,7 +640,7 @@ export default function MediaPickerModal({
 
                       {/* Checkbox Overlay Top-Right */}
                       <div className="absolute top-2 right-2 pointer-events-none">
-                        <div className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all ${
+                        <div className={`w-6 h-6 rounded-lg flex items-center justify-center transition-[background-color,border-color,color,box-shadow] duration-150 ease-out ${
                           isSelected
                             ? 'bg-[#25F4EE] text-slate-950 shadow-md ring-2 ring-black'
                             : 'bg-black/60 border border-white/[0.3] text-transparent'
@@ -788,7 +788,7 @@ export default function MediaPickerModal({
                 onChange={(e) => setRenameInputText(e.target.value)}
                 placeholder="เช่น มุมแกะกล่อง, รีวิวสวิตช์ปุ่มพิมพ์"
                 autoFocus
-                className="w-full bg-black/60 border border-white/[0.15] focus:border-[#25F4EE] focus:ring-1 focus:ring-[#25F4EE] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none transition-all"
+                className="w-full bg-black/60 border border-white/[0.15] focus:border-[#25F4EE] focus:ring-1 focus:ring-[#25F4EE] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none transition-[border-color,box-shadow,background-color] duration-150 ease-out"
               />
               <p className="text-[11px] text-slate-400 font-mono">
                 ชื่อไฟล์เดิม: <span className="text-slate-300">{pendingRenameVideo.name}</span>

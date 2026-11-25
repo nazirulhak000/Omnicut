@@ -74,7 +74,7 @@ const RENDER_STEPS = ['เขียนบท', 'พากย์เสียง',
 
 function Section({ icon: Icon, title, hint, badgeText, children, done, className = '' }) {
   return (
-    <section className={`rounded-2xl border border-white/[0.08] bg-[#0B0F19]/90 shadow-xl backdrop-blur-md p-4 sm:p-5 transition-all ${className}`}>
+    <section className={`rounded-2xl border border-white/[0.08] bg-[#0B0F19]/90 shadow-xl backdrop-blur-md p-4 sm:p-5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out ${className}`}>
       <header className="mb-3.5 flex items-center justify-between gap-2 pb-2.5 border-b border-white/[0.06]">
         <div className="flex items-center gap-2.5 min-w-0">
           {Icon && (
@@ -112,7 +112,7 @@ function Field({ label, value, onChange, onBlur, placeholder, multiline }) {
         onChange={(e) => onChange(e.target.value)}
         onBlur={onBlur}
         placeholder={placeholder}
-        className="min-h-9 w-full resize-none rounded-xl border border-white/[0.08] bg-black/40 px-3 py-2 text-xs sm:text-sm text-slate-100 placeholder-slate-600 focus:border-[#25F4EE]/60 focus:ring-1 focus:ring-[#25F4EE]/30 focus:outline-none transition-all"
+        className="min-h-9 w-full resize-none rounded-xl border border-white/[0.08] bg-black/40 px-3 py-2 text-xs sm:text-sm text-slate-100 placeholder-slate-600 focus:border-[#25F4EE]/60 focus:ring-1 focus:ring-[#25F4EE]/30 focus:outline-none transition-[border-color,box-shadow,background-color] duration-150 ease-out"
       />
     </label>
   );
@@ -524,7 +524,7 @@ export default function NewClipPanel({
           <div className="space-y-2 pt-1">
             <div className="relative h-3 w-full overflow-hidden rounded-full bg-black/60 border border-white/[0.08] shadow-inner">
               <div
-                className="h-full rounded-full bg-[#D97757] transition-all duration-300 relative overflow-hidden"
+                className="h-full rounded-full bg-[#D97757] transition-[width] duration-300 ease-linear relative overflow-hidden"
                 style={{ width: `${Math.max(4, effectivePercent)}%` }}
               >
                 {/* Moving Sheen Light Wave */}
@@ -553,7 +553,7 @@ export default function NewClipPanel({
               return (
                 <div
                   key={label}
-                  className={`flex flex-col items-center gap-0.5 p-2 rounded-xl border text-center transition-all ${
+                  className={`flex flex-col items-center gap-0.5 p-2 rounded-xl border text-center transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out ${
                     isDone
                       ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
                       : isCurrent
@@ -625,7 +625,7 @@ export default function NewClipPanel({
                     value={form.customScript || ''}
                     onChange={(e) => patch({ customScript: e.target.value, useCustomScript: true })}
                     placeholder="บทพูดจะถูกส่งมาจากมุมที่คุณเลือกในหน้าสินค้า..."
-                    className="w-full resize-none rounded-xl border border-white/[0.08] bg-black/50 px-3.5 py-3 text-sm sm:text-base leading-relaxed text-slate-100 placeholder-slate-600 focus:border-[#25F4EE]/60 focus:ring-1 focus:ring-[#25F4EE]/30 focus:outline-none font-sans shadow-inner transition-all"
+                    className="w-full resize-none rounded-xl border border-white/[0.08] bg-black/50 px-3.5 py-3 text-sm sm:text-base leading-relaxed text-slate-100 placeholder-slate-600 focus:border-[#25F4EE]/60 focus:ring-1 focus:ring-[#25F4EE]/30 focus:outline-none font-sans shadow-inner transition-[border-color,box-shadow,background-color] duration-150 ease-out"
                   />
                   {form.customScript && (
                     <div className="absolute top-2.5 right-3 pointer-events-none">
@@ -661,7 +661,7 @@ export default function NewClipPanel({
                     <button
                       type="button"
                       onClick={() => setVoicePickerOpen(true)}
-                      className="h-10 w-full flex items-center gap-2.5 px-3 rounded-xl border border-white/[0.08] bg-black/40 text-xs sm:text-sm text-white hover:border-[#E89274]/50 hover:bg-[#E89274]/[0.05] cursor-pointer transition-all text-left"
+                      className="h-10 w-full flex items-center gap-2.5 px-3 rounded-xl border border-white/[0.08] bg-black/40 text-xs sm:text-sm text-white hover:border-[#E89274]/50 hover:bg-[#E89274]/[0.05] cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 text-left"
                     >
                       <Mic2 className="h-4 w-4 flex-shrink-0 text-[#E89274]" />
                       <span className="flex-1 truncate">
@@ -872,7 +872,7 @@ export default function NewClipPanel({
                   <button
                     type="button"
                     onClick={onGoToProductFlow}
-                    className="h-10 w-full rounded-xl border border-[#25F4EE]/40 bg-[#25F4EE]/10 text-xs sm:text-sm font-bold text-[#25F4EE] hover:bg-[#25F4EE]/20 cursor-pointer flex items-center justify-center gap-1.5 transition-all"
+                    className="h-10 w-full rounded-xl border border-[#25F4EE]/40 bg-[#25F4EE]/10 text-xs sm:text-sm font-bold text-[#25F4EE] hover:bg-[#25F4EE]/20 cursor-pointer flex items-center justify-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
                   >
                     <Package className="w-4 h-4" />
                     <span>ไปเลือกสินค้า & มุมที่หน้าสินค้า</span>
@@ -940,7 +940,7 @@ export default function NewClipPanel({
                           const chosen = v.path || v.rel_path;
                           patch({ selectedVideo: chosen, selectedVideos: [chosen] });
                         }}
-                        className={`flex min-h-10 w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-all cursor-pointer ${
+                        className={`flex min-h-10 w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                           selected
                             ? 'border-[#D97757] bg-[#D97757]/15 text-white shadow-sm ring-1 ring-[#D97757]/30'
                             : 'border-white/[0.08] bg-black/40 text-slate-300 hover:border-white/[0.2] hover:bg-white/[0.02]'
@@ -968,13 +968,13 @@ export default function NewClipPanel({
                   <button
                     type="button"
                     onClick={() => setMediaPickerOpen(true)}
-                    className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-[#25F4EE]/30 bg-[#25F4EE]/10 text-xs font-bold text-[#25F4EE] hover:bg-[#25F4EE]/20 transition-all cursor-pointer shadow-sm"
+                    className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-[#25F4EE]/30 bg-[#25F4EE]/10 text-xs font-bold text-[#25F4EE] hover:bg-[#25F4EE]/20 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer shadow-sm"
                   >
                     <FolderOpen className="h-3.5 w-3.5" />
                     <span>เปิดคลังคลิป</span>
                   </button>
                   <label
-                    className={`flex h-10 items-center justify-center gap-1.5 rounded-xl border border-white/[0.1] bg-white/[0.04] text-xs font-bold text-slate-200 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer shadow-sm ${
+                    className={`flex h-10 items-center justify-center gap-1.5 rounded-xl border border-white/[0.1] bg-white/[0.04] text-xs font-bold text-slate-200 hover:text-white hover:bg-white/[0.08] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] cursor-pointer shadow-sm ${
                       uploadPct !== null ? 'opacity-50 pointer-events-none' : ''
                     }`}
                   >
@@ -1052,7 +1052,7 @@ export default function NewClipPanel({
                   <button
                     type="button"
                     onClick={() => onCreated && onCreated(angleSpecificProject)}
-                    className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/25 cursor-pointer transition-all"
+                    className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/25 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
                   >
                     <Play className="w-3.5 h-3.5 fill-white" />
                     <span>เปิดดูไทม์ไลน์ของมุมนี้</span>
@@ -1078,7 +1078,7 @@ export default function NewClipPanel({
                 onClick={handleCreate}
                 disabled={!!missing}
                 title={missing || 'เริ่มสร้างคลิป'}
-                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#D97757] to-[#FF8A65] text-sm sm:text-base font-bold text-white transition-all shadow-lg shadow-[#D97757]/20 hover:brightness-110 hover:shadow-[#D97757]/30 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer active:scale-[0.98]"
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#D97757] to-[#FF8A65] text-sm sm:text-base font-bold text-white transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out shadow-lg shadow-[#D97757]/20 hover:brightness-110 hover:shadow-[#D97757]/30 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer active:scale-[0.98] disabled:active:scale-100"
               >
                 <Rocket className="h-4 w-4" />
                 <span>สร้างคลิป & เข้าสู่ไทม์ไลน์</span>

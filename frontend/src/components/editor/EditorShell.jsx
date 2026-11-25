@@ -208,7 +208,7 @@ const LEGACY_SFX_ALIASES = {
 
 // microCuesList and voiceEdit live in the history state too, so ONE Ctrl+Z takes a
 // whole ripple delete back (rippleRange.js changes both together with the clips).
-const EMPTY = { clipList: [], cuesList: [], microCuesList: [], voiceEdit: null, voiceEditStale: false, voiceEditNotice: null, overlays: [], stickers: [], effects: [], spotlight: null, backgroundIsolation: null, trackMix: { mute: {}, solo: {} }, style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null, bgmVolume: 0.12, bgmDucking: false, voiceVolume: VOICE_VOLUME_DEFAULT, sfxVolume: SFX_VOLUME_DEFAULT, captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1, stickerPosition: 'top_right', stickerScale: 1, style_preset: 'clean_tech_review', showWatermark: true } };
+const EMPTY = { clipList: [], cuesList: [], microCuesList: [], voiceEdit: null, voiceEditStale: false, voiceEditNotice: null, overlays: [], stickers: [], effects: [], spotlight: null, backgroundIsolation: null, trackMix: { mute: {}, solo: {} }, style: { fontName: 'IBMPlex', bgmName: null, lutName: null, lutIntensity: 1, stickerBadge: null, bgmVolume: 0.12, bgmDucking: true, voiceVolume: VOICE_VOLUME_DEFAULT, sfxVolume: SFX_VOLUME_DEFAULT, captionPosition: 'bottom', captionColor: '#FFFFFF', captionScale: 1, stickerPosition: 'top_right', stickerScale: 1, style_preset: 'clean_tech_review', showWatermark: true } };
 
 const DEFAULT_EDITOR_SPOTLIGHT = Object.freeze({
   schema_version: 1,
@@ -864,7 +864,7 @@ export default function EditorShell({
   // Music lives in the mix, not the video pass. Apply has to ask for the
   // "bgm" re-roll when any of it changed, or the render happily reuses the
   // old mixed_audio.wav and the new track is silently ignored.
-  const loadedAudioStyle = useRef({ bgmName: null, bgmVolume: 0.12, bgmDucking: false, voiceVolume: VOICE_VOLUME_DEFAULT, sfxVolume: SFX_VOLUME_DEFAULT });
+  const loadedAudioStyle = useRef({ bgmName: null, bgmVolume: 0.12, bgmDucking: true, voiceVolume: VOICE_VOLUME_DEFAULT, sfxVolume: SFX_VOLUME_DEFAULT });
   const loadedAudioMutes = useRef({});
   // Caption look is baked into the .ass, which the "video" part reuses -- so a
   // caption style change has to ask for the subtitles part instead.
@@ -2646,7 +2646,7 @@ export default function EditorShell({
           <aside
             role="toolbar"
             aria-label="แถบควบคุมสตูดิโอเต็มจอ"
-            className="fixed top-[calc(env(safe-area-inset-top)+0.625rem)] right-[calc(env(safe-area-inset-right)+0.625rem)] sm:top-[calc(env(safe-area-inset-top)+0.75rem)] sm:right-[calc(env(safe-area-inset-right)+1rem)] z-50 flex items-center gap-1 sm:gap-2 p-1 sm:p-1.5 rounded-full bg-[#0A0D14]/95 backdrop-blur-xl border border-white/[0.14] shadow-2xl animate-fadeIn select-none transition-all duration-200"
+            className="fixed top-[calc(env(safe-area-inset-top)+0.625rem)] right-[calc(env(safe-area-inset-right)+0.625rem)] sm:top-[calc(env(safe-area-inset-top)+0.75rem)] sm:right-[calc(env(safe-area-inset-right)+1rem)] z-50 flex items-center gap-1 sm:gap-2 p-1 sm:p-1.5 rounded-full bg-[#0A0D14]/95 backdrop-blur-xl border border-white/[0.14] shadow-2xl animate-fadeIn select-none transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
           >
             {/* Collapse to Mini Island */}
             <button
@@ -2701,7 +2701,7 @@ export default function EditorShell({
               onClick={exitImmersiveMode}
               aria-label="แสดงแถบนำทาง (Esc)"
               title="แสดงแถบนำทางและเครื่องมือหลัก (Esc / Shift+F)"
-              className="flex items-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3 rounded-full bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold transition-all cursor-pointer shadow-md active:scale-95"
+              className="flex items-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3 rounded-full bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer shadow-md active:scale-95"
             >
               <Minimize2 className="w-3.5 h-3.5 flex-shrink-0" />
               <span className="text-[11px] sm:text-xs">แสดงแถบ</span>
@@ -2713,7 +2713,7 @@ export default function EditorShell({
             aria-label="แถบควบคุมสตูดิโอเต็มจอ (ย่อ)"
             onDoubleClick={exitImmersiveMode}
             title="ดับเบิลคลิกเพื่อแสดงแถบนำทาง (Esc)"
-            className="fixed top-[calc(env(safe-area-inset-top)+0.625rem)] right-[calc(env(safe-area-inset-right)+0.625rem)] sm:top-[calc(env(safe-area-inset-top)+0.75rem)] sm:right-[calc(env(safe-area-inset-right)+1rem)] z-50 flex items-center gap-1 p-1 rounded-full bg-[#0A0D14]/92 backdrop-blur-xl border border-white/[0.14] shadow-2xl select-none transition-all duration-200 hover:border-[#25F4EE]/40 cursor-pointer"
+            className="fixed top-[calc(env(safe-area-inset-top)+0.625rem)] right-[calc(env(safe-area-inset-right)+0.625rem)] sm:top-[calc(env(safe-area-inset-top)+0.75rem)] sm:right-[calc(env(safe-area-inset-right)+1rem)] z-50 flex items-center gap-1 p-1 rounded-full bg-[#0A0D14]/92 backdrop-blur-xl border border-white/[0.14] shadow-2xl select-none transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out hover:border-[#25F4EE]/40 cursor-pointer"
           >
             {/* Mini Project Badge & Trigger */}
             <button
@@ -2734,7 +2734,7 @@ export default function EditorShell({
               disabled={!projectName || isProjectPosted || isRenderBlockedByCover(coverStatus) || applying || coverGateChecking}
               title="เรนเดอร์ทันที (หรือขยายเพื่อเลือกความละเอียด)"
               aria-label="เรนเดอร์ทันที"
-              className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#D97757] hover:bg-[#C2683D] text-white transition-all cursor-pointer shadow-md disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 flex-shrink-0"
+              className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#D97757] hover:bg-[#C2683D] text-white transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer shadow-md disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 disabled:active:scale-100 flex-shrink-0"
             >
               {applying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Rocket className="w-3.5 h-3.5" />}
             </button>
@@ -3133,7 +3133,7 @@ export default function EditorShell({
               {applying && (
                 <div className="absolute bottom-2 left-4 right-4 bg-black/80 backdrop-blur-md p-2 rounded-xl border border-white/[0.1] space-y-1 z-10">
                   <div className="h-1.5 overflow-hidden rounded-full bg-slate-800">
-                    <div className="h-full bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] transition-all duration-300" style={{ width: `${Math.max(5, progress)}%` }} />
+                    <div className="h-full bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] transition-[width] duration-300 ease-linear" style={{ width: `${Math.max(5, progress)}%` }} />
                   </div>
                   <p className="text-center text-sm text-[#25F4EE] font-bold">{jobStatus?.message || `กำลังเรนเดอร์ ${progress}%`}</p>
                 </div>
@@ -3162,7 +3162,7 @@ export default function EditorShell({
                         onGoToGallery(target);
                       }
                     }}
-                    className="w-full py-2 px-2.5 rounded-xl bg-[#25F4EE]/20 hover:bg-[#25F4EE]/30 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-sm"
+                    className="w-full py-2 px-2.5 rounded-xl bg-[#25F4EE]/20 hover:bg-[#25F4EE]/30 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold flex items-center justify-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer active:scale-95 shadow-sm"
                     title="ไปที่ Export Gallery เพื่อโพสต์คลิป TikTok"
                   >
                     <span>ไปที่ Export Gallery เพื่อโพสต์คลิป</span>
@@ -3173,7 +3173,7 @@ export default function EditorShell({
                       <button
                         type="button"
                         onClick={() => setPreviewModalVideo(applyResult.video_url || toMediaUrl(applyResult.mp4_video))}
-                        className="flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold transition-all cursor-pointer"
+                        className="flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
                       >
                         <Play className="h-3 w-3 fill-current" />
                         <span>ดูคลิป</span>
@@ -3182,7 +3182,7 @@ export default function EditorShell({
                     <button
                       type="button"
                       onClick={() => openFolder('exports').catch(() => {})}
-                      className="flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] border border-white/[0.1] text-slate-200 text-xs font-bold transition-all cursor-pointer"
+                      className="flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] border border-white/[0.1] text-slate-200 text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
                     >
                       <FolderOpen className="h-3 w-3 text-amber-400" />
                       <span>โฟลเดอร์</span>
@@ -3250,7 +3250,7 @@ export default function EditorShell({
                 activeSplitter === 'mobilePreview' ? 'bg-[#25F4EE]/20' : 'bg-[#0B0E17] hover:bg-[#151A28]'
               }`}
             >
-              <span className={`h-1 w-12 rounded-full transition-all duration-150 ${
+              <span className={`h-1 w-12 rounded-full transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out ${
                 activeSplitter === 'mobilePreview'
                   ? 'bg-[#25F4EE] shadow-[0_0_8px_rgba(37,244,238,0.6)] w-16'
                   : 'bg-white/25 group-hover:bg-[#25F4EE]'
@@ -3272,7 +3272,7 @@ export default function EditorShell({
                       key={tab.id}
                       type="button"
                       onClick={() => setMobileTab(tab.id)}
-                      className={`flex-1 py-2 px-2 min-h-[44px] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-[0.98] ${
+                      className={`flex-1 py-2 px-2 min-h-[44px] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer active:scale-[0.98] ${
                         isActive
                           ? 'bg-[#25F4EE]/15 text-[#25F4EE] border border-[#25F4EE]/30 shadow-sm'
                           : 'text-slate-400 hover:text-white'
@@ -3291,7 +3291,7 @@ export default function EditorShell({
                 onClick={handleToggleMobileFullPreview}
                 aria-label={isMobilePreviewEnlarged ? "ย่อพรีวิวกลับ" : "ขยายพรีวิวเต็มจอ"}
                 title={isMobilePreviewEnlarged ? "ย่อพรีวิวกลับและแสดงแถบนำทาง (Shift+F หรือดับเบิลคลิกที่แถบลาก)" : "ขยายพรีวิว 9:16 เต็มจอและซ่อนแถบนำทาง (Shift+F หรือดับเบิลคลิกที่แถบลาก)"}
-                className={`min-h-[44px] min-w-[44px] px-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer border ${
+                className={`min-h-[44px] min-w-[44px] px-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer border ${
                   isMobilePreviewEnlarged
                     ? 'bg-[#25F4EE]/15 text-[#25F4EE] border-[#25F4EE]/30 shadow-sm'
                     : 'bg-white/[0.04] text-slate-300 border-white/[0.08] hover:text-white hover:bg-white/[0.08]'
@@ -3622,7 +3622,7 @@ export default function EditorShell({
                       type="button"
                       onClick={toggleLeftSidebar}
                       title="เปิดแถบซ้าย (คลังสื่อ)"
-                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.06] text-slate-400 hover:bg-[#25F4EE]/20 hover:text-[#25F4EE] border border-white/[0.08] transition-all cursor-pointer shadow-sm"
+                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.06] text-slate-400 hover:bg-[#25F4EE]/20 hover:text-[#25F4EE] border border-white/[0.08] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer shadow-sm"
                     >
                       <ChevronRight className="h-4 w-4" />
                     </button>
@@ -3643,7 +3643,7 @@ export default function EditorShell({
                           type="button"
                           onClick={toggleLeftSidebar}
                           title="ซ่อนแถบซ้าย"
-                          className="flex h-6 w-6 items-center justify-center rounded-lg bg-black/40 text-slate-400 hover:bg-white/[0.1] hover:text-white border border-white/[0.08] transition-all cursor-pointer"
+                          className="flex h-6 w-6 items-center justify-center rounded-lg bg-black/40 text-slate-400 hover:bg-white/[0.1] hover:text-white border border-white/[0.08] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
                         >
                           <ChevronLeft className="h-3.5 w-3.5" />
                         </button>
@@ -3772,7 +3772,7 @@ export default function EditorShell({
                           : 'bg-white/[0.04] hover:bg-[#25F4EE]/30'
                       }`}
                     >
-                      <span className={`h-8 w-1 rounded-full transition-all duration-150 ${
+                      <span className={`h-8 w-1 rounded-full transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out ${
                         activeSplitter === 'asset' ? 'bg-[#25F4EE]' : 'bg-white/20 group-hover:bg-[#25F4EE]/80'
                       }`} />
                       {activeSplitter === 'asset' && (
@@ -3882,7 +3882,7 @@ export default function EditorShell({
                 {applying && (
                   <div className="w-full max-w-[260px] flex-shrink-0">
                     <div className="h-1.5 overflow-hidden rounded-full bg-slate-800">
-                      <div className="h-full bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] transition-all duration-300" style={{ width: `${Math.max(5, progress)}%` }} />
+                      <div className="h-full bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] transition-[width] duration-300 ease-linear" style={{ width: `${Math.max(5, progress)}%` }} />
                     </div>
                     <p className="pt-1 text-center text-sm text-slate-400">{jobStatus?.message}</p>
                   </div>
@@ -3912,7 +3912,7 @@ export default function EditorShell({
                           onGoToGallery(target);
                         }
                       }}
-                      className="w-full py-2 px-3 rounded-xl bg-[#25F4EE]/20 hover:bg-[#25F4EE]/30 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-sm"
+                      className="w-full py-2 px-3 rounded-xl bg-[#25F4EE]/20 hover:bg-[#25F4EE]/30 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold flex items-center justify-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer active:scale-95 shadow-sm"
                       title="ไปที่ Export Gallery เพื่อโพสต์คลิป TikTok"
                     >
                       <span>ไปที่ Export Gallery เพื่อโพสต์คลิป</span>
@@ -3923,7 +3923,7 @@ export default function EditorShell({
                         <button
                           type="button"
                           onClick={() => setPreviewModalVideo(applyResult.video_url || toMediaUrl(applyResult.mp4_video))}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold transition-all cursor-pointer"
+                          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
                         >
                           <Play className="h-3.5 w-3.5 fill-current" />
                           <span>ดูคลิปตัวเต็ม</span>
@@ -3932,7 +3932,7 @@ export default function EditorShell({
                       <button
                         type="button"
                         onClick={() => openFolder('exports').catch(() => {})}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] border border-white/[0.1] text-slate-200 text-xs font-bold transition-all cursor-pointer"
+                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] border border-white/[0.1] text-slate-200 text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
                       >
                         <FolderOpen className="h-3.5 w-3.5 text-amber-400" />
                         <span>เปิดโฟลเดอร์</span>
@@ -3949,7 +3949,7 @@ export default function EditorShell({
                       type="button"
                       onClick={toggleRightSidebar}
                       title="เปิดแถบขวา (แก้ไขคำบรรยาย/ตัวควบคุม)"
-                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.06] text-slate-400 hover:bg-[#D97757]/20 hover:text-[#D97757] border border-white/[0.08] transition-all cursor-pointer shadow-sm"
+                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.06] text-slate-400 hover:bg-[#D97757]/20 hover:text-[#D97757] border border-white/[0.08] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer shadow-sm"
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </button>
@@ -4021,7 +4021,7 @@ export default function EditorShell({
                           : 'bg-white/[0.04] hover:bg-[#D97757]/30'
                       }`}
                     >
-                      <span className={`h-8 w-1 rounded-full transition-all duration-150 ${
+                      <span className={`h-8 w-1 rounded-full transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out ${
                         activeSplitter === 'inspector' ? 'bg-[#D97757]' : 'bg-white/20 group-hover:bg-[#D97757]/80'
                       }`} />
                       {activeSplitter === 'inspector' && (
@@ -4037,7 +4037,7 @@ export default function EditorShell({
                           type="button"
                           onClick={toggleRightSidebar}
                           title="ซ่อนแถบขวา"
-                          className="flex h-6 w-6 items-center justify-center rounded-lg bg-black/40 text-slate-400 hover:bg-white/[0.1] hover:text-white border border-white/[0.08] transition-all cursor-pointer"
+                          className="flex h-6 w-6 items-center justify-center rounded-lg bg-black/40 text-slate-400 hover:bg-white/[0.1] hover:text-white border border-white/[0.08] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
                         >
                           <ChevronRight className="h-3.5 w-3.5" />
                         </button>
@@ -4192,7 +4192,7 @@ export default function EditorShell({
                       : 'bg-[#0F1420] hover:bg-white/[0.06]'
                   }`}
                 >
-                  <span className={`h-1 w-12 rounded-full transition-all duration-150 ${
+                  <span className={`h-1 w-12 rounded-full transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out ${
                     activeSplitter === 'timeline' ? 'bg-[#25F4EE]' : 'bg-slate-600 group-hover:bg-[#25F4EE]/80'
                   }`} />
                   {activeSplitter === 'timeline' && (

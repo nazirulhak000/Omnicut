@@ -631,7 +631,7 @@ export default function GoogleFlowModal({
                 {/* Account Selector Popover */}
                 {accountDropdownOpen && (
                   <div
-                    className="absolute top-full left-0 mt-2 z-50 w-[340px] sm:w-[460px] p-4 rounded-xl bg-zinc-950 backdrop-blur-xl border border-zinc-800 shadow-2xl shadow-black/80 space-y-3.5 animate-in fade-in zoom-in-95 duration-150"
+                    className="absolute top-full left-0 mt-2 z-50 w-[340px] sm:w-[460px] p-4 rounded-xl bg-zinc-950 backdrop-blur-xl border border-zinc-800 shadow-2xl shadow-black/80 space-y-3.5 origin-top-left animate-in fade-in zoom-in-95 duration-150"
                     role="menu"
                   >
                     {/* Popover Header */}
@@ -896,7 +896,7 @@ export default function GoogleFlowModal({
           <button
             type="button"
             onClick={() => setActiveTab('flow')}
-            className={`pb-2.5 px-3 text-xs font-semibold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
+            className={`pb-2.5 px-3 text-xs font-semibold flex items-center gap-2 border-b-2 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
               activeTab === 'flow'
                 ? 'border-cyan-500 text-cyan-300'
                 : 'border-transparent text-zinc-400 hover:text-zinc-200'
@@ -911,7 +911,7 @@ export default function GoogleFlowModal({
           <button
             type="button"
             onClick={() => setActiveTab('custom')}
-            className={`pb-2.5 px-3 text-xs font-semibold flex items-center gap-2 border-b-2 transition-all cursor-pointer ${
+            className={`pb-2.5 px-3 text-xs font-semibold flex items-center gap-2 border-b-2 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
               activeTab === 'custom'
                 ? 'border-cyan-500 text-cyan-300'
                 : 'border-transparent text-zinc-400 hover:text-zinc-200'
@@ -940,7 +940,7 @@ export default function GoogleFlowModal({
                 type="button"
                 onClick={handleGenerateAll5Shots}
                 disabled={generatingAll || !status?.service_online}
-                className="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-semibold text-xs flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50 active:scale-[0.98]"
+                className="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-semibold text-xs flex items-center gap-2 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer disabled:opacity-50 active:scale-[0.98] disabled:active:scale-100"
               >
                 <Zap className="w-3.5 h-3.5 fill-current" />
                 <span>{generatingAll ? 'กำลังสั่งสร้างครบ 5 ช็อต...' : 'สั่งสร้าง B-roll ครบ 5 ช็อต'}</span>
@@ -965,7 +965,7 @@ export default function GoogleFlowModal({
                   return (
                     <div
                       key={index}
-                      className="p-4 rounded-xl bg-zinc-950/80 border border-zinc-800/80 hover:border-zinc-700 transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-sm"
+                      className="p-4 rounded-xl bg-zinc-950/80 border border-zinc-800/80 hover:border-zinc-700 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-sm"
                     >
                       {/* Shot Details */}
                       <div className="min-w-0 flex-1 space-y-1.5">

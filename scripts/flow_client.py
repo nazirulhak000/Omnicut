@@ -221,9 +221,11 @@ class FlowClient:
 
         env = os.environ.copy()
         env["FLOW_MCP_PORT"] = str(FLOW_MCP_PORT)
+        env["FLOW_NO_OPEN"] = "1"
+        env["FLOW_MCP_HEADLESS"] = "1"
 
         proc = subprocess.Popen(
-            [node_bin, str(entrypoint)],
+            [node_bin, str(entrypoint), "--no-open"],
             cwd=str(working_dir),
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,

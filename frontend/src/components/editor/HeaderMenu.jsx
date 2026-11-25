@@ -85,7 +85,7 @@ export default function HeaderMenu({ items = [], label = 'เมนูเพิ�
           setOpen(false);
           item.onSelect?.();
         }}
-        className={`flex h-9 w-full items-center justify-between gap-2.5 rounded-lg px-2.5 text-left text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
+        className={`flex h-9 w-full items-center justify-between gap-2.5 rounded-lg px-2.5 text-left text-sm font-medium active:scale-[0.97] disabled:active:scale-100 transition-[background-color,color,transform] duration-150 active:duration-100 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
           item.disabled
             ? 'cursor-not-allowed text-slate-600'
             : item.danger
@@ -121,7 +121,7 @@ export default function HeaderMenu({ items = [], label = 'เมนูเพิ�
         aria-expanded={open}
         aria-label={label}
         title={label}
-        className={`flex h-8 sm:h-9 w-8 sm:w-9 cursor-pointer items-center justify-center rounded-xl border border-white/[0.08] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
+        className={`flex h-8 sm:h-9 w-8 sm:w-9 cursor-pointer items-center justify-center rounded-xl border border-white/[0.08] active:scale-[0.97] disabled:active:scale-100 transition-[background-color,color,transform] duration-150 active:duration-100 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
           open ? 'bg-white/[0.12] text-white' : 'bg-white/[0.05] text-slate-300 hover:bg-white/[0.1] hover:text-white'
         }`}
       >

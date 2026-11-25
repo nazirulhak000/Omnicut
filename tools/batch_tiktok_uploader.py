@@ -20,6 +20,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BASE_DIR))
 
 from scripts.schedule_store import ScheduleQueueStore
+from scripts.cart_name_cleaner import clean_cart_name
 
 CLI_JS = r'C:\Users\nazir\AppData\Roaming\npm\node_modules\open-browser-use\cli\open-browser-use.js'
 DEFAULT_TAB_ID = 1319910483
@@ -302,14 +303,20 @@ def type_caption(caption, hashtags, tab_id=DEFAULT_TAB_ID):
         run_cdp('Input.insertText', {'text': caption.strip()}, tab_id=tab_id)
         sleep_s(0.3)
 
-    # 4. Insert Hashtags
+    # 4. Insert Hashtags (Strict Max 5 Hashtags Standard)
     if hashtags:
-        for _ in range(2):
-            run_cdp('Input.dispatchKeyEvent', {'type': 'keyDown', 'key': 'Enter', 'code': 'Enter', 'windowsVirtualKeyCode': 13, 'text': '\r', 'unmodifiedText': '\r'}, tab_id=tab_id)
-            run_cdp('Input.dispatchKeyEvent', {'type': 'keyUp', 'key': 'Enter', 'code': 'Enter', 'windowsVirtualKeyCode': 13}, tab_id=tab_id)
-            sleep_s(0.1)
-        run_cdp('Input.insertText', {'text': hashtags.strip()}, tab_id=tab_id)
-        sleep_s(0.4)
+        try:
+            from scripts.hashtag_utils import normalize_tiktok_hashtags
+            clean_hashtags = normalize_tiktok_hashtags(hashtags)
+        except Exception:
+            clean_hashtags = " ".join([t for t in str(hashtags).split() if t.startswith('#')][:5])
+        if clean_hashtags:
+            for _ in range(2):
+                run_cdp('Input.dispatchKeyEvent', {'type': 'keyDown', 'key': 'Enter', 'code': 'Enter', 'windowsVirtualKeyCode': 13, 'text': '\r', 'unmodifiedText': '\r'}, tab_id=tab_id)
+                run_cdp('Input.dispatchKeyEvent', {'type': 'keyUp', 'key': 'Enter', 'code': 'Enter', 'windowsVirtualKeyCode': 13}, tab_id=tab_id)
+                sleep_s(0.1)
+            run_cdp('Input.insertText', {'text': clean_hashtags.strip()}, tab_id=tab_id)
+            sleep_s(0.4)
 
 def attach_product_link(product_id, cart_name='', tab_id=DEFAULT_TAB_ID):
     """
@@ -597,7 +604,7 @@ def attach_product_link(product_id, cart_name='', tab_id=DEFAULT_TAB_ID):
 
     # Step 7: Confirm cart name on Title Dialog
     cart_ok = False
-    clean_cart_name = str(cart_name or '')[:30].strip()
+    clean_cart_name = clean_cart_name(raw_name=cart_name)
     for _ in range(8):
         s7 = eval_js(f'''(() => {{
             const isVisible = (el) => {{

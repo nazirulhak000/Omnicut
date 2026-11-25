@@ -90,14 +90,14 @@ export default function StickerInspector({
           <button
             type="button"
             onClick={() => onUpdateSticker?.(sticker.id, { normX: 0.5, normY: 0.5 })}
-            className="py-1.5 px-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 text-xs font-medium border border-white/[0.06] transition-colors cursor-pointer"
+            className="py-1.5 px-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 text-xs font-medium border border-white/[0.06] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
           >
             จัดกึ่งกลางจอ
           </button>
           <button
             type="button"
             onClick={() => onUpdateSticker?.(sticker.id, { normX: 0.5, normY: 0.70 })}
-            className="py-1.5 px-2 rounded-lg bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 text-[#25F4EE] text-xs font-bold border border-[#25F4EE]/30 transition-colors cursor-pointer"
+            className="py-1.5 px-2 rounded-lg bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 text-[#25F4EE] text-xs font-bold border border-[#25F4EE]/30 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
             title="วางสติกเกอร์ให้อยู่เหนือโซนซับไตเติลและแคปชัน TikTok (Safe Zone ล่าง 420px)"
           >
             จัดใน Safe Zone
@@ -141,7 +141,7 @@ export default function StickerInspector({
         <button
           type="button"
           onClick={() => onDeleteSticker?.(sticker.id)}
-          className="w-full py-2.5 px-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 flex items-center justify-center gap-2 font-bold text-xs cursor-pointer transition-all active:scale-[0.98] shadow-sm"
+          className="w-full py-2.5 px-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/20 flex items-center justify-center gap-2 font-bold text-xs cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 shadow-sm"
           title="ลบสติกเกอร์นี้ออกจากไทม์ไลน์"
         >
           <Trash2 className="w-4 h-4" />

@@ -124,14 +124,14 @@ export function ActivityIndicatorButton({ className = '' }) {
         aria-expanded={isActivityDrawerOpen}
         aria-controls="activity-drawer"
         aria-label={`${activeCount} งานกำลังประมวลผล ${pct == null ? '' : `${pct}%`} เปิดศูนย์ติดตามกิจกรรม${isStale ? ' ข้อมูลอาจไม่ใช่ข้อมูลล่าสุด' : ''}`}
-        className={`px-2.5 sm:px-3 py-1 rounded-xl bg-[#25F4EE]/10 hover:bg-[#25F4EE]/15 border border-[#25F4EE]/30 text-[#25F4EE] flex items-center gap-2 cursor-pointer transition-colors active:scale-95 group ${className}`}
+        className={`px-2.5 sm:px-3 py-1 rounded-xl bg-[#25F4EE]/10 hover:bg-[#25F4EE]/15 border border-[#25F4EE]/30 text-[#25F4EE] flex items-center gap-2 cursor-pointer transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out active:scale-95 group ${className}`}
         title="คลิกเพื่อเปิดศูนย์ติดตามกิจกรรม (Activity Center)"
       >
         <div className="relative flex items-center justify-center">
           <Loader2 className="w-3.5 h-3.5 animate-spin text-[#25F4EE]" />
           <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-[#25F4EE]" />
         </div>
-        <div className="flex items-center gap-1.5 text-xs font-bold font-mono">
+        <div className="flex items-center gap-1.5 text-xs font-bold font-mono tabular-nums">
           <span className="text-white">{activeCount} งาน</span>
           {pct != null && <span className="text-[#25F4EE]">({pct}%)</span>}
           {isStale && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" title="ข้อมูลกิจกรรมอาจไม่ใช่ข้อมูลล่าสุด" />}
@@ -147,7 +147,7 @@ export function ActivityIndicatorButton({ className = '' }) {
       aria-haspopup="dialog"
       aria-expanded={isActivityDrawerOpen}
       aria-controls="activity-drawer"
-      className={`p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-black/40 hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/[0.08] text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors ${className}`}
+      className={`p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-black/40 hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/[0.08] text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-[0.96] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out ${className}`}
       title="ศูนย์ติดตามกิจกรรม (Activity Center)"
     >
       {hasViral ? (
@@ -287,7 +287,7 @@ export function ActivityDrawer() {
               type="button"
               onClick={() => setIsActivityDrawerOpen(false)}
               aria-label="ปิดศูนย์ติดตามกิจกรรม"
-              className="min-h-11 min-w-11 md:min-h-[36px] md:min-w-[36px] pointer-coarse:min-h-11 pointer-coarse:min-w-11 flex items-center justify-center p-2 text-slate-400 hover:text-white hover:bg-white/[0.06] rounded-xl transition-colors cursor-pointer"
+              className="min-h-11 min-w-11 md:min-h-[36px] md:min-w-[36px] pointer-coarse:min-h-11 pointer-coarse:min-w-11 flex items-center justify-center p-2 text-slate-400 hover:text-white hover:bg-white/[0.06] rounded-xl active:scale-[0.95] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -324,7 +324,7 @@ export function ActivityDrawer() {
               role="tab"
               aria-selected={tabFilter === tab.id}
               aria-controls="activity-tabpanel"
-              className={`flex-1 min-h-[36px] py-1.5 px-2 rounded-xl text-xs font-bold cursor-pointer transition-all whitespace-nowrap text-center ${
+              className={`flex-1 min-h-[36px] py-1.5 px-2 rounded-xl text-xs font-bold cursor-pointer transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out whitespace-nowrap text-center ${
                 tabFilter === tab.id
                   ? 'bg-[#25F4EE]/10 text-[#25F4EE] border border-[#25F4EE]/30'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
@@ -465,14 +465,14 @@ export function ActivityDrawer() {
                       <span className={`truncate font-medium ${isRunning ? 'text-cyan-300' : 'text-slate-400'}`}>
                         {task.step_label || 'กำลังทำงาน...'}
                       </span>
-                      <span className="font-mono text-xs font-bold text-white flex-shrink-0 ml-2">
+                      <span className="font-mono tabular-nums text-xs font-bold text-white flex-shrink-0 ml-2">
                         {task.read_only_projection && task.progress == null ? 'ดูขั้นตอนปัจจุบัน' : `${pct}%`}
                       </span>
                     </div>
 
                     <div hidden={task.read_only_projection && task.progress == null} className="h-1.5 w-full bg-black/60 rounded-full overflow-hidden border border-white/[0.06]">
                       <div
-                        className={`h-full rounded-full transition-all duration-300 relative overflow-hidden ${
+                        className={`h-full rounded-full transition-[width] duration-300 ease-linear relative overflow-hidden ${
                           isRunning
                             ? 'bg-[#25F4EE]'
                             : isDone
@@ -547,7 +547,7 @@ export function ActivityDrawer() {
                               </button>
                               <button
                                 onClick={() => jumpToTaskResult(task, 'editor')}
-                                className="px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1 cursor-pointer transition-all"
+                                className="px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out"
                                 title="เปิดแก้ไขต่อในไทม์ไลน์"
                               >
                                 <span>เปิดไทม์ไลน์</span>
@@ -799,7 +799,7 @@ export function GlobalTaskNotification() {
                 href={notificationToast.milestone.tiktok_url}
                 target="_blank"
                 rel="noreferrer"
-                className="py-1.5 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/10 cursor-pointer active:scale-95 transition-all"
+                className="py-1.5 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/10 cursor-pointer active:scale-95 transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out"
               >
                 <span>เปิดดูบน TikTok</span>
                 <ExternalLink className="w-3 h-3" />
@@ -1083,11 +1083,11 @@ export function GlobalLiveRenderWidget({ currentTab, onNavigateToEditor, onNavig
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between text-xs font-bold text-white mb-1">
               <span className="truncate">{isDone ? 'ตัดต่อเสร็จแล้ว!' : title}</span>
-              <span className={`font-mono ml-2 flex-shrink-0 ${isDone ? 'text-emerald-400' : 'text-[#25F4EE]'}`}>{pct}%</span>
+              <span className={`font-mono tabular-nums ml-2 flex-shrink-0 ${isDone ? 'text-emerald-400' : 'text-[#25F4EE]'}`}>{pct}%</span>
             </div>
             <div className="h-1.5 w-full rounded-full bg-white/[0.08] overflow-hidden">
               <div
-                className={`h-full ${barColor} transition-all duration-500 rounded-full relative overflow-hidden`}
+                className={`h-full ${barColor} transition-[width] duration-300 ease-linear rounded-full relative overflow-hidden`}
                 style={{ width: `${Math.max(5, pct)}%` }}
               >
                 {!isDone && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full animate-shimmer" />}
@@ -1127,7 +1127,7 @@ export function GlobalLiveRenderWidget({ currentTab, onNavigateToEditor, onNavig
           onClick={() => setDismissedKey(widgetKey)}
           aria-label="ปิดแถบความคืบหน้าการเรนเดอร์"
           title="ปิดแถบนี้"
-          className="min-h-11 min-w-11 md:min-h-8 md:min-w-8 pointer-coarse:min-h-11 pointer-coarse:min-w-11 -mr-1 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.06] cursor-pointer flex-shrink-0"
+          className="min-h-11 min-w-11 md:min-h-8 md:min-w-8 pointer-coarse:min-h-11 pointer-coarse:min-w-11 -mr-1 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.06] active:scale-[0.95] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer flex-shrink-0"
         >
           <X className="w-4 h-4" />
         </button>

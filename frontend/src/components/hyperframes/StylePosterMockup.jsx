@@ -58,7 +58,7 @@ export default function StylePosterMockup({ styleId, onPreviewClick }) {
   const coverMeta = STYLE_COVERS[styleId];
 
   return (
-    <div className="relative w-full aspect-[9/16] rounded-xl overflow-hidden shadow-2xl border border-white/[0.12] bg-[#080B11] select-none group transition-all duration-300">
+    <div className="relative w-full aspect-[9/16] rounded-xl overflow-hidden shadow-2xl border border-white/[0.12] bg-[#080B11] select-none group transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out">
       {/* ── High-Impact Real Cover Image ── */}
       {coverMeta && !imageError ? (
         <div className="relative w-full h-full overflow-hidden">
@@ -107,7 +107,7 @@ export default function StylePosterMockup({ styleId, onPreviewClick }) {
         <button
           type="button"
           onClick={onPreviewClick}
-          className="min-h-11 px-4 py-2 rounded-xl bg-gradient-to-r from-[#25F4EE] to-[#00D2C4] hover:brightness-110 text-slate-950 text-xs font-bold shadow-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white text-center cursor-pointer"
+          className="min-h-11 px-4 py-2 rounded-xl bg-gradient-to-r from-[#25F4EE] to-[#00D2C4] hover:brightness-110 active:scale-[0.97] disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out text-slate-950 text-xs font-bold shadow-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white text-center cursor-pointer"
         >
           เปิดดูโครงสร้างสไตล์
         </button>

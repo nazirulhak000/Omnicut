@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { Check, X, Scissors, Volume2, Type, AlertCircle } from 'lucide-react';
 
+const ACTION_BUTTON_MOTION =
+  'transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100';
+
 export default function ActionApprovalCard({
   action,
   onApply,
@@ -48,7 +51,7 @@ export default function ActionApprovalCard({
   };
 
   return (
-    <div className="mt-2.5 mb-1.5 rounded-xl border border-white/10 bg-slate-900/90 p-3 shadow-lg backdrop-blur-md transition-all">
+    <div className="mt-2.5 mb-1.5 rounded-xl border border-white/10 bg-slate-900/90 p-3 shadow-lg backdrop-blur-md transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out">
       {/* ── Header Badge & Title ── */}
       <div className="flex items-center justify-between gap-2 mb-1.5">
         <div className="flex items-center gap-1.5">
@@ -71,7 +74,7 @@ export default function ActionApprovalCard({
           <button
             type="button"
             onClick={handleDiscardClick}
-            className="flex h-7 items-center gap-1 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 text-xs font-bold text-slate-300 transition-colors hover:bg-white/[0.08] hover:text-white cursor-pointer"
+            className={`flex h-7 items-center gap-1 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 text-xs font-bold text-slate-300 hover:bg-white/[0.08] hover:text-white cursor-pointer ${ACTION_BUTTON_MOTION}`}
           >
             <X className="h-3 w-3" />
             <span>ยกเลิก</span>
@@ -79,7 +82,7 @@ export default function ActionApprovalCard({
           <button
             type="button"
             onClick={handleApplyClick}
-            className="flex h-7 items-center gap-1 rounded-lg border border-emerald-500/40 bg-emerald-500/20 px-3 text-xs font-bold text-emerald-300 transition-all hover:bg-emerald-500/30 hover:shadow-[0_0_8px_rgba(16,185,129,0.3)] cursor-pointer"
+            className={`flex h-7 items-center gap-1 rounded-lg border border-emerald-500/40 bg-emerald-500/20 px-3 text-xs font-bold text-emerald-300 hover:bg-emerald-500/30 hover:shadow-[0_0_8px_rgba(16,185,129,0.3)] cursor-pointer ${ACTION_BUTTON_MOTION}`}
           >
             <Check className="h-3 w-3" />
             <span>อนุมัติคำสั่ง</span>

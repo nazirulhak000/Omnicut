@@ -65,8 +65,10 @@ export function PopoverPanel({
       if (top + height > vh - EDGE && rect.top - GAP - height >= EDGE) {
         top = rect.top - GAP - height;
       }
+      const flippedUp = top < rect.top;
       panel.style.left = `${Math.round(left)}px`;
       panel.style.top = `${Math.round(top)}px`;
+      panel.style.transformOrigin = `${flippedUp ? 'bottom' : 'top'} ${align === 'start' ? 'left' : 'right'}`;
     };
 
     try { panel.showPopover(); } catch { /* already open */ }
@@ -131,11 +133,11 @@ export function PopoverPanel({
     );
   }
 
-  const fallbackPosition = align === 'start' ? 'left-0' : 'right-0';
+  const fallbackPosition = align === 'start' ? 'left-0 origin-top-left' : 'right-0 origin-top-right';
   return (
     <div
       ref={panelRef}
-      className={`absolute ${fallbackPosition} top-full z-50 mt-1.5 ${matchAnchorWidth ? 'min-w-full' : ''} ${className}`}
+      className={`absolute ${fallbackPosition} top-full z-50 mt-1.5 animate-scaleUp ${matchAnchorWidth ? 'min-w-full' : ''} ${className}`}
       {...rest}
     >
       {children}

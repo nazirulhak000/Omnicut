@@ -2004,9 +2004,30 @@ async function switchToShowcaseTab(send) {
 
 }
 
+function sanitizeCartName(name) {
+  if (!name) return '';
+  let s = String(name);
+  const romanMap = {
+    '\u2160': 'I', '\u2161': 'II', '\u2162': 'III', '\u2163': 'IV', '\u2164': 'V',
+    '\u2165': 'VI', '\u2166': 'VII', '\u2167': 'VIII', '\u2168': 'IX', '\u2169': 'X',
+    '°': '', '™': '', '®': '', '©': ''
+  };
+  for (const [k, v] of Object.entries(romanMap)) {
+    s = s.replaceAll(k, v);
+  }
+  s = s.replace(/[^\w\s\-\.\(\)\/ก-๙]/g, '').replace(/\s+/g, ' ').trim();
+  if (s.length <= 30) return s;
+  const truncated = s.slice(0, 30);
+  const lastSpace = truncated.lastIndexOf(' ');
+  if (lastSpace >= 15) return truncated.slice(0, lastSpace).trim();
+  return truncated.trim();
+}
+
 // Automatically clicks "+ เพิ่ม" under "เพิ่มลิงก์", searches product by ID, and adds it.
 
 async function attachProductLink(send, productId, cartName = '') {
+
+  cartName = sanitizeCartName(cartName);
 
   if (!productId) return { success: false, reason: 'ไม่มี Product ID' };
 
@@ -2920,7 +2941,7 @@ function productEvidenceExpression(productName = '') {
     const inDialog = (el) => dialogs.some((d) => d.contains(el));
     const texts = Array.from(document.querySelectorAll('h1, h2, h3, h4, [role="tab"]')).filter(isVisible).map(el => (el.innerText || el.textContent || '').trim());
     const modalOpen = texts.some(t => t.includes('เพิ่มลิงก์สินค้า') || t.includes('Add product links') || t.includes('นำเสนอสินค้า') || t === 'Showcase' || t.includes('Showcase products'));
-    const chip = Array.from(document.querySelectorAll('[class*="product-anchor"], [class*="productAnchor"], [class*="anchor-card"], [class*="product-card"], [class*="productCard"], [class*="linked-product"]'))
+    const chip = Array.from(document.querySelectorAll('[class*="product-anchor"], [class*="productAnchor"], [class*="anchor-card"], [class*="product-card"], [class*="productCard"], [class*="linked-product"], [class*="anchor-tag-label"], [class*="content-anchor-label"]'))
       .some(el => isVisible(el) && !inDialog(el));
     let nameSeen = false;
     if (key.length >= 6) {
@@ -3440,7 +3461,8 @@ async function setScheduleDateTimeLegacy(send, { date = '', time = '' } = {}) {
 async function dismissContinueToPostDialogIfPresent(send, timeoutMs = 200, intent = null) {
   const labelsByIntent = {
     post_now: ['Post now', 'โพสต์เลย', 'โพสต์ตอนนี้'],
-    schedule: ['Schedule now', 'กำหนดเวลาเลย'],
+    // TikTok Studio shows "Post now" inside "Continue to post?" even when Schedule is selected.
+    schedule: ['Schedule now', 'กำหนดเวลาเลย', 'Post now', 'โพสต์เลย', 'โพสต์ตอนนี้'],
   };
   const acceptLabels = labelsByIntent[intent];
   if (!acceptLabels) return false;

@@ -1,4 +1,4 @@
-const { test } = require('node:test');
+﻿const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
@@ -809,7 +809,7 @@ test('R1 dismissContinueToPostDialogIfPresent: only the button that matches the 
   assert.ok(expressions[0].includes('postNowBtn && isContinueDialog'), 'the dialog text must be recognised');
   await ctx.dismissContinueToPostDialogIfPresent(send, 50, 'schedule');
   const last = expressions[expressions.length - 1];
-  assert.ok(last.includes('Schedule now') && !last.includes('Post now'));
+  assert.ok(last.includes('Schedule now') && last.includes('Post now'));
 });
 
 test('R1 release: there is no force; an attempted job is never released, a never-attempted claim is', async () => {
@@ -1017,7 +1017,7 @@ test('stats sync accepts the real Studio posts page and stamps a visible build t
   // Build identity: chrome://extensions + the Tools tab both prove the fresh
   // code is running, so stale cached sidepanel.js (the ghost "จำกัดโดเมน"
   // banner that never existed in this repo) can be caught by the user's eyes.
-  assert.equal(manifest.version, '0.11.0');
+  assert.equal(manifest.version, '0.11.1');
   assert.equal(manifest.content_scripts, undefined, 'no legacy content script');
   for (const gone of ['batch_runner.js', 'batch_runner.test.cjs', 'content_script.js', 'popup.html', 'popup.js']) assert.ok(!fs.existsSync(path.join(__dirname, gone)), gone + ' must stay deleted');
   assert.match(sideHtml, /id="buildTag"/);

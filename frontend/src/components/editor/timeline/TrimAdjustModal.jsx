@@ -323,9 +323,9 @@ export default function TrimAdjustModal({
             type="button"
             onClick={togglePlay}
             aria-label={isPlaying ? 'หยุดชั่วคราว' : 'เล่นช่วงที่เลือก'}
-            className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/25 transition-all cursor-pointer"
+            className="group/play absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/25 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer"
           >
-            <span className={`flex items-center justify-center w-15 h-15 rounded-full bg-black/65 backdrop-blur-md border border-white/20 shadow-xl transition-all transform hover:scale-105 ${isPlaying ? 'opacity-0 group-hover:opacity-100' : 'opacity-90'}`}>
+            <span className={`flex items-center justify-center w-15 h-15 rounded-full bg-black/65 backdrop-blur-md border border-white/20 shadow-xl transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out [@media(hover:hover)_and_(pointer:fine)]:hover:scale-105 group-active/play:scale-95 ${isPlaying ? 'opacity-0 group-hover:opacity-100' : 'opacity-90'}`}>
               {isPlaying ? (
                 <Pause className="w-7 h-7 text-white" />
               ) : (
@@ -345,7 +345,7 @@ export default function TrimAdjustModal({
             type="button"
             onClick={handleReset}
             title="รีเซ็ตช่วงตัดเป็นค่าเดิม"
-            className="absolute top-3 right-3 bg-black/60 hover:bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 text-xs text-slate-300 hover:text-white flex items-center gap-1 transition-all cursor-pointer"
+            className="absolute top-3 right-3 bg-black/60 hover:bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 text-xs text-slate-300 hover:text-white flex items-center gap-1 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>คืนค่าเดิม</span>
@@ -374,7 +374,7 @@ export default function TrimAdjustModal({
               <button
                 type="button"
                 onClick={() => setIsZoomFocus(!isZoomFocus)}
-                className={`px-2.5 py-0.5 rounded-full border text-[11px] font-medium transition-all flex items-center gap-1 cursor-pointer ${
+                className={`px-2.5 py-0.5 rounded-full border text-[11px] font-medium transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 flex items-center gap-1 cursor-pointer ${
                   isZoomFocus
                     ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-md font-semibold'
                     : 'bg-slate-800 text-slate-300 border-white/10 hover:text-white hover:bg-slate-700'
@@ -506,7 +506,7 @@ export default function TrimAdjustModal({
                 step={0.05}
                 value={draft.trim_start}
                 onChange={(e) => handleSliderChange(parseFloat(e.target.value))}
-                className="w-full accent-emerald-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer transition-all"
+                className="w-full accent-emerald-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
                 title="ลากแถบเลื่อนนี้เพื่อเลื่อนช็อตข้ามวิดีโอได้อย่างรวดเร็ว"
               />
               <span className="text-[11px] font-mono text-slate-300 shrink-0 w-12 text-right">
@@ -522,7 +522,7 @@ export default function TrimAdjustModal({
               <button
                 type="button"
                 onClick={() => handleNudge(-1.0)}
-                className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg border border-white/5 transition-all cursor-pointer font-mono text-[11px]"
+                className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg border border-white/5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer font-mono text-[11px]"
                 title="ขยับย้อนหลัง 1 วินาที"
               >
                 -1.0s
@@ -530,7 +530,7 @@ export default function TrimAdjustModal({
               <button
                 type="button"
                 onClick={() => handleNudge(-0.1)}
-                className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 rounded-lg border border-white/5 transition-all cursor-pointer font-mono text-[11px] font-medium"
+                className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 rounded-lg border border-white/5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer font-mono text-[11px] font-medium"
                 title="ขยับย้อนหลัง 0.1 วินาที"
               >
                 -0.1s
@@ -547,7 +547,7 @@ export default function TrimAdjustModal({
               <button
                 type="button"
                 onClick={() => handleNudge(0.1)}
-                className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 rounded-lg border border-white/5 transition-all cursor-pointer font-mono text-[11px] font-medium"
+                className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 rounded-lg border border-white/5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer font-mono text-[11px] font-medium"
                 title="ขยับไปข้างหน้า 0.1 วินาที"
               >
                 +0.1s
@@ -555,7 +555,7 @@ export default function TrimAdjustModal({
               <button
                 type="button"
                 onClick={() => handleNudge(1.0)}
-                className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg border border-white/5 transition-all cursor-pointer font-mono text-[11px]"
+                className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg border border-white/5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer font-mono text-[11px]"
                 title="ขยับไปข้างหน้า 1 วินาที"
               >
                 +1.0s

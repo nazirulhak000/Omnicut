@@ -87,6 +87,28 @@ def _find_angle(product_id, angle_id, batch, channel_id) -> Optional[Dict[str, A
     return None
 
 
+def _binding_state(bindings: ExportCoverBindingStore, channel_id: str, export_id: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
+    """Determine binding source and valid current cover paths.
+
+    Returns: (source, path_9x16, path_3x4)
+    If source == "auto" and either format is missing, invalid, or changed,
+    catches ChannelError and returns ("auto", None, None).
+    """
+    source = bindings.source_of(channel_id, export_id)
+    if source != "auto":
+        return source, None, None
+    try:
+        e9 = bindings.get(channel_id, export_id, format="9:16")
+        e3 = bindings.get(channel_id, export_id, format="3:4")
+        p9 = (e9 or {}).get("path")
+        p3 = (e3 or {}).get("path")
+        if not p9 or not p3:
+            return "auto", None, None
+        return "auto", p9, p3
+    except ChannelError:
+        return "auto", None, None
+
+
 def _is_current(cover_rel: Optional[str], video: Path) -> bool:
     if not cover_rel:
         return False
@@ -106,9 +128,15 @@ def _ensure(export_id, channel_id, product_id, angle_id, batch) -> Dict[str, Any
     if not video.is_file():
         return {"status": "skipped", "reason": "video_missing"}
     channel = row.get(OWNER_KEY) or channel_id or config.DEFAULT_CHANNEL_ID
+    if not product_id:
+        product_id = row.get("product_id")
+    if not angle_id:
+        angle_id = row.get("angle_id")
+    if batch is None:
+        batch = row.get("batch")
 
     bindings = ExportCoverBindingStore(config.BASE_DIR)
-    bound_by = bindings.source_of(channel, export_id)
+    bound_by, current_9, current_3 = _binding_state(bindings, channel, export_id)
     if bound_by == "manual":
         return {"status": "kept", "reason": "manual_cover"}
 
@@ -118,12 +146,13 @@ def _ensure(export_id, channel_id, product_id, angle_id, batch) -> Dict[str, Any
         return {"status": "kept", "reason": "manual_cover"}
 
     if bound_by == "auto":
-        try:
-            current = (bindings.get(channel, export_id) or {}).get("path")
-        except ChannelError:  # bound file missing or changed -> make a new one
-            current = None
-        if _is_current(current, video):
-            return {"status": "kept", "reason": "auto_cover_current", "cover_path": current}
+        if (
+            current_9
+            and current_3
+            and _is_current(current_9, video)
+            and _is_current(current_3, video)
+        ):
+            return {"status": "kept", "reason": "auto_cover_current", "cover_path": current_9}
 
     # Imported here: api_covers pulls in FastAPI routes and Pillow, which a
     # render worker should not pay for unless it actually builds a cover.

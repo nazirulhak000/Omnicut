@@ -870,7 +870,7 @@ export default function Timeline({
                 </TrackLabel>
               </div>
               {hasCutout && (
-                <div style={rowStyle('cutout')} className="flex items-center transition-all duration-150">
+                <div style={rowStyle('cutout')} className="flex items-center transition-[background-color,border-color,opacity] duration-150 ease-out">
                   <TrackLabel
                     width={gutterW}
                     slotWidth={dense ? 14 : 26}
@@ -897,7 +897,7 @@ export default function Timeline({
                 </div>
               )}
               {hasSticker && (
-                <div style={rowStyle('sticker')} className="flex items-center transition-all duration-150">
+                <div style={rowStyle('sticker')} className="flex items-center transition-[background-color,border-color,opacity] duration-150 ease-out">
                   <TrackLabel
                     width={gutterW}
                     slotWidth={dense ? 14 : 26}
@@ -957,7 +957,7 @@ export default function Timeline({
                 </TrackLabel>
               </div>
               {hasTextOverlays && (
-                <div style={rowStyle('text')} className="flex items-center transition-all duration-150">
+                <div style={rowStyle('text')} className="flex items-center transition-[background-color,border-color,opacity] duration-150 ease-out">
                   <TrackLabel
                     width={gutterW}
                     slotWidth={dense ? 14 : 26}
@@ -1313,7 +1313,7 @@ export default function Timeline({
               {hasCutout && (
                 <div
                   data-testid="timeline-cutout-track"
-                  className="relative rounded bg-[#0D111A] border border-white/[0.04] transition-all duration-150"
+                  className="relative rounded bg-[#0D111A] border border-white/[0.04] transition-[background-color,border-color,opacity] duration-150 ease-out"
                   style={rowStyle('cutout')}
                 >
                   {backgroundIsolation?.scope_mode === 'behind_text_windows'
@@ -1345,7 +1345,7 @@ export default function Timeline({
                           selectClip(seg.clip.id);
                         }}
                         title={`Cutout สินค้า: ช็อต #${seg.index + 1} (${isProcessing ? 'กำลังประมวลผล' : isQueued ? 'รอคิวตัดในรอบนี้' : isIsoOn ? (isReady ? 'พร้อมใช้งาน' : 'รอคิว Cutout') : 'ปิดใช้งาน'})`}
-                        className={`group absolute top-0.5 h-[calc(100%-4px)] rounded text-xs select-none flex items-center px-2 gap-1.5 transition-all cursor-pointer ${
+                        className={`group absolute top-0.5 h-[calc(100%-4px)] rounded text-xs select-none flex items-center px-2 gap-1.5 transition-colors duration-150 cursor-pointer ${
                           isCutoutHidden
                             ? 'opacity-30 bg-[#282724] text-[#9C968F] ring-1 ring-white/10'
                             : isProcessing
@@ -1376,7 +1376,7 @@ export default function Timeline({
               {/* sticker track */}
               {hasSticker && (
                 <div
-                  className="relative rounded bg-[#0D111A] border border-white/[0.04] transition-all duration-150"
+                  className="relative rounded bg-[#0D111A] border border-white/[0.04] transition-[background-color,border-color,opacity] duration-150 ease-out"
                   style={rowStyle('sticker')}
                 >
                   {packedStickers.map((item) => {
@@ -1502,7 +1502,7 @@ export default function Timeline({
               {/* text overlay track (only shown when overlays exist, auto-stacked by lane) */}
               {hasTextOverlays && (
                 <div
-                  className="relative rounded bg-[#0D111A] border border-white/[0.04] transition-all duration-150"
+                  className="relative rounded bg-[#0D111A] border border-white/[0.04] transition-[background-color,border-color,opacity] duration-150 ease-out"
                   style={rowStyle('text')}
                 >
                   {packedTextOverlays.map((item) => {

@@ -261,7 +261,7 @@ export default function EditorHeader({
             onClick={() => onToggleImmersive?.()}
             data-testid="toggle-immersive-studio-btn"
             title={isImmersive ? "ออกจากโหมดตัดต่อเต็มจอ (Esc)" : "โหมดตัดต่อเต็มจอ (ซ่อนแถบนำทาง) (Shift+F)"}
-            className={`flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border px-2 sm:px-2.5 text-xs font-bold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/70 ${
+            className={`flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border px-2 sm:px-2.5 text-xs font-bold active:scale-[0.97] transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/70 ${
               isImmersive
                 ? 'border-[#25F4EE]/50 bg-[#25F4EE]/15 text-[#25F4EE] shadow-sm'
                 : 'border-white/[0.08] bg-white/[0.04] text-slate-300 hover:border-white/[0.2] hover:text-white'
@@ -280,7 +280,7 @@ export default function EditorHeader({
           data-testid="toggle-ai-agent-btn"
           title="สั่งงาน Antigravity AI Agent (Ctrl+K)"
           aria-label="สั่งงาน AI Agent"
-          className={`flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border px-1.5 sm:px-2.5 text-xs font-bold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 ${
+          className={`flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border px-1.5 sm:px-2.5 text-xs font-bold active:scale-[0.97] transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 ${
             isAgentOpen
               ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/20'
               : 'border-white/[0.08] bg-white/[0.04] text-slate-300 hover:border-emerald-500/40 hover:text-white'
@@ -329,11 +329,11 @@ export default function EditorHeader({
       {/* ── Playbook Tips Modal (Pre-flight Reminders) ── */}
       {showPlaybookModal && (
         <ModalLayer onClose={() => setShowPlaybookModal(false)} aria-label="เช็กลิสต์ก่อนเรนเดอร์"
-          className="fixed inset-0 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
+          className="fixed inset-0 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn"
           onClick={() => setShowPlaybookModal(false)}
         >
           <div
-            className="w-full max-w-lg rounded-2xl bg-[#0F1420] border border-white/[0.12] p-6 shadow-2xl space-y-4 max-h-[85vh] flex flex-col"
+            className="w-full max-w-lg rounded-2xl bg-[#0F1420] border border-white/[0.12] p-6 shadow-2xl space-y-4 max-h-[85vh] flex flex-col animate-scaleUp"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between pb-3 border-b border-white/10">
@@ -348,7 +348,7 @@ export default function EditorHeader({
               </div>
               <button
                 onClick={() => setShowPlaybookModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 active:scale-[0.96] transition-[background-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer"
                 title="ปิด"
               >
                 <X className="w-5 h-5" />
@@ -364,7 +364,7 @@ export default function EditorHeader({
                 playbookNotes.map((note, idx) => (
                   <div
                     key={note.id || idx}
-                    className="p-3 rounded-xl bg-slate-800/50 border border-white/5 hover:border-amber-500/30 transition-all space-y-1.5"
+                    className="p-3 rounded-xl bg-slate-800/50 border border-white/5 hover:border-amber-500/30 transition-colors duration-150 space-y-1.5"
                   >
                     <div className="flex items-center justify-between">
                       <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-1">
@@ -389,7 +389,7 @@ export default function EditorHeader({
               <span>จดเพิ่มหรือแก้ไขได้ที่แท็บ <strong>โปรดิวเซอร์</strong></span>
               <button
                 onClick={() => setShowPlaybookModal(false)}
-                className="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-semibold cursor-pointer transition-colors"
+                className="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-semibold cursor-pointer active:scale-[0.96] transition-[background-color,color,transform] duration-150 active:duration-100 ease-out"
               >
                 เข้าใจแล้ว
               </button>

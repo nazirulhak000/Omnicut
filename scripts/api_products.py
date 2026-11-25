@@ -827,6 +827,27 @@ def set_default_videos_endpoint(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+def resolve_video_file_path(v_str: str) -> Optional[Path]:
+    """Resolve a video path (relative or absolute) to an existing Path on disk.
+    If the specified path does not exist, searches in 01_Raw for the filename
+    or handles case-insensitive / renamed folder aliases.
+    """
+    if not v_str:
+        return None
+    p = Path(v_str)
+    if not p.is_absolute():
+        p = BASE_DIR / p
+    if p.exists():
+        return p
+    # Try searching under RAW_DIR for the same file name
+    fname = p.name
+    if fname:
+        matches = list(RAW_DIR.rglob(fname))
+        if matches:
+            return matches[0]
+    return None
+
+
 def collect_canonical_videos(prod_obj: Dict[str, Any], specific_video: Optional[str] = None) -> List[str]:
     """Footage attached to a product, each file once (relative spelling preferred)."""
     raw_candidates = []
@@ -850,7 +871,7 @@ def collect_canonical_videos(prod_obj: Dict[str, Any], specific_video: Optional[
     canonical_map = {}
     for v in raw_candidates:
         try:
-            v_p = Path(v)
+            v_p = resolve_video_file_path(v) or Path(v)
             if not v_p.is_absolute():
                 v_p = BASE_DIR / v
             resolved_key = str(v_p.resolve()).lower()
@@ -884,10 +905,9 @@ def run_scene_scan(task_id: str, videos_to_index: List[str], force: bool = False
         total = len(videos_to_index)
         TaskManager.update_progress(task_id, 0.05, f"เริ่มสแกนสารบัญฉาก {total} คลิป...")
         for idx, v_rel in enumerate(videos_to_index):
-            v_full = Path(v_rel)
-            if not v_full.is_absolute():
-                v_full = BASE_DIR / v_rel
-            if not v_full.exists():
+            v_full = resolve_video_file_path(v_rel)
+            if not v_full or not v_full.exists():
+                not_analyzed[v_rel] = f"ไม่พบไฟล์วิดีโอบนเครื่อง ({Path(v_rel).name})"
                 continue
 
             clip_name = v_full.name
@@ -910,13 +930,20 @@ def run_scene_scan(task_id: str, videos_to_index: List[str], force: bool = False
                 # report them as indexed scenes.
                 not_analyzed[v_rel] = GeminiVisionMatcher.fallback_reason_th(catalog)
             elif catalog:
-                indexed_results[v_rel] = {
+                data = {
                     "is_indexed": True,
                     "scenes_count": len(catalog.get("scenes", [])),
                     "is_spin_footage": catalog.get("is_spin_footage", False),
                     "summary": catalog.get("summary", ""),
                     "scenes": catalog.get("scenes", []),
                 }
+                indexed_results[v_rel] = data
+                try:
+                    rel_spelling = str(v_full.relative_to(BASE_DIR)).replace("\\", "/")
+                    if rel_spelling != v_rel:
+                        indexed_results[rel_spelling] = data
+                except Exception:
+                    pass
 
         outcome = summarize_catalog_scan(indexed_results, not_analyzed)
         if not outcome["ok"]:
@@ -956,14 +983,23 @@ def get_scene_catalogs(
 
     results = {}
     for v_rel in videos_to_check:
-        v_full = Path(v_rel)
-        if not v_full.is_absolute():
-            v_full = BASE_DIR / v_rel
-        if not v_full.exists():
+        v_full = resolve_video_file_path(v_rel)
+        if not v_full or not v_full.exists():
+            item_missing = {
+                "is_indexed": False,
+                "scenes_count": 0,
+                "is_spin_footage": False,
+                "summary": "",
+                "scenes": [],
+                "missing_file": True,
+                "error": f"ไม่พบไฟล์วิดีโอบนเครื่อง ({Path(v_rel).name})"
+            }
+            results[v_rel] = item_missing
             continue
+
         catalog = GeminiVisionMatcher.get_cached_catalog(str(v_full))
         if catalog:
-            results[v_rel] = {
+            item = {
                 "is_indexed": True,
                 "scenes_count": len(catalog.get("scenes", [])),
                 "is_spin_footage": catalog.get("is_spin_footage", False),
@@ -971,13 +1007,20 @@ def get_scene_catalogs(
                 "scenes": catalog.get("scenes", []),
             }
         else:
-            results[v_rel] = {
+            item = {
                 "is_indexed": False,
                 "scenes_count": 0,
                 "is_spin_footage": False,
                 "summary": "",
                 "scenes": [],
             }
+        results[v_rel] = item
+        try:
+            rel_spelling = str(v_full.relative_to(BASE_DIR)).replace("\\", "/")
+            if rel_spelling != v_rel:
+                results[rel_spelling] = item
+        except Exception:
+            pass
 
     return {"success": True, "catalogs": results}
 

@@ -3,7 +3,7 @@
     "id": "main:counter",
     "channel_id": "main",
     "kind": "counter",
-    "next": 179
+    "next": 241
   },
   {
     "id": "main:ep:1",
@@ -1975,7 +1975,8 @@
     "product_id": "673882d55bd84c57ba805000a910c466",
     "angle_id": "comparison",
     "export_ids": [
-      "exp_397071b4708a48d3a59c27a5659356ec"
+      "exp_397071b4708a48d3a59c27a5659356ec",
+      "exp_3ee5f8c2e54d4fe1830533c8d8ba583c"
     ],
     "source": "backfill",
     "assigned_at": "2026-11-10T23:00:24"
@@ -2497,5 +2498,873 @@
     ],
     "source": "new",
     "assigned_at": "2026-11-12T01:42:13"
+  },
+  {
+    "id": "main:ep:179",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 179,
+    "lineage_key": "angle:cde38b1c07e54ea69a3d50a6c1bb3f18:ang_hat02_01",
+    "product_id": "cde38b1c07e54ea69a3d50a6c1bb3f18",
+    "angle_id": "ang_hat02_01",
+    "export_ids": [
+      "exp_f8fffc9e5a84496eaf367b88b6d7f1aa"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-18T23:08:15"
+  },
+  {
+    "id": "main:ep:180",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 180,
+    "lineage_key": "angle:b6611b951335492fa3cdbeb156ed66d4:pain_point",
+    "product_id": "b6611b951335492fa3cdbeb156ed66d4",
+    "angle_id": "pain_point",
+    "export_ids": [
+      "exp_81cb8e5a544143aaa2861faac199174f"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-18T23:10:19"
+  },
+  {
+    "id": "main:ep:181",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 181,
+    "lineage_key": "angle:7900bbca318d41ed964b5a721c0d951f:ang_goo5k_01",
+    "product_id": "7900bbca318d41ed964b5a721c0d951f",
+    "angle_id": "ang_goo5k_01",
+    "export_ids": [
+      "exp_2ad04de0355d4cc88668fdc8cfdf5967"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-18T23:17:47"
+  },
+  {
+    "id": "main:ep:182",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 182,
+    "lineage_key": "angle:b0137078e2ff4c089b60131f60168b54:ang_red8_01",
+    "product_id": "b0137078e2ff4c089b60131f60168b54",
+    "angle_id": "ang_red8_01",
+    "export_ids": [
+      "exp_cdae6fbccd974b3d94f5dbfab0c2140c"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-18T23:19:50"
+  },
+  {
+    "id": "main:ep:183",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 183,
+    "lineage_key": "angle:aca2c88f2a6d463e903a8b4fe7c7320d:pain_point",
+    "product_id": "aca2c88f2a6d463e903a8b4fe7c7320d",
+    "angle_id": "pain_point",
+    "export_ids": [
+      "exp_aa105f49500941dab5cd766ae2a48536"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-18T23:51:46"
+  },
+  {
+    "id": "main:ep:184",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 184,
+    "lineage_key": "angle:8ee264e8586d4a619c19516b9367043c:spec_review",
+    "product_id": "8ee264e8586d4a619c19516b9367043c",
+    "angle_id": "spec_review",
+    "export_ids": [
+      "exp_5190d6a44a5645c69aaae039600096dc"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-18T23:54:57"
+  },
+  {
+    "id": "main:ep:185",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 185,
+    "lineage_key": "angle:5da1d0860cac4369acaa2f23cb179dce:unboxing",
+    "product_id": "5da1d0860cac4369acaa2f23cb179dce",
+    "angle_id": "unboxing",
+    "export_ids": [
+      "exp_895f93f3bbf24f318600cf00b16d01dc"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-18T23:56:36"
+  },
+  {
+    "id": "main:ep:186",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 186,
+    "lineage_key": "angle:e2109dc73f9c4bd4a3c98c28bc731bdf:spec_review",
+    "product_id": "e2109dc73f9c4bd4a3c98c28bc731bdf",
+    "angle_id": "spec_review",
+    "export_ids": [
+      "exp_6dd043861e464c2c9928b7b396d53d79"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-18T23:58:27"
+  },
+  {
+    "id": "main:ep:187",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 187,
+    "lineage_key": "angle:cc048aa24673485e824f18eba54cd7a3:pain_point",
+    "product_id": "cc048aa24673485e824f18eba54cd7a3",
+    "angle_id": "pain_point",
+    "export_ids": [
+      "exp_7e993ce3d6fa4e42a4397e12478265f7"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-19T00:00:32"
+  },
+  {
+    "id": "main:ep:188",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 188,
+    "lineage_key": "angle:a4dcf71082204bcd97f76952f6b4e48d:spec_review",
+    "product_id": "a4dcf71082204bcd97f76952f6b4e48d",
+    "angle_id": "spec_review",
+    "export_ids": [
+      "exp_443600485ddf4db2abe92a387a0e4ade"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-19T08:13:11"
+  },
+  {
+    "id": "main:ep:189",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 189,
+    "lineage_key": "angle:d3d53d59d13d4e97b8ed5a1dddc93f51:pain_point",
+    "product_id": "d3d53d59d13d4e97b8ed5a1dddc93f51",
+    "angle_id": "pain_point",
+    "export_ids": [
+      "exp_2ec953c9406e4b909c3c6fc5a9313372"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-19T08:15:08"
+  },
+  {
+    "id": "main:ep:190",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 190,
+    "lineage_key": "angle:ecc3e8df937945ffa7ce60695f4d336d:pain_point",
+    "product_id": "ecc3e8df937945ffa7ce60695f4d336d",
+    "angle_id": "pain_point",
+    "export_ids": [
+      "exp_137949943b2f417eb5a454fa36ff27eb"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-19T08:16:43"
+  },
+  {
+    "id": "main:ep:191",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 191,
+    "lineage_key": "angle:45563682e68d4ec6bd2dc08bcaf3fcca:comparison",
+    "product_id": "45563682e68d4ec6bd2dc08bcaf3fcca",
+    "angle_id": "comparison",
+    "export_ids": [
+      "exp_bb283952e7754baf8adccad7602d5b88"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-19T08:18:39"
+  },
+  {
+    "id": "main:ep:192",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 192,
+    "lineage_key": "angle:6f917039385a473bac3cdb2f9319ba00:spec_review",
+    "product_id": "6f917039385a473bac3cdb2f9319ba00",
+    "angle_id": "spec_review",
+    "export_ids": [
+      "exp_ed28c53301724687bbaeb04b5c616d65"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-19T08:20:09"
+  },
+  {
+    "id": "main:ep:193",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 193,
+    "lineage_key": "angle:0912f877ec0d45379c92b263228760d5:fomo_deal",
+    "product_id": "0912f877ec0d45379c92b263228760d5",
+    "angle_id": "fomo_deal",
+    "export_ids": [
+      "exp_45c8eb65b2564690a199040907de8d80"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-19T08:23:57"
+  },
+  {
+    "id": "main:ep:194",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 194,
+    "lineage_key": "angle:9505b042d58640f5aa58015bb86be097:ang_legacy_ess02_hype_25s",
+    "product_id": "9505b042d58640f5aa58015bb86be097",
+    "angle_id": "ang_legacy_ess02_hype_25s",
+    "export_ids": [
+      "exp_31589d7245ba493da49d435d2f345bcc"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-19T08:25:56"
+  },
+  {
+    "id": "main:ep:195",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 195,
+    "lineage_key": "angle:37521e0dae1a419e8037e159254d4fdf:ang_legacy_els6_couple_paper",
+    "product_id": "37521e0dae1a419e8037e159254d4fdf",
+    "angle_id": "ang_legacy_els6_couple_paper",
+    "export_ids": [
+      "exp_b50c3211bc424b6a8e98bced7504be06"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-19T08:27:46"
+  },
+  {
+    "id": "main:ep:196",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 196,
+    "lineage_key": "angle:c6eca50968f04431849b6464aacb6f89:ang_hat16_01",
+    "product_id": "c6eca50968f04431849b6464aacb6f89",
+    "angle_id": "ang_hat16_01",
+    "export_ids": [
+      "exp_fdf96f6c13294395ae27dc94adff9740"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-19T08:29:19"
+  },
+  {
+    "id": "main:ep:197",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 197,
+    "lineage_key": "angle:cde38b1c07e54ea69a3d50a6c1bb3f18:ang_hat02_02",
+    "product_id": "cde38b1c07e54ea69a3d50a6c1bb3f18",
+    "angle_id": "ang_hat02_02",
+    "export_ids": [
+      "exp_130b9a507e054c4aa5a98060c7fc20ee"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-19T08:31:07"
+  },
+  {
+    "id": "main:ep:198",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 198,
+    "lineage_key": "angle:7900bbca318d41ed964b5a721c0d951f:ang_goo5k_02",
+    "product_id": "7900bbca318d41ed964b5a721c0d951f",
+    "angle_id": "ang_goo5k_02",
+    "export_ids": [
+      "exp_36f9225819bf472883bbe78966bdccc8"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-19T08:32:42"
+  },
+  {
+    "id": "main:ep:199",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 199,
+    "lineage_key": "angle:b0137078e2ff4c089b60131f60168b54:ang_red8_02",
+    "product_id": "b0137078e2ff4c089b60131f60168b54",
+    "angle_id": "ang_red8_02",
+    "export_ids": [
+      "exp_f7b630df7d4f47ccb391bf4b7e437638"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-19T08:34:33"
+  },
+  {
+    "id": "main:ep:200",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 200,
+    "lineage_key": "angle:ecc3e8df937945ffa7ce60695f4d336d:unboxing",
+    "product_id": "ecc3e8df937945ffa7ce60695f4d336d",
+    "angle_id": "unboxing",
+    "export_ids": [
+      "exp_6592d856d22e4b1a8dd69a9ae97c0e6e"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-19T08:36:12"
+  },
+  {
+    "id": "main:ep:201",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 201,
+    "lineage_key": "angle:431165f167284094959bdf0f0e806899:pain_point",
+    "product_id": "431165f167284094959bdf0f0e806899",
+    "angle_id": "pain_point",
+    "export_ids": [
+      "exp_00a311f4e4304cc08fb54b0372562ee6"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-19T08:38:02"
+  },
+  {
+    "id": "main:ep:202",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 202,
+    "lineage_key": "angle:aca2c88f2a6d463e903a8b4fe7c7320d:spec_review",
+    "product_id": "aca2c88f2a6d463e903a8b4fe7c7320d",
+    "angle_id": "spec_review",
+    "export_ids": [
+      "exp_82977e89bbba4607912c3ea2c519574f"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-19T08:39:23"
+  },
+  {
+    "id": "main:ep:203",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 203,
+    "lineage_key": "angle:9505b042d58640f5aa58015bb86be097:ang_legacy_ess02_pov5_cool60",
+    "product_id": "9505b042d58640f5aa58015bb86be097",
+    "angle_id": "ang_legacy_ess02_pov5_cool60",
+    "export_ids": [
+      "exp_6be7b051b68a4a51b0794f730be7ec54"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-19T08:40:53"
+  },
+  {
+    "id": "main:ep:204",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 204,
+    "lineage_key": "angle:37521e0dae1a419e8037e159254d4fdf:ang_legacy_ors01_pov2_fire_v1",
+    "product_id": "37521e0dae1a419e8037e159254d4fdf",
+    "angle_id": "ang_legacy_ors01_pov2_fire_v1",
+    "export_ids": [
+      "exp_c363d5f816234e349a9cc881efa12d3f"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-19T08:50:42"
+  },
+  {
+    "id": "main:ep:205",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 205,
+    "lineage_key": "angle:c6eca50968f04431849b6464aacb6f89:ang_hat16_03",
+    "product_id": "c6eca50968f04431849b6464aacb6f89",
+    "angle_id": "ang_hat16_03",
+    "export_ids": [
+      "exp_3cc08d4e15bf4408bda5c3f483db49e5"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-19T08:52:15"
+  },
+  {
+    "id": "main:ep:206",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 206,
+    "lineage_key": "angle:cde38b1c07e54ea69a3d50a6c1bb3f18:ang_hat02_03",
+    "product_id": "cde38b1c07e54ea69a3d50a6c1bb3f18",
+    "angle_id": "ang_hat02_03",
+    "export_ids": [
+      "exp_ace4e6f7ce7148f2ab92cfee9628c4b8"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-19T08:53:43"
+  },
+  {
+    "id": "main:ep:207",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 207,
+    "lineage_key": "angle:7900bbca318d41ed964b5a721c0d951f:ang_goo5k_03",
+    "product_id": "7900bbca318d41ed964b5a721c0d951f",
+    "angle_id": "ang_goo5k_03",
+    "export_ids": [
+      "exp_cb629d07ebdf4ac2992cad539a74a1fc"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-19T08:55:15"
+  },
+  {
+    "id": "main:ep:208",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 208,
+    "lineage_key": "angle:b0137078e2ff4c089b60131f60168b54:ang_red8_03",
+    "product_id": "b0137078e2ff4c089b60131f60168b54",
+    "angle_id": "ang_red8_03",
+    "export_ids": [
+      "exp_850ed25352cd41678949c65369d71165"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-19T08:57:00"
+  },
+  {
+    "id": "main:ep:209",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 209,
+    "lineage_key": "angle:ecc3e8df937945ffa7ce60695f4d336d:spec_review",
+    "product_id": "ecc3e8df937945ffa7ce60695f4d336d",
+    "angle_id": "spec_review",
+    "export_ids": [
+      "exp_1f9fc962115e4b2f99f674aefe94c017"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-19T08:58:32"
+  },
+  {
+    "id": "main:ep:210",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 210,
+    "lineage_key": "angle:431165f167284094959bdf0f0e806899:comparison",
+    "product_id": "431165f167284094959bdf0f0e806899",
+    "angle_id": "comparison",
+    "export_ids": [
+      "exp_1916035e7a994d0a9a6caa727a00b617"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-19T09:01:12"
+  },
+  {
+    "id": "main:ep:211",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 211,
+    "lineage_key": "angle:8ebd5ef6dc2545398dc1b771aedda50d:spec_review",
+    "product_id": "8ebd5ef6dc2545398dc1b771aedda50d",
+    "angle_id": "spec_review",
+    "export_ids": [
+      "exp_16b6c511ed764aac9de6b5a4d2507a01"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-19T09:02:53"
+  },
+  {
+    "id": "main:ep:212",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 212,
+    "lineage_key": "angle:9505b042d58640f5aa58015bb86be097:ang_legacy_ess02_pov_chat_28s",
+    "product_id": "9505b042d58640f5aa58015bb86be097",
+    "angle_id": "ang_legacy_ess02_pov_chat_28s",
+    "export_ids": [
+      "exp_7c9fdc70adc64b39ac33b52b5b60185d"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-22T22:13:37"
+  },
+  {
+    "id": "main:ep:213",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 213,
+    "lineage_key": "angle:673882d55bd84c57ba805000a910c466:fomo_deal",
+    "product_id": "673882d55bd84c57ba805000a910c466",
+    "angle_id": "fomo_deal",
+    "export_ids": [
+      "exp_070252b23f534340b07b99a5ec73bd3d"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-22T22:14:46"
+  },
+  {
+    "id": "main:ep:214",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 214,
+    "lineage_key": "angle:37521e0dae1a419e8037e159254d4fdf:ang_legacy_ors01_pov1_240w_alt",
+    "product_id": "37521e0dae1a419e8037e159254d4fdf",
+    "angle_id": "ang_legacy_ors01_pov1_240w_alt",
+    "export_ids": [
+      "exp_3ebcca7f483d4134b4432eccaaea1993"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-22T22:16:54"
+  },
+  {
+    "id": "main:ep:215",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 215,
+    "lineage_key": "angle:c6eca50968f04431849b6464aacb6f89:ang_hat16_02",
+    "product_id": "c6eca50968f04431849b6464aacb6f89",
+    "angle_id": "ang_hat16_02",
+    "export_ids": [
+      "exp_7a3c4b99fb4047faa5436d8219168c8e"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-22T22:18:21"
+  },
+  {
+    "id": "main:ep:216",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 216,
+    "lineage_key": "angle:cde38b1c07e54ea69a3d50a6c1bb3f18:ang_hat02_04",
+    "product_id": "cde38b1c07e54ea69a3d50a6c1bb3f18",
+    "angle_id": "ang_hat02_04",
+    "export_ids": [
+      "exp_0b31ac9522694409acc96957f16b8c64"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-22T22:19:58"
+  },
+  {
+    "id": "main:ep:217",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 217,
+    "lineage_key": "angle:b0137078e2ff4c089b60131f60168b54:ang_red8_04",
+    "product_id": "b0137078e2ff4c089b60131f60168b54",
+    "angle_id": "ang_red8_04",
+    "export_ids": [
+      "exp_4ac6be6573894ea0aea3814f9cf7df7b"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-22T22:21:17"
+  },
+  {
+    "id": "main:ep:218",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 218,
+    "lineage_key": "angle:ecc3e8df937945ffa7ce60695f4d336d:fomo_deal",
+    "product_id": "ecc3e8df937945ffa7ce60695f4d336d",
+    "angle_id": "fomo_deal",
+    "export_ids": [
+      "exp_87941f5f1d1d44f38da888862d888b88"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-22T22:23:15"
+  },
+  {
+    "id": "main:ep:219",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 219,
+    "lineage_key": "angle:fb77e97e611e4e059b943b5512e8cb82:spec_review",
+    "product_id": "fb77e97e611e4e059b943b5512e8cb82",
+    "angle_id": "spec_review",
+    "export_ids": [
+      "exp_8e6e89d98f224a8b92ae3ff1d85c639c"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-22T22:24:42"
+  },
+  {
+    "id": "main:ep:220",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 220,
+    "lineage_key": "angle:b6611b951335492fa3cdbeb156ed66d4:spec_review",
+    "product_id": "b6611b951335492fa3cdbeb156ed66d4",
+    "angle_id": "spec_review",
+    "export_ids": [
+      "exp_95599d03d892454c8f49855d15b7e0be"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-22T22:26:15"
+  },
+  {
+    "id": "main:ep:221",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 221,
+    "lineage_key": "angle:9505b042d58640f5aa58015bb86be097:ang_legacy_ess02_vs_25s",
+    "product_id": "9505b042d58640f5aa58015bb86be097",
+    "angle_id": "ang_legacy_ess02_vs_25s",
+    "export_ids": [
+      "exp_f61dd885c8194eb3b97f93212e090a52"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-22T22:27:43"
+  },
+  {
+    "id": "main:ep:222",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 222,
+    "lineage_key": "angle:37521e0dae1a419e8037e159254d4fdf:ang_legacy_ors01_pov2_fire_alt",
+    "product_id": "37521e0dae1a419e8037e159254d4fdf",
+    "angle_id": "ang_legacy_ors01_pov2_fire_alt",
+    "export_ids": [
+      "exp_0a1877fcfcb9467bb7067d77350a20a2"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-22T22:30:37"
+  },
+  {
+    "id": "main:ep:223",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 223,
+    "lineage_key": "angle:c6eca50968f04431849b6464aacb6f89:ang_hat16_05",
+    "product_id": "c6eca50968f04431849b6464aacb6f89",
+    "angle_id": "ang_hat16_05",
+    "export_ids": [
+      "exp_803e636c5fc04fe28cb946825f7cc974"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-22T22:31:59"
+  },
+  {
+    "id": "main:ep:224",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 224,
+    "lineage_key": "angle:cde38b1c07e54ea69a3d50a6c1bb3f18:ang_hat02_05",
+    "product_id": "cde38b1c07e54ea69a3d50a6c1bb3f18",
+    "angle_id": "ang_hat02_05",
+    "export_ids": [
+      "exp_186d20a5605342f39897f43f36bc9b2a"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-22T22:33:41"
+  },
+  {
+    "id": "main:ep:225",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 225,
+    "lineage_key": "angle:7900bbca318d41ed964b5a721c0d951f:ang_goo5k_05",
+    "product_id": "7900bbca318d41ed964b5a721c0d951f",
+    "angle_id": "ang_goo5k_05",
+    "export_ids": [
+      "exp_6bc1a09b3af64faa96aaddbe141264f3"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-22T22:35:13"
+  },
+  {
+    "id": "main:ep:226",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 226,
+    "lineage_key": "angle:b0137078e2ff4c089b60131f60168b54:ang_red8_05",
+    "product_id": "b0137078e2ff4c089b60131f60168b54",
+    "angle_id": "ang_red8_05",
+    "export_ids": [
+      "exp_9071cb8c03ed40ea9c85e50e7badcf84"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-22T22:36:58"
+  },
+  {
+    "id": "main:ep:227",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 227,
+    "lineage_key": "angle:8ee264e8586d4a619c19516b9367043c:pain_point",
+    "product_id": "8ee264e8586d4a619c19516b9367043c",
+    "angle_id": "pain_point",
+    "export_ids": [
+      "exp_5c2a83b8a1d24e5284f786a4d56ce1a7"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-22T22:39:10"
+  },
+  {
+    "id": "main:ep:228",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 228,
+    "lineage_key": "angle:5da1d0860cac4369acaa2f23cb179dce:pain_point",
+    "product_id": "5da1d0860cac4369acaa2f23cb179dce",
+    "angle_id": "pain_point",
+    "export_ids": [
+      "exp_e9ed9687038241c8b2aa5ed48592bc57"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-22T22:40:58"
+  },
+  {
+    "id": "main:ep:229",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 229,
+    "lineage_key": "angle:d3d53d59d13d4e97b8ed5a1dddc93f51:spec_review",
+    "product_id": "d3d53d59d13d4e97b8ed5a1dddc93f51",
+    "angle_id": "spec_review",
+    "export_ids": [
+      "exp_06ad3f00e068415286f0e9936284586b"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-22T22:42:23"
+  },
+  {
+    "id": "main:ep:230",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 230,
+    "lineage_key": "angle:9505b042d58640f5aa58015bb86be097:ang_legacy_ess02_pov4_worth60",
+    "product_id": "9505b042d58640f5aa58015bb86be097",
+    "angle_id": "ang_legacy_ess02_pov4_worth60",
+    "export_ids": [
+      "exp_1a2c57fd984e48c1844378400003afc5"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-22T22:43:49"
+  },
+  {
+    "id": "main:ep:231",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 231,
+    "lineage_key": "angle:673882d55bd84c57ba805000a910c466:life_hack",
+    "product_id": "673882d55bd84c57ba805000a910c466",
+    "angle_id": "life_hack",
+    "export_ids": [
+      "exp_176feb90e458490eb097c140321bb19c"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-22T22:45:50"
+  },
+  {
+    "id": "main:ep:232",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 232,
+    "lineage_key": "angle:37521e0dae1a419e8037e159254d4fdf:ang_ors01_01",
+    "product_id": "37521e0dae1a419e8037e159254d4fdf",
+    "angle_id": "ang_ors01_01",
+    "export_ids": [
+      "exp_3015d2eaf9d5446e9e278333fd5f2a8a"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-22T22:47:31"
+  },
+  {
+    "id": "main:ep:233",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 233,
+    "lineage_key": "angle:c6eca50968f04431849b6464aacb6f89:ang_hat16_04",
+    "product_id": "c6eca50968f04431849b6464aacb6f89",
+    "angle_id": "ang_hat16_04",
+    "export_ids": [
+      "exp_3b342e3a556b4fcf924b47acf1e7f576"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-22T22:48:50"
+  },
+  {
+    "id": "main:ep:234",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 234,
+    "lineage_key": "angle:cde38b1c07e54ea69a3d50a6c1bb3f18:ang_hat02_06",
+    "product_id": "cde38b1c07e54ea69a3d50a6c1bb3f18",
+    "angle_id": "ang_hat02_06",
+    "export_ids": [
+      "exp_f47c8c193e404d54a5685b77a4b6d6ae"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-22T22:50:32"
+  },
+  {
+    "id": "main:ep:235",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 235,
+    "lineage_key": "angle:7900bbca318d41ed964b5a721c0d951f:ang_goo5k_06",
+    "product_id": "7900bbca318d41ed964b5a721c0d951f",
+    "angle_id": "ang_goo5k_06",
+    "export_ids": [
+      "exp_f26d9d63504e4b63ad61b713debeee5f"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-22T22:52:54"
+  },
+  {
+    "id": "main:ep:236",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 236,
+    "lineage_key": "angle:b0137078e2ff4c089b60131f60168b54:ang_red8_06",
+    "product_id": "b0137078e2ff4c089b60131f60168b54",
+    "angle_id": "ang_red8_06",
+    "export_ids": [
+      "exp_4d5784e5cab9439f976d2eff4bc97fd4"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-22T22:54:36"
+  },
+  {
+    "id": "main:ep:237",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 237,
+    "lineage_key": "angle:ecc3e8df937945ffa7ce60695f4d336d:comparison",
+    "product_id": "ecc3e8df937945ffa7ce60695f4d336d",
+    "angle_id": "comparison",
+    "export_ids": [
+      "exp_e18b20db7fd8433fb2163200e83030de"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-22T22:56:43"
+  },
+  {
+    "id": "main:ep:238",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 238,
+    "lineage_key": "angle:45563682e68d4ec6bd2dc08bcaf3fcca:unboxing",
+    "product_id": "45563682e68d4ec6bd2dc08bcaf3fcca",
+    "angle_id": "unboxing",
+    "export_ids": [
+      "exp_e0ce0241870f44909f5901f972328ef1"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-22T22:58:19"
+  },
+  {
+    "id": "main:ep:239",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 239,
+    "lineage_key": "angle:431165f167284094959bdf0f0e806899:unboxing",
+    "product_id": "431165f167284094959bdf0f0e806899",
+    "angle_id": "unboxing",
+    "export_ids": [
+      "exp_5b25ca27fbf74b919c46ec1ddac195cf"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-22T22:59:46"
+  },
+  {
+    "id": "main:ep:240",
+    "channel_id": "main",
+    "kind": "episode",
+    "episode_no": 240,
+    "lineage_key": "angle:9505b042d58640f5aa58015bb86be097:ang_legacy_ess02_pov1_fast60",
+    "product_id": "9505b042d58640f5aa58015bb86be097",
+    "angle_id": "ang_legacy_ess02_pov1_fast60",
+    "export_ids": [
+      "exp_6d4a9ea8c1e04dfda79b43cc8eea3059"
+    ],
+    "source": "new",
+    "assigned_at": "2026-11-22T23:01:40"
   }
 ]

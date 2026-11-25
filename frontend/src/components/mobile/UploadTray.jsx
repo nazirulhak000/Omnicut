@@ -78,7 +78,7 @@ export default function UploadTray() {
   return (
     <aside
       aria-label="แถบสถานะการอัปโหลดไฟล์"
-      className="fixed z-50 left-3 right-3 sm:left-auto sm:right-6 sm:w-[420px] bottom-[calc(var(--nav-h,64px)+env(safe-area-inset-bottom,0px)+8px)] transition-all duration-300 ease-out animate-slideUp"
+      className="fixed z-50 left-3 right-3 sm:left-auto sm:right-6 sm:w-[420px] bottom-[calc(var(--nav-h,64px)+env(safe-area-inset-bottom,0px)+8px)] transition-[transform,opacity] duration-300 ease-out animate-slideUp"
     >
       <div className="bg-[#0A0D14]/95 backdrop-blur-2xl border border-white/[0.14] rounded-2xl shadow-2xl overflow-hidden text-white flex flex-col">
         {/* Tray Header */}
@@ -162,7 +162,7 @@ export default function UploadTray() {
                   {/* Progress Bar */}
                   <div className="w-full h-1.5 bg-black/60 rounded-full overflow-hidden">
                     <div
-                      className={`h-full ${barColor} rounded-full transition-all duration-300 relative overflow-hidden`}
+                      className={`h-full ${barColor} rounded-full transition-[width] duration-300 ease-linear relative overflow-hidden`}
                       style={{ width: `${Math.max(item.progress, item.status === 'uploading' ? 5 : 0)}%` }}
                     >
                       {isUploading && (
@@ -185,7 +185,7 @@ export default function UploadTray() {
                       <button
                         type="button"
                         onClick={() => uploadQueue.pause(item.localId)}
-                        className="min-h-[44px] min-w-[44px] px-3 py-2 rounded-xl text-xs font-bold bg-white/[0.08] hover:bg-white/[0.14] text-white border border-white/[0.1] flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95"
+                        className="min-h-[44px] min-w-[44px] px-3 py-2 rounded-xl text-xs font-bold bg-white/[0.08] hover:bg-white/[0.14] text-white border border-white/[0.1] flex items-center justify-center gap-1.5 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-95 disabled:active:scale-100"
                         title="พักการส่ง"
                       >
                         <Pause className="w-4 h-4 text-amber-400 flex-shrink-0" />
@@ -198,7 +198,7 @@ export default function UploadTray() {
                       <button
                         type="button"
                         onClick={() => uploadQueue.resume(item.localId)}
-                        className="min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-xl text-xs font-bold bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95 shadow-md shadow-[#25F4EE]/10"
+                        className="min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-xl text-xs font-bold bg-[#25F4EE] hover:bg-[#20ded8] text-slate-950 flex items-center justify-center gap-1.5 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-95 disabled:active:scale-100 shadow-md shadow-[#25F4EE]/10"
                         title="ส่งต่อจากจุดเดิม"
                       >
                         <Play className="w-4 h-4 fill-current flex-shrink-0" />
@@ -211,7 +211,7 @@ export default function UploadTray() {
                       <button
                         type="button"
                         onClick={() => uploadQueue.retry(item.localId)}
-                        className="min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95 shadow-md"
+                        className="min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center justify-center gap-1.5 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-95 disabled:active:scale-100 shadow-md"
                         title="ลองส่งใหม่"
                       >
                         <RefreshCw className="w-4 h-4 flex-shrink-0" />
@@ -223,7 +223,7 @@ export default function UploadTray() {
                     <button
                       type="button"
                       onClick={() => uploadQueue.remove(item.localId)}
-                      className="min-h-[44px] min-w-[44px] px-3 py-2 rounded-xl text-xs font-bold bg-white/[0.04] hover:bg-rose-500/15 text-slate-400 hover:text-rose-300 border border-white/[0.08] hover:border-rose-500/30 flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95"
+                      className="min-h-[44px] min-w-[44px] px-3 py-2 rounded-xl text-xs font-bold bg-white/[0.04] hover:bg-rose-500/15 text-slate-400 hover:text-rose-300 border border-white/[0.08] hover:border-rose-500/30 flex items-center justify-center gap-1.5 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-95 disabled:active:scale-100"
                       title="นำออกจากรายการ"
                     >
                       <Trash2 className="w-4 h-4 flex-shrink-0" />

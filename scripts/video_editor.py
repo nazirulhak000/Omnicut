@@ -381,7 +381,7 @@ MAX_TRANSITION_DURATION = 2.0
 # type ignores `easing` and stays on the built-in, linear. Mirrored by
 # EASED_TRANSITIONS in frontend/src/lib/timelineMath.js.
 EASED_TRANSITIONS = (
-    "fade", "fadeblack", "fadewhite",
+    "fade",
     "wipeleft", "wiperight", "wipeup", "wipedown",
     "slideleft", "slideright", "slideup", "slidedown",
 )

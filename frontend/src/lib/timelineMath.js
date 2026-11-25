@@ -60,7 +60,7 @@ const cameraEasingName = (value) => (
 // xfade custom expression proven equal to the built-in geometry); every other
 // type ignores `transition_easing` and stays linear, exactly like the render.
 export const EASED_TRANSITIONS = [
-  'fade', 'fadeblack', 'fadewhite',
+  'fade',
   'wipeleft', 'wiperight', 'wipeup', 'wipedown',
   'slideleft', 'slideright', 'slideup', 'slidedown',
 ];

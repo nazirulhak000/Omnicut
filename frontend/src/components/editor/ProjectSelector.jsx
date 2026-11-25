@@ -163,11 +163,11 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="flex h-8 sm:h-9 w-full min-w-0 cursor-pointer items-center gap-1 truncate rounded-xl border border-transparent bg-transparent pl-1 pr-2 text-sm sm:text-base font-bold text-white hover:border-white/[0.12] hover:bg-black/40 focus:border-[#D97757] focus:outline-none"
+        className="flex h-8 sm:h-9 w-full min-w-0 cursor-pointer items-center gap-1 truncate rounded-xl border border-transparent bg-transparent pl-1 pr-2 text-sm sm:text-base font-bold text-white hover:border-white/[0.12] hover:bg-black/40 focus:border-[#D97757] focus:outline-none active:scale-[0.98] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out"
       >
         <span className="sr-only">โปรเจกต์ที่กำลังแก้:</span>
         <span className="truncate">{current ? current.project_name : '— เลือกโปรเจกต์ —'}</span>
-        <ChevronDown className="h-4 w-4 flex-shrink-0 text-slate-500" />
+        <ChevronDown className={`h-4 w-4 flex-shrink-0 text-slate-500 transition-transform duration-150 ease-out ${open ? 'rotate-180 text-slate-300' : ''}`} />
       </button>
 
       {open && (
@@ -185,7 +185,7 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
               <button
                 type="button"
                 onClick={() => { setOpen(false); onNewProject(); }}
-                className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/35 text-emerald-300 hover:text-emerald-200 text-xs font-bold transition-all cursor-pointer shadow-sm"
+                className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/35 text-emerald-300 hover:text-emerald-200 text-xs font-bold active:scale-[0.97] transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out cursor-pointer shadow-sm"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>สร้างคลิปใหม่</span>
@@ -216,7 +216,7 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
                     setSearchQuery('');
                     searchInputRef.current?.focus();
                   }}
-                  className="absolute right-2 text-slate-400 hover:text-white"
+                  className="absolute right-2 text-slate-400 hover:text-white active:scale-[0.96] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out"
                   title="ล้างคำค้นหา"
                   aria-label="ล้างคำค้นหา"
                 >
@@ -233,7 +233,7 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
               role="tab"
               aria-selected={filterTab === 'active'}
               onClick={() => { setFilterTab('active'); setProjectPage(1); }}
-              className={`flex-1 flex items-center justify-center gap-1 py-1 px-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`flex-1 flex items-center justify-center gap-1 py-1 px-1.5 rounded-lg text-xs font-bold active:scale-[0.97] transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out cursor-pointer ${
                 filterTab === 'active'
                   ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.05] border border-transparent'
@@ -254,7 +254,7 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
               role="tab"
               aria-selected={filterTab === 'rendered'}
               onClick={() => { setFilterTab('rendered'); setProjectPage(1); }}
-              className={`flex-1 flex items-center justify-center gap-1 py-1 px-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`flex-1 flex items-center justify-center gap-1 py-1 px-1.5 rounded-lg text-xs font-bold active:scale-[0.97] transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out cursor-pointer ${
                 filterTab === 'rendered'
                   ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40 shadow-sm'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.05] border border-transparent'
@@ -275,7 +275,7 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
               role="tab"
               aria-selected={filterTab === 'all'}
               onClick={() => { setFilterTab('all'); setProjectPage(1); }}
-              className={`flex-none flex items-center justify-center gap-1 py-1 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`flex-none flex items-center justify-center gap-1 py-1 px-2 rounded-lg text-xs font-bold active:scale-[0.97] transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out cursor-pointer ${
                 filterTab === 'all'
                   ? 'bg-white/[0.15] text-white border border-white/30 shadow-sm'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.05] border border-transparent'
@@ -307,7 +307,7 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
                     <button
                       type="button"
                       onClick={() => { setFilterTab('rendered'); setProjectPage(1); }}
-                      className="px-3 py-1.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-300 font-bold text-xs cursor-pointer transition-colors inline-flex items-center gap-1.5"
+                      className="px-3 py-1.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-300 font-bold text-xs cursor-pointer active:scale-[0.96] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out inline-flex items-center gap-1.5"
                     >
                       <Check className="w-3.5 h-3.5" />
                       <span>ดูงานที่ตัดเสร็จแล้ว</span>
@@ -323,7 +323,7 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
                     <button
                       type="button"
                       onClick={() => { setFilterTab('active'); setProjectPage(1); }}
-                      className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-bold text-xs cursor-pointer transition-colors inline-flex items-center gap-1.5"
+                      className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-bold text-xs cursor-pointer active:scale-[0.96] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out inline-flex items-center gap-1.5"
                     >
                       <CircleDot className="w-3.5 h-3.5" />
                       <span>ดูงานกำลังตัดต่อ</span>
@@ -342,7 +342,7 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
                   <button
                     type="button"
                     onClick={() => { setFilterTab('all'); setProjectPage(1); }}
-                    className="mt-2 px-3 py-1.5 rounded-lg bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/35 text-[#25F4EE] font-bold text-xs cursor-pointer transition-colors inline-flex items-center gap-1"
+                    className="mt-2 px-3 py-1.5 rounded-lg bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/35 text-[#25F4EE] font-bold text-xs cursor-pointer active:scale-[0.96] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out inline-flex items-center gap-1"
                   >
                     <span>ค้นหาใน &ldquo;ทั้งหมด&rdquo; ({searchMatchesInAll} รายการ)</span>
                   </button>
@@ -393,7 +393,7 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
                     onClick={() => { setOpen(false); onRequestDelete?.(p.project_name); }}
                     title="ลบโปรเจกต์นี้..."
                     aria-label={`ลบโปรเจกต์ ${p.project_name}`}
-                    className="flex h-7 w-7 flex-shrink-0 cursor-pointer items-center justify-center rounded-lg text-slate-600 opacity-0 transition-colors hover:bg-rose-500/15 hover:text-rose-300 focus:opacity-100 focus-visible:ring-2 focus-visible:ring-rose-400 group-hover:opacity-100"
+                    className="flex h-7 w-7 flex-shrink-0 cursor-pointer items-center justify-center rounded-lg text-slate-600 opacity-0 hover:bg-rose-500/15 hover:text-rose-300 focus:opacity-100 focus-visible:ring-2 focus-visible:ring-rose-400 group-hover:opacity-100 pointer-coarse:opacity-100 active:scale-[0.92] transition-[background-color,color,opacity,transform] duration-150 active:duration-100 ease-out"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>

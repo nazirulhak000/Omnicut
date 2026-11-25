@@ -171,7 +171,7 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
 
   return (
     <ModalLayer onClose={onClose} aria-label="คลังสำรองบนคลาวด์" className="fixed inset-0 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-3xl rounded-3xl bg-[#0A0D14]/95 backdrop-blur-md border border-white/[0.08] shadow-2xl flex flex-col max-h-[92vh] overflow-hidden relative">
+      <div className="w-full max-w-3xl rounded-3xl bg-[#0A0D14]/95 backdrop-blur-md border border-white/[0.08] shadow-2xl flex flex-col max-h-[92vh] overflow-hidden relative animate-scaleUp">
         {/* Modal Header */}
         <div className="px-5 py-4 border-b border-white/[0.08] flex items-center justify-between relative z-10">
           <div className="flex items-center gap-3">
@@ -194,7 +194,7 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/[0.12] text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-white/[0.06]"
+            className="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/[0.12] text-slate-400 hover:text-white flex items-center justify-center active:scale-[0.95] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer border border-white/[0.06]"
             aria-label="ปิดหน้าต่าง"
           >
             <X className="w-4 h-4" />
@@ -255,7 +255,7 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <label
-                className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 ease-out ${
                   scope === 'video_only'
                     ? 'bg-[#25F4EE]/[0.06] border-[#25F4EE]/40'
                     : 'bg-black/40 border-white/[0.08] hover:bg-white/[0.02]'
@@ -280,7 +280,7 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
               </label>
 
               <label
-                className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 ease-out ${
                   scope === 'full'
                     ? 'bg-[#25F4EE]/[0.06] border-[#25F4EE]/40'
                     : 'bg-black/40 border-white/[0.08] hover:bg-white/[0.02]'
@@ -434,7 +434,7 @@ export default function CloudArchiveModal({ isOpen, onClose, onRefreshData }) {
               {/* Progress Track */}
               <div className="w-full bg-black/60 rounded-full h-2.5 overflow-hidden border border-white/[0.08] p-0.5">
                 <div
-                  className="bg-[#25F4EE] h-full rounded-full transition-all duration-300"
+                  className="bg-[#25F4EE] h-full rounded-full transition-[width] duration-300 ease-linear"
                   style={{ width: `${Math.max(3, progress?.percent ?? 0)}%` }}
                 />
               </div>

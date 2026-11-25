@@ -177,7 +177,7 @@ export default function CuesTranscriptInspector({
         <button
           type="button"
           onClick={() => setShowFindReplace((v) => !v)}
-          className={`p-1.5 rounded-lg border text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors ${
+          className={`p-1.5 rounded-lg border text-xs font-bold flex items-center gap-1 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 ${
             showFindReplace
               ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
               : 'bg-white/[0.04] hover:bg-white/[0.08] border-white/[0.08] text-slate-400 hover:text-white'
@@ -191,7 +191,7 @@ export default function CuesTranscriptInspector({
         <button
           type="button"
           onClick={() => onBatchFormatClean?.()}
-          className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-slate-400 hover:text-amber-300 cursor-pointer transition-colors"
+          className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-slate-400 hover:text-amber-300 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
           title="จัดระเบียบวรรคตอนภาษาไทยและลบช่องว่างส่วนเกิน"
         >
           <Sparkles className="w-3.5 h-3.5 text-amber-400" />
@@ -202,7 +202,7 @@ export default function CuesTranscriptInspector({
           <button
             type="button"
             onClick={onCloseAllCaptionGaps}
-            className="p-1.5 rounded-lg bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] hover:text-[#52fffb] text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors flex-shrink-0"
+            className="p-1.5 rounded-lg bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] hover:text-[#52fffb] text-xs font-bold flex items-center gap-1 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 flex-shrink-0"
             title="ดูดคำบรรยายทุกกล่องให้เรียงต่อกันชิดสนิทโดยไม่มีช่องว่าง"
           >
             <Magnet className="w-3.5 h-3.5 text-[#25F4EE]" />
@@ -215,7 +215,7 @@ export default function CuesTranscriptInspector({
           <button
             type="button"
             onClick={onResetSubtitleTimings}
-            className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-amber-300 hover:text-amber-200 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors flex-shrink-0"
+            className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-amber-300 hover:text-amber-200 text-xs font-bold flex items-center gap-1 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 flex-shrink-0"
             title="รีเซ็ตเวลาคำบรรยายทั้งหมดกลับสู่ค่าต้นฉบับ"
           >
             <Clock className="w-3.5 h-3.5 text-amber-400" />
@@ -227,7 +227,7 @@ export default function CuesTranscriptInspector({
         <button
           type="button"
           onClick={onAddTextAtPlayhead}
-          className="py-1 px-2 rounded-lg bg-[#D97757]/20 hover:bg-[#D97757]/30 border border-[#D97757]/40 text-[#E89274] text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors flex-shrink-0"
+          className="py-1 px-2 rounded-lg bg-[#D97757]/20 hover:bg-[#D97757]/30 border border-[#D97757]/40 text-[#E89274] text-xs font-bold flex items-center gap-1 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 flex-shrink-0"
           title="แทรกข้อความใหม่ ณ จุดที่หัวอ่าน (Playhead) กำลังวางอยู่"
         >
           <Plus className="w-3.5 h-3.5" />
@@ -238,7 +238,7 @@ export default function CuesTranscriptInspector({
         <button
           type="button"
           onClick={() => onInsertCueAfter?.(cuesList[cuesList.length - 1]?._uid)}
-          className="py-1 px-2 rounded-lg bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors flex-shrink-0"
+          className="py-1 px-2 rounded-lg bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold flex items-center gap-1 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 flex-shrink-0"
           title="เพิ่มท่อนคำบรรยายใหม่ต่อท้าย"
         >
           <Plus className="w-3.5 h-3.5" />
@@ -257,7 +257,7 @@ export default function CuesTranscriptInspector({
             <button
               type="button"
               onClick={() => setShowFindReplace(false)}
-              className="text-slate-500 hover:text-white cursor-pointer"
+              className="text-slate-500 hover:text-white cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -288,7 +288,7 @@ export default function CuesTranscriptInspector({
               type="button"
               onClick={handleExecuteReplace}
               disabled={!findWord.trim()}
-              className="py-1 px-3 rounded-lg bg-[#25F4EE] hover:bg-[#25F4EE]/90 text-black font-bold text-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
+              className="py-1 px-3 rounded-lg bg-[#25F4EE] hover:bg-[#25F4EE]/90 text-black font-bold text-xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 shadow-sm"
             >
               แทนที่ทั้งหมด
             </button>
@@ -312,7 +312,7 @@ export default function CuesTranscriptInspector({
                 onSelectCue?.(cue._uid);
                 onSeek?.(cue.start);
               }}
-              className={`flex items-center gap-1 p-1 rounded-xl border transition-all group cursor-pointer ${
+              className={`flex items-center gap-1 p-1 rounded-xl border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out group cursor-pointer ${
                 isSelected
                   ? 'border-[#25F4EE] bg-[#25F4EE]/15 shadow-md ring-1 ring-[#25F4EE]/40'
                   : isPlaying
@@ -328,7 +328,7 @@ export default function CuesTranscriptInspector({
                   onSelectCue?.(cue._uid);
                   onSeek?.(cue.start);
                 }}
-                className={`px-1 py-1 rounded-lg text-xs font-mono font-bold cursor-pointer transition-colors flex-shrink-0 border ${
+                className={`px-1 py-1 rounded-lg text-xs font-mono font-bold cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 flex-shrink-0 border ${
                   isPlaying
                     ? 'bg-emerald-500/30 text-emerald-300 border-emerald-500/50'
                     : 'bg-black/60 text-slate-400 border-white/[0.08] hover:text-[#25F4EE] hover:border-[#25F4EE]/40'
@@ -402,7 +402,7 @@ export default function CuesTranscriptInspector({
                       e.stopPropagation();
                       onReorderCues?.(idx, idx - 1);
                     }}
-                    className="w-5 h-5 flex items-center justify-center rounded-md hover:bg-white/[0.1] text-slate-400 hover:text-white cursor-pointer"
+                    className="w-5 h-5 flex items-center justify-center rounded-md hover:bg-white/[0.1] text-slate-400 hover:text-white cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
                     title="เลื่อนท่อนนี้ขึ้น"
                   >
                     <ChevronUp className="w-3 h-3" />
@@ -415,7 +415,7 @@ export default function CuesTranscriptInspector({
                       e.stopPropagation();
                       onReorderCues?.(idx, idx + 1);
                     }}
-                    className="w-5 h-5 flex items-center justify-center rounded-md hover:bg-white/[0.1] text-slate-400 hover:text-white cursor-pointer"
+                    className="w-5 h-5 flex items-center justify-center rounded-md hover:bg-white/[0.1] text-slate-400 hover:text-white cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
                     title="เลื่อนท่อนนี้ลง"
                   >
                     <ChevronDown className="w-3 h-3" />
@@ -430,7 +430,7 @@ export default function CuesTranscriptInspector({
                   e.stopPropagation();
                   handleCursorSplit(cue);
                 }}
-                className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/[0.04] hover:bg-[#25F4EE]/20 text-slate-400 hover:text-[#25F4EE] border border-white/[0.06] transition-colors cursor-pointer flex-shrink-0"
+                className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/[0.04] hover:bg-[#25F4EE]/20 text-slate-400 hover:text-[#25F4EE] border border-white/[0.06] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer flex-shrink-0"
                 title="ตัดแบ่งท่อนคำบรรยาย (หรือกด Enter ในช่องพิมพ์)"
               >
                 <Scissors className="w-3 h-3" />
@@ -444,7 +444,7 @@ export default function CuesTranscriptInspector({
                     e.stopPropagation();
                     onMergeCue?.(cue._uid);
                   }}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/[0.04] hover:bg-blue-500/20 text-slate-400 hover:text-blue-400 border border-white/[0.06] transition-colors cursor-pointer flex-shrink-0"
+                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/[0.04] hover:bg-blue-500/20 text-slate-400 hover:text-blue-400 border border-white/[0.06] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer flex-shrink-0"
                   title="รวมกับท่อนถัดไป"
                 >
                   <Link2 className="w-3 h-3" />
@@ -458,7 +458,7 @@ export default function CuesTranscriptInspector({
                   e.stopPropagation();
                   onDeleteCue?.(cue._uid);
                 }}
-                className="w-7 h-7 flex items-center justify-center rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 border border-rose-500/20 transition-colors cursor-pointer flex-shrink-0"
+                className="w-7 h-7 flex items-center justify-center rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 border border-rose-500/20 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer flex-shrink-0"
                 title="ลบท่อนนี้ออก"
               >
                 <Trash2 className="w-3 h-3" />
@@ -473,7 +473,7 @@ export default function CuesTranscriptInspector({
             <button
               type="button"
               onClick={() => onInsertCueAfter?.(null)}
-              className="px-3 py-1.5 rounded-xl bg-[#25F4EE]/10 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold inline-flex items-center gap-1 cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-[#25F4EE]/10 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold inline-flex items-center gap-1 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>สร้างท่อนแรก</span>

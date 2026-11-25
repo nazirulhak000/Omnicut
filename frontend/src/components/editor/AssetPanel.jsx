@@ -466,7 +466,7 @@ function BackgroundIsolationControls({
           {preparing && (
             <div aria-live="polite" className="space-y-1">
               <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-                <div className="h-full bg-violet-400 transition-all" style={{ width: `${Math.round((progress?.progress || 0) * 100)}%` }} />
+                <div className="h-full bg-violet-400 transition-[width] duration-300 ease-linear" style={{ width: `${Math.round((progress?.progress || 0) * 100)}%` }} />
               </div>
               <p className="text-[10px] text-violet-200">{progress?.label || 'กำลังเริ่มงานตัดพื้นหลัง'}</p>
             </div>
@@ -1038,7 +1038,7 @@ const ClipCard = React.memo(function ClipCard({
 
   return (
     <div
-      className={`group relative flex items-center justify-between gap-2 rounded-xl border p-2 text-left transition-all ${
+      className={`group relative flex items-center justify-between gap-2 rounded-xl border p-2 text-left transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out ${
         isUsed
           ? 'border-[#25F4EE]/35 bg-[#25F4EE]/[0.04] hover:border-[#25F4EE]/60'
           : 'border-white/[0.08] bg-black/40 hover:border-white/[0.2] hover:bg-white/[0.04]'
@@ -1092,7 +1092,7 @@ const ClipCard = React.memo(function ClipCard({
           e.stopPropagation();
           onAdd(video);
         }}
-        className="h-7 w-7 rounded-lg bg-white/[0.06] hover:bg-[#25F4EE] hover:text-slate-950 text-slate-400 flex items-center justify-center transition-all cursor-pointer flex-shrink-0 active:scale-95"
+        className="h-7 w-7 rounded-lg bg-white/[0.06] hover:bg-[#25F4EE] hover:text-slate-950 text-slate-400 flex items-center justify-center transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer flex-shrink-0 active:scale-95"
         title="เพิ่มลงในไทม์ไลน์"
       >
         <Plus className="h-4 w-4" />
@@ -1619,7 +1619,7 @@ export default function AssetPanel({
               onClick={() => setTab(id)}
               title={label}
               aria-pressed={isActive}
-              className={`flex flex-col items-center justify-center py-1.5 px-1 min-w-0 flex-1 rounded-lg transition-all focus:outline-none cursor-pointer ${
+              className={`flex flex-col items-center justify-center py-1.5 px-1 min-w-0 flex-1 rounded-lg transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 focus:outline-none cursor-pointer ${
                 isActive
                   ? 'bg-[#25F4EE]/12 text-[#25F4EE] border border-[#25F4EE]/30 font-semibold'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent'
@@ -1669,7 +1669,7 @@ export default function AssetPanel({
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                className="w-full py-2 px-3 rounded-lg border border-dashed border-white/[0.12] hover:border-[#25F4EE]/40 hover:bg-[#25F4EE]/5 text-slate-200 hover:text-[#25F4EE] text-xs font-medium flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 group"
+                className="w-full py-2 px-3 rounded-lg border border-dashed border-white/[0.12] hover:border-[#25F4EE]/40 hover:bg-[#25F4EE]/5 text-slate-200 hover:text-[#25F4EE] text-xs font-medium flex items-center justify-center gap-2 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer disabled:opacity-50 group"
               >
                 {uploading ? (
                   <>
@@ -1742,7 +1742,7 @@ export default function AssetPanel({
         {tab === 'clips' && (
           <div className="space-y-2.5">
             {/* Quick Action: AI Auto-SRT banner (Quiet Chrome) */}
-            <div className="flex items-center justify-between p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.08] hover:border-white/[0.15] transition-all">
+            <div className="flex items-center justify-between p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.08] hover:border-white/[0.15] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out">
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className="p-1.5 rounded-lg bg-white/[0.04] text-slate-300 border border-white/[0.06] flex-shrink-0">
                   <Sparkles className="w-4 h-4 text-amber-400" />
@@ -1758,7 +1758,7 @@ export default function AssetPanel({
               <button
                 type="button"
                 onClick={() => setTab('srt')}
-                className="py-1 px-2.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] text-slate-200 text-xs font-bold transition-all cursor-pointer flex-shrink-0 active:scale-95"
+                className="py-1 px-2.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] text-slate-200 text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer flex-shrink-0 active:scale-95"
               >
                 เปิดใช้งาน
               </button>
@@ -1775,7 +1775,7 @@ export default function AssetPanel({
                   key={f.id}
                   type="button"
                   onClick={() => setClipFilter(f.id)}
-                  className={`flex-1 py-1 px-2 rounded-lg text-[11px] font-semibold transition-all cursor-pointer text-center ${
+                  className={`flex-1 py-1 px-2 rounded-lg text-[11px] font-semibold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer text-center ${
                     clipFilter === f.id
                       ? 'bg-white/[0.12] text-white border border-white/[0.2] shadow-sm'
                       : 'bg-black/30 text-slate-400 border border-transparent hover:text-slate-200 hover:bg-white/[0.05]'
@@ -1899,7 +1899,7 @@ export default function AssetPanel({
               type="button"
               onClick={handleTranscribe}
               disabled={transcribing}
-              className="w-full py-2 px-3 rounded-lg bg-[#25F4EE] hover:bg-[#1de0da] text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all disabled:opacity-50"
+              className="w-full py-2 px-3 rounded-lg bg-[#25F4EE] hover:bg-[#1de0da] text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 disabled:opacity-50"
             >
               {transcribing ? (
                 <>
@@ -1942,7 +1942,7 @@ export default function AssetPanel({
                 <button
                   type="button"
                   onClick={handleImportToTimeline}
-                  className="w-full py-1.5 px-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition-all"
+                  className="w-full py-1.5 px-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
                 >
                   <Layers className="w-3.5 h-3.5" />
                   <span>นำเข้าสู่ไทม์ไลน์ (Import to Timeline)</span>
@@ -1966,7 +1966,7 @@ export default function AssetPanel({
               <button
                 type="button"
                 onClick={() => setAudioSubTab('bgm')}
-                className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                   audioSubTab === 'bgm'
                     ? 'bg-[#25F4EE] text-slate-950 shadow'
                     : 'text-slate-400 hover:text-white hover:bg-white/[0.05]'
@@ -1977,7 +1977,7 @@ export default function AssetPanel({
               <button
                 type="button"
                 onClick={() => setAudioSubTab('sfx')}
-                className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                   audioSubTab === 'sfx'
                     ? 'bg-[#25F4EE] text-slate-950 shadow'
                     : 'text-slate-400 hover:text-white hover:bg-white/[0.05]'
@@ -2018,7 +2018,7 @@ export default function AssetPanel({
                         type="button"
                         onClick={() => onStyleChange({ bgmName: null })}
                         title="รีเซ็ตกลับไปใช้เพลงหลักของช่อง"
-                        className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 hover:text-white border border-white/[0.08] transition-all cursor-pointer flex-shrink-0"
+                        className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 hover:text-white border border-white/[0.08] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer flex-shrink-0"
                       >
                         <RotateCcw className="w-3 h-3" />
                         <span>รีเซ็ตดีฟอลต์</span>
@@ -2050,7 +2050,7 @@ export default function AssetPanel({
                         key={v}
                         type="button"
                         onClick={() => onStyleChange({ bgmVolume: v })}
-                        className={`py-1 rounded-lg text-[10px] font-mono font-bold border transition-all cursor-pointer ${
+                        className={`py-1 rounded-lg text-[10px] font-mono font-bold border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                           Math.abs((style.bgmVolume ?? 0.12) - v) < 0.03
                             ? 'bg-[#25F4EE]/20 border-[#25F4EE] text-[#25F4EE]'
                             : 'bg-black/30 border-white/[0.08] text-slate-400 hover:text-white'
@@ -2065,7 +2065,7 @@ export default function AssetPanel({
                     type="button"
                     onClick={() => onStyleChange({ bgmDucking: !style.bgmDucking })}
                     aria-pressed={!!style.bgmDucking}
-                    className={`w-full rounded-lg border py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                    className={`w-full rounded-lg border py-1.5 text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                       style.bgmDucking
                         ? 'border-[#25F4EE] bg-[#25F4EE]/20 text-[#25F4EE]'
                         : 'border-white/[0.08] bg-black/40 text-slate-300 hover:text-white'
@@ -2194,7 +2194,7 @@ export default function AssetPanel({
               <button
                 type="button"
                 onClick={() => setTextSubTab('hook')}
-                className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                   textSubTab === 'hook'
                     ? 'bg-[#25F4EE] text-black shadow'
                     : 'text-slate-400 hover:text-white hover:bg-white/[0.05]'
@@ -2205,7 +2205,7 @@ export default function AssetPanel({
               <button
                 type="button"
                 onClick={() => setTextSubTab('single')}
-                className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                   textSubTab === 'single'
                     ? 'bg-[#25F4EE] text-black shadow'
                     : 'text-slate-400 hover:text-white hover:bg-white/[0.05]'
@@ -2263,7 +2263,7 @@ export default function AssetPanel({
                         type="button"
                         onClick={onResetHookTemplate}
                         title="คืนค่าสีและสไตล์กลับสู่แม่แบบเดิม"
-                        className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition-all cursor-pointer flex-shrink-0"
+                        className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer flex-shrink-0"
                       >
                         <RotateCcw className="w-3 h-3" />
                         <span>คืนค่าแม่แบบ</span>
@@ -2299,7 +2299,7 @@ export default function AssetPanel({
                             data-text-template-card="true"
                             onClick={() => onApplyHookTemplate?.(key)}
                             title={tpl.label_th}
-                            className={`group relative flex flex-col gap-1.5 rounded-lg border p-2 text-left transition-all cursor-pointer ${
+                            className={`group relative flex flex-col gap-1.5 rounded-lg border p-2 text-left transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer ${
                               isActive
                                 ? 'border-[#25F4EE] bg-[#25F4EE]/10 ring-1 ring-[#25F4EE]/50'
                                 : 'border-[#25F4EE]/30 bg-[#0A0D14] hover:border-[#25F4EE]'
@@ -2380,7 +2380,7 @@ export default function AssetPanel({
                             data-text-template-card="true"
                             onClick={() => onApplyHookTemplate?.(key)}
                             title={tpl.label_th}
-                            className={`group relative flex flex-col gap-1.5 rounded-lg border p-2 text-left transition-all cursor-pointer ${
+                            className={`group relative flex flex-col gap-1.5 rounded-lg border p-2 text-left transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                               isActive
                                 ? 'border-[#25F4EE] bg-[#25F4EE]/10 ring-1 ring-[#25F4EE]/50'
                                 : 'border-white/[0.08] bg-[#0A0D14] hover:border-white/[0.20]'
@@ -2438,7 +2438,7 @@ export default function AssetPanel({
                 <button
                   type="button"
                   onClick={onAddTextAtPlayhead}
-                  className="w-full py-2 px-3 rounded-lg bg-[#25F4EE] hover:bg-[#1de0da] text-black text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95"
+                  className="w-full py-2 px-3 rounded-lg bg-[#25F4EE] hover:bg-[#1de0da] text-black text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-95"
                 >
                   <Plus className="w-4 h-4 text-black" />
                   <span>เพิ่มข้อความที่หัวอ่าน</span>
@@ -2457,7 +2457,7 @@ export default function AssetPanel({
                       key={cat.id}
                       type="button"
                       onClick={() => setTextCategory(cat.id)}
-                      className={`px-2.5 py-1 rounded-full whitespace-nowrap text-[11px] font-semibold transition-all cursor-pointer ${
+                      className={`px-2.5 py-1 rounded-full whitespace-nowrap text-[11px] font-semibold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                         textCategory === cat.id
                           ? 'bg-[#25F4EE] text-black shadow-sm font-bold'
                           : 'bg-white/[0.06] text-slate-300 hover:bg-white/[0.12] hover:text-white'
@@ -2500,7 +2500,7 @@ export default function AssetPanel({
                         onAddTextAtPlayhead();
                       }
                     }}
-                    className={`group relative flex flex-col items-center justify-between rounded-lg border p-2 cursor-pointer transition-all ${
+                    className={`group relative flex flex-col items-center justify-between rounded-lg border p-2 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out ${
                       isSelectedApplied
                         ? 'border-[#25F4EE] bg-[#25F4EE]/10 ring-1 ring-[#25F4EE]/50'
                         : isPreviewing
@@ -2561,7 +2561,7 @@ export default function AssetPanel({
                             onAddTextAtPlayhead();
                           }
                         }}
-                        className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-white/[0.08] text-slate-300 hover:bg-[#25F4EE] hover:text-black hover:scale-110 active:scale-95 transition-all cursor-pointer"
+                        className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-white/[0.08] text-slate-300 hover:bg-[#25F4EE] hover:text-black [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110 active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer"
                         title="ใส่ข้อความนี้ลงไทม์ไลน์"
                       >
                         <Plus className="h-3.5 w-3.5" />
@@ -2703,7 +2703,7 @@ export default function AssetPanel({
                           key={stk.id}
                           type="button"
                           onClick={() => onSelectSticker ? onSelectSticker(stk.id) : null}
-                          className={`text-[11px] px-2 py-1 rounded-lg border transition-all flex items-center gap-1 cursor-pointer ${
+                          className={`text-[11px] px-2 py-1 rounded-lg border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 flex items-center gap-1 cursor-pointer ${
                             isSel
                               ? 'border-[#25F4EE] bg-[#25F4EE]/20 text-[#25F4EE] font-bold'
                               : 'border-white/10 bg-black/30 text-slate-300 hover:border-white/20'
@@ -2722,7 +2722,7 @@ export default function AssetPanel({
               <button
                 type="button"
                 onClick={() => onClearStickers ? onClearStickers() : onStyleChange({ stickerBadge: '' })}
-                className={`w-full flex items-center justify-between rounded-xl border px-3 py-2 text-xs font-semibold transition-all cursor-pointer ${
+                className={`w-full flex items-center justify-between rounded-xl border px-3 py-2 text-xs font-semibold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                   effectiveStickers.length === 0
                     ? 'border-[#25F4EE] bg-[#25F4EE]/10 text-[#25F4EE]'
                     : 'border-white/[0.08] bg-black/40 text-slate-400 hover:border-white/20 hover:text-white'
@@ -2756,7 +2756,7 @@ export default function AssetPanel({
                         }
                       }}
                       title={`${displayName} — คลิกเพื่อดูตัวอย่าง (กด + เพื่อเพิ่มลงไทม์ไลน์)`}
-                      className={`group relative aspect-square rounded-xl border p-2 flex items-center justify-center transition-all cursor-pointer overflow-hidden select-none ${
+                      className={`group relative aspect-square rounded-xl border p-2 flex items-center justify-center transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer overflow-hidden select-none ${
                         isPreviewing
                           ? 'border-[#25F4EE] bg-[#25F4EE]/15 ring-1 ring-[#25F4EE]/50'
                           : isCurrentActive
@@ -2784,7 +2784,7 @@ export default function AssetPanel({
                             onStyleChange?.({ stickerBadge: s.name, stickerStartTime: getPlayhead(), stickerEndTime: getPlayhead() + 3.0 });
                           }
                         }}
-                        className="absolute top-1.5 right-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-white/[0.12] text-slate-200 hover:bg-[#25F4EE] hover:text-black hover:scale-110 active:scale-95 transition-all cursor-pointer shadow-md"
+                        className="absolute top-1.5 right-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-white/[0.12] text-slate-200 hover:bg-[#25F4EE] hover:text-black [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110 active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer shadow-md"
                         title={`เพิ่ม ${displayName} ลงไทม์ไลน์ที่ ${playhead.toFixed(1)}s (ยาว 3.0s)`}
                         onPointerEnter={(e) => { e.currentTarget.title = `เพิ่ม ${displayName} ลงไทม์ไลน์ที่ ${getPlayhead().toFixed(1)}s (ยาว 3.0s)`; }}
                       >
@@ -2820,7 +2820,7 @@ export default function AssetPanel({
                         onStyleChange?.({ stickerBadge: previewSticker, stickerStartTime: getPlayhead(), stickerEndTime: getPlayhead() + 3.0 });
                       }
                     }}
-                    className="w-full py-2.5 px-3 rounded-lg bg-[#25F4EE] hover:bg-[#1de0da] text-slate-950 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
+                    className="w-full py-2.5 px-3 rounded-lg bg-[#25F4EE] hover:bg-[#1de0da] text-slate-950 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.98]"
                   >
                     <Plus className="w-4 h-4" />
                     <span>เพิ่ม {STICKER_TITLES[previewSticker.replace(/\.[^.]+$/, '')] || 'สติกเกอร์'} ลงไทม์ไลน์</span>
@@ -2852,7 +2852,7 @@ export default function AssetPanel({
                     onClick={() => onAddEffect?.(fx.id, fx)}
                     title={`เพิ่ม ${displayName} ลงไทม์ไลน์ที่ ${playhead.toFixed(1)}s (ยาว 3.0s)`}
                     onPointerEnter={(e) => { e.currentTarget.title = `เพิ่ม ${displayName} ลงไทม์ไลน์ที่ ${getPlayhead().toFixed(1)}s (ยาว 3.0s)`; }}
-                    className="group relative rounded-2xl border border-white/[0.08] bg-black/40 p-1.5 flex flex-col items-center gap-1 transition-all cursor-pointer overflow-hidden select-none hover:border-fuchsia-400/50"
+                    className="group relative rounded-2xl border border-white/[0.08] bg-black/40 p-1.5 flex flex-col items-center gap-1 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer overflow-hidden select-none hover:border-fuchsia-400/50"
                   >
                     <button
                       type="button"
@@ -2860,7 +2860,7 @@ export default function AssetPanel({
                         e.stopPropagation();
                         onAddEffect?.(fx.id, fx);
                       }}
-                      className="absolute top-1.5 right-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-black/50 text-white hover:bg-fuchsia-400 hover:text-black hover:scale-110 active:scale-95 transition-all cursor-pointer shadow-md"
+                      className="absolute top-1.5 right-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-black/50 text-white hover:bg-fuchsia-400 hover:text-black [@media(hover:hover)_and_(pointer:fine)]:hover:scale-110 active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer shadow-md"
                     >
                       <Plus className="h-3.5 w-3.5" />
                     </button>
@@ -2973,7 +2973,7 @@ export default function AssetPanel({
                   onAddClip(previewVideo);
                   setPreviewVideo(null);
                 }}
-                className="py-1.5 px-3 rounded-lg bg-[#25F4EE] hover:bg-[#1de0da] text-slate-950 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                className="py-1.5 px-3 rounded-lg bg-[#25F4EE] hover:bg-[#1de0da] text-slate-950 text-xs font-bold flex items-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>เพิ่มลงในไทม์ไลน์</span>

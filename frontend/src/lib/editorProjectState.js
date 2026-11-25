@@ -186,7 +186,7 @@ export function manifestToEditorState(data, options = {}) {
     lutIntensity: Number(firstPresent(manifest.lut_intensity, params.lut_intensity, savedStyle.lut_intensity, savedStyle.lutIntensity, 1)),
     stickerBadge: firstPresent(manifest.sticker_badge, params.sticker_badge, savedStyle.sticker_badge, savedStyle.stickerBadge, null),
     bgmVolume: Number(firstPresent(manifest.bgm_volume, params.bgm_volume, savedStyle.bgm_volume, savedStyle.bgmVolume, 0.12)),
-    bgmDucking: !!firstPresent(manifest.bgm_ducking, params.bgm_ducking, savedStyle.bgm_ducking, savedStyle.bgmDucking, false),
+    bgmDucking: !!firstPresent(manifest.bgm_ducking, params.bgm_ducking, savedStyle.bgm_ducking, savedStyle.bgmDucking, true),
     ...busVolumesFromManifest(manifest, savedStyle),
     captionPosition: firstPresent(manifest.caption_position, params.caption_position, savedStyle.caption_position, savedStyle.captionPosition, 'bottom'),
     captionColor: firstPresent(manifest.caption_color, params.caption_color, savedStyle.caption_color, savedStyle.captionColor, '#FFFFFF'),

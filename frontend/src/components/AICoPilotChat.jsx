@@ -338,7 +338,7 @@ export default function AICoPilotChat({
                                   <div
                                     key={ang.id}
                                     onClick={() => handleSendMessage(`เลือกมุม: ${ang.title}`)}
-                                    className="p-2.5 rounded-lg bg-black/40 hover:bg-emerald-500/10 border border-white/10 hover:border-emerald-500/40 cursor-pointer transition-all"
+                                    className="p-2.5 rounded-lg bg-black/40 hover:bg-emerald-500/10 border border-white/10 hover:border-emerald-500/40 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
                                   >
                                     <div className="font-semibold text-xs text-white truncate">{ang.title}</div>
                                     <div className="text-[11px] text-slate-400 line-clamp-2 mt-0.5">{ang.hook}</div>

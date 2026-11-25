@@ -4,6 +4,71 @@
 
 ## รอบปัจจุบัน
 
+- [x] Round ANTIGRAVITY-SWARM-FIX-RENDER-FREEZE-HOOK-COVER-20261124 · แก้ไขระบบผลิตคลิป, Freeze-Frame, Hook Safe Zone และระบบปก 3:4 ทั้งสายพานแบบขนานด้วย Swarm 5 Agents (P0-P2): ซ่อมและรีเจนปก 88 รายการ (0/88 error 409), แก้อาการ 1-frame freeze (0.033s) และ MM.SS cache leak, ย้ายตำแหน่ง Couple Paper Chat พ้น 0-240px TikTok Top Dead Zone, เชื่อมต่อ ghost_reveal & reveal_color_sync, ปรับ font weight lookup, และตั้งค่า default bgmDucking: true · ผ่าน 307 backend tests, 1,337 frontend tests, Vite build 604ms · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) - Swarm Coordinator
+
+- [x] Round ANTIGRAVITY-EMIL-DESIGN-SYSTEM-WAVE4-COMPLETE-20261123 · กวาดล้าง `transition-all` และเก็บรายละเอียด Emil Kowalski (`/emil-design-eng`) ครบทั้งโปรเจกต์ `frontend/src/` ด้วย Swarm 6 Agents (47 ไฟล์ที่เหลือ: `editor/`, `ProductToClip`, `ContentTrackerHub`, `ExportGallery`, `MediaAssetsHub`, `CoverStudioModal`, `MediaPickerModal`, `ManualStoryboardModal`, `SystemSettings`, `SystemAssets`, `TokenDashboard`, `RawVaultPanel`, `ScheduleAgenda`, `analytics/**`, `App.jsx` + 20 ไฟล์ Hubs/Dialogs): 0 `transition-all` matches ทั้ง `frontend/src/` (ยกเว้น negated assertion ใน test), `oxlint` 450 ไฟล์ = 0 errors, `npm test` 1,337/1,337 pass, Vite build 534ms · ดำเนินการโดย: Antigravity (Gemini 4 Argon) - Swarm Coordinator
+
+- [x] Round ANTIGRAVITY-EMIL-DESIGN-SYSTEM-WAVE3-20261123 · เก็บตก Wave 3 ตามเกณฑ์ Emil Kowalski Design Engineering (`/emil-design-eng`) ด้วย Swarm 5 Agents (23 ไฟล์): สร้าง `.animate-out`/`fade-out` สำหรับ Double-Tap Ripple ใน `SequencePlayer`, เติม `.animate-scaleUp` + Press Feedback บน 6 Standalone Modals, ถอด `animate-ping` (Soft Ambient Glow) และ `animate-bounce` (เปลี่ยนเป็น `animate-slideUp`), และล้าง `transition-all` 100% ทั่วแผง Inspector + Timeline Modals (รวม Hover Media Query Guard บน `OverlayInspector`) · ผ่าน 1,337/1,337 frontend tests, 212/212 parity tests, oxlint 0 errors, Vite build 520ms · ดำเนินการโดย: Antigravity (Gemini 4 Argon) - Swarm Coordinator
+
+- [x] Round ANTIGRAVITY-EMIL-DESIGN-SYSTEM-WAVE2-20261123 · เก็บตก Wave 2 ตามเกณฑ์ Emil Kowalski Design Engineering (`/emil-design-eng`) ด้วย Swarm 5 Agents (16 ไฟล์ UI/CSS): สร้าง `.animate-slideLeft` + composable `.animate-in` utilities (`enterIn` + `fade-in`/`zoom-in-95`/`slide-in-from-*`) ปลุกแอนิเมชัน 26 จุดทั่วแอป, ใส่ `origin-bottom-right`/`origin-top-left` บน inline menus, ปรับ `EditorHeader`/`ProjectSelector`/`SaveStatusChip`/`RenderReadinessChip`/`ActivityCenter`/`PaginationControls`/`OmniCutAgentDock` ให้ปุ่มยุบตัวสม่ำเสมอ (`pointer-coarse:opacity-100`, `tabular-nums`, `transition-[width] ease-linear` บน progress bars) · ผ่าน 1,337/1,337 frontend tests, oxlint 0 errors, Vite build 524ms · ดำเนินการโดย: Antigravity (Gemini 4 Argon) - Swarm Coordinator
+
+- [x] Round ANTIGRAVITY-EMIL-DESIGN-SYSTEM-5PHASES-20261123 · ยกระดับ UI/UX ทั้งระบบ 5 เฟสตามปรัชญา Emil Kowalski Design Engineering (`/emil-design-eng`) ด้วย Swarm 5 Agents (14 ไฟล์ UI/CSS + 1 contract test): เพิ่ม Custom Easing Tokens & Missing Keyframes (`scaleUp`, `slideDown`, `slideUp`, `popoverIn`), ขจัด `transition: all` 100%, Hover Media Query Guard, Sidebar Instant Tooltip Handoff & Bottom Utilities, Mobile Sheet Velocity Flick + Rubber-Band Damping, Origin-Aware `PopoverPanel`, `Toast` Pause-on-Hover/Hidden-Tab, และ Editor Chrome Tactile Press Feedback · ผ่าน 1,337/1,337 frontend tests, oxlint 0 errors, Vite build 500ms · ดำเนินการโดย: Antigravity (Gemini 4 Argon) - Swarm Coordinator
+
+- [x] Round ANTIGRAVITY-TIKTOK-SCHEDULE-NOV26-BATCH-20261123 · ยิง Batch Auto-Post ตั้งเวลาคลิปวันที่ 26 พ.ย. ครบ 10 คลิป (06:30-22:15): ตรวจสอบโควตาสด TikTok Studio (20/30) เหลือว่าง 10 ช่องพอดี + เตรียมและบีบอัดไฟล์วิดีโอ (>45MB) อัตโนมัติ + ป้องกัน Modal ชนและ Auto-Discard + ตั้งเวลาและตรวจยืนยันสดบน TikTok Studio ครบ 10/10 คลิป 100% (รวมยอดคิวสดบน TikTok Studio ครบโควตาสูงสุด 30/30 คลิปเป๊ะ สำหรับวันที่ 24, 25 และ 26 พ.ย.)
+  - ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+  - [x] 1. ตรวจสอบโควตา TikTok Studio สด: วันที่ 23 พ.ย. เผยแพร่หมดแล้ว ทำให้โควตาเหลือ 20/30 พร้อมลงวันที่ 26 พ.ย. ได้อีก 10 คลิปพอดี
+  - [x] 2. ตรวจสอบวัตถุดิบและไฟล์วิดีโอ 10 รายการของวันที่ 26 พ.ย. ใน `04_Exports/Ready_to_post/` และรูปปก 3:4 พบครบ 100%
+  - [x] 3. รัน Batch Uploader อัตโนมัติผ่าน `tools/batch_tiktok_uploader_live.py`: ตรวจจับ Datepicker วันที่ 26 พ.ย., บีบอัดไฟล์วิดีโอที่เกิน 45MB ด้วย Fast-optimizing FFmpeg, ผูกสินค้า Showcase พร้อมชื่อตะกร้า Clean Name (<= 30 ตัวอักษร)
+  - [x] 4. ตรวจสอบยืนยันผลลัพธ์สดบน TikTok Studio (`https://www.tiktok.com/tiktokstudio/content`): พบยอดรวมครบ 30/30 คลิปพอดี (วันที่ 24 พ.ย. = 10 คลิป, วันที่ 25 พ.ย. = 10 คลิป, วันที่ 26 พ.ย. = 10 คลิป) ตรงตามเวลาเช้าจรดค่ำ 100% ไร้ตกค้าง
+
+- [x] Round ANTIGRAVITY-FIX-TIKTOK-SCHEDULE-DATEPICKER-AND-REBALANCE-20261123 · แก้ไขปัญหาคลิปกระจุกตัววันที่ 23 พ.ย. ซ้ำซ้อน: พัฒนาระบบ Datepicker Strict Verification + ทำความสะอาดคลิปซ้ำซ้อนบน TikTok Studio + รีเซ็ตคิวและยิง Batch Auto-Post กระจายลง 24 และ 25 พ.ย. เรียงวันเวลาถูกต้อง 100% (ตรวจยืนยันสดบน TikTok Studio ครบ 20/20 คลิป 100%)
+  - ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+  - [x] 1. ตรวจสอบต้นตอปัญหา Datepicker: พบว่า selector เดิมคลิกเปิดปฏิทินไม่ติด ทำให้ค่าค้างเป็นวันที่ 23 พ.ย. ทุกคลิป
+  - [x] 2. รีโมท Chrome จัดการทำความสะอาด (Cleanup) ลบคลิปส่วนเกินของวันที่ 24-25 พ.ย. ที่หลงไปตกในวันที่ 23 พ.ย. บน TikTok Studio คงไว้เฉพาะ 8-10 คลิปที่เป็นของวันที่ 23 พ.ย. จริง
+  - [x] 3. รีเซ็ตสถานะคลิปวันที่ 24 และ 25 พ.ย. ใน `_Docs/schedule_queue.json` และ SQLite `_Docs/store.db` กลับเป็น `planned` (รวม 20 คลิป)
+  - [x] 4. พัฒนาและติดตั้งระบบ Datepicker Strict Verification ใน `tools/batch_tiktok_uploader_live.py`: โฟกัสและคลิกเปิดปฏิทินด้วย JS Event, คลิกเลือกวันเป้าหมาย, และตรวจสอบค่า input ยืนยันตรงวันเป้าหมาย 100% ก่อนส่งฟอร์ม (หากไม่ตรงวันจะ retry/abort ทันที ป้องกันการโพสต์ผิดวัน)
+  - [x] 5. ทดสอบยิง Live Single Test คลิปแรก (24 พ.ย. 06:30 น. - ESSAGER 2 in 1 LED): ผ่าน 100% ยืนยันบน TikTok Studio ปรากฏ `24 Nov, 6:30 am` ตรงวันเป้าหมายสมบูรณ์
+  - [x] 6. รัน Batch Uploader อัตโนมัติสำหรับ 19 คลิปที่เหลือ กระจายลงวันที่ 24 พ.ย. (08:15-22:15) และ 25 พ.ย. (06:30-22:15) ต่อเนื่อง พร้อมระบบ Auto-Discard, ป้องกัน Modal ชน และเพิ่มระยะเวลารอ Schedule Activation ผ่านครบ 20/20 คลิป 100% ตรวจสอบสถานะจริงบน TikTok Studio สดแล้วเรียบร้อย
+
+- [x] Round ANTIGRAVITY-SWARM-TIKTOK-OVERNIGHT-BATCH-20261122 · ปฏิบัติการ Swarm ข้ามคืน รีโมท Chrome จัดการคิว TikTok Studio และตั้งเวลาคลิป 30 คลิปแรก (23-25 พ.ย.)
+  - ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) + Swarm Agents (cleanup_agent, uploader_agent, verifier_agent, monitor)
+  - [x] Phase 1: จัดตั้ง Swarm สั่งการ 4 เอเจนต์ (monitor, cleanup_agent, uploader_agent, verifier_agent)
+  - [x] Phase 2: cleanup_agent รีโมท Chrome ลบคลิปนัดหมายล่วงหน้า (27-30 พ.ย.) ออกเพื่อคืนโควตา 30/30 และย้อนสถานะในคิว OmniCut กลับเป็น planned
+  - [x] Phase 3: uploader_agent ยิง Batch Auto-Post ตั้งเวลา 30 คลิปแรก (23 พ.ย. 10 คลิป, 24 พ.ย. 10 คลิป, 25 พ.ย. 10 คลิป) เรียงตามวันเวลาเช้าจรดค่ำ (06:30-22:15)
+  - [x] Phase 4: verifier_agent ตรวจสอบผลลัพธ์บน TikTok Studio Content ให้ตรง 100%, ปลอด Error เลขโรมัน, จัดทำ Morning Briefing Report ให้ผู้ใช้ตื่นมาตรวจผล
+
+
+
+- [x] Round ANTIGRAVITY-TIKTOK-CART-NAME-SANITIZER-AND-CURATION-20261122 · แก้ไขปัญหาชื่อสินค้าในตะกร้า TikTok Shop ถูกตัดคำน่าเกลียดและติด Error อักขระพิเศษ (เช่น Ⅱ เลขโรมัน): พัฒนาระบบ Cart Name Sanitizer & Curated Mapping สำหรับสินค้าทั้ง 45 รายการ คุมความยาว <= 30 ตัวอักษรพอดี ไม่ตัดคำขาดครึ่ง ไม่ทิ้งเศษพยัญชนะลอย และแปลงอักขระพิเศษ (Ⅱ -> II, ° -> ตัดออก) อัตโนมัติทั้งใน Extension, Backend, และ Uploader · ผ่าน 3/3 cart name tests, 136/136 extension tests 100% · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+  - [x] 1. วิเคราะห์ปัญหาจากภาพแคป TikTok Studio: Input field บังคับ 30 ตัวอักษร + แบนอักขระพิเศษ `Ⅱ` (Unicode Roman Numeral Two) + ตัดคำแบบ `[:30]` ดิบทำให้เหลือพยัญชนะลอย `" ป"` ท้ายคำ
+  - [x] 2. สร้างโมดูล `scripts/cart_name_cleaner.py` บรรจุ Curated Clean Names สั้นกระชับ สวยงาม สำหรับสินค้าทั้ง 45 รายการ + Smart Sanitizer แปลงเลขโรมันและตัดคำที่ขอบคำ (Word boundary) ไม่ให้มีเศษพยัญชนะลอย
+  - [x] 3. ติดตั้ง Sanitizer Guard ใน `tiktok_autopost_extension/background.js` (ฟังก์ชัน `sanitizeCartName`) ป้องกันอักขระพิเศษและตัดคำล่วงหน้าก่อนพิมพ์ลงช่อง input ทุกครั้ง
+  - [x] 4. อัปเดต `_Docs/products.json` และรัน `tools/rebuild_schedule_100_clips.py` ซิงก์ชื่อ `cart_name` ที่สะอาด สวยงาม สมบูรณ์ลง `schedule_queue.json` ครบทั้ง 100 คลิป
+  - [x] 5. ผ่านชุดทดสอบ `tests/test_cart_name_cleaner.py` (3/3 passed) และ Node tests `tiktok_autopost_extension/background.test.cjs` (136/136 passed 100%)
+
+
+- [x] Round ANTIGRAVITY-RESCHEDULE-100-CLIPS-QUEUE-20261122 · จัดเวลาโพสต์คิวใหม่ 100 คลิป (10 คลิป/วัน ระหว่าง 06:30 - 22:15 น.) เริ่มตั้งแต่วันจันทร์ที่ 23 พ.ย. 2026 ถึง 2 ธ.ค. 2026: แก้ไขปัญหาเวลาผ่านเลยในอดีต (ทำให้ขึ้นการ์ดแดงใน TikTok Extension) สู่สล็อตเวลาอนาคตที่ถูกต้องตามเกณฑ์ TikTok 100% พร้อมดันสินค้าใหม่ที่ไม่เคยโพสต์ขึ้นก่อนอย่างเป็นธรรม · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+  - [x] 1. วิเคราะห์ปัญหาเวลาในคิวเดิมที่ค้างจากรอบ 18-22 พ.ย. ส่งผลให้ Extension แสดงคำเตือน "เวลาโพสต์ผ่านแล้วหรือใกล้เกินไป"
+  - [x] 2. อัปเดต `tools/rebuild_schedule_100_clips.py` ให้เริ่มต้น `start_date = 2026-11-23` (วันจันทร์พรุ่งนี้) 10 สล็อตต่อวัน (06:30, 08:15, 10:00, 11:45, 13:30, 15:15, 17:00, 18:45, 20:30, 22:15) ครอบคลุม 100 คลิป 10 วันเต็มถึง 2 ธ.ค. 2026
+  - [x] 3. รัน Rebuild Schedule Queue ซิงก์ลง `ScheduleQueueStore` สำเร็จครบถ้วน 100 รายการ โดยคงประวัติเดิมที่โพสต์แล้ว 157 รายการ และ Scheduled เดิม 47 รายการไว้อย่างปลอดภัย 100%
+  - [x] 4. ตรวจสอบ Endpoint `/api/schedule-queue` ส่งข้อมูลถูกต้อง 100% ไร้คลิปเวลาค้างในอดีต (Passed <= now + 15m = 0 คลิป) Extension พร้อมรันต่อทันที
+
+
+- [x] Round ANTIGRAVITY-SIDEBAR-EMIL-DESIGN-CRAFT-20261122 · ปรับปรุง Desktop Sidebar Navigation ตามหลัก Emil Kowalski Design Engineering (@emil-design-eng): เพิ่ม Tactile Press Feedback (active:scale-[0.96]), แทนที่ transition-all ด้วย specific transitions (ease-out), ลบ duplicate title attribute ป้องกัน Native tooltip ซ้อน, ยกระดับ Tooltip Micro-interaction (origin-left pop-out, Y-center, 150ms hover intent delay), และจัดระเบียบ Active Indicator ไม่ให้ชนมุมมน rounded-2xl ขจัด neon glow เบลอสู่ระดับ Pro Studio Craft · ผ่าน Vite build 747ms และ accessibility tests 100% · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) - Swarm Coordinator
+
+- [x] Round ANTIGRAVITY-STANDARDIZE-TIKTOK-HASHTAGS-MAX-5-20261122 · ปรับปรุงระบบแฮชแท็ก TikTok สู่มาตรฐานสากล: ล็อกกฎเหล็กแฮชแท็ก 4-5 อัน (ห้ามเกิน 5 อันเด็ดขาด) พร้อมกำหนดสูตร 5 แฮชแท็กดันยอดขาย TikTok Shop (#แบรนด์รุ่น + #หมวดหมู่ฟังก์ชัน + #TikTokป้ายยา + #ของดีบอกต่อ + #พิกัดในตะกร้า) ใน AI Prompt + พัฒนาระบบ Sanitizer Guard ใน Backend/Upload Automation และ Batch Clean ฐานข้อมูลสินค้า 113 รายการที่เกิน 5 อันให้เหลือ 5 อันทันที · ผ่าน 8/8 unit tests 100% · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-SHIFT-HOOK-SAFE-ZONE-Y-AND-BATCH-RERENDER-20261122 · แก้ไขปัญหาตัวหนังสือ Hook ชนแถบค้นหาและเส้น Safe Zone ด้านบนของ TikTok: ปรับพิกัดเริ่มต้น Hook Header (`HOOK_TOP_Y = 260px` และ `HOOK_LINE_CENTER_Y = 320px`) ให้หลบแถบค้นหาและแท็บ Following/For You อย่างปลอดภัย พร้อมอัปเดต Preview=Render Parity 100% และแบตช์รีเรนเดอร์คลิปแกดเจ็ตที่ยังไม่โพสต์ทั้งหมดในระบบครบ 109 คลิป 100% ไร้ตกค้าง · ผ่าน 212/212 parity tests, 24/24 behavior tests, 1,337/1,337 frontend tests, รีเรนเดอร์สำเร็จ 109/109 คลิป 100% · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
+  - [x] 1. อัปเดตค่าพิกัดความปลอดภัยของ Hook Overlay ใน Backend & Frontend (`scripts/overlay_model.py`, `frontend/src/lib/overlayModel.js`, `scripts/subtitle/overlay_events.py`, `scripts/subtitle_engine.py`, `scripts/hook_line.py`, `frontend/src/components/SequencePlayer.jsx`)
+  - [x] 2. อัปเดตและรันชุดทดสอบ Preview = Render Parity ให้ผ่าน 100% (`tests/test_preview_render_parity.py`, `tests/test_preview_render_behavior.py`)
+  - [x] 3. พัฒนาและรันสคริปต์แบตช์อัปเดตพิกัด `project.json`, เจนเนอเรต `subtitles.ass` ใหม่ และรีเรนเดอร์วิดีโอแกดเจ็ตที่ยังไม่โพสต์ทั้งหมดครบ 109 คลิปใน `04_Exports/Ready_to_post/` สำเร็จครบถ้วน 109/109 คลิป (รวม 41 คลิปในคิว + 68 คลิปมุมอื่นๆ ในระบบ)
+  - [x] 4. อัปเดตภาพหน้าปกและ Thumbnail (.webp) ใน UI Gallery ครบทั้ง 109 รายการ ให้สะท้อนตำแหน่ง Hook ใหม่ที่สวยงาม สมดุล ไร้การบดบัง
+  - [x] 5. ตรวจสอบความถูกต้องด้วย Visual Frame Probe, ทำความสะอาดไฟล์ทดสอบ 100% และบันทึกประวัติการทำงานลง `HISTORY.md`
+
+- [x] Round ANTIGRAVITY-FIX-COVER-SAFE-ZONE-AND-QUEUE-BINDINGS-20261122 · แก้ไขปัญหาปกคลิป TikTok ถาวร: พัฒนาระบบ Smart Safe-Zone Crop Guard (เว้นระยะปลอดภัย >=80px ไม่ให้ฟอนต์โดนตัด) + แก้ไข Queue Binding และ Rebuild Schedule ให้ดึงปก 3:4 ถูกต้องครบถ้วน + รีเจนปกคลิปเดิม 285 ปก และซ่อมแซมปกคู่รัก POV ที่เคยกลายเป็นกระดาษเปล่า · ผ่าน 107/107 unit tests 100% · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-AUTOPOST-FULL-SCHEDULE-FILL-20261119 · ตั้งเวลาโพสต์อัตโนมัติลง TikTok Studio เต็มโควตาสูงสุดที่แพลตฟอร์มรองรับได้ (ครอบคลุม 19–22 พ.ย. 2026 รวม 31 คลิป) ผ่าน Chrome CDP + TikTok Autopost Extension: แก้ไขบั๊ก Product Chip Selector (0.11.1) และ Modal Schedule Post Now, ทำความสะอาดคำต้องห้าม/ราคาใน Caption ด้วย Gemini 3.6 Flash, ซิงก์ปกอัตโนมัติ และป้องกันการโพสต์ซ้ำ 100% · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High)
+
 - [x] Round ANTIGRAVITY-SPEED-ROUND2-CATEGORY1-FIXES-20261118 · แก้ไขงานหมวดที่ 1 จาก `SPEED_ROUND2_AUDIT_20261118.md` ครบชุด (R1 ถอด voiceover overwrite ใน audio_mix_stage/sfx_manager · R2 เพิ่ม MP4 box check ใน media_validation · R3 บังคับ UTF-8 ใน api_iphone · ข1 probe การ์ดจอจริงและรองรับ NVENC/AMF/QSV/VideoToolbox ใน tiktok_enhancer · ก1 เพิ่ม ram_safe_concurrency ใน render_jobs/batch_render) · เทส `test_speed_round2_category1.py` 5/5 + compileall ผ่าน 100% → ดู [HISTORY.md](HISTORY.md) · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro)
 
 - [ ] Round CLAUDE-SPEED-ROUND2-AUDIT-20261118 · ความเร็วรอบสอง "สร้างร่าง → editor → เรนเดอร์ batch" ต่อจาก [รายงานรอบแรก](_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md) + [รายงานข้ามคืน](_Docs/Reports/SPEED_OVERNIGHT_20261112.md) · ผู้ใช้สั่ง 2026-11-18 · ผลช่วงที่ 1 → `_Docs/Reports/SPEED_ROUND2_AUDIT_20261118.md` · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5)
@@ -22,6 +87,15 @@
   - ช่วงที่ 2 (แก้) เริ่มหลังผู้ใช้เลือกข้อ · กิ่ง `feat/<ชื่อ>` ต่อข้อ ตามข้อ 25
 
 - [x] Round CLAUDE-SPEED-AND-HARDENING-PHASE2-20261112 · ปิดรอบ 2026-11-18: ข2/ก1/ข1(บางส่วน)/P0-ffprobe/P0-backup/P1-500 เสร็จ ผ่าน merge `f143e2f` · ข3–ข6 + วัดซ้ำ + editor ทำต่อในช่วงที่ 3–5 ([รายงานหัวข้อ 8–10](_Docs/Reports/DRAFT_TO_RENDER_SPEED_AUDIT_20261111.md)) · ก2 ตัดสินแล้ว "ไม่ทำ" · P0 `delete_file` และ ข1 batching ย้ายไปรอบ CLAUDE-SPEED-ROUND2-AUDIT-20261118 · ดำเนินการโดย: Claude Code (Claude Fable 5.2)
+
+- [x] Round ANTIGRAVITY-REBUILD-SCHEDULE-QUEUE-100-CLIPS-20261117 · จัดตารางโพสต์คิวใหม่ทั้งหมด 100 คลิปตามคำสั่งผู้ใช้: สินค้าที่ไม่เคยโพสต์ 14 ชิ้นจัดเรียงต่อเนื่องกันเป็นลำดับแรก (ชิ้นละ 1 คลิป) ต่อด้วยการหมุนเวียนสินค้าที่เหลืออย่างเป็นธรรม 10 คลิปต่อวัน ระหว่างช่วงเวลา 06:00 - 23:00 น. (10 สล็อต: 06:30, 08:15, 10:00, 11:45, 13:30, 15:15, 17:00, 18:45, 20:30, 22:15 นาทีลงท้าย 0 หรือ 5 ตามเกณฑ์ TikTok) ครอบคลุม 10 วันเต็ม (18-27 พ.ย. 2026) พร้อมปกป้องประวัติเดิมที่โพสต์แล้ว 173 รายการ 100% · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-FIX-SCENE-SCAN-PATH-HEALING-AND-UI-STATE-20261117 · แก้ไขปุ่มสแกนฉากไม่ทำงาน (HOCO EW97 / IMG_8211.MOV): สร้างระบบ Path Healing อัตโนมัติใน Backend + สร้าง Directory Junction รองรับ Path เดิม + ปรับปรุง UI ให้ซิงก์สถานะกับ TaskManager สดๆ ไร้ปุ่มค้าง + สแกนสำเร็จครบ 13 ฉากด้วย Gemini Vision · ผ่าน 37/37 unit tests 100% · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-FIX-VISION-TIMECODE-MMSS-AND-FREEZE-LOOP-20261117 · แก้ไขต้นตอคลิปวนซ้ำและภาพค้าง: พัฒนาระบบ Timecode Normalizer แปลง MM.SS / MM:SS เป็นวินาทีจริง + ซ่อมแซมแคชสารบัญฉาก + รีเรนเดอร์คลิป TRANYOO GS-01 ให้ภาพเปลี่ยนตรงจังหวะตลอด 84 วิ ไร้ภาพค้าง 100% · ผ่าน 5/5 timestamp tests, 32/32 vision tests, 212/212 parity tests (249/249 tests 100%) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+
+- [x] Round ANTIGRAVITY-BATCH-REPAIR-ALL-EXPORTS-TAIL-GLITCH-20261117 · ปฏิบัติการกวาดล้างเสียงขยะท้ายคลิปตกค้างในไฟล์วิดีโอส่งออกเดิมทั้งหมดในระบบ (รวม BUD01, TRA02, TRA03, ESS08, MEM01 และทุกโปรเจกต์ใน Ready_to_post) ด้วยการรีมิกซ์ mixed_audio ใหม่และ Remux แทนที่ไฟล์วิดีโอส่งออกจริง ไร้เสียงขยะ 100% · ผ่าน 244/244 parity/engine tests, สแกน 253 ไฟล์วิดีโอใน Ready_to_post ไม่พบเสียงขยะตกค้าง (Amplitude ท้ายคลิป 20ms = 0 หรือ <100 ทุกคลิป) · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
+  - [x] 5. รัน Unit Tests เพื่อยืนยันความสมบูรณ์ของระบบ และบันทึกประวัติการทำงานลง `HISTORY.md`
 
 - [x] Round ANTIGRAVITY-FIX-TTS-TAIL-GLITCH-PERMANENT-20261117 · ถอนรากถอนโคนเสียงขยะท้ายคลิป (Gemini Flash TTS EOS Digital Noise & Clipping Burst) อย่างถาวร 100% พร้อมทำความสะอาดไฟล์เสียงทั้ง 7 คลิปของ TRANYOO T-S20 (TRA03) และป้องกัน 2 ชั้น (Engine + Mixer) · ผ่าน 7/7 tail artifact tests, 36/36 gemini tests, 228/228 parity tests 100% · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash)
 

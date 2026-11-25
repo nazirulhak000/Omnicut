@@ -52,7 +52,7 @@ export function ProgressRing({
           strokeLinecap="round"
           fill="transparent"
           filter={glow ? `url(#glow-${size}-${color.replace('#', '')})` : undefined}
-          className="transition-all duration-700 ease-out"
+          className="transition-[stroke-dashoffset,stroke,opacity] duration-500 ease-out"
         />
       </svg>
       {/* Center slot */}
@@ -120,7 +120,7 @@ export function ConcentricRings({
                   strokeDashoffset={strokeDashoffset}
                   strokeLinecap="round"
                   fill="transparent"
-                  className="transition-all duration-700 ease-out"
+                  className="transition-[stroke-dashoffset,stroke,opacity] duration-500 ease-out"
                 />
               </g>
             );
@@ -217,7 +217,7 @@ export function RadialGauge({
             strokeDasharray={arcLength}
             strokeDashoffset={strokeDashoffset}
             strokeLinecap="round"
-            className="transition-all duration-700 ease-out"
+            className="transition-[stroke-dashoffset,stroke,opacity] duration-500 ease-out"
           />
         </svg>
 

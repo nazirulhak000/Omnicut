@@ -44,7 +44,7 @@ export default function StylePresetPicker({
               aria-checked={isActive}
               data-style-preset={preset.id}
               onClick={() => onChange?.(preset.id)}
-              className={`relative flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition-all duration-200 cursor-pointer select-none ${
+              className={`relative flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer select-none ${
                 isActive
                   ? 'bg-white/[0.1] border border-white/[0.18] shadow-sm'
                   : 'hover:bg-white/[0.04] border border-transparent text-slate-400 hover:text-slate-200'
@@ -89,7 +89,7 @@ export default function StylePresetPicker({
       {/* 2. Active Style Showcase & Mini Hook Preview (Single Compact 2-Col Card) */}
       {activePreset && (
         <div
-          className="rounded-xl border p-3 sm:p-3.5 bg-gradient-to-r from-black/60 via-black/40 to-black/60 transition-all duration-300 relative overflow-hidden"
+          className="rounded-xl border p-3 sm:p-3.5 bg-gradient-to-r from-black/60 via-black/40 to-black/60 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out relative overflow-hidden"
           style={{
             borderColor: `${activePreset.accent}40`,
             boxShadow: `0 0 20px ${activePreset.accent}10`,

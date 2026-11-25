@@ -24,7 +24,7 @@ export default function TimelineContextMenu({
     <div
       data-context-menu=""
       onClick={(e) => e.stopPropagation()}
-      className="fixed z-50 min-w-[190px] rounded-lg border border-white/[0.12] bg-[#0D121F]/95 p-1.5 shadow-2xl backdrop-blur-md text-xs text-slate-200 animate-in fade-in zoom-in-95 duration-100"
+      className="fixed z-50 min-w-[190px] rounded-lg border border-white/[0.12] bg-[#0D121F]/95 p-1.5 shadow-2xl backdrop-blur-md text-xs text-slate-200 origin-top-left animate-in fade-in zoom-in-95 duration-100"
       style={{
         left: Math.max(10, Math.min(typeof window !== 'undefined' ? window.innerWidth - 200 : 1000, contextMenu.x)),
         top: Math.max(10, Math.min(typeof window !== 'undefined' ? window.innerHeight - 300 : 800, contextMenu.y)),

@@ -212,6 +212,8 @@ def execute_render_job(job_id: str, req_data: RenderRequest, job_scope: Optional
                 story_format=req_data.story_format,
                 font_name=req_data.font_name,
                 bilingual_subtitles=req_data.bilingual_subtitles,
+                ghost_reveal=True if req_data.ghost_reveal is None else bool(req_data.ghost_reveal),
+                reveal_color_sync=True if req_data.reveal_color_sync is None else bool(req_data.reveal_color_sync),
                 show_watermark=req_data.show_watermark,
                 use_ai_vision=req_data.use_ai_vision,
                 sticker_path=sticker_file_path,

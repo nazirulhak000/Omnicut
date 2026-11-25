@@ -54,17 +54,92 @@ export default function Sidebar({
     ? (status?.mobile_url || window.location.origin)
     : window.location.origin;
 
-  const closeMoreDrawer = useCallback(() => setShowMoreDrawer(false), []);
-  const moreSheetTouchStartRef = useRef(0);
+  const [navTooltipWarm, setNavTooltipWarm] = useState(false);
+  const navHoverTimerRef = useRef(null);
+
+  useEffect(() => () => {
+    if (navHoverTimerRef.current) clearTimeout(navHoverTimerRef.current);
+  }, []);
+
+  const handleNavButtonEnter = useCallback((e) => {
+    if (e?.pointerType === 'touch') return;
+    if (navHoverTimerRef.current) {
+      clearTimeout(navHoverTimerRef.current);
+      navHoverTimerRef.current = null;
+    }
+    if (!navTooltipWarm) {
+      navHoverTimerRef.current = setTimeout(() => {
+        setNavTooltipWarm(true);
+        navHoverTimerRef.current = null;
+      }, 150);
+    }
+  }, [navTooltipWarm]);
+
+  const handleNavLeave = useCallback(() => {
+    if (navHoverTimerRef.current) {
+      clearTimeout(navHoverTimerRef.current);
+      navHoverTimerRef.current = null;
+    }
+    navHoverTimerRef.current = setTimeout(() => {
+      setNavTooltipWarm(false);
+      navHoverTimerRef.current = null;
+    }, 100);
+  }, []);
+
+  const [moreSheetDragY, setMoreSheetDragY] = useState(0);
+  const moreSheetTouchStartRef = useRef(null);
+  const moreSheetTouchStartTimeRef = useRef(0);
+
+  const closeMoreDrawer = useCallback(() => {
+    setMoreSheetDragY(0);
+    moreSheetTouchStartRef.current = null;
+    setShowMoreDrawer(false);
+  }, []);
+
   const handleMoreSheetTouchStart = (e) => {
+    if (e.touches.length !== 1) return;
+    if (e.currentTarget.scrollTop > 0) {
+      moreSheetTouchStartRef.current = null;
+      return;
+    }
     moreSheetTouchStartRef.current = e.touches[0].clientY;
+    moreSheetTouchStartTimeRef.current = performance.now();
   };
-  const handleMoreSheetTouchEnd = (e) => {
-    const diff = e.changedTouches[0].clientY - moreSheetTouchStartRef.current;
-    if (diff > 80) {
+
+  const handleMoreSheetTouchMove = (e) => {
+    if (moreSheetTouchStartRef.current === null || e.touches.length !== 1) return;
+    const diff = e.touches[0].clientY - moreSheetTouchStartRef.current;
+    if (diff < 0) {
+      if (e.currentTarget.scrollTop > 0) {
+        moreSheetTouchStartRef.current = null;
+        setMoreSheetDragY(0);
+        return;
+      }
+      // Subtle rubber-band damping when pulling past the top boundary
+      setMoreSheetDragY(diff * 0.15);
+    } else {
+      setMoreSheetDragY(diff);
+    }
+  };
+
+  const handleMoreSheetTouchEnd = () => {
+    if (moreSheetTouchStartRef.current === null) {
+      setMoreSheetDragY(0);
+      return;
+    }
+    const elapsed = Math.max(1, performance.now() - moreSheetTouchStartTimeRef.current);
+    const velocity = Math.max(0, moreSheetDragY) / elapsed;
+    if (moreSheetDragY > 80 || (moreSheetDragY > 20 && velocity > 0.11)) {
       try { navigator.vibrate?.(10); } catch {}
       setShowMoreDrawer(false);
     }
+    setMoreSheetDragY(0);
+    moreSheetTouchStartRef.current = null;
+  };
+
+  const handleMoreSheetTouchCancel = () => {
+    setMoreSheetDragY(0);
+    moreSheetTouchStartRef.current = null;
   };
   const closeMobileModal = useCallback(() => setShowMobileModal(false), []);
   // Phone back gesture closes the sheet / QR dialog instead of leaving the app.
@@ -106,6 +181,9 @@ export default function Sidebar({
   };
 
   const isMoreActive = activeTab === 'assets' || activeTab === 'analytics' || activeTab === 'settings' || activeTab === 'dashboard';
+  const desktopTooltipClass = `absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 rounded-xl bg-[#0D111A] border border-white/[0.1] text-xs font-semibold text-white whitespace-nowrap opacity-0 scale-95 -translate-x-1 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:translate-x-0 origin-left transition-[opacity,transform] ease-out shadow-2xl z-50 ${
+    navTooltipWarm ? 'delay-0 duration-0' : 'duration-150 delay-75 group-hover:delay-150'
+  }`;
 
   return (
     <>
@@ -119,7 +197,7 @@ export default function Sidebar({
         </div>
 
         {/* Navigation icons */}
-        <nav aria-label="แถบเมนูหลัก" className="flex-1 flex flex-col items-center pt-3.5 gap-2">
+        <nav aria-label="แถบเมนูหลัก" onPointerLeave={handleNavLeave} className="flex-1 flex flex-col items-center pt-3.5 gap-2">
           {DESKTOP_NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id || (item.id === 'settings' && activeTab === 'dashboard');
@@ -127,24 +205,29 @@ export default function Sidebar({
               <button
                 key={item.id}
                 type="button"
+                onPointerEnter={handleNavButtonEnter}
                 onClick={() => { try { navigator.vibrate?.(10); } catch {} setActiveTab(item.id); }}
-                title={item.label}
                 aria-label={item.label}
                 aria-current={isActive ? 'page' : undefined}
-                className={`group relative w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/70
+                className={`group relative w-12 h-12 rounded-2xl flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/70
+                  before:absolute before:-inset-1 before:rounded-2xl
+                  active:scale-[0.96] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out
                   ${isActive
                     ? 'bg-white/[0.08] text-[#25F4EE] border border-white/[0.12]'
                     : 'text-slate-400 hover:text-white hover:bg-white/[0.05] border border-transparent'
                   }`}
               >
-                {/* Active left accent bar */}
+                {/* Active left accent bar (flush with sidebar rail) */}
                 {isActive && (
-                  <span aria-hidden="true" className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full bg-[#25F4EE] shadow-[0_0_8px_#25F4EE]" />
+                  <span
+                    aria-hidden="true"
+                    className="absolute -left-3 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full bg-[#25F4EE] shadow-[0_0_12px_rgba(37,244,238,0.25)]"
+                  />
                 )}
-                <Icon className="w-5 h-5" strokeWidth={isActive ? 2.3 : 1.8} />
+                <Icon className="w-5 h-5" strokeWidth={1.8} />
 
                 {/* Tooltip */}
-                <span className="absolute left-full ml-3 px-3 py-1.5 rounded-xl bg-[#0D111A] border border-white/[0.1] text-xs font-semibold text-white whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity shadow-2xl z-50">
+                <span aria-hidden="true" className={desktopTooltipClass}>
                   {item.label}
                 </span>
               </button>
@@ -153,27 +236,33 @@ export default function Sidebar({
         </nav>
 
         {/* Bottom utilities */}
-        <div className="flex flex-col items-center gap-2 pb-4 border-t border-white/[0.08] pt-3">
+        <div onPointerLeave={handleNavLeave} className="flex flex-col items-center gap-2 pb-4 border-t border-white/[0.08] pt-3">
           <button
             type="button"
+            onPointerEnter={handleNavButtonEnter}
             onClick={() => setShowMobileModal(true)}
             aria-label="อัปโหลดผ่านมือถือ (QR Code)"
-            title="อัปโหลดผ่านมือถือ (QR Code)"
-            className="w-11 h-11 rounded-xl flex items-center justify-center text-slate-400 hover:text-[#25F4EE] hover:bg-white/[0.05] transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/70"
+            className="group relative w-11 h-11 rounded-xl flex items-center justify-center text-slate-400 hover:text-[#25F4EE] hover:bg-white/[0.05] before:absolute before:-inset-1 before:rounded-xl active:scale-[0.96] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/70"
           >
             <Smartphone className="w-5 h-5" strokeWidth={1.8} />
+            <span aria-hidden="true" className={desktopTooltipClass}>
+              อัปโหลดผ่านมือถือ (QR Code)
+            </span>
           </button>
           <button
             type="button"
+            onPointerEnter={handleNavButtonEnter}
             onClick={toggleFullscreen}
             aria-label={isFullscreen ? 'ย่อจอ' : 'เต็มจอ'}
-            title={isFullscreen ? 'ย่อจอ' : 'เต็มจอ'}
-            className="w-11 h-11 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/[0.05] transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/70"
+            className="group relative w-11 h-11 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/[0.05] before:absolute before:-inset-1 before:rounded-xl active:scale-[0.96] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/70"
           >
             {isFullscreen
               ? <Minimize className="w-5 h-5" strokeWidth={1.8} />
               : <Maximize className="w-5 h-5" strokeWidth={1.8} />
             }
+            <span aria-hidden="true" className={desktopTooltipClass}>
+              {isFullscreen ? 'ย่อจอ' : 'เต็มจอ'}
+            </span>
           </button>
         </div>
       </aside>
@@ -185,7 +274,7 @@ export default function Sidebar({
         // the accessibility tree, not just invisible.
         inert={isImmersive || undefined}
         aria-hidden={isImmersive || undefined}
-        className={`md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#050811]/80 backdrop-blur-2xl border-t border-white/[0.12] flex items-stretch justify-around px-1.5 h-[var(--nav-h)] pb-[env(safe-area-inset-bottom)] shadow-2xl transition-all duration-300 ${
+        className={`md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#050811]/80 backdrop-blur-2xl border-t border-white/[0.12] flex items-stretch justify-around px-1.5 h-[var(--nav-h)] pb-[env(safe-area-inset-bottom)] shadow-2xl transition-[transform,opacity] duration-250 ease-out ${
           isImmersive ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
         }`}
       >
@@ -198,7 +287,7 @@ export default function Sidebar({
               type="button"
               onClick={() => { try { navigator.vibrate?.(10); } catch {} setActiveTab(item.id); }}
               aria-current={isActive ? 'page' : undefined}
-              className={`relative flex flex-col items-center justify-center min-h-[48px] py-1 px-1 rounded-xl transition-all cursor-pointer flex-1 min-w-0 select-none active:scale-95 ${
+              className={`relative flex flex-col items-center justify-center min-h-[48px] py-1 px-1 rounded-xl transition-[color,transform] duration-150 active:duration-100 ease-out cursor-pointer flex-1 min-w-0 select-none active:scale-95 ${
                 isActive
                   ? 'text-[#25F4EE] font-bold'
                   : 'text-slate-400 font-medium hover:text-slate-200'
@@ -209,7 +298,7 @@ export default function Sidebar({
                 aria-hidden="true"
                 className={`absolute top-0 left-1/2 -translate-x-1/2 h-[3px] w-8 rounded-b-full transition-opacity ${isActive ? 'bg-[#25F4EE] opacity-100' : 'opacity-0'}`}
               />
-              <Icon className="w-5 h-5" strokeWidth={isActive ? 2.4 : 1.7} />
+              <Icon className="w-5 h-5" strokeWidth={1.85} />
               <span className="text-[12px] leading-tight tracking-tight mt-0.5 truncate max-w-full">{item.label}</span>
             </button>
           );
@@ -222,7 +311,7 @@ export default function Sidebar({
           aria-haspopup="dialog"
           aria-expanded={showMoreDrawer}
           aria-current={isMoreActive ? 'page' : undefined}
-          className={`relative flex flex-col items-center justify-center min-h-[48px] py-1 px-1 rounded-xl transition-all cursor-pointer flex-1 min-w-0 select-none active:scale-95 ${
+          className={`relative flex flex-col items-center justify-center min-h-[48px] py-1 px-1 rounded-xl transition-[color,transform] duration-150 active:duration-100 ease-out cursor-pointer flex-1 min-w-0 select-none active:scale-95 ${
             isMoreActive
               ? 'text-[#25F4EE] font-bold'
               : 'text-slate-400 font-medium hover:text-slate-200'
@@ -232,7 +321,7 @@ export default function Sidebar({
             aria-hidden="true"
             className={`absolute top-0 left-1/2 -translate-x-1/2 h-[3px] w-8 rounded-b-full transition-opacity ${isMoreActive ? 'bg-[#25F4EE] opacity-100' : 'opacity-0'}`}
           />
-          <MoreHorizontal className="w-5 h-5" strokeWidth={isMoreActive ? 2.4 : 1.7} />
+          <MoreHorizontal className="w-5 h-5" strokeWidth={1.85} />
           <span className="text-[12px] leading-tight tracking-tight mt-0.5">อื่นๆ</span>
         </button>
       </nav>
@@ -241,16 +330,24 @@ export default function Sidebar({
       {showMoreDrawer && (
         <ModalLayer onClose={closeMoreDrawer} aria-labelledby="more-sheet-title"
           className="fixed inset-0 bg-black/70 backdrop-blur-sm flex flex-col justify-end animate-fadeIn"
-          onClick={() => setShowMoreDrawer(false)}
+          onClick={closeMoreDrawer}
         >
           <div
             onTouchStart={handleMoreSheetTouchStart}
+            onTouchMove={handleMoreSheetTouchMove}
             onTouchEnd={handleMoreSheetTouchEnd}
+            onTouchCancel={handleMoreSheetTouchCancel}
+            style={{
+              transform: moreSheetDragY !== 0 ? `translateY(${moreSheetDragY}px)` : undefined,
+              transition: moreSheetDragY === 0
+                ? 'transform 250ms var(--ease-drawer, cubic-bezier(0.32, 0.72, 0, 1))'
+                : 'none',
+            }}
             className="glass-panel rounded-t-3xl px-4 pt-2.5 pb-[max(1.25rem,env(safe-area-inset-bottom))] space-y-4 max-h-[85dvh] overflow-y-auto overscroll-contain"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Native Mobile Sheet Grab Handle */}
-            <div className="w-12 h-1.5 rounded-full bg-white/20 mx-auto -mt-0.5 mb-1.5 flex-shrink-0" />
+            <div className="w-12 h-1.5 rounded-full bg-white/20 mx-auto -mt-0.5 mb-1.5 flex-shrink-0 touch-none" />
 
             {/* Header */}
             <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
@@ -260,9 +357,9 @@ export default function Sidebar({
               </div>
               <button
                 type="button"
-                onClick={() => setShowMoreDrawer(false)}
+                onClick={closeMoreDrawer}
                 aria-label="ปิดเมนูเพิ่มเติม"
-                className="w-11 h-11 -mr-1 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/[0.06] cursor-pointer"
+                className="w-11 h-11 -mr-1 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/[0.06] active:scale-[0.97] transition-[transform,background-color,color] duration-150 active:duration-100 ease-out cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -279,9 +376,9 @@ export default function Sidebar({
               <button
                 onClick={() => {
                   setActiveTab('assets');
-                  setShowMoreDrawer(false);
+                  closeMoreDrawer();
                 }}
-                className={`w-full flex items-center justify-between min-h-11 p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                className={`w-full flex items-center justify-between min-h-11 p-3.5 rounded-2xl border active:scale-[0.98] transition-[transform,background-color,border-color,color] duration-150 active:duration-100 ease-out cursor-pointer ${
                   activeTab === 'assets'
                     ? 'bg-[#25F4EE]/10 border-[#25F4EE]/40 text-[#25F4EE]'
                     : 'bg-white/[0.03] border-white/[0.06] text-slate-200 hover:bg-white/[0.06]'
@@ -303,9 +400,9 @@ export default function Sidebar({
               <button
                 onClick={() => {
                   setActiveTab('analytics');
-                  setShowMoreDrawer(false);
+                  closeMoreDrawer();
                 }}
-                className={`w-full flex items-center justify-between min-h-11 p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                className={`w-full flex items-center justify-between min-h-11 p-3.5 rounded-2xl border active:scale-[0.98] transition-[transform,background-color,border-color,color] duration-150 active:duration-100 ease-out cursor-pointer ${
                   activeTab === 'analytics'
                     ? 'bg-[#25F4EE]/10 border-[#25F4EE]/40 text-[#25F4EE]'
                     : 'bg-white/[0.03] border-white/[0.06] text-slate-200 hover:bg-white/[0.06]'
@@ -332,9 +429,9 @@ export default function Sidebar({
               <button
                 onClick={() => {
                   setActiveTab('settings');
-                  setShowMoreDrawer(false);
+                  closeMoreDrawer();
                 }}
-                className={`w-full flex items-center justify-between min-h-11 p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                className={`w-full flex items-center justify-between min-h-11 p-3.5 rounded-2xl border active:scale-[0.98] transition-[transform,background-color,border-color,color] duration-150 active:duration-100 ease-out cursor-pointer ${
                   activeTab === 'settings'
                     ? 'bg-[#25F4EE]/10 border-[#25F4EE]/40 text-[#25F4EE]'
                     : 'bg-white/[0.03] border-white/[0.06] text-slate-200 hover:bg-white/[0.06]'
@@ -360,10 +457,10 @@ export default function Sidebar({
                 <button
                   type="button"
                   onClick={() => {
-                    setShowMoreDrawer(false);
+                    closeMoreDrawer();
                     setShowMobileModal(true);
                   }}
-                  className="pointer-coarse:hidden flex-1 min-h-11 flex items-center justify-center gap-2 p-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-slate-200 text-sm font-bold cursor-pointer"
+                  className="pointer-coarse:hidden flex-1 min-h-11 flex items-center justify-center gap-2 p-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-slate-200 text-sm font-bold active:scale-[0.97] transition-[transform,background-color] duration-150 active:duration-100 ease-out cursor-pointer"
                 >
                   <Smartphone className="w-4 h-4 text-[#25F4EE]" />
                   <span>สแกน QR มือถือ</span>
@@ -373,9 +470,9 @@ export default function Sidebar({
                   type="button"
                   onClick={() => {
                     toggleFullscreen();
-                    setShowMoreDrawer(false);
+                    closeMoreDrawer();
                   }}
-                  className="flex-1 min-h-11 flex items-center justify-center gap-2 p-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-slate-200 text-sm font-bold cursor-pointer"
+                  className="flex-1 min-h-11 flex items-center justify-center gap-2 p-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-slate-200 text-sm font-bold active:scale-[0.97] transition-[transform,background-color] duration-150 active:duration-100 ease-out cursor-pointer"
                 >
                   {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
                   <span>{isFullscreen ? 'ย่อหน้าจอ' : 'ขยายเต็มหน้าจอ'}</span>
@@ -387,7 +484,7 @@ export default function Sidebar({
                   type="button"
                   onClick={handleLogout}
                   disabled={loggingOut}
-                  className="w-full min-h-11 flex items-center justify-center gap-2 p-3 rounded-2xl bg-rose-500/10 hover:bg-rose-500/15 border border-rose-500/30 text-rose-200 text-sm font-bold cursor-pointer disabled:opacity-60"
+                  className="w-full min-h-11 flex items-center justify-center gap-2 p-3 rounded-2xl bg-rose-500/10 hover:bg-rose-500/15 border border-rose-500/30 text-rose-200 text-sm font-bold active:scale-[0.97] disabled:active:scale-100 transition-[transform,background-color] duration-150 active:duration-100 ease-out cursor-pointer disabled:opacity-60"
                 >
                   <LogOut className="w-4 h-4" />
                   <span>{loggingOut ? 'กำลังออกจากระบบ' : 'ออกจากระบบ'}</span>
@@ -409,7 +506,7 @@ export default function Sidebar({
               autoFocus
               onClick={() => setShowMobileModal(false)}
               aria-label="ปิด QR modal"
-              className="absolute top-3 right-3 w-11 h-11 p-2 rounded-xl hover:bg-white/[0.1] text-slate-400 hover:text-white transition-colors cursor-pointer flex items-center justify-center border border-white/[0.06]"
+              className="absolute top-3 right-3 w-11 h-11 p-2 rounded-xl hover:bg-white/[0.1] text-slate-400 hover:text-white active:scale-[0.97] transition-[transform,background-color,color] duration-150 active:duration-100 ease-out cursor-pointer flex items-center justify-center border border-white/[0.06]"
             >
               <X className="w-5 h-5" />
             </button>
@@ -440,7 +537,7 @@ export default function Sidebar({
                 />
                 <button
                   onClick={copyMobileLink}
-                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:opacity-90 text-white text-xs font-bold flex items-center gap-1 transition-colors flex-shrink-0 cursor-pointer shadow-md"
+                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#25F4EE] hover:opacity-90 text-white text-xs font-bold flex items-center gap-1 active:scale-[0.97] transition-[transform,opacity,background-color] duration-150 active:duration-100 ease-out flex-shrink-0 cursor-pointer shadow-md"
                 >
                   {copied ? <><Check className="w-3.5 h-3.5 text-white" /> คัดลอกแล้ว</> : <><Copy className="w-3.5 h-3.5" /> คัดลอกลิงก์</>}
                 </button>

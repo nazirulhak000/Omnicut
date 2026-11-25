@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round ANTIGRAVITY-SWARM-FIX-RENDER-FREEZE-HOOK-COVER-20261124 | แก้ไขระบบผลิตคลิป, Freeze-Frame, Hook Safe Zone และระบบปก 3:4 ทั้งสายพานแบบขนานด้วย Swarm 5 Agents (P0-P2): ซ่อมและรีเจนปก 88 รายการ (0/88 error 409), แก้อาการ 1-frame freeze (0.033s) และ MM.SS cache leak, ย้ายตำแหน่ง Couple Paper Chat พ้น 0-240px TikTok Top Dead Zone, เชื่อมต่อ ghost_reveal & reveal_color_sync, ปรับ font weight lookup, และตั้งค่า default bgmDucking: true · ผ่าน 307 backend tests, 1,337 frontend tests, Vite build 604ms | 2026-11-24 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) - Swarm Coordinator |
 | Round ANTIGRAVITY-SPEED-ROUND2-CATEGORY1-FIXES-20261118 | แก้ไขงานหมวดที่ 1 จากรายงานความเร็วรอบสอง (`SPEED_ROUND2_AUDIT_20261118.md`) ครบชุด (R1, R2, R3, ข1, ก1): ถอดการเขียนทับ `voiceover.wav` ใน `audio_mix_stage.py`/`sfx_manager.py`, เพิ่ม MP4 box boundary check จับไฟล์ `+faststart` ตัดครึ่งใน `media_validation.py`, บังคับ UTF-8 ใน `api_iphone.py`, อัปเกรด `tiktok_enhancer.py` probe การ์ดจอจริงรองรับ NVENC/AMF/QSV/VideoToolbox, เพิ่ม `ram_safe_concurrency` คุม batch ตาม RAM ว่าง; เทส 5/5 + compileall ผ่าน 100% | 2026-11-18 | ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round CLAUDE-SPEED-AND-HARDENING-PHASE2-20261112 | ปิดรอบ ข2/ก1/ข1/P0/P1 (ผ่าน merge f143e2f) ข้อค้างทำในช่วง 3–5 · ดำเนินการโดย: Claude Code (Claude Fable 5.2) |
 | Round ANTIGRAVITY-FIX-TTS-TAIL-GLITCH-PERMANENT-20261117 | ถอนรากถอนโคนเสียงขยะท้ายคลิป (Gemini Flash TTS EOS Digital Noise & Clipping Burst) อย่างถาวร 100% พร้อมทำความสะอาดไฟล์เสียงทั้ง 7 คลิปของ TRANYOO T-S20 (TRA03) และป้องกัน 2 ชั้น (Engine + Mixer) · ผ่าน 7/7 tail artifact tests, 36/36 gemini tests, 228/228 parity tests 100% | 2026-11-17 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
@@ -166,6 +167,39 @@
 | Round HYPERFRAMES-HUB-THEME-AND-SMART-CREATOR-20261010 | ยกระดับ Creative Studio (HyperFramesHub.jsx) เต็มรูปแบบ: ปรับ Theme Parity ทั้งหน้าให้ตรงกับ OmniCut Pro Studio (#080B11 Deep Obsidian, #25F4EE Neon Cyan, #FE2C55 TikTok Rose), เพิ่มระบบ Smart Unique Clip ID Auto-Generator ตรวจจับความซ้ำแบบเรียลไทม์พร้อมปุ่มสุ่มรหัสใหม่, เพิ่มตัวเลือกดึงบทสคริปต์จาก 10 Angles ของสินค้า (ProductStore) และ 4 พรีเซ็ตบทแชท LINE Scenario สำหรับ POV Chat Story, เพิ่มการ์ดอธิบาย Multi-Agent 3-Step Pipeline (Whisper -> Creative AI Agent / ⌘K -> Chrome Headless MP4 Renderer), ผ่าน npm test 853/853, pytest 8/8, production build 100% | 2026-10-10 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
 | Round HYPERFRAMES-STUDIO-HEALTH-CLEANUP-20261010 | ตรวจสอบความสมบูรณ์และแก้ไขปัญหาคลิปเปิดดูไม่ได้ใน HyperFrames Studio: เปลี่ยนนามสกุลไฟล์เทมเพลตดิบ `clips/ess02-hype-25s/template.html` และ `kit/index.template.html` เป็น `.tpl` เพื่อกัน Studio สแกนแล้วเกิด SyntaxError Unexpected token '{', อัปเดต `make.py` และ `hf_timing.py`, เพิ่ม `@font-face` ฟอนต์ Anuphan ใน `kit/line-chat.css` และ `ess02-vs-25s.html`, แก้ไขจนผ่าน `hyperframes check` 0 error (60/60 WCAG AA contrast pass), ยืนยัน Compositions ทั้ง 10 คลิปเปิดดูและเรนเดอร์ได้ 100% ไร้ Error modal, ผ่าน pytest 8/8, npm test 853/853, build 100% | 2026-10-10 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 3.8 Flash) |
 | Round HYPERFRAMES-STYLES-SHOWCASE-REDESIGN-20261010 | ออกแบบหน้าจอ 4 Approved Styles ใน Creative Studio (HyperFramesHub.jsx) ใหม่ ให้มินิมอลแต่ข้อมูลครบถ้วน: เพิ่มรูปปกจำลองแนวตั้ง 9:16 (StylePosterMockup.jsx) แสดงอัตลักษณ์และ HUD ของ 4 สไตล์ไวรัล (VS Battle, Tech Explainer, Meme-PAS, POV Chat Story), เพิ่มไทม์ไลน์จังหวะการตัด Beat-by-Beat Timeline Pills, เสริม Style Detail Modal ดูเจาะลึกพร้อมสเปกและสูตรการตัด, ปรับตามมาตรฐาน /impeccable และ /ui-ux-pro-max, ปุ่มขึ้นต้นกริยาไม่มีสัญลักษณ์นำตามกฎ 3.8/4.8, ผ่าน npm test 853/853, pytest 8/8, production build 100% | 2026-10-10 | ปิดรอบแล้ว · ดำเนินการโดย: Antigravity (Gemini 2.5 Pro) |
+---
+
+## Round ANTIGRAVITY-SWARM-FIX-RENDER-FREEZE-HOOK-COVER-20261124
+
+**วันที่:** 2026-11-24  
+**ดำเนินการโดย:** Antigravity (Gemini 3.8 Flash High) - Swarm Coordinator + Swarm Agents (`fix-cover-queue`, `fix-freeze-matcher`, `fix-hook-safezone`, `fix-engine-consistency`, `pipeline-verifier`)
+
+### สรุปผลการดำเนินงานแก้ไขปัญหาทั้งสายพาน (P0, P1, P2):
+1. **แก้ปัญหาปก 3:4 และคิวส่งออก (`@fix-cover-queue`)**:
+   - `scripts/auto_cover.py`: ปรับปรุง `_binding_state()` ให้ตรวจสอบ SHA-256 ทั้งขนาด `9:16` และ `3:4` สำหรับปกประเภท `"auto"` พร้อมระบบ Auto-Heal อัตโนมัติเมื่อตรวจพบข้อผิดพลาด `ChannelError(409)`
+   - `scripts/api_covers.py`: ตัดข้อความจุดไข่ปลา `"..."` ใน `generate_hook_ideas` ออกตาม Rule 3.7 และขยายระยะ Safe-Zone 3:4 Crop Guard ครอบคลุมพิกัด Y 80..360 พร้อมระบบป้องกันขอบล่างไม่ให้ผ่าครึ่งซับไตเติล
+   - `frontend/src/components/CoverStudioModal.jsx`: ปรับปรุงให้ `subText` ดึงชื่อสินค้าคลีน (`productName`) และ `hookText` ดึง Hook จริง พร้อมแสดงผลเทมเพลต `tech_neon` ในพรีวิว 3:4 ครบถ้วน
+   - `ProductStore`: ทำความสะอาดชื่อสินค้า OKDO Balance 2 (ถอดเลขโรมัน `Ⅱ`), ทำความสะอาด Buddytech และตัดคำต้องห้ามราคา `"หูฟังคุณภาพดีราคาประหยัด"` ออกจาก `JBL01`
+   - `ScheduleQueueStore`: ซิงก์ข้อมูล `angle_id`, `hook_title`, `product_name` ของคิวที่ยังไม่โพสต์ทั้งหมด 60 รายการ
+   - `ExportCoverBindingStore`: ดำเนินการรีเจนและผูกปกใหม่ครบทั้ง 88 ปก auto จากวิดีโอตัวล่าสุด ตรวจสอบยืนยันพบข้อผิดพลาด 409 กลายเป็น **0/88 รายการ (0%)**
+2. **แก้ปัญหาภาพค้าง 1 เฟรม และแคชเวลา MM.SS (`@fix-freeze-matcher`)**:
+   - `scripts/gemini_vision_matcher.py`: ปรับปรุง `_lookup_cached_matches` ให้ผ่านการ normalize เวลาเสมอ ป้องกันการรั่วไหลของเวลาแบบ `MM.SS` และแก้ปัญหา Single-Scene Collapse โดยการตรวจวัดเวลาที่เหลือของฉาก หากฉากคีย์เวิร์ดหมดเวลา (<0.35s) ระบบจะหมุนเวียนไปใช้ฉากอื่นแทนการค้างภาพ 0.033s
+   - `scripts/shot_source_window.py` & `scripts/stages/shot_matching_stage.py`: ป้องกัน `_split_groups` ไม่ให้หั่นช็อตที่เหลือเนื้อวิดีโอไม่พอ (<0.5s) จนกลายเป็นคลิป `hold_only`
+3. **แก้ปัญหา Hook Safe Zone & Preview/Render Parity (`@fix-hook-safezone`)**:
+   - ปรับตำแหน่งหัวเรื่อง Couple Paper Chat ใน `scripts/couple_engine/compose.py` และคอมโพซิชัน HyperFrames 14 ไฟล์ จาก `top: 110px` เป็น `top: 250px` หลบพ้น TikTok Top Dead Zone 0–240px
+   - `SequencePlayer.jsx`: ปรับกรอบแสดงผล `SAFE ZONE (9:16)` จาก `top-[9.4%]` (180px) เป็น `top-[13.5%]` (260px) ตรงตามมาตรฐาน Hook Y=260px
+4. **แก้ปัญหาความสอดคล้องของเอนจิน (`@fix-engine-consistency`)**:
+   - เชื่อมต่อตัวแปร `ghost_reveal` และ `reveal_color_sync` จาก `NewClipPanel` ผ่าน `api_schemas.py` และ `api_render.py` เข้าสู่ Pipeline
+   - ปรับปรุง `mobile_quick_studio.py` ใช้ฟอนต์มาตรฐาน `IBMPlex`, เรียก `ensure_tiktok_sharp` และ `ensure_default_cover`
+   - ปรับปรุงการค้นหา Font Weight ใน `scripts/subtitle/word_layout.py` ผ่าน `_resolve_family_font_path`
+   - ตัดทรานซิชันที่ช้า (`fadeblack`, `fadewhite`) ออกจาก `EASED_TRANSITIONS`
+   - ปรับค่าเริ่มต้น `bgmDucking: true` ใน Frontend สอดคล้องกับ Backend
+5. **ผลการทดสอบและการตรวจสอบ (Verification Gate)**:
+   - Backend Pytest (`test_preview_render_parity.py`, `test_preview_render_behavior.py`, `test_auto_cover.py`, `test_export_cover_bindings.py`, `test_covers_pro.py`, `test_vision_timestamp_normalizer.py`, `test_gemini_vision_match.py`): **307 passed, 1 skipped, 0 failed**
+   - Frontend Vitest: **1,337 passed, 0 failed (100%)**
+   - Frontend Production Build: **สำเร็จใน 604ms (0 errors)**
+   - Live Data Integrity: Auto cover 409 errors = **0/88**, Roman numeral `Ⅱ` = **0**, Price hooks = **0**
+
 ---
 
 ## Round CLAUDE-SPEED-AND-HARDENING-PHASE2-20261112 · ปิดรอบ 2026-11-18 (ย้ายจาก TODO) · ดำเนินการโดย: Claude Code (Claude Fable 5.2)

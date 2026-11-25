@@ -16,6 +16,7 @@ from scripts.subtitle.font_metrics import (
     DEFAULT_FONT_FAMILY,
     _load_font_family_map,
     _missing_font_error,
+    _resolve_family_font_path,
     ass_glyph_scale,
 )
 
@@ -77,11 +78,17 @@ def get_scaled_font(font_name: str, font_size_px: float) -> Tuple[Optional[Image
     """
     font_map = _load_font_family_map()
     resolved_font = font_map.get(font_name, font_name)
-    family_to_path = {f["family"]: f["path"] for f in AssetRegistry.fonts()}
-    path = family_to_path.get(resolved_font)
+    all_fonts = AssetRegistry.fonts()
+    if not all_fonts:
+        raise _missing_font_error(resolved_font)
+
+    path = _resolve_family_font_path(resolved_font)
     if not path:
-        resolved_font = DEFAULT_FONT_FAMILY
+        family_to_path = {f["family"]: f["path"] for f in all_fonts}
         path = family_to_path.get(resolved_font)
+        if not path:
+            resolved_font = DEFAULT_FONT_FAMILY
+            path = _resolve_family_font_path(resolved_font) or family_to_path.get(resolved_font)
     if not path:
         # No silent width estimate (audit S5-02): word positions drive the
         # ghost-reveal anchor, so a guess shifts every caption sideways.

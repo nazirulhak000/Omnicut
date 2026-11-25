@@ -18,7 +18,7 @@ export default function ToggleControl({
     <button
       type="button"
       onClick={() => onChange?.(!checked)}
-      className={`w-full py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-between transition-all ${
+      className={`w-full py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-between cursor-pointer active:scale-[0.98] transition-[background-color,border-color,color,transform] duration-150 active:duration-100 ease-out ${
         checked ? activeClass : inactiveClass
       }`}
     >
@@ -27,12 +27,12 @@ export default function ToggleControl({
         <span>{displayText}</span>
       </span>
       <div
-        className={`w-8 h-4 rounded-full p-0.5 transition-colors ${
+        className={`w-8 h-4 rounded-full p-0.5 transition-colors duration-150 ease-out ${
           checked ? 'bg-[#25F4EE]' : 'bg-[#363430]'
         }`}
       >
         <div
-          className={`w-3 h-3 rounded-full bg-black transition-transform ${
+          className={`w-3 h-3 rounded-full bg-black transition-transform duration-150 ease-out ${
             checked ? 'translate-x-4' : 'translate-x-0'
           }`}
         />

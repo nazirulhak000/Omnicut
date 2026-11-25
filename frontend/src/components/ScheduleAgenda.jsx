@@ -1138,7 +1138,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                 <button
                   type="button"
                   onClick={() => setViewMode('list')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 ${
                     viewMode === 'list' ? 'bg-cyan-400 text-slate-950 shadow-md font-black' : 'text-slate-400 hover:text-white'
                   }`}
                 >
@@ -1148,7 +1148,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                 <button
                   type="button"
                   onClick={() => setViewMode('calendar')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 ${
                     viewMode === 'calendar' ? 'bg-cyan-400 text-slate-950 shadow-md font-black' : 'text-slate-400 hover:text-white'
                   }`}
                 >
@@ -1173,7 +1173,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
               )}
               <button type="button" onClick={openAutofill} className="obsidian-hero-btn px-4 py-2 text-xs flex items-center gap-1.5 shadow-lg"><Shuffle className="w-4 h-4" />จัดคิวอัตโนมัติ</button>
               <button type="button" onClick={openSingle} className="px-3.5 py-2 rounded-xl border border-white/[0.12] bg-white/[0.05] text-white text-xs font-bold flex items-center gap-1.5 hover:bg-white/[0.1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"><Plus className="w-4 h-4" />เพิ่มคลิป</button>
-              <button type="button" onClick={openBulk} className="px-3.5 py-2 rounded-xl border border-cyan-400/30 bg-cyan-400/10 text-cyan-200 text-xs font-bold flex items-center gap-1.5 hover:bg-cyan-400/20 hover:border-cyan-400/50 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 shadow-sm"><Layers className="w-4 h-4 text-cyan-300" />เพิ่มเป็นชุด</button>
+              <button type="button" onClick={openBulk} className="px-3.5 py-2 rounded-xl border border-cyan-400/30 bg-cyan-400/10 text-cyan-200 text-xs font-bold flex items-center gap-1.5 hover:bg-cyan-400/20 hover:border-cyan-400/50 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 shadow-sm"><Layers className="w-4 h-4 text-cyan-300" />เพิ่มเป็นชุด</button>
               <button type="button" onClick={toggleSelectionMode} className="px-3 py-2 rounded-xl border border-white/[0.12] bg-white/[0.03] text-slate-200 text-xs font-bold flex items-center gap-1.5 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300">
                 <List className="w-4 h-4" />{selectionMode ? 'เสร็จสิ้น' : 'เลือกหลายคิว'}
               </button>
@@ -1258,7 +1258,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                   key={tab.id}
                   type="button"
                   onClick={() => setDateFilter(tab.id)}
-                  className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                  className={`px-2.5 py-1 rounded-lg font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 ${
                     dateFilter === tab.id
                       ? 'bg-cyan-400 text-slate-950 font-black shadow-sm'
                       : 'text-slate-400 hover:text-white'
@@ -1349,7 +1349,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
                   key={day.date}
                   onDragOver={(event) => event.preventDefault()}
                   onDrop={() => onDropDate(day.date)}
-                  className={`rounded-2xl border transition-all flex flex-col min-h-[340px] overflow-hidden ${
+                  className={`rounded-2xl border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex flex-col min-h-[340px] overflow-hidden ${
                     day.isToday
                       ? 'border-cyan-400/40 bg-cyan-400/[0.04]'
                       : 'border-white/[0.08] bg-[#0A0D14]'
@@ -1752,7 +1752,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
               <button
                 type="button"
                 onClick={() => setBulkDraft((prev) => ({ ...prev, mode: 'daily' }))}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 ${
                   bulkDraft.mode === 'daily'
                     ? 'bg-cyan-400 text-slate-950 font-black shadow-md'
                     : 'text-slate-300 hover:text-white hover:bg-white/[0.05]'
@@ -1764,7 +1764,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
               <button
                 type="button"
                 onClick={() => setBulkDraft((prev) => ({ ...prev, mode: 'interval' }))}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 ${
                   bulkDraft.mode === 'interval'
                     ? 'bg-cyan-400 text-slate-950 font-black shadow-md'
                     : 'text-slate-300 hover:text-white hover:bg-white/[0.05]'

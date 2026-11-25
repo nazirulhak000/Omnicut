@@ -188,7 +188,14 @@ def stamp_hook_tiers(
     base_fs = round(img.width * COVER_BASE_FS_RATIO)
     font_path = _font_path_for_family(resolved["font"])
 
-    y = round(img.height * 0.09)
+    # 3:4 profile grid crop compatibility:
+    # 9:16 (1080x1920) center crop to 3:4 (1080x1440) chops off top 240px.
+    # To leave ~80px breathing room inside the 3:4 frame, text in 9:16 must start at y >= 320px.
+    # On 3:4 canvas directly (height <= 1440), start at y = max(80, round(height * 0.06)).
+    if img.height > 1440:
+        y = max(320, round(img.height * 0.17))
+    else:
+        y = max(80, round(img.height * 0.06))
     for i, key in enumerate(TIER_KEYS):
         text = texts[i].strip()
         if not text:
@@ -582,7 +589,7 @@ def generate_hook_ideas(
         hooks.insert(0, {
             "style": "angle",
             "category": "ตรงประเด็นคลิป",
-            "text": at_clean if len(at_clean) < 30 else f"{at_clean[:25]}...",
+            "text": at_clean[:30].strip(),
         })
 
     return hooks
@@ -926,7 +933,9 @@ def render_pro_cover(
     line_spacing = 18
     all_lines = hook_lines + sub_lines
     total_height = len(hook_lines) * (main_font_size + line_spacing) + len(sub_lines) * (sub_font_size + line_spacing)
-    start_y = max(120, round(y_anchor - total_height / 2.0))
+    # In 9:16 canvas destined for 3:4 profile grid crop (top 240px removed),
+    # start_y must not be higher than y=320px, preserving >=80px margin in 3:4.
+    start_y = max(320, round(y_anchor - total_height / 2.0))
 
     # 6. Render selected template if text is enabled and present
     tmpl = template_name
@@ -1104,10 +1113,10 @@ def render_pro_cover(
 
                 if badge_position == "top_right":
                     bx = COVER_W - target_bw - 50
-                    by = 130
+                    by = 280
                 else:  # "top_left" (default)
                     bx = 50
-                    by = 130
+                    by = 280
 
                 canvas.paste(badge_resized, (bx, by), badge_resized)
             except Exception:
@@ -1121,6 +1130,53 @@ def render_pro_cover(
     # Compute 3:4 profile grid crop (1080 x 1440)
     # Pan moves crop window vertically: 0 is top (cuts bottom 480px subtitles), 100 is bottom
     crop_3x4_y = round((COVER_H - PROFILE_H) * (clamped_pan_y / 100.0))
+
+    # Smart Safe-Zone 3:4 Crop Guard:
+    # If crop_3x4_y (e.g. 240px from default pan_y_pct=50) cuts into top text/banner (y=80..360),
+    # adjust crop_3x4_y upward so top text retains a clean >=80px breathing margin.
+    # Also inspect bottom edge near crop_3x4_y + PROFILE_H to prevent slicing subtitles in half.
+    try:
+        import numpy as np
+        gray = np.array(canvas.convert("L"))
+
+        # Top guard: scan 80..360 for top text/hook overlays
+        top_slice = gray[80:360, :]
+        first_top_y = None
+        if top_slice.std() > 20.0:
+            for r_idx in range(top_slice.shape[0]):
+                if top_slice[r_idx].std() > 20.0:
+                    first_top_y = 80 + r_idx
+                    if crop_3x4_y > 80 and first_top_y < crop_3x4_y + 80:
+                        crop_3x4_y = max(0, min(crop_3x4_y, first_top_y - 80))
+                    break
+
+        # Bottom guard: scan near crop_3x4_y + PROFILE_H so subtitles are not cut in half
+        target_h = PROFILE_H
+        bot_y = crop_3x4_y + target_h
+        scan_b_start = max(0, bot_y - 80)
+        scan_b_end = min(COVER_H, bot_y + 80)
+        bot_slice = gray[scan_b_start:scan_b_end, :]
+        if bot_slice.std() > 20.0:
+            bot_text_rows = [scan_b_start + r for r in range(bot_slice.shape[0]) if bot_slice[r].std() > 20.0]
+            if bot_text_rows:
+                first_bot_y = bot_text_rows[0]
+                last_bot_y = bot_text_rows[-1]
+                if first_bot_y - 40 < bot_y < last_bot_y + 40:
+                    shift_up = first_bot_y - 40 - target_h
+                    if shift_up >= 0:
+                        crop_3x4_y = shift_up
+                    else:
+                        shift_down = last_bot_y + 40 - target_h
+                        max_top = (first_top_y - 80) if first_top_y is not None else (COVER_H - target_h)
+                        if shift_down <= max_top:
+                            crop_3x4_y = shift_down
+                        else:
+                            crop_3x4_y = max(0, shift_up)
+
+        crop_3x4_y = max(0, min(crop_3x4_y, COVER_H - PROFILE_H))
+    except Exception:
+        pass
+
     canvas_3x4 = canvas.crop((0, crop_3x4_y, PROFILE_W, crop_3x4_y + PROFILE_H))
 
     if aspect_ratio == "3:4":

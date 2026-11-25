@@ -144,6 +144,8 @@ def coalesce_short_windows(groups, boundaries, onsets, matches, raw_duration,
                 starts.append(onsets[stop] if cursor == boundaries[stop] else None)
         elif window and duration > window_len + 1e-6:
             cues = [cue for group in groups[index:stop] for cue in group]
+            if exhausted is not None and duration - window_len > 0.05:
+                exhausted.add(id(cues))
             cursor = boundaries[index]
             while cursor < boundaries[stop] - 1e-6:
                 remaining = boundaries[stop] - cursor

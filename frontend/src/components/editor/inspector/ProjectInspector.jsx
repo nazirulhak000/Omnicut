@@ -124,7 +124,7 @@ export default function ProjectInspector({
                   <button
                     type="button"
                     onClick={() => toggleMute(track.id)}
-                    className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer ${
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                       isMuted
                         ? 'bg-rose-500/30 border-rose-500 text-rose-300 shadow-[0_0_8px_rgba(244,63,94,0.4)]'
                         : 'bg-black/40 border-white/[0.08] text-slate-400 hover:text-white hover:border-white/20'
@@ -137,7 +137,7 @@ export default function ProjectInspector({
                   <button
                     type="button"
                     onClick={() => toggleSolo(track.id)}
-                    className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer ${
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                       isSolo
                         ? 'bg-amber-500/30 border-amber-400 text-amber-200 shadow-[0_0_8px_rgba(245,158,11,0.4)]'
                         : 'bg-black/40 border-white/[0.08] text-slate-400 hover:text-white hover:border-white/20'
@@ -170,7 +170,7 @@ export default function ProjectInspector({
                     type="button"
                     onClick={() => setLevel(level, level.fallback)}
                     disabled={!onStyleChange || levelValue === level.fallback}
-                    className="px-1.5 py-0.5 rounded text-[10px] border border-white/[0.08] text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-default cursor-pointer"
+                    className="px-1.5 py-0.5 rounded text-[10px] border border-white/[0.08] text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-default cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
                     title={`คืนค่าเริ่มต้น ${Math.round(level.fallback * 100)}%`}
                   >
                     คืนค่าเริ่มต้น
@@ -201,7 +201,7 @@ export default function ProjectInspector({
                 sfxVolume: SFX_VOLUME_DEFAULT,
               });
             }}
-            className="py-1.5 px-2 rounded-xl border border-[#25F4EE]/30 bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 text-xs font-bold text-[#25F4EE] transition-colors cursor-pointer"
+            className="py-1.5 px-2 rounded-xl border border-[#25F4EE]/30 bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 text-xs font-bold text-[#25F4EE] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
           >
             ปรับเสียงมาตรฐาน -14 LUFS
           </button>
@@ -209,7 +209,7 @@ export default function ProjectInspector({
             type="button"
             disabled={!onStyleChange}
             onClick={() => onStyleChange?.({ voiceClarity: !style?.voiceClarity })}
-            className={`py-1.5 px-2 rounded-xl border text-xs font-bold transition-colors cursor-pointer ${
+            className={`py-1.5 px-2 rounded-xl border text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
               style?.voiceClarity
                 ? 'border-emerald-400/50 bg-emerald-500/20 text-emerald-300'
                 : 'border-white/[0.1] bg-black/40 text-slate-300 hover:text-white'
@@ -254,7 +254,7 @@ export default function ProjectInspector({
             <button
               type="button"
               onClick={onOpenPreflightModal}
-              className="w-full py-2 px-3 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-xs font-bold text-amber-200 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              className="w-full py-2 px-3 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-xs font-bold text-amber-200 flex items-center justify-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
             >
               <span>ดูรายละเอียดข้อสังเกตทั้งหมด</span>
               <ExternalLink className="w-3.5 h-3.5" />

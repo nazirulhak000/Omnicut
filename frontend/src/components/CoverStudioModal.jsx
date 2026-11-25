@@ -38,16 +38,30 @@ import { toMediaUrl } from '../lib/mediaUrl.js';
 import { captureChannel, isCurrentChannel, registerChannelSwitchParticipant } from '../lib/channelRuntime.js';
 import { createChannelDraftParticipant } from '../lib/channelDraft.js';
 
+function cleanConciseProductName(name) {
+  if (!name || typeof name !== 'string') return '';
+  let cleaned = name.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '').trim();
+  if (!cleaned || cleaned === 'สินค้า') return '';
+  if (cleaned.length > 35) {
+    cleaned = cleaned.slice(0, 35).trim();
+  }
+  return cleaned;
+}
+
 export default function CoverStudioModal({
   isOpen,
   onClose,
   videoItem,
   onCoverSaved,
+  productName: propProductName,
+  initialHook: propInitialHook,
 }) {
   // Paths & info
   const videoPath = videoItem?.path || videoItem?.rel_path || '';
-  const productName = videoItem?.product_name || videoItem?.name || 'สินค้า';
-  const angleTitle = videoItem?.hook_title || videoItem?.angle_name || '';
+  const rawProductName = (propProductName || videoItem?.product_name || videoItem?.name || '').trim();
+  const productName = rawProductName || 'สินค้า';
+  const initialHook = (propInitialHook || videoItem?.hook_title || videoItem?.angle_name || '').trim();
+  const angleTitle = initialHook;
   const timelineSnapshot = videoItem?.timeline_snapshot || null;
   const timelineSnapshotDataUrl = timelineSnapshot?.data_url || '';
   const timelineSnapshotSeconds = Number(timelineSnapshot?.seconds || 0);
@@ -103,9 +117,9 @@ export default function CoverStudioModal({
   // Hooks & Copy
   const [hookIdeas, setHookIdeas] = useState([]);
   const [hookText, setHookText] = useState(
-    angleTitle ? angleTitle : `อย่าเพิ่งซื้อ ${productName}\nถ้ายังไม่รู้สิ่งนี้!`
+    initialHook || (rawProductName ? `อย่าเพิ่งซื้อ ${rawProductName}\nถ้ายังไม่รู้สิ่งนี้!` : 'อย่าเพิ่งซื้อสินค้านี้\nถ้ายังไม่รู้สิ่งนี้!')
   );
-  const [subText, setSubText] = useState('พิกัดในตะกร้าลดพิเศษ');
+  const [subText, setSubText] = useState(cleanConciseProductName(rawProductName) || 'พิกัดในตะกร้าลดพิเศษ');
   const [hookPosition, setHookPosition] = useState('top'); // "top" | "center" | "bottom"
 
   // Template & Styling
@@ -196,6 +210,13 @@ export default function CoverStudioModal({
     setCustomImageFile(null);
     setCurrentSeconds(timelineSnapshotDataUrl ? timelineSnapshotSeconds : 0.5);
     setLiveFrameUrl(null);
+    const cleanSub = cleanConciseProductName(rawProductName);
+    setSubText(cleanSub || 'พิกัดในตะกร้าลดพิเศษ');
+    if (initialHook) {
+      setHookText(initialHook);
+    } else if (rawProductName && rawProductName !== 'สินค้า') {
+      setHookText(`อย่าเพิ่งซื้อ ${rawProductName}\nถ้ายังไม่รู้สิ่งนี้!`);
+    }
 
     Promise.all([
       getCoverBadges().catch(() => ({ badges: [] })),
@@ -216,7 +237,7 @@ export default function CoverStudioModal({
         if (!mounted) return;
         setBadges(bRes.badges || []);
         setHookIdeas(hRes.hooks || []);
-        if (hRes.hooks && hRes.hooks.length > 0 && !angleTitle) {
+        if (hRes.hooks && hRes.hooks.length > 0 && !initialHook) {
           setHookText(hRes.hooks[0].text);
         }
         if (hlRes.candidates && hlRes.candidates.length > 0) {
@@ -606,7 +627,7 @@ export default function CoverStudioModal({
 
   return (
     <ModalLayer onClose={handleClose} aria-label="สตูดิโอสร้างปก" onChangeCapture={() => { userEditedRef.current = true; }} className="fixed inset-0 flex items-center justify-center p-3 bg-black/80 backdrop-blur-md animate-fadeIn">
-      <div className="bg-[#0A0D14] border border-white/[0.08] rounded-2xl w-full max-w-5xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden">
+      <div className="bg-[#0A0D14] border border-white/[0.08] rounded-2xl w-full max-w-5xl max-h-[94vh] flex flex-col shadow-2xl overflow-hidden animate-scaleUp">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-3.5 border-b border-white/[0.08] bg-[#0A0D14]/90">
           <div className="flex items-center gap-3">
@@ -629,7 +650,7 @@ export default function CoverStudioModal({
             onClick={handleClose}
             aria-label="ปิดสตูดิโอสร้างปก"
             disabled={saving || generatingAi}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] active:scale-[0.95] disabled:active:scale-100 transition-[background-color,color,transform] duration-150 active:duration-100 ease-out cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -708,7 +729,7 @@ export default function CoverStudioModal({
 
                 {/* 3:4 TikTok Profile Red Guide Frame with outside shadow */}
                 <div
-                  className="absolute inset-x-0 border-2 border-red-500/90 pointer-events-none z-20 transition-all shadow-[0_0_0_9999px_rgba(0,0,0,0.42)]"
+                  className="absolute inset-x-0 border-2 border-red-500/90 pointer-events-none z-20 transition-[top] duration-150 ease-out shadow-[0_0_0_9999px_rgba(0,0,0,0.42)]"
                   style={{
                     top: `${guideBoxTop}px`,
                     height: `${guideBoxH}px`,
@@ -722,7 +743,7 @@ export default function CoverStudioModal({
                 {/* Hook Text Layer (Only when enableHookText is True) */}
                 {enableHookText && (
                   <div
-                    className="absolute inset-x-3 pointer-events-none transition-all flex flex-col items-center text-center z-30"
+                    className="absolute inset-x-3 pointer-events-none transition-[top] duration-150 ease-out flex flex-col items-center text-center z-30"
                     style={{
                       top:
                         hookPosition === 'top' ? '22%' : hookPosition === 'center' ? '46%' : '65%',
@@ -933,7 +954,7 @@ export default function CoverStudioModal({
                 {/* Hook Text Layer (if enabled) */}
                 {enableHookText && !showingSavedPreview && (
                   <div
-                    className="absolute inset-x-3 pointer-events-none transition-all flex flex-col items-center text-center z-30"
+                    className="absolute inset-x-3 pointer-events-none transition-[top] duration-150 ease-out flex flex-col items-center text-center z-30"
                     style={{
                       top:
                         hookPosition === 'top' ? '18%' : hookPosition === 'center' ? '42%' : '65%',
@@ -979,6 +1000,36 @@ export default function CoverStudioModal({
                             {line}
                           </span>
                         ))}
+                      </div>
+                    )}
+                    {template === 'tech_neon' && (
+                      <div className="flex flex-col items-center gap-0.5 max-w-full">
+                        {hookText.split('\n').map((line, idx) => {
+                          const isBrand = idx === 0;
+                          return (
+                            <span
+                              key={idx}
+                              className={`font-black uppercase tracking-wider leading-none ${
+                                isBrand
+                                  ? 'text-white text-xs sm:text-sm'
+                                  : 'text-[#39FF14] text-sm sm:text-base italic'
+                              }`}
+                              style={{
+                                textShadow:
+                                  '0 0 4px #000, 0 0 8px #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000, 0 3px 6px rgba(0,0,0,0.95)',
+                              }}
+                            >
+                              {line}
+                            </span>
+                          );
+                        })}
+                        {subText && (
+                          <div className="mt-1 bg-black/85 border border-[#39FF14]/80 px-2 py-0.5 rounded-full shadow-lg">
+                            <span className="text-white font-bold text-[9px] tracking-wide">
+                              {subText}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1102,7 +1153,7 @@ export default function CoverStudioModal({
                   <button
                     type="button"
                     onClick={handleSwitchToTimeline}
-                    className={`flex-1 py-1.5 px-2 rounded-lg font-bold transition-all text-center cursor-pointer ${
+                    className={`flex-1 py-1.5 px-2 rounded-lg font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 text-center cursor-pointer ${
                       activeSourceType === 'timeline'
                         ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30'
                         : 'text-slate-400 hover:text-slate-200'
@@ -1115,7 +1166,7 @@ export default function CoverStudioModal({
                   type="button"
                   onClick={handleSwitchToExported}
                   disabled={!videoPath}
-                  className={`flex-1 py-1.5 px-2 rounded-lg font-bold transition-all text-center cursor-pointer ${
+                  className={`flex-1 py-1.5 px-2 rounded-lg font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 text-center cursor-pointer ${
                     activeSourceType === 'exported'
                       ? 'bg-white/[0.08] text-white border border-white/[0.12]'
                       : 'text-slate-400 hover:text-slate-200'
@@ -1128,7 +1179,7 @@ export default function CoverStudioModal({
                   <button
                     type="button"
                     onClick={() => handleSwitchToRawSource(rawSources[0].path)}
-                    className={`flex-1 py-1.5 px-2 rounded-lg font-bold transition-all text-center cursor-pointer ${
+                    className={`flex-1 py-1.5 px-2 rounded-lg font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 text-center cursor-pointer ${
                       activeSourceType === 'raw'
                         ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
                         : 'text-slate-400 hover:text-slate-200'
@@ -1142,7 +1193,7 @@ export default function CoverStudioModal({
                   <button
                     type="button"
                     onClick={handleSwitchToProductRef}
-                    className={`py-1.5 px-3 rounded-lg font-bold transition-all text-center cursor-pointer flex items-center gap-1.5 ${
+                    className={`py-1.5 px-3 rounded-lg font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 text-center cursor-pointer flex items-center gap-1.5 ${
                       activeSourceType === 'product_ref'
                         ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
                         : 'text-amber-400/80 hover:text-amber-200'
@@ -1156,7 +1207,7 @@ export default function CoverStudioModal({
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className={`py-1.5 px-3 rounded-lg font-bold transition-all text-center cursor-pointer flex items-center gap-1 ${
+                  className={`py-1.5 px-3 rounded-lg font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 text-center cursor-pointer flex items-center gap-1 ${
                     activeSourceType === 'upload'
                       ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30'
                       : 'text-slate-400 hover:text-slate-200'
@@ -1169,7 +1220,7 @@ export default function CoverStudioModal({
                 <button
                   type="button"
                   onClick={handleSwitchToAiGen}
-                  className={`py-1.5 px-3 rounded-lg font-bold transition-all text-center cursor-pointer flex items-center gap-1 ${
+                  className={`py-1.5 px-3 rounded-lg font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 text-center cursor-pointer flex items-center gap-1 ${
                     activeSourceType === 'ai_gen'
                       ? 'bg-purple-500/15 text-purple-300 border border-purple-500/30'
                       : 'text-purple-400 hover:text-purple-200'
@@ -1209,7 +1260,7 @@ export default function CoverStudioModal({
                           key={idx}
                           type="button"
                           onClick={() => handleSelectProductRefImage(img)}
-                          className={`group relative aspect-square rounded-lg overflow-hidden border transition-all cursor-pointer ${
+                          className={`group relative aspect-square rounded-lg overflow-hidden border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                             isSelected
                               ? 'border-amber-400 ring-1 ring-amber-400/50 shadow scale-95'
                               : 'border-white/[0.08] hover:border-amber-400/40 hover:scale-100'
@@ -1233,7 +1284,7 @@ export default function CoverStudioModal({
                     <button
                       type="button"
                       onClick={handleSwitchToAiGen}
-                      className="px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded-md text-xs font-bold transition-all flex items-center gap-1 shadow-sm cursor-pointer"
+                      className="px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded-md text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 flex items-center gap-1 shadow-sm cursor-pointer"
                     >
                       <Sparkles className="w-3 h-3" />
                       ส่งรูปนี้ให้ AI ผสานฉาก
@@ -1289,7 +1340,7 @@ export default function CoverStudioModal({
                                 if (item.method) setAiGenMethod(item.method);
                                 setLastAiCover(item);
                               }}
-                              className={`group relative shrink-0 w-16 h-28 rounded-lg overflow-hidden border-2 transition-all cursor-pointer flex flex-col ${
+                              className={`group relative shrink-0 w-16 h-28 rounded-lg overflow-hidden border-2 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer flex flex-col ${
                                 isActive
                                   ? 'border-amber-400 ring-1 ring-amber-400/50 scale-105 shadow-sm'
                                   : 'border-white/[0.08] opacity-75 hover:opacity-100 hover:border-purple-400/60'
@@ -1346,7 +1397,7 @@ export default function CoverStudioModal({
                           onChange={(e) => setEnableHookText(e.target.checked)}
                           className="sr-only peer"
                         />
-                        <div className="w-9 h-5 bg-white/[0.1] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
+                        <div className="w-9 h-5 bg-white/[0.1] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 transition-colors duration-150 ease-out after:transition-[transform,border-color] after:duration-150 after:ease-out peer-checked:bg-amber-500"></div>
                       </label>
                     </div>
 
@@ -1441,7 +1492,7 @@ export default function CoverStudioModal({
                             setCustomImage(null);
                             setCustomImageFile(null);
                           }}
-                          className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[10px] font-medium transition-all cursor-pointer ${
+                          className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[10px] font-medium transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                             !selectedRefImage
                               ? 'bg-purple-600/25 border-purple-400 text-purple-200 shadow-sm'
                               : 'bg-[#0A0D14] border-white/[0.08] text-slate-400 hover:text-slate-200'
@@ -1461,7 +1512,7 @@ export default function CoverStudioModal({
                                 setCustomImage(img.url);
                                 setCustomImageFile(img.local_path || img.url);
                               }}
-                              className={`shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[10px] font-medium transition-all cursor-pointer ${
+                              className={`shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[10px] font-medium transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                                 isSel
                                   ? 'bg-amber-500/20 border-amber-400 text-amber-200 ring-1 ring-amber-400/50 shadow-sm'
                                   : 'bg-[#0A0D14] border-white/[0.08] text-slate-400 hover:border-amber-400/40'
@@ -1546,7 +1597,7 @@ export default function CoverStudioModal({
                       type="button"
                       onClick={() => handleGenerateAiCover()}
                       disabled={generatingAi || !aiPrompt.trim()}
-                      className="w-full sm:w-auto px-4 py-2 rounded-lg font-bold text-xs bg-purple-600 hover:bg-purple-500 text-white border border-purple-500/30 disabled:opacity-50 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                      className="w-full sm:w-auto px-4 py-2 rounded-lg font-bold text-xs bg-purple-600 hover:bg-purple-500 text-white border border-purple-500/30 disabled:opacity-50 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 flex items-center justify-center gap-2 cursor-pointer"
                     >
                       {generatingAi ? (
                         <>
@@ -1593,7 +1644,7 @@ export default function CoverStudioModal({
                         key={idx}
                         type="button"
                         onClick={() => handleSelectCandidate(cand)}
-                        className={`group relative rounded-lg overflow-hidden border transition-all text-left flex flex-col cursor-pointer ${
+                        className={`group relative rounded-lg overflow-hidden border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 text-left flex flex-col cursor-pointer ${
                           isSelected
                             ? 'border-amber-400 ring-1 ring-amber-400/40 shadow-sm'
                             : 'border-white/[0.08] hover:border-white/[0.2] opacity-80 hover:opacity-100'
@@ -1603,7 +1654,7 @@ export default function CoverStudioModal({
                           <img
                             src={toMediaUrl(cand.thumb_url, ownerRef.current.channel_id)}
                             alt={cand.label}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                            className="w-full h-full object-cover [@media(hover:hover)_and_(pointer:fine)]:group-hover:scale-105 transition-transform"
                           />
                           <span className="absolute bottom-1 right-1 px-1 py-0.2 rounded bg-black/80 font-mono text-[9px] text-white">
                             {cand.timestamp.toFixed(1)}s
@@ -1716,7 +1767,7 @@ export default function CoverStudioModal({
                             key={i}
                             type="button"
                             onClick={() => setHookText(h.text)}
-                            className={`text-xs px-2.5 py-1 rounded-lg border transition-all text-left cursor-pointer ${
+                            className={`text-xs px-2.5 py-1 rounded-lg border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 text-left cursor-pointer ${
                               hookText === h.text
                                 ? 'bg-cyan-500/15 border-cyan-400 text-cyan-300 font-semibold'
                                 : 'bg-white/[0.03] border-white/[0.08] hover:border-white/[0.18] text-slate-300'
@@ -1841,7 +1892,7 @@ export default function CoverStudioModal({
                         key={t.id}
                         type="button"
                         onClick={() => setTemplate(t.id)}
-                        className={`p-2.5 rounded-xl border text-left transition-all flex flex-col justify-between cursor-pointer ${
+                        className={`p-2.5 rounded-xl border text-left transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 flex flex-col justify-between cursor-pointer ${
                           isSel
                             ? 'border-emerald-500 bg-emerald-500/10 text-white shadow-sm'
                             : 'border-white/[0.08] bg-[#07090E] hover:border-white/[0.18]'
@@ -1911,7 +1962,7 @@ export default function CoverStudioModal({
                           key={b.id}
                           type="button"
                           onClick={() => setSelectedBadge(b.id)}
-                          className={`p-1 rounded-lg border transition-all flex flex-col items-center justify-center cursor-pointer ${
+                          className={`p-1 rounded-lg border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 flex flex-col items-center justify-center cursor-pointer ${
                             isBActive
                               ? 'border-amber-400 bg-amber-500/10 shadow-sm'
                               : 'border-white/[0.08] bg-[#07090E] hover:border-white/[0.18]'
@@ -1955,7 +2006,7 @@ export default function CoverStudioModal({
                   <button
                     type="button"
                     onClick={() => revealFile(savedResult.cover_path)}
-                    className="px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-200 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                    className="px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-200 text-xs font-bold flex items-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer active:scale-95"
                   >
                     <Folder className="w-3.5 h-3.5" />
                     <span>เปิดไฟล์ใน Explorer</span>
@@ -1993,7 +2044,7 @@ export default function CoverStudioModal({
                   key={r.id}
                   type="button"
                   onClick={() => setAspectRatio(r.id)}
-                  className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                  className={`px-3 py-1 rounded-lg font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                     aspectRatio === r.id
                       ? 'bg-amber-500 text-slate-950 shadow-sm'
                       : 'text-slate-400 hover:text-white'
@@ -2010,7 +2061,7 @@ export default function CoverStudioModal({
               <button
                 type="button"
                 onClick={() => revealFile(savedResult.cover_path)}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-200 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-200 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex items-center gap-1.5 cursor-pointer active:scale-95"
               >
                 <Folder className="w-3.5 h-3.5" />
                 <span>เปิดโฟลเดอร์ไฟล์ปก</span>
@@ -2028,7 +2079,7 @@ export default function CoverStudioModal({
               type="button"
               onClick={handleSaveCover}
               disabled={saving}
-              className="px-5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+              className="px-5 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 disabled:active:scale-100"
             >
               {saving ? (
                 <>

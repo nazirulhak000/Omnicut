@@ -53,10 +53,10 @@ export default function RenderButton({
         onClick={() => onRender?.()}
         disabled={disabled || busy}
         title={coverNote || `เรนเดอร์แบบ${current?.label || ''}`}
-        className="flex h-9 cursor-pointer items-center gap-1.5 rounded-l-xl bg-[#D97757] px-3 text-sm font-bold text-white transition-colors hover:bg-[#C2683D] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#E89274] disabled:cursor-not-allowed disabled:opacity-50 sm:px-4"
+        className="flex h-9 cursor-pointer items-center gap-1.5 rounded-l-xl bg-[#D97757] px-3 text-sm font-bold text-white active:scale-[0.97] disabled:active:scale-100 transition-[background-color,color,transform] duration-150 active:duration-100 ease-out hover:bg-[#C2683D] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#E89274] disabled:cursor-not-allowed disabled:opacity-50 sm:px-4"
       >
         {busy
-          ? <><Loader2 className="h-4 w-4 animate-spin" /><span>{progress}%</span></>
+          ? <><Loader2 className="h-4 w-4 animate-spin" /><span className="tabular-nums font-mono">{progress}%</span></>
           : <><Rocket className="h-4 w-4" /><span>เรนเดอร์</span></>}
       </button>
 
@@ -69,11 +69,11 @@ export default function RenderButton({
         aria-expanded={open}
         aria-label={`คุณภาพที่จะเรนเดอร์: ${current?.label || ''}`}
         title={`คุณภาพ: ${current?.label || ''}`}
-        className={`flex h-9 w-8 cursor-pointer items-center justify-center rounded-r-xl border-l border-black/25 text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#E89274] disabled:cursor-not-allowed disabled:opacity-50 ${
+        className={`flex h-9 w-8 cursor-pointer items-center justify-center rounded-r-xl border-l border-black/25 text-white active:scale-[0.97] disabled:active:scale-100 transition-[background-color,color,transform] duration-150 active:duration-100 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#E89274] disabled:cursor-not-allowed disabled:opacity-50 ${
           open ? 'bg-[#C2683D]' : 'bg-[#D97757] hover:bg-[#C2683D]'
         }`}
       >
-        <ChevronDown className="h-4 w-4" />
+        <ChevronDown className={`h-4 w-4 transition-transform duration-150 ease-out ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
@@ -91,7 +91,7 @@ export default function RenderButton({
               role="menuitemradio"
               aria-checked={p.id === value}
               onClick={() => { onChange?.(p.id); setOpen(false); }}
-              className={`flex w-full cursor-pointer items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
+              className={`flex w-full cursor-pointer items-start gap-2.5 rounded-lg px-2.5 py-2 text-left active:scale-[0.98] transition-[background-color,color,transform] duration-150 active:duration-100 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
                 p.id === value ? 'bg-[#D97757]/15' : 'hover:bg-white/[0.07]'
               }`}
             >

@@ -15,8 +15,11 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from scripts.config import (
-    BASE_DIR, BGM_VOLUME, EXPORTS_DIR, RAW_DIR, INBOX_DIR, COVERS_DIR
+    BASE_DIR, BGM_VOLUME, DEFAULT_VOICE, EXPORTS_DIR, RAW_DIR, INBOX_DIR, COVERS_DIR
 )
+from scripts.auto_cover import ensure_default_cover
+from scripts.auto_sharpen import ensure_tiktok_sharp
+from scripts.media_validation import MIN_FREE_DISK_BYTES
 from scripts.product_store import ProductStore
 from scripts.shot_lists_store import ShotListsStore
 from scripts import recording_sessions, render_jobs
@@ -564,13 +567,15 @@ class MobileQuickStudioService:
             features = [f"{spec.get('label', '')}: {spec.get('value', '')}" for spec in specs[:3] if isinstance(spec, dict)]
         key_features = angle.get("key_features") or ", ".join(features)
 
-        # Preflight: Disk space check (>500MB)
+        # Preflight: Disk space check
         import shutil
         disk_target = EXPORTS_DIR if EXPORTS_DIR.exists() else BASE_DIR
         try:
             free_bytes = shutil.disk_usage(disk_target).free
-            if free_bytes < 500 * 1024 * 1024:
-                raise ValueError("พื้นที่ดิสก์ไม่เพียงพอสำหรับการเรนเดอร์ (เหลือน้อยกว่า 500MB)")
+            if free_bytes < MIN_FREE_DISK_BYTES:
+                raise ValueError(
+                    f"พื้นที่ดิสก์ไม่เพียงพอสำหรับการเรนเดอร์ (เหลือน้อยกว่า {MIN_FREE_DISK_BYTES / 1024 ** 3:.1f} GB)"
+                )
         except OSError as disk_err:
             print(f"⚠️ [MobileQuickStudio] Disk space probe warning: {disk_err}")
 
@@ -652,10 +657,10 @@ class MobileQuickStudioService:
                         "project_name": project_name,
                         "key_features": key_features,
                         "custom_script": script_text,
-                        "voice": "Fenrir",
+                        "voice": "male",
                         "voice_engine_type": "gemini_tts",
                         "voice_preset": "gemini_fenrir_male_strong",
-                        "font_name": "Mali",
+                        "font_name": "IBMPlex",
                         "ghost_reveal": True,
                         "bgm_name": DEFAULT_BGM if bgm_enabled else None,
                         "bgm_volume": BGM_VOLUME if bgm_enabled else 0.0,  # one mix level everywhere (config, AGENTS §4.5)
@@ -741,6 +746,18 @@ class MobileQuickStudioService:
                         cover_3x4_path=cover_3x4_path,
                         cover_9x16_path=cover_9x16_path
                     , **_channel_kwargs(channel_id))
+
+                    if mp4_path:
+                        # Sharpness first so the cover frame comes from the final file.
+                        ensure_tiktok_sharp(result.get("export_id"), **_channel_kwargs(channel_id))
+                        # Before complete_job so the cover exists when the UI sees the
+                        # clip as finished. Never raises.
+                        ensure_default_cover(
+                            result.get("export_id"),
+                            product_id=product_id,
+                            angle_id=angle_id,
+                            **_channel_kwargs(channel_id),
+                        )
 
                     render_jobs.complete_job(task_id, {
                         **result,

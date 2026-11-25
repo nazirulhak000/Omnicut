@@ -374,7 +374,7 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
               return (
                 <div
                   key={keyName}
-                  className={`p-3.5 rounded-xl border transition-all ${
+                  className={`p-3.5 rounded-xl border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out ${
                     isRateLimited
                       ? 'bg-amber-500/[0.06] border-amber-500/30'
                       : 'bg-white/[0.02] border-white/[0.06]'
@@ -448,7 +448,7 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
       {/* ── 4 Hero KPI Cards ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Tokens */}
-        <div className="glass-panel p-5 rounded-2xl border border-white/[0.08] relative overflow-hidden group hover:border-[#25F4EE]/30 transition-all duration-200 shadow-lg">
+        <div className="glass-panel p-5 rounded-2xl border border-white/[0.08] relative overflow-hidden group hover:border-[#25F4EE]/30 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out shadow-lg">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-400">โทเคนทั้งหมดที่ใช้ไป</span>
             <div className="w-8 h-8 rounded-xl bg-[#25F4EE]/10 border border-[#25F4EE]/20 flex items-center justify-center text-[#25F4EE]">
@@ -474,7 +474,7 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
         </div>
 
         {/* Card 2: Cost Saved in THB */}
-        <div className="glass-panel p-5 rounded-2xl border border-white/[0.08] relative overflow-hidden group hover:border-emerald-500/30 transition-all duration-200 shadow-lg">
+        <div className="glass-panel p-5 rounded-2xl border border-white/[0.08] relative overflow-hidden group hover:border-emerald-500/30 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out shadow-lg">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-400">มูลค่าที่ประหยัดได้ (เทียบเท่า)</span>
             <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
@@ -494,7 +494,7 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
         </div>
 
         {/* Card 3: Total AI Calls */}
-        <div className="glass-panel p-5 rounded-2xl border border-white/[0.08] relative overflow-hidden group hover:border-purple-500/30 transition-all duration-200 shadow-lg">
+        <div className="glass-panel p-5 rounded-2xl border border-white/[0.08] relative overflow-hidden group hover:border-purple-500/30 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out shadow-lg">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-400">จำนวนครั้งที่เรียกใช้ AI</span>
             <div className="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
@@ -512,7 +512,7 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
         </div>
 
         {/* Card 4: Avg Generation Latency */}
-        <div className="glass-panel p-5 rounded-2xl border border-white/[0.08] relative overflow-hidden group hover:border-amber-500/30 transition-all duration-200 shadow-lg">
+        <div className="glass-panel p-5 rounded-2xl border border-white/[0.08] relative overflow-hidden group hover:border-amber-500/30 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out shadow-lg">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-400">ความเร็วเฉลี่ยในการตอบกลับ</span>
             <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
@@ -590,7 +590,7 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
                       </div>
                       <div className="h-1.5 w-full bg-white/[0.05] rounded-full overflow-hidden">
                         <div
-                          className={`h-full rounded-full transition-all duration-500 ${
+                          className={`h-full rounded-full transition-[width] duration-300 ease-linear ${
                             isPro
                               ? 'bg-gradient-to-r from-[#FE2C55] to-[#25F4EE]'
                               : 'bg-gradient-to-r from-emerald-500 to-teal-400'
@@ -652,7 +652,7 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
                       </div>
                       <div className="h-1.5 w-full bg-white/[0.05] rounded-full overflow-hidden">
                         <div
-                          className="h-full rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-500"
+                          className="h-full rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-[width] duration-300 ease-linear"
                           style={{ width: `${Math.max(percent, 3)}%` }}
                         />
                       </div>
@@ -689,7 +689,7 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
                   key={btn.id}
                   type="button"
                   onClick={() => setTokenDaysFilter(btn.id)}
-                  className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                  className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                     tokenDaysFilter === btn.id
                       ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
                       : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
@@ -718,7 +718,7 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
           {/* ── High-Level Performance KPI Strip (Replaces the clunky 100-box grid) ── */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
             {/* Peak Day */}
-            <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06] hover:border-amber-500/30 transition-all flex flex-col justify-between space-y-1.5">
+            <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06] hover:border-amber-500/30 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex flex-col justify-between space-y-1.5">
               <div className="flex items-center justify-between text-slate-400 text-xs">
                 <span className="flex items-center gap-1.5 font-medium">
                   <Flame className="w-3.5 h-3.5 text-amber-400" />
@@ -736,7 +736,7 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
             </div>
 
             {/* Daily Average */}
-            <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06] hover:border-cyan-500/30 transition-all flex flex-col justify-between space-y-1.5">
+            <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06] hover:border-cyan-500/30 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex flex-col justify-between space-y-1.5">
               <div className="flex items-center justify-between text-slate-400 text-xs">
                 <span className="flex items-center gap-1.5 font-medium">
                   <Activity className="w-3.5 h-3.5 text-cyan-400" />
@@ -754,7 +754,7 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
             </div>
 
             {/* Total Saved */}
-            <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06] hover:border-emerald-500/30 transition-all flex flex-col justify-between space-y-1.5">
+            <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06] hover:border-emerald-500/30 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex flex-col justify-between space-y-1.5">
               <div className="flex items-center justify-between text-slate-400 text-xs">
                 <span className="flex items-center gap-1.5 font-medium">
                   <PiggyBank className="w-3.5 h-3.5 text-emerald-400" />
@@ -771,7 +771,7 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
             </div>
 
             {/* Latest Activity */}
-            <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06] hover:border-blue-500/30 transition-all flex flex-col justify-between space-y-1.5">
+            <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06] hover:border-blue-500/30 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex flex-col justify-between space-y-1.5">
               <div className="flex items-center justify-between text-slate-400 text-xs">
                 <span className="flex items-center gap-1.5 font-medium">
                   <Calendar className="w-3.5 h-3.5 text-blue-400" />
@@ -794,7 +794,7 @@ const TokenDashboard = function TokenDashboard({ refreshKey = 0 }) {
             <button
               type="button"
               onClick={() => setShowDailyBreakdown((prev) => !prev)}
-              className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] text-xs text-slate-300 font-medium transition-all cursor-pointer"
+              className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] text-xs text-slate-300 font-medium transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
             >
               <span className="flex items-center gap-2">
                 <FileText className="w-3.5 h-3.5 text-slate-400" />

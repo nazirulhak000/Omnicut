@@ -5,6 +5,9 @@ import {
 } from 'lucide-react';
 import ActionApprovalCard from './ActionApprovalCard.jsx';
 
+const INTERACTIVE_BUTTON_MOTION =
+  'transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100';
+
 export default function OmniCutAgentDock({
   isOpen = false,
   onClose,
@@ -178,7 +181,7 @@ export default function OmniCutAgentDock({
   return (
     <div
       data-testid="omnicut-agent-dock"
-      className="fixed bottom-4 right-4 z-50 flex h-[620px] w-[460px] max-w-[calc(100vw-2rem)] flex-col rounded-2xl border border-white/[0.08] bg-[#0A0D14]/95 shadow-[0_12px_40px_rgba(0,0,0,0.85)] backdrop-blur-md transition-all animate-in fade-in slide-in-from-bottom-4 duration-200"
+      className="fixed bottom-4 right-4 z-50 origin-bottom-right flex h-[620px] w-[460px] max-w-[calc(100vw-2rem)] flex-col rounded-2xl border border-white/[0.08] bg-[#0A0D14]/95 shadow-[0_12px_40px_rgba(0,0,0,0.85)] backdrop-blur-md transition-[opacity,transform,box-shadow] duration-200 ease-out animate-in fade-in slide-in-from-bottom-4"
     >
       {/* ── Dock Header ── */}
       <div className="flex items-center justify-between border-b border-white/[0.08] bg-white/[0.02] px-4 py-3 rounded-t-2xl">
@@ -204,7 +207,7 @@ export default function OmniCutAgentDock({
           type="button"
           onClick={onClose}
           title="ปิดหน้าต่าง AI Agent (Ctrl+K)"
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white cursor-pointer"
+          className={`flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-white/[0.08] hover:text-white cursor-pointer ${INTERACTIVE_BUTTON_MOTION}`}
         >
           <X className="h-4 w-4" />
         </button>
@@ -223,7 +226,7 @@ export default function OmniCutAgentDock({
                 <button
                   type="button"
                   onClick={() => toggleThought(msg.id)}
-                  className="flex items-center gap-1 text-[11px] font-medium text-slate-400 hover:text-cyan-300 transition-colors cursor-pointer py-0.5"
+                  className={`flex items-center gap-1 text-[11px] font-medium text-slate-400 hover:text-cyan-300 cursor-pointer py-0.5 ${INTERACTIVE_BUTTON_MOTION}`}
                 >
                   {expandedThoughts[msg.id] ? (
                     <ChevronDown className="h-3 w-3 text-cyan-400" />
@@ -290,7 +293,7 @@ export default function OmniCutAgentDock({
             type="button"
             onClick={() => handleSend(chip)}
             disabled={isStreaming}
-            className="flex-shrink-0 text-[10px] font-medium text-slate-400 bg-white/[0.03] hover:bg-white/[0.08] hover:text-slate-200 border border-white/[0.08] px-2.5 py-1 rounded-full transition-colors cursor-pointer disabled:opacity-50"
+            className={`flex-shrink-0 text-[10px] font-medium text-slate-400 bg-white/[0.03] hover:bg-white/[0.08] hover:text-slate-200 border border-white/[0.08] px-2.5 py-1 rounded-full cursor-pointer disabled:opacity-50 ${INTERACTIVE_BUTTON_MOTION}`}
           >
             {chip}
           </button>
@@ -305,7 +308,7 @@ export default function OmniCutAgentDock({
         }}
         className="p-3 border-t border-white/[0.08] bg-black/40 rounded-b-2xl"
       >
-        <div className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 focus-within:border-cyan-500/40 focus-within:ring-1 focus-within:ring-cyan-500/40 transition-all">
+        <div className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 focus-within:border-cyan-500/40 focus-within:ring-1 focus-within:ring-cyan-500/40 transition-[background-color,border-color,color,transform,box-shadow] duration-150 active:duration-100 ease-out">
           <input
             ref={inputRef}
             type="text"
@@ -319,7 +322,7 @@ export default function OmniCutAgentDock({
             type="submit"
             disabled={!input.trim() || isStreaming}
             title="ส่งคำสั่ง (Enter)"
-            className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/90 text-slate-950 font-bold hover:bg-emerald-400 disabled:opacity-40 transition-all cursor-pointer"
+            className={`flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/90 text-slate-950 font-bold hover:bg-emerald-400 disabled:opacity-40 cursor-pointer ${INTERACTIVE_BUTTON_MOTION}`}
           >
             {isStreaming ? (
               <div className="h-3 w-3 animate-spin rounded-full border-2 border-slate-950 border-t-transparent" />

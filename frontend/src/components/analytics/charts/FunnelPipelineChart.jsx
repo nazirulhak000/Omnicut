@@ -90,7 +90,7 @@ export default function FunnelPipelineChart({
               key={stage.key}
               onMouseEnter={() => setHoveredKey(stage.key)}
               onMouseLeave={() => setHoveredKey(null)}
-              className={`relative rounded-xl border p-4 transition-all duration-300 flex flex-col justify-between overflow-hidden cursor-default ${
+              className={`relative rounded-xl border p-4 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex flex-col justify-between overflow-hidden cursor-default ${
                 isHovered
                   ? `${theme.hoverBorder} shadow-lg shadow-black/40 scale-[1.02] bg-zinc-900/90`
                   : `${theme.border} bg-zinc-900/50 hover:bg-zinc-900/70`
@@ -131,7 +131,7 @@ export default function FunnelPipelineChart({
                 {/* Relative Volume Bar */}
                 <div className="w-full bg-zinc-800/80 h-1.5 rounded-full overflow-hidden my-2 relative z-10">
                   <div
-                    className={`h-full rounded-full transition-all duration-500 ${theme.bar}`}
+                    className={`h-full rounded-full transition-[width,background-color,opacity] duration-300 ease-out ${theme.bar}`}
                     style={{ width: `${Math.min(100, Math.max(6, (stage.count / maxCount) * 100))}%` }}
                   />
                 </div>

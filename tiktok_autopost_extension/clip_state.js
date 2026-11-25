@@ -35,19 +35,31 @@
     );
   }
 
-  function buildExtensionClipList(exportsItems = [], queueItems = []) {
+  function buildExtensionClipList(exportsItems = [], queueItems = [], { now = Date.now() } = {}) {
     const exportsList = Array.isArray(exportsItems) ? exportsItems : [];
     const queueList = Array.isArray(queueItems) ? queueItems : [];
     const postedKeys = new Set(exportsList.filter(isPostedClip).map(clipKey).filter(Boolean));
-    const consumedKeys = new Set([
-      ...postedKeys,
-      ...queueList
+    const allScheduledOnPlatformKeys = new Set(
+      queueList
         .filter((item) => item?.status === 'scheduled_on_platform' || item?.status === 'posted')
         .map(clipKey)
-        .filter(Boolean),
-    ]);
+        .filter(Boolean)
+    );
+    const activeFutureScheduledKeys = new Set(
+      queueList
+        .filter((item) => {
+          if (item?.status !== 'scheduled_on_platform') return false;
+          const at = item?.scheduled_at ? Date.parse(item.scheduled_at) : null;
+          return at == null || Number.isNaN(at) || at >= now - 15 * 60 * 1000;
+        })
+        .map(clipKey)
+        .filter(Boolean)
+    );
+    const consumedForUnscheduled = new Set([...postedKeys, ...allScheduledOnPlatformKeys]);
+    const consumedForScheduled = new Set([...postedKeys, ...activeFutureScheduledKeys]);
+
     const scheduled = queueList
-      .filter((item) => ACTIVE_QUEUE_STATUSES.has(item?.status) && !isPostedClip(item) && !consumedKeys.has(clipKey(item)))
+      .filter((item) => ACTIVE_QUEUE_STATUSES.has(item?.status) && !isPostedClip(item) && !consumedForScheduled.has(clipKey(item)))
       .map((item) => ({
         ...item,
         rel_path: item.rel_path || item.video_path,
@@ -55,10 +67,18 @@
         is_scheduled: true,
         ...(item.status === 'draft_on_platform' ? { is_draft: true, publish_draft: true, force_mode: 'schedule' } : {}),
       }));
+
+    // Chronological sort: earliest scheduled first
+    scheduled.sort((a, b) => {
+      const timeA = a.scheduled_at ? Date.parse(a.scheduled_at) : (a.schedule_date && a.schedule_time ? Date.parse(`${a.schedule_date}T${a.schedule_time}`) : Infinity);
+      const timeB = b.scheduled_at ? Date.parse(b.scheduled_at) : (b.schedule_date && b.schedule_time ? Date.parse(`${b.schedule_date}T${b.schedule_time}`) : Infinity);
+      return timeA - timeB;
+    });
+
     const scheduledKeys = new Set(scheduled.map(clipKey).filter(Boolean));
     const unscheduled = exportsList
       .filter(isReadyToPost)
-      .filter((item) => !scheduledKeys.has(clipKey(item)) && !consumedKeys.has(clipKey(item)));
+      .filter((item) => !scheduledKeys.has(clipKey(item)) && !consumedForUnscheduled.has(clipKey(item)));
     return [...scheduled, ...unscheduled];
   }
 

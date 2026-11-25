@@ -72,7 +72,7 @@ const HoverVideoThumb = memo(function HoverVideoThumb({ videoUrl, onClick }) {
       onClick={onClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className="relative w-full aspect-[9/16] rounded-lg overflow-hidden bg-black/70 border border-white/[0.1] hover:border-[#25F4EE] transition-all cursor-pointer group shadow-sm"
+      className="relative w-full aspect-[9/16] rounded-lg overflow-hidden bg-black/70 border border-white/[0.1] hover:border-[#25F4EE] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer group shadow-sm"
     >
       <video
         ref={videoRef}
@@ -176,7 +176,7 @@ function CardActionsMenu({
       </button>
 
       {open && (
-        <div className="absolute right-0 bottom-full mb-1.5 z-40 w-48 rounded-xl bg-[#0E131E] border border-white/[0.15] p-1 shadow-2xl space-y-0.5 animate-in fade-in zoom-in-95 duration-100 text-left">
+        <div className="absolute right-0 bottom-full mb-1.5 z-40 w-48 rounded-xl bg-[#0E131E] border border-white/[0.15] p-1 shadow-2xl space-y-0.5 origin-bottom-right animate-in fade-in zoom-in-95 duration-100 text-left">
           {onOpenCoverStudio && (
             <button
               type="button"
@@ -291,7 +291,7 @@ const KanbanCard = memo(function KanbanCard({
   // ── Round TRK-3: Compact Horizontal Mini Video Card for 'rendered' phase ──
   if (phaseId === 'rendered') {
     return (
-      <div className={`p-2 rounded-xl border transition-all relative group shadow-sm flex gap-2.5 items-stretch ${
+      <div className={`p-2 rounded-xl border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out relative group shadow-sm flex gap-2.5 items-stretch ${
         ang.data_conflict_note
           ? 'bg-[#120C05] border-amber-500/50 hover:border-amber-400/70 ring-1 ring-amber-500/25'
           : ang.qc_note
@@ -301,7 +301,7 @@ const KanbanCard = memo(function KanbanCard({
         {/* Left: Mini 9:16 Video or Cover Preview (~52px wide) */}
         <div
           onClick={() => ang.video_url && onPreviewVideo(ang.video_url, ang)}
-          className="w-[52px] flex-shrink-0 relative rounded-lg overflow-hidden bg-black/80 border border-white/[0.1] hover:border-[#25F4EE] transition-all cursor-pointer group/thumb aspect-[9/16]"
+          className="w-[52px] flex-shrink-0 relative rounded-lg overflow-hidden bg-black/80 border border-white/[0.1] hover:border-[#25F4EE] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer group/thumb aspect-[9/16]"
           title={ang.cover_url ? "คลิกเพื่อพรีวิว (มีภาพปก 9:16 แล้ว)" : "คลิกเพื่อพรีวิวคลิปเต็ม"}
         >
           {ang.cover_url ? (
@@ -418,7 +418,7 @@ const KanbanCard = memo(function KanbanCard({
             <button
               type="button"
               onClick={() => onGoToGallery && onGoToGallery(ang.export_id || ang.video_url || ang.project_name)}
-              className="flex-1 py-1.5 px-2 rounded-lg bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/40 text-[#25F4EE] text-[11px] font-bold flex items-center justify-center gap-1.5 shadow-sm cursor-pointer active:scale-95 transition-all truncate"
+              className="flex-1 py-1.5 px-2 rounded-lg bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/40 text-[#25F4EE] text-[11px] font-bold flex items-center justify-center gap-1.5 shadow-sm cursor-pointer active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out truncate"
               title="เปิดคลิปนี้ใน Export Gallery (เมนู 4) เพื่อเตรียมโพสต์"
             >
               <span className="truncate">เปิดใน Export Gallery (เมนู 4)</span>
@@ -444,7 +444,7 @@ const KanbanCard = memo(function KanbanCard({
 
   return (
     <div
-      className={`p-2.5 rounded-xl border transition-all space-y-2 relative group shadow-sm flex flex-col justify-between ${
+      className={`p-2.5 rounded-xl border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out space-y-2 relative group shadow-sm flex flex-col justify-between ${
         ang.qc_note
           ? 'bg-[#120A06] border-red-500/40 hover:border-red-400/60 ring-1 ring-red-500/20'
           : phaseId === 'rendered' && ang.qc_reviewed
@@ -466,7 +466,7 @@ const KanbanCard = memo(function KanbanCard({
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onDismissConflict(ang); }}
-              className="px-2 py-0.5 rounded-md bg-white/[0.1] hover:bg-white/[0.18] text-amber-200 font-black text-[10px] cursor-pointer whitespace-nowrap active:scale-95 transition-all"
+              className="px-2 py-0.5 rounded-md bg-white/[0.1] hover:bg-white/[0.18] text-amber-200 font-black text-[10px] cursor-pointer whitespace-nowrap active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
               title="เข้าใจแล้ว ซ่อนคำเตือนนี้"
             >
               เข้าใจแล้ว
@@ -486,7 +486,7 @@ const KanbanCard = memo(function KanbanCard({
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); openQcReview(ang, onPreviewVideo, onInspectAngle); }}
-              className="min-h-11 sm:min-h-0 inline-flex items-center px-2 py-0.5 rounded-md bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-200 font-bold text-[10px] cursor-pointer whitespace-nowrap active:scale-95 transition-all"
+              className="min-h-11 sm:min-h-0 inline-flex items-center px-2 py-0.5 rounded-md bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-200 font-bold text-[10px] cursor-pointer whitespace-nowrap active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
               title="ดูคลิปก่อน แล้วค่อยตัดสินว่า QC ผ่านหรือไม่"
             >
               ดูคลิปแล้วตรวจ
@@ -510,7 +510,7 @@ const KanbanCard = memo(function KanbanCard({
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); openQcReview(ang, onPreviewVideo, onInspectAngle); }}
-              className="min-h-11 sm:min-h-0 inline-flex items-center px-2 py-0.5 rounded-md bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-200 font-bold text-[10px] cursor-pointer whitespace-nowrap active:scale-95 transition-all"
+              className="min-h-11 sm:min-h-0 inline-flex items-center px-2 py-0.5 rounded-md bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-200 font-bold text-[10px] cursor-pointer whitespace-nowrap active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
               title="ดูคลิปก่อน แล้วค่อยกด QC ผ่านในหน้าพรีวิว"
             >
               ตรวจ QC
@@ -587,7 +587,7 @@ const KanbanCard = memo(function KanbanCard({
               <button
                 type="button"
                 onClick={() => onGoToGallery && onGoToGallery(ang.export_id || ang.video_url || ang.project_name)}
-                className="flex-1 py-1.5 px-2.5 rounded-xl bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm cursor-pointer transition-all active:scale-95 truncate"
+                className="flex-1 py-1.5 px-2.5 rounded-xl bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-95 truncate"
                 title="เปิดคลิปนี้ใน Export Gallery (เมนู 4) เพื่อเตรียมโพสต์"
               >
                 <span className="truncate">เปิดใน Export Gallery (เมนู 4)</span>
@@ -627,7 +627,7 @@ const KanbanCard = memo(function KanbanCard({
                 <button
                   onClick={() => hasVideos && onSendToStudio(ang.parentProduct, ang)}
                   disabled={!hasVideos}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm flex-shrink-0 transition-all ${
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm flex-shrink-0 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out ${
                     hasVideos
                       ? 'bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 active:scale-95 text-white cursor-pointer'
                       : 'bg-white/[0.05] border border-white/[0.08] text-slate-500 cursor-not-allowed opacity-50'
@@ -849,7 +849,7 @@ const MobileTableRowCard = memo(function MobileTableRowCard({
           <button
             onClick={() => hasVideos && onSendToStudio(ang.parentProduct, ang)}
             disabled={!hasVideos}
-            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 transition-all whitespace-nowrap active:scale-95 flex-shrink-0 ${
+            className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out disabled:active:scale-100 whitespace-nowrap active:scale-95 flex-shrink-0 ${
               hasVideos
                 ? 'bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/40 text-[#25F4EE] cursor-pointer'
                 : 'bg-white/[0.03] border border-white/[0.06] text-slate-600 cursor-not-allowed opacity-40'
@@ -865,7 +865,7 @@ const MobileTableRowCard = memo(function MobileTableRowCard({
           <button
             type="button"
             onClick={() => openQcReview(ang, onPreviewVideo, onInspectAngle)}
-            className="min-h-11 py-2 px-3 rounded-xl bg-[#25F4EE]/20 hover:bg-[#25F4EE]/30 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold inline-flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 whitespace-nowrap flex-shrink-0"
+            className="min-h-11 py-2 px-3 rounded-xl bg-[#25F4EE]/20 hover:bg-[#25F4EE]/30 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold inline-flex items-center justify-center gap-1 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-95 whitespace-nowrap flex-shrink-0"
             title="ดูคลิปก่อน แล้วค่อยกด QC ผ่านในหน้าพรีวิว"
           >
             <Check className="w-3.5 h-3.5 text-[#25F4EE] flex-shrink-0" />
@@ -877,7 +877,7 @@ const MobileTableRowCard = memo(function MobileTableRowCard({
           <button
             type="button"
             onClick={() => onGoToGallery(ang.export_id || ang.video_url || ang.project_name)}
-            className="min-h-11 py-2 px-3 rounded-xl bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold inline-flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 whitespace-nowrap flex-shrink-0"
+            className="min-h-11 py-2 px-3 rounded-xl bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold inline-flex items-center justify-center gap-1 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-95 whitespace-nowrap flex-shrink-0"
             title="เปิดใน Export Gallery (เมนู 4) เพื่อเตรียมโพสต์"
           >
             <span>เปิดใน Gallery</span>
@@ -1027,7 +1027,7 @@ const TableRow = memo(function TableRow({
             <button
               onClick={() => hasVideos && onSendToStudio(ang.parentProduct, ang)}
               disabled={!hasVideos}
-              className={`py-1.5 px-3 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 transition-all whitespace-nowrap flex-shrink-0 ${
+              className={`py-1.5 px-3 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out whitespace-nowrap flex-shrink-0 ${
                 hasVideos
                   ? 'bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] cursor-pointer active:scale-95'
                   : 'bg-white/[0.03] border border-white/[0.06] text-slate-600 cursor-not-allowed opacity-40'
@@ -1043,7 +1043,7 @@ const TableRow = memo(function TableRow({
             <button
               type="button"
               onClick={() => onGoToGallery(ang.export_id || ang.video_url || ang.project_name)}
-              className="py-1.5 px-2.5 rounded-lg bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold inline-flex items-center gap-1 cursor-pointer transition-all active:scale-95 whitespace-nowrap flex-shrink-0"
+              className="py-1.5 px-2.5 rounded-lg bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold inline-flex items-center gap-1 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-95 whitespace-nowrap flex-shrink-0"
               title="เปิดใน Export Gallery (เมนู 4) เพื่อเตรียมโพสต์"
             >
               <span>เปิดใน Gallery</span>
@@ -1055,7 +1055,7 @@ const TableRow = memo(function TableRow({
             <button
               type="button"
               onClick={() => openQcReview(ang, onPreviewVideo, onInspectAngle)}
-              className="py-1.5 px-2.5 rounded-lg bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/35 text-[#25F4EE] text-xs font-bold inline-flex items-center gap-1 cursor-pointer transition-all active:scale-95 whitespace-nowrap flex-shrink-0"
+              className="py-1.5 px-2.5 rounded-lg bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/35 text-[#25F4EE] text-xs font-bold inline-flex items-center gap-1 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-95 whitespace-nowrap flex-shrink-0"
               title="ดูคลิปก่อน แล้วค่อยกด QC ผ่านในหน้าพรีวิว"
             >
               <Check className="w-3.5 h-3.5 text-[#25F4EE] flex-shrink-0" />
@@ -1946,7 +1946,7 @@ export default function ContentTrackerHub({
                   <button
                     type="button"
                     onClick={() => handleDismissConflict(inspectAngle)}
-                    className="px-2 py-0.5 rounded-md bg-white/[0.1] hover:bg-white/[0.18] text-amber-200 font-black text-[10px] cursor-pointer whitespace-nowrap active:scale-95 transition-all flex-shrink-0"
+                    className="px-2 py-0.5 rounded-md bg-white/[0.1] hover:bg-white/[0.18] text-amber-200 font-black text-[10px] cursor-pointer whitespace-nowrap active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex-shrink-0"
                   >
                     เข้าใจแล้ว
                   </button>
@@ -1985,7 +1985,7 @@ export default function ContentTrackerHub({
                       const el = document.getElementById(`product-code-${inspectAngle.parentProduct?.id}`);
                       handleSaveProductCode(inspectAngle.parentProduct?.id, el?.value || '');
                     }}
-                    className="px-2.5 py-1 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-slate-200 text-xs font-bold cursor-pointer active:scale-95 transition-all flex-shrink-0"
+                    className="px-2.5 py-1 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-slate-200 text-xs font-bold cursor-pointer active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex-shrink-0"
                   >
                     บันทึก
                   </button>
@@ -2010,7 +2010,7 @@ export default function ContentTrackerHub({
                       const el = document.getElementById(`tiktok-pid-${inspectAngle.parentProduct?.id}`);
                       handleSaveTiktokProductId(inspectAngle.parentProduct?.id, el?.value || '');
                     }}
-                    className="px-2.5 py-1 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-slate-200 text-xs font-bold cursor-pointer active:scale-95 transition-all flex-shrink-0"
+                    className="px-2.5 py-1 rounded-lg bg-white/[0.08] hover:bg-white/[0.15] text-slate-200 text-xs font-bold cursor-pointer active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex-shrink-0"
                   >
                     บันทึก
                   </button>
@@ -2024,7 +2024,7 @@ export default function ContentTrackerHub({
                   }}
                   disabled={!inspectAngle.video_url}
                   title={!inspectAngle.video_url ? 'ยังไม่มีคลิปที่เรนเดอร์แล้ว' : 'เปิดใน Export Gallery (เมนู 4) เพื่อโพสต์'}
-                  className="w-full py-2 px-3 rounded-xl bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="w-full py-2 px-3 rounded-xl bg-[#25F4EE]/10 hover:bg-[#25F4EE]/20 border border-[#25F4EE]/30 text-[#25F4EE] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out disabled:active:scale-100 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <ArrowRight className="w-3.5 h-3.5" />
                   <span>เปิดใน Export Gallery เพื่อโพสต์คลิป</span>
@@ -2112,7 +2112,7 @@ export default function ContentTrackerHub({
                           handleSendToStudio(inspectAngle.parentProduct, inspectAngle);
                         }}
                         disabled={!hasAttachedVideos}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 shadow-sm transition-all ${
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 shadow-sm transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out ${
                           hasAttachedVideos
                             ? 'bg-[#E0244A] hover:bg-[#C81D40] text-white cursor-pointer active:scale-95'
                             : 'bg-white/[0.05] border border-white/[0.08] text-slate-500 cursor-not-allowed opacity-50'
@@ -2178,7 +2178,7 @@ export default function ContentTrackerHub({
                 <button
                   onClick={() => handleOpenShotList(inspectAngle)}
                   disabled={isGeneratingShotList}
-                  className="py-2.5 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all disabled:opacity-50"
+                  className="py-2.5 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 disabled:opacity-50"
                   title="ดูแผนถ่าย (Shot List) ไกด์จัดเฟรม และจังหวะเสียงพากย์จริง"
                 >
                   <Clapperboard className="w-3.5 h-3.5 text-amber-400" />
@@ -2191,7 +2191,7 @@ export default function ContentTrackerHub({
                     setInspectAngle(null);
                     onGoToFlow?.(inspectAngle.parentProduct?.id);
                   }}
-                  className="py-2.5 px-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                  className="py-2.5 px-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
                   title="ดูและปรับแต่งสคริปต์ในหน้าสินค้า"
                 >
                   <FileText className="w-3.5 h-3.5 text-indigo-400" />
@@ -2206,7 +2206,7 @@ export default function ContentTrackerHub({
                     handleSendToStudio(inspectAngle.parentProduct, inspectAngle);
                   }}
                   disabled={!hasAttachedVideos}
-                  className={`py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${
+                  className={`py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out whitespace-nowrap ${
                     hasAttachedVideos
                       ? 'bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white cursor-pointer shadow-md shadow-[#FE2C55]/20 active:scale-95'
                       : 'bg-white/[0.05] border border-white/[0.08] text-slate-500 cursor-not-allowed opacity-50'
@@ -2221,7 +2221,7 @@ export default function ContentTrackerHub({
                 {inspectAngle.status === 'rendered' && (
                   <button
                     onClick={() => handleQcFail(inspectAngle)}
-                    className="py-2.5 px-3 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all whitespace-nowrap"
+                    className="py-2.5 px-3 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 whitespace-nowrap"
                     title="QC ไม่ผ่าน — reset สถานะกลับไปตัดใหม่"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
@@ -2233,7 +2233,7 @@ export default function ContentTrackerHub({
                 {(inspectAngle.status === 'rendered' || inspectAngle.qc_note) && (
                   <button
                     onClick={() => handleQcPass(inspectAngle)}
-                    className="py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-[#25F4EE] to-cyan-400 hover:brightness-110 text-slate-950 text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-md shadow-[#25F4EE]/20 active:scale-95 whitespace-nowrap"
+                    className="py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-[#25F4EE] to-cyan-400 hover:brightness-110 text-slate-950 text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out shadow-md shadow-[#25F4EE]/20 active:scale-95 whitespace-nowrap"
                     title="กดเพื่อรับรอง QC ผ่านทันที (ล้างป้ายแดงออก)"
                   >
                     <Check className="w-3.5 h-3.5 text-slate-950 stroke-[3]" />
@@ -2250,7 +2250,7 @@ export default function ContentTrackerHub({
                       setInspectAngle(null);
                       if (onGoToGallery) onGoToGallery(targetVideo);
                     }}
-                    className="py-2.5 px-3.5 rounded-xl bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all whitespace-nowrap shadow-md active:scale-95"
+                    className="py-2.5 px-3.5 rounded-xl bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out whitespace-nowrap shadow-md active:scale-95"
                     title="เปิดคลิปนี้ใน Export Gallery (เมนู 4) เพื่อเตรียมโพสต์"
                   >
                     <span>เปิดใน Export Gallery (เมนู 4)</span>
@@ -2266,7 +2266,7 @@ export default function ContentTrackerHub({
                       const ang = inspectAngle;
                       handleOpenCoverStudio(ang);
                     }}
-                    className="py-2.5 px-3.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all whitespace-nowrap active:scale-95"
+                    className="py-2.5 px-3.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out whitespace-nowrap active:scale-95"
                     title="สตูดิโอสร้างปกคลิป 9:16 (Auto Highlight Crop + AI Hook + 3D Badge)"
                   >
                     <ImageIcon className="w-3.5 h-3.5" />
@@ -2319,14 +2319,14 @@ export default function ContentTrackerHub({
               <button
                 type="button"
                 onClick={() => { setQcFailTarget(null); setQcFailNote(''); }}
-                className="w-full sm:w-1/3 py-2.5 px-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-300 text-xs sm:text-sm font-bold cursor-pointer transition-all flex items-center justify-center whitespace-nowrap active:scale-95"
+                className="w-full sm:w-1/3 py-2.5 px-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-300 text-xs sm:text-sm font-bold cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex items-center justify-center whitespace-nowrap active:scale-95"
               >
                 ยกเลิก
               </button>
               <button
                 type="button"
                 onClick={handleQcFailConfirm}
-                className="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:brightness-110 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg shadow-red-900/30 active:scale-95 whitespace-nowrap"
+                className="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:brightness-110 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out shadow-lg shadow-red-900/30 active:scale-95 whitespace-nowrap"
               >
                 <RotateCcw className="w-4 h-4 flex-shrink-0" />
                 <span>ยืนยันส่งตัดใหม่</span>
@@ -2366,7 +2366,7 @@ export default function ContentTrackerHub({
                   <button
                     type="button"
                     onClick={() => handleQcPass(previewVideoAngle)}
-                    className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#25F4EE] to-cyan-400 hover:brightness-110 text-slate-950 text-xs sm:text-sm font-black flex items-center justify-center gap-1.5 shadow-md shadow-[#25F4EE]/25 cursor-pointer active:scale-95 transition-all whitespace-nowrap"
+                    className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#25F4EE] to-cyan-400 hover:brightness-110 text-slate-950 text-xs sm:text-sm font-black flex items-center justify-center gap-1.5 shadow-md shadow-[#25F4EE]/25 cursor-pointer active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out whitespace-nowrap"
                   >
                     <Check className="w-4 h-4 text-slate-950 stroke-[3] flex-shrink-0" />
                     <span>QC ผ่าน (เป็นสีฟ้า)</span>
@@ -2379,7 +2379,7 @@ export default function ContentTrackerHub({
                       setPreviewVideoAngle(null);
                       handleQcFail(ang);
                     }}
-                    className="py-2.5 px-3.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all whitespace-nowrap active:scale-95"
+                    className="py-2.5 px-3.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-300 text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out whitespace-nowrap active:scale-95"
                   >
                     <RotateCcw className="w-3.5 h-3.5 flex-shrink-0" />
                     <span>ตัดใหม่</span>
@@ -2497,7 +2497,7 @@ export default function ContentTrackerHub({
                 <button
                   type="button"
                   onClick={() => setScriptLibraryProductFilter('all')}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
                     scriptLibraryProductFilter === 'all'
                       ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 shadow-sm'
                       : 'bg-white/[0.04] text-slate-400 hover:text-white hover:bg-white/[0.08] border border-white/[0.06]'
@@ -2517,7 +2517,7 @@ export default function ContentTrackerHub({
                       key={p.id}
                       type="button"
                       onClick={() => setScriptLibraryProductFilter(isSelected ? 'all' : p.id)}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
                         isSelected
                           ? 'bg-[#25F4EE]/20 text-[#25F4EE] border border-[#25F4EE]/40 shadow-sm'
                           : 'bg-white/[0.04] text-slate-400 hover:text-white hover:bg-white/[0.08] border border-white/[0.06]'
@@ -2568,7 +2568,7 @@ export default function ContentTrackerHub({
                   return (
                     <div
                       key={`${ang.parentProduct?.id}_${aid || idx}`}
-                      className={`p-3 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                      className={`p-3 rounded-2xl border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
                         isPicked
                           ? 'bg-cyan-950/20 border-cyan-500/40 shadow-sm shadow-cyan-500/5'
                           : 'bg-black/30 border-white/[0.08] hover:border-white/[0.15]'
@@ -2601,7 +2601,7 @@ export default function ContentTrackerHub({
                         <button
                           type="button"
                           onClick={() => handleTogglePickScript(aid)}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 whitespace-nowrap ${
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer active:scale-95 whitespace-nowrap ${
                             isPicked
                               ? 'bg-cyan-500/20 hover:bg-rose-500/20 border border-cyan-500/40 hover:border-rose-500/40 text-cyan-300 hover:text-rose-300'
                               : 'bg-white/[0.06] hover:bg-cyan-500/20 border border-white/[0.1] hover:border-cyan-500/40 text-slate-200 hover:text-cyan-300'
@@ -2675,7 +2675,7 @@ export default function ContentTrackerHub({
                 <button
                   type="button"
                   onClick={() => setArchiveProductFilter('all')}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
                     archiveProductFilter === 'all'
                       ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
                       : 'bg-white/[0.04] text-slate-400 hover:text-white hover:bg-white/[0.08] border border-white/[0.06]'
@@ -2695,7 +2695,7 @@ export default function ContentTrackerHub({
                       key={p.id}
                       type="button"
                       onClick={() => setArchiveProductFilter(isSelected ? 'all' : p.id)}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
                         isSelected
                           ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
                           : 'bg-white/[0.04] text-slate-400 hover:text-white hover:bg-white/[0.08] border border-white/[0.06]'
@@ -2749,7 +2749,7 @@ export default function ContentTrackerHub({
                   return (
                     <div
                       key={`${ang.parentProduct?.id}_${ang.angle_id || idx}`}
-                      className="p-3 rounded-2xl bg-black/40 border border-white/[0.08] hover:border-emerald-500/40 transition-all flex items-center gap-3 group"
+                      className="p-3 rounded-2xl bg-black/40 border border-white/[0.08] hover:border-emerald-500/40 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex items-center gap-3 group"
                     >
                       {/* Left: Mini 9:16 Video Preview */}
                       {ang.video_url ? (
@@ -2860,7 +2860,7 @@ export default function ContentTrackerHub({
               <button
                 type="button"
                 onClick={() => handleSwitchViewMode('kanban')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                   viewMode === 'kanban'
                     ? 'bg-white/[0.1] text-white border border-white/20 shadow-sm'
                     : 'text-slate-400 hover:text-white'
@@ -2873,7 +2873,7 @@ export default function ContentTrackerHub({
               <button
                 type="button"
                 onClick={() => handleSwitchViewMode('schedule')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                   viewMode === 'schedule'
                     ? 'bg-white/[0.1] text-white border border-white/20 shadow-sm'
                     : 'text-slate-400 hover:text-white'
@@ -2886,7 +2886,7 @@ export default function ContentTrackerHub({
               <button
                 type="button"
                 onClick={() => handleSwitchViewMode('table')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                   viewMode === 'table'
                     ? 'bg-white/[0.1] text-white border border-white/20 shadow-sm'
                     : 'text-slate-400 hover:text-white'
@@ -2922,7 +2922,7 @@ export default function ContentTrackerHub({
         <button
           type="button"
           onClick={() => scrollToPhaseColumn('all')}
-          className={`flex-shrink-0 snap-start min-w-[130px] sm:min-w-0 p-3 rounded-2xl border text-left transition-all relative cursor-pointer active:scale-95 ${
+          className={`flex-shrink-0 snap-start min-w-[130px] sm:min-w-0 p-3 rounded-2xl border text-left transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out relative cursor-pointer active:scale-95 ${
             activePhase === 'all'
               ? 'glass-panel bg-[#121724] border-white/30 shadow-md ring-1 ring-white/20'
               : 'glass-tile bg-[#0E131E] text-slate-300 border-white/[0.08] hover:border-white/20'
@@ -2944,7 +2944,7 @@ export default function ContentTrackerHub({
             </span>
           </div>
           <div className="text-[10px] text-slate-400 truncate mt-1">คลิปทุกสถานะ</div>
-          <div className={`h-0.5 w-full mt-2 rounded-full transition-all ${
+          <div className={`h-0.5 w-full mt-2 rounded-full transition-colors duration-150 ease-out ${
             activePhase === 'all' ? 'bg-white' : 'bg-transparent'
           }`} />
         </button>
@@ -2960,7 +2960,7 @@ export default function ContentTrackerHub({
               key={p.id}
               type="button"
               onClick={() => scrollToPhaseColumn(isActive && activePhase !== 'all' ? 'all' : p.id)}
-              className={`flex-shrink-0 snap-start min-w-[140px] sm:min-w-0 p-3 rounded-2xl border text-left transition-all relative cursor-pointer active:scale-95 ${
+              className={`flex-shrink-0 snap-start min-w-[140px] sm:min-w-0 p-3 rounded-2xl border text-left transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out relative cursor-pointer active:scale-95 ${
                 isActive
                   ? `${p.color} shadow-md ring-1 ring-current/25`
                   : 'glass-tile bg-[#0E131E] text-slate-300 border-white/[0.08] hover:border-white/20'
@@ -2982,7 +2982,7 @@ export default function ContentTrackerHub({
                 </span>
               </div>
               <div className="text-[10px] text-slate-400 truncate mt-1">{p.short}</div>
-              <div className={`h-0.5 w-full mt-2 rounded-full transition-all ${
+              <div className={`h-0.5 w-full mt-2 rounded-full transition-colors duration-150 ease-out ${
                 isActive ? p.dot : 'bg-transparent'
               }`} />
             </button>
@@ -3020,7 +3020,7 @@ export default function ContentTrackerHub({
               try { navigator.vibrate?.(10); } catch {}
               scrollToPhaseColumn('all');
             }}
-            className={`flex-1 min-h-11 px-2.5 py-1 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center justify-center gap-1.5 active:scale-95 ${
+            className={`flex-1 min-h-11 px-2.5 py-1 rounded-xl text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out whitespace-nowrap flex items-center justify-center gap-1.5 active:scale-95 ${
               activePhase === 'all'
                 ? 'bg-[#25F4EE] text-slate-950 shadow-md'
                 : 'text-slate-400 hover:text-white'
@@ -3042,7 +3042,7 @@ export default function ContentTrackerHub({
                   try { navigator.vibrate?.(10); } catch {}
                   scrollToPhaseColumn(p.id);
                 }}
-                className={`flex-1 min-h-11 px-2.5 py-1 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center justify-center gap-1.5 active:scale-95 ${
+                className={`flex-1 min-h-11 px-2.5 py-1 rounded-xl text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out whitespace-nowrap flex items-center justify-center gap-1.5 active:scale-95 ${
                   isActive
                     ? 'bg-[#25F4EE] text-slate-950 shadow-md'
                     : 'text-slate-400 hover:text-white'
@@ -3085,7 +3085,7 @@ export default function ContentTrackerHub({
           <button
             type="button"
             onClick={() => setSelectedProductFilter('all')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer active:scale-95 flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out whitespace-nowrap cursor-pointer active:scale-95 flex items-center gap-1.5 ${
               selectedProductFilter === 'all'
                 ? 'bg-white/[0.12] text-white border border-white/25 shadow-sm'
                 : 'bg-white/[0.04] text-slate-400 hover:text-white hover:bg-white/[0.08] border border-white/[0.06]'
@@ -3104,7 +3104,7 @@ export default function ContentTrackerHub({
                 key={p.id}
                 type="button"
                 onClick={() => setSelectedProductFilter(isSelected ? 'all' : p.id)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer active:scale-95 flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out whitespace-nowrap cursor-pointer active:scale-95 flex items-center gap-1.5 ${
                   isSelected
                     ? 'bg-white/[0.12] text-white border border-white/25 shadow-sm'
                     : 'bg-white/[0.04] text-slate-400 hover:text-white hover:bg-white/[0.08] border border-white/[0.06]'
@@ -3370,7 +3370,7 @@ export default function ContentTrackerHub({
                       <button
                         type="button"
                         onClick={() => handleOpenScriptLibrary()}
-                        className="w-full py-2 px-2.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-dashed border-cyan-500/30 text-cyan-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                        className="w-full py-2 px-2.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-dashed border-cyan-500/30 text-cyan-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer active:scale-95"
                         title="เปิดคลังสคริปต์เพื่อหยิบสคริปต์เพิ่มเติมมาตัดต่อวันนี้"
                       >
                         <FolderDown className="w-3.5 h-3.5 text-cyan-400" />
@@ -3383,7 +3383,7 @@ export default function ContentTrackerHub({
                       <button
                         type="button"
                         onClick={() => handleOpenArchive()}
-                        className="w-full py-2 px-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                        className="w-full py-2 px-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer active:scale-95"
                         title="เปิดดูคลิปที่โพสต์แล้วทั้งหมดในอดีต"
                       >
                         <Archive className="w-3.5 h-3.5 text-emerald-400" />

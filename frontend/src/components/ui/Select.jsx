@@ -25,7 +25,7 @@ export const Select = forwardRef(function Select(
         <select
           ref={ref}
           disabled={disabled}
-          className={`w-full py-2.5 pl-3.5 pr-9 rounded-xl bg-[#080B11] border border-white/[0.1] text-slate-100 text-base sm:text-sm font-medium focus:outline-none focus:border-[#25F4EE]/60 focus:ring-1 focus:ring-[#25F4EE]/40 transition-all shadow-inner appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+          className={`w-full py-2.5 pl-3.5 pr-9 rounded-xl bg-[#080B11] border border-white/[0.1] text-slate-100 text-base sm:text-sm font-medium focus:outline-none focus:border-[#25F4EE]/60 focus:ring-1 focus:ring-[#25F4EE]/40 transition-[border-color,box-shadow,background-color] duration-150 ease-out shadow-inner appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
             error ? 'border-rose-500/60 focus:border-rose-500 focus:ring-rose-500/30' : ''
           } ${className}`}
           {...props}

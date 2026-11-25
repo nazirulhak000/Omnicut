@@ -64,6 +64,8 @@ class RenderRequest(BaseModel):
     background_isolation: Optional[Dict[str, Any]] = None
     font_name: str = "IBMPlex"
     bilingual_subtitles: bool = True
+    ghost_reveal: Optional[bool] = None
+    reveal_color_sync: Optional[bool] = None
     show_watermark: bool = True
     use_ai_vision: bool = True
     sticker_badge: Optional[str] = None

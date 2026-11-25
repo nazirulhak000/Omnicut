@@ -169,11 +169,11 @@ const ExportCard = memo(function ExportCard({
 
   return (
     <div
-      className={`overflow-hidden transition-all duration-200 flex flex-col justify-between group relative rounded-2xl sm:rounded-3xl border glass-panel bg-[#0E131E] shadow-md ${
+      className={`overflow-hidden transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 ease-out flex flex-col justify-between group relative rounded-2xl sm:rounded-3xl border glass-panel bg-[#0E131E] shadow-md ${
         isSelected
           ? 'border-[#25F4EE] ring-1 ring-[#25F4EE] bg-[#0E131E]'
           : isPosted
-          ? 'opacity-65 hover:opacity-100 transition-opacity border-emerald-500/30 bg-[#0E131E]'
+          ? 'opacity-65 hover:opacity-100 border-emerald-500/30 bg-[#0E131E]'
           : item.is_qc_rejected
           ? 'border-red-500/40 hover:border-red-400/60 bg-[#120A06]'
           : item.is_previous_version
@@ -251,7 +251,7 @@ const ExportCard = memo(function ExportCard({
         {/* Video / Poster Preview (9:16 Vertical) */}
         <div
           onClick={() => onOpenDetail(item)}
-          className="bg-black aspect-[9/16] w-full flex items-center justify-center relative overflow-hidden cursor-pointer"
+          className="bg-black aspect-[9/16] w-full flex items-center justify-center relative overflow-hidden cursor-pointer group/thumb"
         >
           {displayThumb ? (
             <img
@@ -260,7 +260,7 @@ const ExportCard = memo(function ExportCard({
               loading={priority ? 'eager' : 'lazy'}
               fetchPriority={priority ? 'high' : undefined}
               decoding="async"
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              className="w-full h-full object-cover [@media(hover:hover)_and_(pointer:fine)]:group-hover:scale-105 transition-transform duration-300"
             />
           ) : (
             <video
@@ -279,10 +279,10 @@ const ExportCard = memo(function ExportCard({
           )}
 
           {/* Centered Play Button Overlay */}
-          <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-all flex flex-col items-center justify-center gap-1.5 sm:gap-2 pointer-events-none">
+          <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-[background-color] duration-150 ease-out flex flex-col items-center justify-center gap-1.5 sm:gap-2 pointer-events-none">
             {item.is_qc_rejected ? (
               <>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-600/80 border border-red-400/50 text-white flex items-center justify-center shadow-lg transform group-hover:scale-105 transition-all">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-600/80 border border-red-400/50 text-white flex items-center justify-center shadow-lg [@media(hover:hover)_and_(pointer:fine)]:group-hover:scale-105 active:scale-[0.96] group-active/thumb:scale-[0.96] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out">
                   <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-current ml-0.5 text-white" />
                 </div>
                 <div className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-red-600/90 backdrop-blur-md text-white font-black text-[9px] sm:text-[11px] shadow-lg border border-red-400/60 tracking-wide flex items-center gap-1">
@@ -300,7 +300,7 @@ const ExportCard = memo(function ExportCard({
               </>
             ) : item.is_previous_version ? (
               <>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-amber-600/80 border border-amber-400/50 text-white flex items-center justify-center shadow-lg transform group-hover:scale-105 transition-all">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-amber-600/80 border border-amber-400/50 text-white flex items-center justify-center shadow-lg [@media(hover:hover)_and_(pointer:fine)]:group-hover:scale-105 active:scale-[0.96] group-active/thumb:scale-[0.96] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out">
                   <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current ml-0.5 text-white" />
                 </div>
                 <div className="px-2 py-0.5 rounded-full bg-amber-600/80 backdrop-blur-md text-white font-bold text-[9px] sm:text-[10px] shadow-md border border-amber-400/40 tracking-wide flex items-center gap-1">
@@ -313,7 +313,7 @@ const ExportCard = memo(function ExportCard({
               </>
             ) : (
               <>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/60 backdrop-blur-md border border-white/25 text-white flex items-center justify-center shadow-lg transform group-hover:scale-105 transition-all">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/60 backdrop-blur-md border border-white/25 text-white flex items-center justify-center shadow-lg [@media(hover:hover)_and_(pointer:fine)]:group-hover:scale-105 active:scale-[0.96] group-active/thumb:scale-[0.96] transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out">
                   <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current ml-0.5 text-white" />
                 </div>
                 <span className="text-[10px] sm:text-xs font-bold text-white bg-black/80 px-2.5 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
@@ -361,7 +361,7 @@ const ExportCard = memo(function ExportCard({
         <button
           type="button"
           onClick={() => onOpenDetail(item)}
-          className="flex-1 min-h-[38px] py-1.5 sm:py-2 px-2 rounded-xl bg-gradient-to-r from-[#25F4EE] to-[#00DF89] hover:brightness-110 active:scale-[0.98] text-slate-950 font-bold text-[11px] sm:text-xs flex items-center justify-center gap-1.5 shadow-md shadow-[#25F4EE]/15 cursor-pointer transition-all truncate"
+          className="flex-1 min-h-[38px] py-1.5 sm:py-2 px-2 rounded-xl bg-gradient-to-r from-[#25F4EE] to-[#00DF89] hover:brightness-110 active:scale-[0.98] text-slate-950 font-bold text-[11px] sm:text-xs flex items-center justify-center gap-1.5 shadow-md shadow-[#25F4EE]/15 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out truncate"
           title="เปิด QR Code เพื่อสแกนโพสต์ลง TikTok ทันที"
         >
           <QrCode className="w-3.5 h-3.5 flex-shrink-0 text-slate-950" />
@@ -400,7 +400,7 @@ const ExportCard = memo(function ExportCard({
           </button>
 
           {showMenu && (
-            <div className="absolute right-0 bottom-full mb-1.5 z-40 w-44 rounded-xl bg-[#0E131E] border border-white/[0.15] p-1 shadow-2xl space-y-0.5 animate-in fade-in zoom-in-95 duration-100 text-left">
+            <div className="absolute right-0 bottom-full mb-1.5 z-40 w-44 rounded-xl bg-[#0E131E] border border-white/[0.15] p-1 shadow-2xl space-y-0.5 origin-bottom-right animate-in fade-in zoom-in-95 duration-100 text-left">
               <button
                 type="button"
                 onClick={(e) => {
@@ -456,7 +456,7 @@ function ExportSidebarItem({ item, isSelected, isActive, onSelect, onToggleCheck
   return (
     <div
       onClick={onSelect}
-      className={`p-2.5 rounded-xl border transition-all cursor-pointer text-left group relative active:scale-98 ${
+      className={`p-2.5 rounded-xl border transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer text-left group relative active:scale-98 ${
         isActive
           ? 'bg-white/[0.08] border-[#25F4EE]/50 shadow-sm ring-1 ring-[#25F4EE]/30'
           : 'glass-tile bg-[#0E131E] text-slate-300 border-white/[0.08] hover:border-white/20'
@@ -550,7 +550,7 @@ function ExportMobilePill({ item, isActive, onSelect }) {
     <button
       type="button"
       onClick={onSelect}
-      className={`flex-shrink-0 snap-center px-2.5 py-2 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2 max-w-[200px] active:scale-95 ${
+      className={`flex-shrink-0 snap-center px-2.5 py-2 rounded-xl border text-left transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer flex items-center gap-2 max-w-[200px] active:scale-95 ${
         isActive
           ? 'bg-white/[0.1] border-[#25F4EE]/60 shadow-sm ring-1 ring-[#25F4EE]/30'
           : 'glass-tile bg-[#0E131E] text-slate-300 border-white/[0.08] hover:border-white/20'
@@ -845,7 +845,7 @@ function ExportActiveWorkbench({
               <button
                 type="button"
                 onClick={() => onSwapToLatest(video)}
-                className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-xs font-bold transition-all cursor-pointer flex-shrink-0 active:scale-95"
+                className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer flex-shrink-0 active:scale-95"
               >
                 ดูตัวล่าสุด
               </button>
@@ -864,7 +864,7 @@ function ExportActiveWorkbench({
               <button
                 type="button"
                 onClick={() => onOpenLinkModal(video)}
-                className="px-2.5 py-1 rounded-lg bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 text-[#25F4EE] text-xs font-bold transition-all cursor-pointer flex-shrink-0 active:scale-95"
+                className="px-2.5 py-1 rounded-lg bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 text-[#25F4EE] text-xs font-bold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer flex-shrink-0 active:scale-95"
               >
                 ผูกกับสคริปต์
               </button>
@@ -1108,7 +1108,7 @@ function ExportActiveWorkbench({
                       <button
                         type="button"
                         onClick={() => setShowCoverStudio(true)}
-                        className="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 text-[11px] font-bold cursor-pointer active:scale-95 transition-all flex items-center gap-1"
+                        className="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 text-[11px] font-bold cursor-pointer active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out flex items-center gap-1"
                         title="เปิดสตูดิโอสร้างปกคลิป 9:16 แบบมืออาชีพ (Auto Highlight Crop + AI Hook + 3D Badge)"
                       >
                         <ImageIcon className="w-3.5 h-3.5" />
@@ -1118,7 +1118,7 @@ function ExportActiveWorkbench({
                         type="button"
                         onClick={handleGenerateCoverClick}
                         disabled={coverBusy}
-                        className="px-2.5 py-1 rounded-lg bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 text-[#25F4EE] text-[11px] font-bold cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-wait transition-all"
+                        className="px-2.5 py-1 rounded-lg bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 text-[#25F4EE] text-[11px] font-bold cursor-pointer active:scale-95 disabled:active:scale-100 disabled:opacity-50 disabled:cursor-wait transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
                       >
                         {coverBusy ? 'กำลังสร้าง...' : currentCoverUrl ? 'สร้างใหม่' : 'สร้างปก'}
                       </button>
@@ -1160,7 +1160,7 @@ function ExportActiveWorkbench({
                 <button
                   type="button"
                   onClick={handleCopyPath}
-                  className="px-2 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white text-[10px] font-mono flex items-center gap-1 transition-all cursor-pointer"
+                  className="px-2 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white text-[10px] font-mono flex items-center gap-1 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
                   title="คัดลอก Path ไฟล์"
                 >
                   <Copy className="w-3 h-3" />
@@ -1204,7 +1204,7 @@ function ExportActiveWorkbench({
               type="button"
               onClick={handleEnhanceTikTokClick}
               disabled={sharpBusy || alreadySharp}
-              className={`py-2.5 px-3.5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg cursor-pointer active:scale-95 transition-all ${
+              className={`py-2.5 px-3.5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg cursor-pointer active:scale-95 disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out ${
                 alreadySharp
                   ? 'bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 cursor-default'
                   : 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:brightness-110 text-white'
@@ -1223,7 +1223,7 @@ function ExportActiveWorkbench({
             <a
               href={toMediaUrl(video.rel_path || video.path)}
               download={video.name}
-              className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg cursor-pointer active:scale-95 transition-all text-center"
+              className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-lg cursor-pointer active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out text-center"
             >
               <Download className="w-4 h-4" />
               <span>ดาวน์โหลด MP4</span>
@@ -1242,7 +1242,7 @@ function ExportActiveWorkbench({
               <button
                 type="button"
                 onClick={() => onDelete(video)}
-                className="py-2.5 px-3.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+                className="py-2.5 px-3.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
               >
                 <Trash2 className="w-4 h-4" />
                 <span>ลบ</span>
@@ -1256,7 +1256,7 @@ function ExportActiveWorkbench({
               type="button"
               onClick={handleRevealClick}
               disabled={revealBusy}
-              className="flex-1 py-2 px-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-300 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all disabled:opacity-50"
+              className="flex-1 py-2 px-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-300 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out disabled:opacity-50"
             >
               <Folder className="w-3.5 h-3.5" />
               <span>เปิดไฟล์ใน Explorer</span>
@@ -1265,7 +1265,7 @@ function ExportActiveWorkbench({
               href="https://www.tiktok.com/tiktokstudio/upload"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 py-2 px-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-300 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all text-center"
+              className="flex-1 py-2 px-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-300 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out text-center"
             >
               <Share2 className="w-3.5 h-3.5" />
               <span>เปิด TikTok Studio</span>
@@ -1280,7 +1280,7 @@ function ExportActiveWorkbench({
                 type="button"
                 onClick={handleMarkPostedClick}
                 disabled={postBusy}
-                className="flex-1 py-2 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all disabled:opacity-50"
+                className="flex-1 py-2 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out disabled:opacity-50"
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>{postBusy ? 'กำลังมาร์ค...' : 'มาร์คว่าโพสต์แล้ว'}</span>
@@ -1294,7 +1294,7 @@ function ExportActiveWorkbench({
               type="button"
               onClick={handlePrepareAutopostClick}
               disabled={autopostBusy}
-              className="w-full py-2 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all disabled:opacity-50"
+              className="w-full py-2 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 disabled:active:scale-100 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out disabled:opacity-50"
               title="ต้องติดตั้ง tiktok_autopost_extension/ และเปิดแท็บ TikTok Studio ที่ล็อกอินไว้ก่อน"
             >
               <Zap className="w-3.5 h-3.5" />
@@ -1801,7 +1801,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
             <button
               type="button"
               onClick={() => setActiveMediaTab('exports')}
-              className={`flex-1 md:flex-initial px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+              className={`flex-1 md:flex-initial px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                 activeMediaTab === 'exports'
                   ? 'bg-white/[0.1] text-white border border-white/20 shadow-sm'
                   : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
@@ -1814,7 +1814,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
             <button
               type="button"
               onClick={() => setActiveMediaTab('raw_vault')}
-              className={`flex-1 md:flex-initial px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+              className={`flex-1 md:flex-initial px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                 activeMediaTab === 'raw_vault'
                   ? 'bg-white/[0.1] text-white border border-white/20 shadow-sm'
                   : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
@@ -1842,7 +1842,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                 <button
                   type="button"
                   onClick={() => setViewMode('split')}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                     viewMode === 'split'
                       ? 'bg-white/[0.1] text-white border border-white/20 shadow-sm'
                       : 'text-slate-400 hover:text-white'
@@ -1855,7 +1855,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                 <button
                   type="button"
                   onClick={() => setViewMode('grid')}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                     viewMode === 'grid'
                       ? 'bg-white/[0.1] text-white border border-white/20 shadow-sm'
                       : 'text-slate-400 hover:text-white'
@@ -1926,7 +1926,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="ค้นหาชื่อคลิป, แคปชัน, หรือสินค้า..."
-                  className="w-full bg-black/50 border border-white/[0.1] focus:border-[#FE2C55] focus:ring-1 focus:ring-[#FE2C55] rounded-xl pl-10 pr-9 py-2 min-h-11 sm:min-h-0 text-base sm:text-xs text-white placeholder-slate-500 focus:outline-none transition-all"
+                  className="w-full bg-black/50 border border-white/[0.1] focus:border-[#FE2C55] focus:ring-1 focus:ring-[#FE2C55] rounded-xl pl-10 pr-9 py-2 min-h-11 sm:min-h-0 text-base sm:text-xs text-white placeholder-slate-500 focus:outline-none transition-[border-color,box-shadow,background-color] duration-150 ease-out"
                 />
                 {searchQuery && (
                   <button
@@ -1986,7 +1986,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                     key={chip.id}
                     type="button"
                     onClick={() => setStatusFilter(chip.id)}
-                    className={`py-1.5 px-2.5 sm:px-3 min-h-[36px] rounded-lg text-xs font-bold border flex items-center gap-1.5 transition-all cursor-pointer flex-shrink-0 active:scale-95 ${
+                    className={`py-1.5 px-2.5 sm:px-3 min-h-[36px] rounded-lg text-xs font-bold border flex items-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer flex-shrink-0 active:scale-95 ${
                       statusFilter === chip.id ? chip.active : chip.color
                     }`}
                   >
@@ -2187,7 +2187,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                 <button
                   type="button"
                   onClick={handleBatchDelete}
-                  className="py-1.5 px-3.5 rounded-xl bg-rose-500 hover:bg-rose-600 text-xs font-bold text-white flex items-center gap-1.5 shadow-lg shadow-rose-500/20 transition-all active:scale-95 cursor-pointer"
+                  className="py-1.5 px-3.5 rounded-xl bg-rose-500 hover:bg-rose-600 text-xs font-bold text-white flex items-center gap-1.5 shadow-lg shadow-rose-500/20 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-95 cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>ลบที่เลือก</span>
@@ -2226,7 +2226,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                     <button
                       type="button"
                       onClick={() => handleCopyCaption(`${selectedDetailVideo.tiktok_caption}\n\n${selectedDetailVideo.tiktok_hashtags || ''}`)}
-                      className="flex-1 min-h-[46px] py-2.5 px-3 rounded-xl bg-emerald-600/25 hover:bg-emerald-600/40 border border-emerald-500/40 active:scale-[0.98] text-emerald-200 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all"
+                      className="flex-1 min-h-[46px] py-2.5 px-3 rounded-xl bg-emerald-600/25 hover:bg-emerald-600/40 border border-emerald-500/40 active:scale-[0.98] text-emerald-200 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
                     >
                       <Copy className="w-4 h-4 flex-shrink-0" />
                       <span>คัดลอกแคปชัน TikTok</span>
@@ -2235,7 +2235,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                   <a
                     href={toMediaUrl(selectedDetailVideo.rel_path || selectedDetailVideo.path)}
                     download={selectedDetailVideo.name}
-                    className="flex-1 min-h-[46px] py-2.5 px-3 rounded-xl bg-[#E0244A] hover:bg-[#C81D40]/90 active:scale-[0.98] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all"
+                    className="flex-1 min-h-[46px] py-2.5 px-3 rounded-xl bg-[#E0244A] hover:bg-[#C81D40]/90 active:scale-[0.98] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out"
                   >
                     <Download className="w-4 h-4 flex-shrink-0" />
                     <span>บันทึกคลิป MP4</span>
@@ -2252,7 +2252,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                           });
                         } catch {}
                       }}
-                      className="min-h-[46px] px-3.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] active:scale-[0.98] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 border border-white/10 transition-all cursor-pointer flex-shrink-0"
+                      className="min-h-[46px] px-3.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] active:scale-[0.98] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 border border-white/10 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out cursor-pointer flex-shrink-0"
                       title="แชร์คลิปลง Photos ใน iPhone"
                     >
                       <Share2 className="w-4 h-4 text-[#25F4EE]" />
@@ -2291,7 +2291,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                           download={`cover_${selectedDetailVideo.name || 'video'}.jpg`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer flex-shrink-0"
+                          className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] cursor-pointer flex-shrink-0"
                         >
                           <Download className="w-3.5 h-3.5" />
                           <span>โหลดปก</span>
@@ -2321,7 +2321,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                     <button
                       type="button"
                       onClick={() => handleSwapToLatest(selectedDetailVideo)}
-                      className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer flex-shrink-0 shadow-sm"
+                      className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer flex-shrink-0 shadow-sm"
                       title="เปิดดูคลิปเวอร์ชันล่าสุด"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
@@ -2346,7 +2346,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                     <button
                       type="button"
                       onClick={() => handleOpenLinkModal(selectedDetailVideo)}
-                      className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/40 text-[#25F4EE] hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer flex-shrink-0 shadow-sm"
+                      className="w-full sm:w-auto px-3.5 py-2 rounded-xl bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/40 text-[#25F4EE] hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer flex-shrink-0 shadow-sm"
                     >
                       <Link2 className="w-3.5 h-3.5" />
                       <span>ผูกกับสคริปต์</span>
@@ -2592,7 +2592,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                     <button
                       type="button"
                       onClick={() => handleRevealFile(selectedDetailVideo)}
-                      className="flex-1 py-2 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                      className="flex-1 py-2 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100"
                     >
                       <FolderOpen className="w-3.5 h-3.5" />
                       <span>เปิดใน Explorer</span>
@@ -2601,7 +2601,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                       href="https://www.tiktok.com/tiktokstudio/upload"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 py-2 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                      className="flex-1 py-2 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97]"
                     >
                       <ExternalLink className="w-3.5 h-3.5" />
                       <span>เปิด TikTok Studio</span>
@@ -2611,7 +2611,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                     <button
                       type="button"
                       onClick={() => handlePrepareAutopost(selectedDetailVideo, selectedDetailVideo.cover_path || null)}
-                      className="w-full py-2.5 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all shadow-md"
+                      className="w-full py-2.5 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out shadow-md"
                     >
                       <Zap className="w-3.5 h-3.5" />
                       <span>โพสต์ TikTok อัตโนมัติ (ทดลอง)</span>
@@ -2652,7 +2652,7 @@ export default function ExportGallery({ exportsList, onRefresh, onDeleteExport, 
                   <a
                     href={toMediaUrl(selectedDetailVideo.rel_path || selectedDetailVideo.path)}
                     download={selectedDetailVideo.name}
-                    className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg cursor-pointer active:scale-95 transition-all text-center"
+                    className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg cursor-pointer active:scale-95 transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out text-center"
                   >
                     <Download className="w-4 h-4" />
                     <span>ดาวน์โหลด MP4</span>

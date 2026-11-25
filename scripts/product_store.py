@@ -1384,6 +1384,56 @@ class ProductStore:
         return report
 
     @classmethod
+    def standardize_hashtags(
+        cls,
+        apply: bool = False,
+        max_count: int = 5,
+        *,
+        include_posted: bool = False,
+    ) -> Dict[str, Any]:
+        """Normalize tiktok_hashtags across products and angles: enforces max 5 hashtags,
+        deduplication, price scrubbing, and booster tag filling.
+        By default, skips 'posted' angles unless include_posted is True.
+        Preview unless apply is True."""
+        from scripts.hashtag_utils import normalize_tiktok_hashtags
+        scope = cls._scope(None, all_channels=True)
+        report: Dict[str, Any] = {"changes": [], "posted_untouched": 0, "applied": bool(apply)}
+
+        def visit(products: List[Dict[str, Any]]) -> None:
+            for product in products:
+                prod_name = product.get("name") or ""
+                for angle in product.get("angles", []) or []:
+                    status = angle.get("status")
+                    if status == "posted" and not include_posted:
+                        report["posted_untouched"] += 1
+                        continue
+                    raw = angle.get("tiktok_hashtags") or angle.get("hashtags")
+                    if not raw:
+                        continue
+                    norm = normalize_tiktok_hashtags(raw, product_name=prod_name, max_count=max_count)
+                    if norm != raw:
+                        report["changes"].append({
+                            "product_id": product.get("id"),
+                            "product": prod_name,
+                            "angle_id": angle.get("angle_id"),
+                            "status": status,
+                            "old": raw,
+                            "new": norm,
+                        })
+                        if apply:
+                            angle["tiktok_hashtags"] = norm
+                            angle["updated_at"] = cls._now()
+                            product["updated_at"] = cls._now()
+
+        if apply:
+            with cls._scoped_mutate(scope) as products:
+                visit(products)
+        else:
+            import copy
+            visit(copy.deepcopy(cls._scoped_load(scope)))
+        return report
+
+    @classmethod
     def append_angles(
         cls,
         product_id: str,

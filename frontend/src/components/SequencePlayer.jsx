@@ -1033,7 +1033,7 @@ function BackgroundIsolationStatusBadge({ status = 'off' }) {
       aria-live="polite"
       aria-label={`${meta.label}: ${meta.detail}`}
       title={`${meta.label}\n${meta.detail}`}
-      className={`pointer-events-auto absolute left-2 top-2 z-30 flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold shadow-lg backdrop-blur-md transition-all ${tone}`}
+      className={`pointer-events-auto absolute left-2 top-2 z-30 flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold shadow-lg backdrop-blur-md transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 ease-out ${tone}`}
     >
       {icon}
       <span className="whitespace-nowrap">{meta.label}</span>
@@ -2289,7 +2289,7 @@ function getOverlayGeometry(ctx, overlay, tiers, baseFontSize, maxW, normY, moti
     ? CANVAS_H * normY
     : CANVAS_H * normY - blockH / 2;
   // No clamp here: the render anchors the block at normY * 1920 (HookHeader top
-  // anchor 180 px, hook line centre 225 px). A `Math.max(120, ...)` clamp, in
+  // anchor 260 px, hook line centre 320 px). A `Math.max(120, ...)` clamp, in
   // canvas units, pushed every top overlay >= 240 render px and the preview
   // drew ~60 px lower than the file (preview_render_parity.md rule 2.8).
 
@@ -5530,7 +5530,7 @@ function SequencePlayer({
               type="button"
               onClick={toggleSafeZone}
               title={showSafeZone ? 'ซ่อน TikTok Safe Zone' : 'แสดง TikTok Safe Zone (9:16)'}
-              className={`flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10.5px] font-medium border transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10.5px] font-medium border transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 ease-out cursor-pointer ${
                 showSafeZone
                   ? 'bg-[#25F4EE]/15 border-[#25F4EE]/60 text-[#25F4EE] shadow-[0_0_8px_rgba(37,244,238,0.2)]'
                   : 'bg-white/5 border-white/10 text-slate-400 hover:text-slate-200 hover:bg-white/10'
@@ -5595,7 +5595,7 @@ function SequencePlayer({
               key={doubleTapRipple.id}
               className="pointer-events-none absolute inset-0 z-[60] flex items-center justify-center animate-out fade-out duration-500"
             >
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-black/70 backdrop-blur-md border border-[#25F4EE]/40 text-[#25F4EE] shadow-2xl shadow-[#25F4EE]/20 transition-all scale-110">
+              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-black/70 backdrop-blur-md border border-[#25F4EE]/40 text-[#25F4EE] shadow-2xl shadow-[#25F4EE]/20 transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 ease-out scale-110">
                 {doubleTapRipple.isPlaying ? (
                   <Play className="h-9 w-9 fill-current translate-x-0.5" />
                 ) : (
@@ -5795,15 +5795,15 @@ function SequencePlayer({
               {/* TikTok Safe Zone Overlay (Safe 9:16 Area) */}
               {showSafeZone && (
                 <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
-                  {/* Top Margin (180px / 1920 = 9.4%) */}
-                  <div className="absolute top-0 left-0 right-0 h-[9.4%] bg-black/25 border-b border-dashed border-white/40 flex items-center px-2">
+                  {/* Top Margin (260px / 1920 = 13.5%) */}
+                  <div className="absolute top-0 left-0 right-0 h-[13.5%] bg-black/25 border-b border-dashed border-white/40 flex items-center px-2">
                     <span className="text-[9px] font-medium text-slate-300 bg-black/70 px-1.5 py-0.5 rounded border border-white/15">
-                      หลบแถบ Following / For You (180px)
+                      หลบแถบค้นหาและแท็บ Following / For You (260px)
                     </span>
                   </div>
 
                   {/* Right Side Bar (120px / 1080 = 11.1%) */}
-                  <div className="absolute top-[9.4%] bottom-[21.9%] right-0 w-[11.1%] bg-rose-500/[0.08] border-l border-dashed border-[#FE2C55]/70 flex flex-col items-center justify-center gap-2.5 p-1">
+                  <div className="absolute top-[13.5%] bottom-[21.9%] right-0 w-[11.1%] bg-rose-500/[0.08] border-l border-dashed border-[#FE2C55]/70 flex flex-col items-center justify-center gap-2.5 p-1">
                     <div className="text-[7.5px] font-bold text-rose-300 rotate-90 whitespace-nowrap bg-black/80 px-1 py-0.5 rounded border border-rose-500/30">
                       หลบปุ่ม Like / Share
                     </div>
@@ -5824,7 +5824,7 @@ function SequencePlayer({
                   </div>
 
                   {/* 100% Safe Region Corner Indicator */}
-                  <div className="absolute top-[9.4%] left-0 right-[11.1%] bottom-[21.9%] pointer-events-none border border-emerald-500/20">
+                  <div className="absolute top-[13.5%] left-0 right-[11.1%] bottom-[21.9%] pointer-events-none border border-emerald-500/20">
                     <div className="absolute top-1 left-1.5 text-[8px] font-bold text-emerald-400 bg-black/75 px-1.5 py-0.5 rounded border border-emerald-500/30 shadow">
                       SAFE ZONE (9:16)
                     </div>
@@ -5958,7 +5958,7 @@ function SequencePlayer({
                   aria-label={isPlaying ? 'หยุดพรีวิวชั่วคราว' : 'เล่นพรีวิว'}
                   className="group absolute inset-0 flex cursor-pointer items-center justify-center bg-black/0 transition-colors hover:bg-black/20"
                 >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/60 text-white opacity-0 shadow-lg transition-all group-hover:bg-[#25F4EE] group-hover:text-black group-hover:opacity-100">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/60 text-white opacity-0 shadow-lg transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 ease-out group-hover:bg-[#25F4EE] group-hover:text-black group-hover:opacity-100">
                     {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
                   </div>
                 </button>
@@ -6090,7 +6090,7 @@ function SequencePlayer({
               aria-pressed={showSafeZone}
               aria-label={showSafeZone ? 'ซ่อน TikTok Safe Zone' : 'แสดง TikTok Safe Zone'}
               title={showSafeZone ? 'ซ่อน TikTok Safe Zone (9:16)' : 'แสดง TikTok Safe Zone (9:16)'}
-              className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-all cursor-pointer border ${
+              className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-[background-color,border-color,color,transform,opacity,box-shadow] duration-150 ease-out cursor-pointer border ${
                 showSafeZone
                   ? 'bg-rose-500/20 text-rose-300 border-rose-500/50 shadow-[0_0_8px_rgba(254,44,85,0.3)]'
                   : 'text-slate-400 hover:text-slate-200 border-white/10 hover:border-white/20 hover:bg-white/5'

@@ -71,7 +71,7 @@ CANONICAL_COUPLE_TEMPLATE = r"""<!DOCTYPE html>
         position: absolute;
         left: 60px;
         right: 60px;
-        top: 110px;
+        top: 250px;
         text-align: center;
         color: var(--ink);
         opacity: 0;
@@ -224,7 +224,7 @@ CANONICAL_COUPLE_TEMPLATE = r"""<!DOCTYPE html>
       }
       #cta-1 {
         position: absolute;
-        top: 165px;
+        top: 255px;
         left: 0;
         right: 0;
         width: 100%;
@@ -241,7 +241,7 @@ CANONICAL_COUPLE_TEMPLATE = r"""<!DOCTYPE html>
       }
       #cta-model {
         position: absolute;
-        top: 275px;
+        top: 365px;
         left: 0;
         right: 0;
         width: 100%;

@@ -134,7 +134,7 @@ export default function ProductionAnalyticsTab({ onNavigateToEditor, onNavigateT
         <p className="text-sm text-slate-300">{error || 'ไม่พบข้อมูล'}</p>
         <button
           onClick={fetchData}
-          className="px-4 py-2 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] text-xs font-bold text-white transition-all cursor-pointer inline-flex items-center gap-2"
+          className="px-4 py-2 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] text-xs font-bold text-white transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer inline-flex items-center gap-2"
         >
           <RefreshCw className="w-4 h-4" />
           <span>ลองใหม่อีกครั้ง</span>
@@ -206,7 +206,7 @@ export default function ProductionAnalyticsTab({ onNavigateToEditor, onNavigateT
           </div>
           <button
             onClick={fetchData}
-            className="p-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white transition-all cursor-pointer"
+            className="p-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
             title="รีเฟรชข้อมูล"
           >
             <RefreshCw className="w-4 h-4" />
@@ -322,7 +322,7 @@ export default function ProductionAnalyticsTab({ onNavigateToEditor, onNavigateT
                       {item.project_name && onNavigateToEditor && (
                         <button
                           onClick={() => onNavigateToEditor(item.project_name)}
-                          className="px-2 py-1 rounded bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 text-[11px] font-semibold transition-all cursor-pointer inline-flex items-center gap-1"
+                          className="px-2 py-1 rounded bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 text-[11px] font-semibold transition-[background-color,border-color,color,transform,box-shadow,opacity] duration-150 active:duration-100 ease-out active:scale-[0.97] disabled:active:scale-100 cursor-pointer inline-flex items-center gap-1"
                         >
                           <Play className="w-3 h-3 text-[#25F4EE]" />
                           <span>ไทม์ไลน์</span>
