@@ -20,8 +20,8 @@ test('SequencePlayer has 9:16 vertical stage with Double-Tap ripple and glass pl
   assert.match(source, /doubleTapRipple/);
   assert.match(source, /Double-Tap Visual Ripple Feedback/);
 
-  // Studio Player Control Bar with glass-panel and fixed tabular-nums timecode
-  assert.match(source, /rounded-full\s+glass-panel\s+px-3\s+py-1\s+shadow-lg/);
+  // Studio Player Control Bar with Matte-Dark surface and fixed tabular-nums timecode
+  assert.match(source, /rounded-full\s+bg-\[#14161A\]\s+border\s+border-\[#23262D\]\s+px-3\s+py-1/);
   assert.match(source, /tabular-nums\s+w-\[140px\]/);
 });
 
@@ -48,8 +48,8 @@ test('Toolbar enforces >= 44px mobile touch targets, Q/W trims, and glass stylin
   assert.match(source, /label="ตัดหัว"/);
   assert.match(source, /label="ตัดท้าย"/);
 
-  // Glass-tile toolbar container
-  assert.match(source, /glass-tile/);
+  // Matte-Dark toolbar container
+  assert.match(source, /bg-\[#101114\]\s+border-b\s+border-\[#1E2026\]/);
 });
 
 test('TimelinePlayhead has high-visibility 3.5px line and glow', () => {

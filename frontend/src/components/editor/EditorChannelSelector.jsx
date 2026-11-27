@@ -69,35 +69,35 @@ export default function EditorChannelSelector() {
         aria-expanded={open}
         aria-label={`สลับช่องทำงาน ปัจจุบันเลือกช่อง ${currentDisplayName}`}
         title={`ช่อง: ${currentDisplayName} ${currentHandle} (${canStart ? 'พร้อมผลิต' : isDraft ? 'แบบร่าง' : isArchived ? 'เก็บถาวร' : 'พร้อมใช้งาน'})`}
-        className={`group flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border px-1.5 sm:px-2.5 text-xs font-semibold active:scale-[0.97] disabled:active:scale-100 motion-press active:duration-100 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70 ${
+        className={`group flex h-8 sm:h-9 items-center gap-1.5 rounded-lg border px-1.5 sm:px-2.5 text-xs font-semibold active:scale-[0.97] disabled:active:scale-100 motion-press active:duration-100 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3A3E4A] ${
           open
-            ? 'border-cyan-400/60 bg-cyan-500/15 text-white shadow-lg shadow-cyan-500/10'
-            : 'border-white/[0.1] bg-white/[0.04] text-slate-200 hover:border-white/[0.22] hover:bg-white/[0.08] hover:text-white'
+            ? 'border-[#234739] bg-[#121A18] text-[#F4F4F5]'
+            : 'border-[#2B2E36] bg-[#1B1D22] text-[#D4D4D8] hover:border-[#3A3E4A] hover:bg-[#22252C] hover:text-[#F4F4F5]'
         }`}
       >
         {switching ? (
-          <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400 flex-shrink-0" />
+          <Loader2 className="w-3.5 h-3.5 animate-spin text-[#34D399] flex-shrink-0" />
         ) : (
           <span
             className={`w-2 h-2 rounded-full flex-shrink-0 transition-[background-color,box-shadow] duration-150 ease-out ${
               canStart
-                ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]'
+                ? 'bg-[#34D399]'
                 : isDraft
-                ? 'bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.5)]'
-                : 'bg-slate-400'
+                ? 'bg-[#FBBF24]'
+                : 'bg-[#5C6069]'
             }`}
           />
         )}
 
-        <Radio className="w-3.5 h-3.5 text-cyan-400/80 flex-shrink-0" />
+        <Radio className="w-3.5 h-3.5 text-[#8E929B] flex-shrink-0" />
 
-        <span className="hidden sm:inline-block max-w-[130px] truncate font-bold text-white tracking-tight">
+        <span className="hidden sm:inline-block max-w-[130px] truncate font-bold text-[#F4F4F5] tracking-tight">
           {currentDisplayName}
         </span>
 
         <ChevronDown
-          className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 flex-shrink-0 ${
-            open ? 'rotate-180 text-cyan-300' : 'group-hover:text-slate-200'
+          className={`w-3.5 h-3.5 text-[#8E929B] transition-transform duration-200 flex-shrink-0 ${
+            open ? 'rotate-180 text-[#F4F4F5]' : 'group-hover:text-[#D4D4D8]'
           }`}
         />
       </button>
@@ -110,15 +110,15 @@ export default function EditorChannelSelector() {
           align="start"
           role="listbox"
           aria-label="รายชื่อช่องการทำงาน"
-          className="w-72 max-w-[90vw] rounded-2xl border border-white/[0.12] bg-[#0A101E]/95 backdrop-blur-2xl p-2 shadow-2xl space-y-1.5 animate-in fade-in zoom-in-95 duration-150"
+          className="w-72 max-w-[90vw] rounded-xl border border-[#23262D] bg-[#14161A] p-2 space-y-1.5 animate-in fade-in zoom-in-95 duration-150"
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-2 py-1 border-b border-white/[0.08]">
+          <div className="flex items-center justify-between px-2 py-1 border-b border-[#1E2026]">
             <div className="flex items-center gap-1.5">
-              <Radio className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="text-xs font-bold text-white">ช่องการทำงาน</span>
+              <Radio className="w-3.5 h-3.5 text-[#34D399]" />
+              <span className="text-xs font-bold text-[#F4F4F5]">ช่องการทำงาน</span>
             </div>
-            <span className="text-[10px] text-slate-400 font-medium">
+            <span className="text-[10px] text-[#8E929B] font-medium">
               {channels.length} ช่อง
             </span>
           </div>
@@ -137,10 +137,10 @@ export default function EditorChannelSelector() {
                   role="option"
                   aria-selected={isSelected}
                   onClick={() => handleSelectChannel(ch.id)}
-                  className={`w-full text-left p-2 rounded-xl flex items-center justify-between gap-2 active:scale-[0.98] motion-press active:duration-100 cursor-pointer ${
+                  className={`w-full text-left p-2 rounded-lg flex items-center justify-between gap-2 active:scale-[0.98] motion-press active:duration-100 cursor-pointer ${
                     isSelected
-                      ? 'bg-cyan-500/15 border border-cyan-500/40 text-white shadow-sm'
-                      : 'hover:bg-white/[0.06] border border-transparent text-slate-300 hover:text-white'
+                      ? 'bg-[#121A18] border border-[#234739] text-[#F4F4F5]'
+                      : 'hover:bg-[#1B1D22] border border-transparent text-[#D4D4D8] hover:text-[#F4F4F5]'
                   }`}
                 >
                   <div className="min-w-0 flex-1">

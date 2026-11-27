@@ -665,8 +665,8 @@ export default function SystemAssets({
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                     Local Wi-Fi Mobile Sync
                   </span>
-                  <span className="text-sm font-mono font-bold bg-white/[0.05] border border-white/[0.08] px-2 py-0.5 rounded text-white">
-                    {status?.local_ip || '127.0.0.1'}:5173
+                  <span className="text-sm font-mono font-bold bg-[#1B1D22] border border-[#2B2E36] px-2 py-0.5 rounded-md text-[#F4F4F5]">
+                    {status?.mobile_url || (status?.local_ip ? `${status.local_ip}:8443` : '127.0.0.1:8000')}
                   </span>
                 </div>
               </div>

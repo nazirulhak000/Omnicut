@@ -15,6 +15,8 @@ import {
   Zap,
 } from 'lucide-react';
 import { getUniversalFilmingRecipe } from '../api';
+import { SafeQRCode } from './ui';
+import { publicAppOrigin } from '../lib/mobileLinks.js';
 
 export default function UniversalFilmingRecipeModal({
   isOpen,
@@ -44,8 +46,9 @@ export default function UniversalFilmingRecipeModal({
 
   if (!isOpen) return null;
 
-  const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(currentUrl)}`;
+  const currentUrl = typeof window !== 'undefined'
+    ? `${publicAppOrigin()}${window.location.pathname}${window.location.search}`
+    : '';
 
   const handleCopyLink = () => {
     if (navigator.clipboard) {
@@ -136,10 +139,10 @@ export default function UniversalFilmingRecipeModal({
           {showQr && (
             <div className="p-4 rounded-xl bg-gradient-to-r from-cyan-950/40 via-slate-900/60 to-slate-900/40 border border-[#25F4EE]/30 flex flex-col sm:flex-row items-center gap-4 animate-in slide-in-from-top-3 duration-200">
               <div className="p-2 bg-white rounded-xl shadow-lg shadow-black/50 flex-shrink-0">
-                <img
-                  src={qrCodeUrl}
-                  alt="QR Code"
-                  className="w-32 h-32 object-contain"
+                <SafeQRCode
+                  value={currentUrl}
+                  size={128}
+                  level="M"
                 />
               </div>
               <div className="space-y-2 text-center sm:text-left flex-1">

@@ -28,6 +28,25 @@
 @font-face { font-family: 'Sarabun'; src: url('/api/media/02_Assets/Fonts/Sarabun-Bold.ttf') format('truetype'); font-weight: 400 700; font-display: block; }
 
 :root {
+  /* Canonical Matte-Dark Desktop Utility Tokens (Antigravity Profiles v4.2) */
+  --surface-canvas: #0C0D10;
+  --surface-chrome: #101114;
+  --surface-card: #14161A;
+  --surface-elevated: #1B1D22;
+  --surface-hover: #22252C;
+  --surface-active-tint: #121A18;
+
+  --border-chrome: #1E2026;
+  --border-card: #23262D;
+  --border-control: #2B2E36;
+  --border-hover: #3A3E4A;
+  --border-active-green: #234739;
+
+  --text-primary: #F4F4F5;
+  --text-secondary: #D4D4D8;
+  --text-muted: #8E929B;
+  --text-subtle: #5C6069;
+
   /* Ultra-Realistic Glassmorphism Tokens (Pulse Hub / Apple visionOS Spatial UI) */
   --glass-blur: 14px;
   --glass-opacity: 0.16;
@@ -115,8 +134,8 @@
   }
 
   body {
-    background-color: #030509;
-    color: #F1F5F9;
+    background-color: #0C0D10;
+    color: #F4F4F5;
     font-family: 'Anuphan', 'Prompt', 'Inter', system-ui, sans-serif;
     min-height: 100vh;
     min-height: 100dvh;
@@ -133,7 +152,7 @@
   html, body, #root {
     height: 100%;
     overflow: hidden;
-    background-color: #030509;
+    background-color: #0C0D10;
   }
 
   /* Prevent iOS Safari auto-zoom when tapping inputs. Applies to every touch
@@ -362,43 +381,81 @@
   display: none !important;
 }
 
-/* 1. Theme: Obsidian Pro Dark */
+/* 1. Theme: Obsidian Matte-Dark Desktop Utility */
 [data-theme="obsidian"] body,
 [data-theme="obsidian"] html,
 [data-theme="obsidian"] #root {
-  background-color: #07090e !important;
+  background-color: #0C0D10 !important;
 }
 
 [data-theme="obsidian"] .glass-panel,
-[data-theme="obsidian"] .saas-card {
-  background: #0e1322 !important;
-  background-color: #0e1322 !important;
+[data-theme="obsidian"] .saas-card,
+[data-theme="obsidian"] .glass-card,
+[data-theme="obsidian"] .claude-card,
+[data-theme="obsidian"] .obsidian-card,
+[data-theme="obsidian"] .asset-card-obsidian {
+  background: #14161A !important;
+  background-color: #14161A !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.6) !important;
+  border: 1px solid #23262D !important;
+  box-shadow: none !important;
+  border-radius: 12px !important;
 }
 
 [data-theme="obsidian"] .glass-panel::before,
 [data-theme="obsidian"] .glass-panel::after,
 [data-theme="obsidian"] .saas-card::before,
-[data-theme="obsidian"] .saas-card::after {
+[data-theme="obsidian"] .saas-card::after,
+[data-theme="obsidian"] .glass-card::before,
+[data-theme="obsidian"] .glass-card::after,
+[data-theme="obsidian"] .claude-card::before,
+[data-theme="obsidian"] .claude-card::after,
+[data-theme="obsidian"] .obsidian-card::before,
+[data-theme="obsidian"] .obsidian-card::after,
+[data-theme="obsidian"] .asset-card-obsidian::before,
+[data-theme="obsidian"] .asset-card-obsidian::after {
   display: none !important;
 }
 
 [data-theme="obsidian"] .glass-tile {
-  background-color: #141b2d !important;
-  border: 1px solid rgba(255, 255, 255, 0.07) !important;
+  background-color: #1B1D22 !important;
+  border: 1px solid #23262D !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25) !important;
+  box-shadow: none !important;
+  border-radius: 12px !important;
 }
 
-[data-theme="obsidian"] .glass-input {
-  background: #0d121f !important;
-  border-color: rgba(255, 255, 255, 0.12) !important;
+[data-theme="obsidian"] .glass-input,
+[data-theme="obsidian"] .claude-input {
+  background: #1B1D22 !important;
+  border: 1px solid #2B2E36 !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  border-radius: 8px !important;
+}
+
+[data-theme="obsidian"] .glass-btn,
+[data-theme="obsidian"] .claude-btn-secondary {
+  background: #1B1D22 !important;
+  border: 1px solid #2B2E36 !important;
+  color: #F4F4F5 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  border-radius: 8px !important;
+}
+
+[data-theme="obsidian"] .claude-btn-primary,
+[data-theme="obsidian"] .obsidian-hero-btn {
+  background: #F4F4F5 !important;
+  border: 1px solid #F4F4F5 !important;
+  color: #0B0C0E !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+  border-radius: 8px !important;
 }
 
 /* 2. Theme: Cyberpunk Neon Horizon */

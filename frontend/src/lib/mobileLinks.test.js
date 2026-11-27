@@ -23,6 +23,8 @@ test('localhost studio links are hidden off-localhost, kept on localhost', () =>
 
 test('local hostname detection', () => {
   assert.equal(isLocalHostname('localhost'), true);
+  assert.equal(isLocalHostname('tauri.localhost'), true);
+  assert.equal(isLocalHostname('app.localhost'), true);
   assert.equal(isLocalHostname('[::1]'), true);
   assert.equal(isLocalHostname('studio.nazirulhak.com'), false);
 });

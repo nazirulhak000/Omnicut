@@ -53,7 +53,7 @@ export default function RenderButton({
         onClick={() => onRender?.()}
         disabled={disabled || busy}
         title={coverNote || `เรนเดอร์แบบ${current?.label || ''}`}
-        className="flex h-9 cursor-pointer items-center gap-1.5 rounded-l-xl bg-[#D97757] px-3 text-sm font-bold text-white active:scale-[0.97] disabled:active:scale-100 motion-press active:duration-100 hover:bg-[#C2683D] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#E89274] disabled:cursor-not-allowed disabled:opacity-50 sm:px-4"
+        className="flex h-9 cursor-pointer items-center gap-1.5 rounded-l-lg bg-[#F4F4F5] px-3 text-sm font-semibold text-[#0B0C0E] active:scale-[0.97] disabled:active:scale-100 motion-press active:duration-100 hover:bg-[#E4E4E7] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3A3E4A] disabled:cursor-not-allowed disabled:opacity-50 sm:px-4"
       >
         {busy
           ? <><Loader2 className="h-4 w-4 animate-spin" /><span className="tabular-nums font-mono">{progress}%</span></>
@@ -69,8 +69,8 @@ export default function RenderButton({
         aria-expanded={open}
         aria-label={`คุณภาพที่จะเรนเดอร์: ${current?.label || ''}`}
         title={`คุณภาพ: ${current?.label || ''}`}
-        className={`flex h-9 w-8 cursor-pointer items-center justify-center rounded-r-xl border-l border-black/25 text-white active:scale-[0.97] disabled:active:scale-100 motion-press active:duration-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#E89274] disabled:cursor-not-allowed disabled:opacity-50 ${
-          open ? 'bg-[#C2683D]' : 'bg-[#D97757] hover:bg-[#C2683D]'
+        className={`flex h-9 w-8 cursor-pointer items-center justify-center rounded-r-lg border-l border-[#0B0C0E]/20 text-[#0B0C0E] active:scale-[0.97] disabled:active:scale-100 motion-press active:duration-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3A3E4A] disabled:cursor-not-allowed disabled:opacity-50 ${
+          open ? 'bg-[#E4E4E7]' : 'bg-[#F4F4F5] hover:bg-[#E4E4E7]'
         }`}
       >
         <ChevronDown className={`h-4 w-4 transition-transform duration-150 ease-out ${open ? 'rotate-180' : ''}`} />
@@ -81,7 +81,7 @@ export default function RenderButton({
           anchorRef={caretRef}
           onClose={() => setOpen(false)}
           role="menu"
-          className="w-64 space-y-0.5 rounded-xl border border-white/[0.1] bg-[#0F1420] p-1.5 shadow-2xl"
+          className="w-64 space-y-0.5 rounded-xl border border-[#23262D] bg-[#14161A] p-1.5"
         >
           <span className="block px-2.5 py-1 text-xs text-slate-500">คุณภาพที่จะเรนเดอร์</span>
           {presets.map((p) => (

@@ -19,21 +19,18 @@ export function ConfirmModal({
   const iconConfig = {
     danger: {
       icon: Trash2,
-      iconBg: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
-      btnVariant: 'danger',
-      glow: 'shadow-rose-500/20'
+      iconBg: 'bg-[#271417] text-[#F87171] border-[#52232A]',
+      btnVariant: 'danger'
     },
     warning: {
       icon: AlertTriangle,
-      iconBg: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-      btnVariant: 'primary',
-      glow: 'shadow-amber-500/20'
+      iconBg: 'bg-[#241D11] text-[#FBBF24] border-[#4D3B19]',
+      btnVariant: 'primary'
     },
     info: {
       icon: Info,
-      iconBg: 'bg-[#25F4EE]/15 text-[#25F4EE] border-[#25F4EE]/30',
-      btnVariant: 'primary',
-      glow: 'shadow-[#25F4EE]/20'
+      iconBg: 'bg-[#131E33] text-[#60A5FA] border-[#233B66]',
+      btnVariant: 'primary'
     }
   }[variant] || iconConfig.danger;
 
@@ -50,15 +47,15 @@ export function ConfirmModal({
       <div className="space-y-4 pt-1">
         {/* Header Icon + Title */}
         <div className="flex items-start gap-3.5">
-          <div className={`w-11 h-11 rounded-2xl flex items-center justify-center border flex-shrink-0 shadow-lg ${iconConfig.iconBg} ${iconConfig.glow}`}>
+          <div className={`w-11 h-11 rounded-xl flex items-center justify-center border flex-shrink-0 ${iconConfig.iconBg}`}>
             <IconComponent className="w-5 h-5 stroke-[2.2]" />
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="text-base sm:text-lg font-bold text-white leading-snug">
+            <h3 className="text-base sm:text-lg font-bold text-[#F4F4F5] leading-snug">
               {title}
             </h3>
             {description && (
-              <p className="text-xs sm:text-sm text-slate-300 mt-1 leading-relaxed whitespace-pre-line">
+              <p className="text-xs sm:text-sm text-[#D4D4D8] mt-1 leading-relaxed whitespace-pre-line">
                 {description}
               </p>
             )}
@@ -67,9 +64,9 @@ export function ConfirmModal({
 
         {/* Item Name Highlight Badge */}
         {itemName && (
-          <div className="p-2.5 sm:p-3 rounded-xl bg-black/40 border border-white/[0.08] flex items-center gap-2">
-            <span className="text-xs text-slate-400 flex-shrink-0">เป้าหมาย:</span>
-            <span className="text-xs sm:text-sm font-bold text-white font-mono truncate">
+          <div className="p-2.5 sm:p-3 rounded-lg bg-[#1B1D22] border border-[#23262D] flex items-center gap-2">
+            <span className="text-xs text-[#8E929B] flex-shrink-0">เป้าหมาย:</span>
+            <span className="text-xs sm:text-sm font-bold text-[#F4F4F5] font-mono truncate">
               {itemName}
             </span>
           </div>
@@ -77,14 +74,14 @@ export function ConfirmModal({
 
         {/* Danger Warning Note */}
         {dangerNote && (
-          <div className="p-2.5 rounded-xl bg-rose-500/[0.08] border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-400" />
+          <div className="p-2.5 rounded-lg bg-[#271417] border border-[#52232A] text-[#F87171] text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 text-[#F87171]" />
             <span className="leading-snug">{dangerNote}</span>
           </div>
         )}
 
         {/* Footer Buttons (Fixed Action Area) */}
-        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-white/[0.08]">
+        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#1E2026]">
           {/* Initial focus lands on the safe action, never on the destructive one. */}
           <Button
             variant="secondary"

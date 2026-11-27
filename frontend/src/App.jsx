@@ -12,6 +12,8 @@ import Sidebar from './components/Sidebar';
 
 import Topbar from './components/Topbar';
 
+import StatusBar from './components/StatusBar';
+
 import LoadingSpinner from './components/LoadingSpinner';
 
 import ErrorBoundary from './components/ErrorBoundary';
@@ -1485,6 +1487,12 @@ export default function App() {
             )}
 
           </ErrorBoundary>
+
+          <StatusBar
+            status={status}
+            activeTab={activeTab}
+            isEditorImmersive={isEditorImmersive}
+          />
 
         </div>
 

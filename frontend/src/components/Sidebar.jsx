@@ -183,18 +183,18 @@ export default function Sidebar({
   };
 
   const isMoreActive = activeTab === 'assets' || activeTab === 'analytics' || activeTab === 'settings' || activeTab === 'dashboard';
-  const desktopTooltipClass = `absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 rounded-xl bg-[#0D111A] border border-white/[0.1] text-xs font-semibold text-white whitespace-nowrap opacity-0 scale-95 -translate-x-1 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:translate-x-0 origin-left transition-[opacity,transform,translate,scale] ease-out shadow-2xl z-50 ${
+  const desktopTooltipClass = `absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1 rounded-lg bg-[#1B1D22] border border-[#2B2E36] text-xs font-semibold text-[#F4F4F5] whitespace-nowrap opacity-0 scale-95 -translate-x-1 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:translate-x-0 origin-left transition-[opacity,transform,translate,scale] ease-out z-50 ${
     navTooltipWarm ? 'delay-0 duration-0' : 'duration-150 delay-75 group-hover:delay-150'
   }`;
 
   return (
     <>
       {/* ── Desktop Sidebar ── */}
-      <aside className="hidden md:flex flex-col w-[72px] flex-shrink-0 h-dvh bg-[#0A0D14] border-r border-white/[0.08] z-30">
+      <aside className="hidden md:flex flex-col w-[72px] flex-shrink-0 h-dvh bg-[#101114] border-r border-[#1E2026] z-30">
         {/* Brand mark */}
-        <div className="flex items-center justify-center h-[56px] border-b border-white/[0.08]">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#FE2C55]/90 to-[#25F4EE]/90 border border-white/10 flex items-center justify-center shadow-sm text-white font-extrabold text-sm">
-            <Sparkles className="w-5 h-5" />
+        <div className="flex items-center justify-center h-[56px] border-b border-[#1E2026]">
+          <div className="w-10 h-10 rounded-lg bg-[#1B1D22] border border-[#2B2E36] flex items-center justify-center text-[#F4F4F5] font-extrabold text-sm">
+            <Sparkles className="w-5 h-5 text-[#F4F4F5]" />
           </div>
         </div>
 
@@ -211,19 +211,19 @@ export default function Sidebar({
                 onClick={() => { try { navigator.vibrate?.(10); } catch {} setActiveTab(item.id); }}
                 aria-label={item.label}
                 aria-current={isActive ? 'page' : undefined}
-                className={`group relative w-12 h-12 rounded-2xl flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/70
-                  before:absolute before:-inset-1 before:rounded-2xl
+                className={`group relative w-11 h-11 rounded-lg flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3A3E4A]
+                  before:absolute before:-inset-1 before:rounded-xl
                   active:scale-[0.96] motion-press active:duration-100
                   ${isActive
-                    ? 'bg-white/[0.08] text-[#25F4EE] border border-white/[0.12]'
-                    : 'text-slate-400 hover:text-white hover:bg-white/[0.05] border border-transparent'
+                    ? 'bg-[#1B1D22] text-[#F4F4F5] border border-[#2B2E36]'
+                    : 'text-[#8E929B] hover:text-[#F4F4F5] hover:bg-[#1B1D22]/60 border border-transparent'
                   }`}
               >
                 {/* Active left accent bar (flush with sidebar rail) */}
                 {isActive && (
                   <span
                     aria-hidden="true"
-                    className="absolute -left-3 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full bg-[#25F4EE] shadow-[0_0_12px_rgba(37,244,238,0.25)]"
+                    className="absolute -left-3.5 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full bg-[#34D399]"
                   />
                 )}
                 <Icon className="w-5 h-5" strokeWidth={1.8} />
@@ -238,13 +238,13 @@ export default function Sidebar({
         </nav>
 
         {/* Bottom utilities */}
-        <div onPointerLeave={handleNavLeave} className="flex flex-col items-center gap-2 pb-4 border-t border-white/[0.08] pt-3">
+        <div onPointerLeave={handleNavLeave} className="flex flex-col items-center gap-2 pb-4 border-t border-[#1E2026] pt-3">
           <button
             type="button"
             onPointerEnter={handleNavButtonEnter}
             onClick={() => setShowMobileModal(true)}
             aria-label="อัปโหลดผ่านมือถือ (QR Code)"
-            className="group relative w-11 h-11 rounded-xl flex items-center justify-center text-slate-400 hover:text-[#25F4EE] hover:bg-white/[0.05] before:absolute before:-inset-1 before:rounded-xl active:scale-[0.96] motion-press active:duration-100 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/70"
+            className="group relative w-11 h-11 rounded-lg flex items-center justify-center text-[#8E929B] hover:text-[#F4F4F5] hover:bg-[#1B1D22] before:absolute before:-inset-1 before:rounded-xl active:scale-[0.96] motion-press active:duration-100 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3A3E4A]"
           >
             <Smartphone className="w-5 h-5" strokeWidth={1.8} />
             <span aria-hidden="true" className={desktopTooltipClass}>
@@ -256,7 +256,7 @@ export default function Sidebar({
             onPointerEnter={handleNavButtonEnter}
             onClick={toggleFullscreen}
             aria-label={isFullscreen ? 'ย่อจอ' : 'เต็มจอ'}
-            className="group relative w-11 h-11 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/[0.05] before:absolute before:-inset-1 before:rounded-xl active:scale-[0.96] motion-press active:duration-100 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/70"
+            className="group relative w-11 h-11 rounded-lg flex items-center justify-center text-[#8E929B] hover:text-[#F4F4F5] hover:bg-[#1B1D22] before:absolute before:-inset-1 before:rounded-xl active:scale-[0.96] motion-press active:duration-100 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3A3E4A]"
           >
             {isFullscreen
               ? <Minimize className="w-5 h-5" strokeWidth={1.8} />
@@ -276,7 +276,7 @@ export default function Sidebar({
         // the accessibility tree, not just invisible.
         inert={isImmersive || undefined}
         aria-hidden={isImmersive || undefined}
-        className={`md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#050811]/80 backdrop-blur-2xl border-t border-white/[0.12] flex items-stretch justify-around px-1.5 h-[var(--nav-h)] pb-[env(safe-area-inset-bottom)] shadow-2xl motion-press duration-250 ${
+        className={`md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#101114] border-t border-[#1E2026] flex items-stretch justify-around px-1.5 h-[var(--nav-h)] pb-[env(safe-area-inset-bottom)] motion-press duration-250 ${
           isImmersive ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
         }`}
       >
@@ -289,16 +289,16 @@ export default function Sidebar({
               type="button"
               onClick={() => { try { navigator.vibrate?.(10); } catch {} setActiveTab(item.id); }}
               aria-current={isActive ? 'page' : undefined}
-              className={`relative flex flex-col items-center justify-center min-h-[48px] py-1 px-1 rounded-xl motion-press active:duration-100 cursor-pointer flex-1 min-w-0 select-none active:scale-95 ${
+              className={`relative flex flex-col items-center justify-center min-h-[48px] py-1 px-1 rounded-lg motion-press active:duration-100 cursor-pointer flex-1 min-w-0 select-none active:scale-95 ${
                 isActive
-                  ? 'text-[#25F4EE] font-bold'
-                  : 'text-slate-400 font-medium hover:text-slate-200'
+                  ? 'text-[#F4F4F5] font-bold'
+                  : 'text-[#8E929B] font-medium hover:text-[#D4D4D8]'
               }`}
             >
               {/* Active indicator: a bar, not color alone */}
               <span
                 aria-hidden="true"
-                className={`absolute top-0 left-1/2 -translate-x-1/2 h-[3px] w-8 rounded-b-full transition-opacity ${isActive ? 'bg-[#25F4EE] opacity-100' : 'opacity-0'}`}
+                className={`absolute top-0 left-1/2 -translate-x-1/2 h-[3px] w-8 rounded-b-full transition-opacity ${isActive ? 'bg-[#34D399] opacity-100' : 'opacity-0'}`}
               />
               <Icon className="w-5 h-5" strokeWidth={1.85} />
               <span className="text-[12px] leading-tight tracking-tight mt-0.5 truncate max-w-full">{item.label}</span>
@@ -313,15 +313,15 @@ export default function Sidebar({
           aria-haspopup="dialog"
           aria-expanded={showMoreDrawer}
           aria-current={isMoreActive ? 'page' : undefined}
-          className={`relative flex flex-col items-center justify-center min-h-[48px] py-1 px-1 rounded-xl motion-press active:duration-100 cursor-pointer flex-1 min-w-0 select-none active:scale-95 ${
+          className={`relative flex flex-col items-center justify-center min-h-[48px] py-1 px-1 rounded-lg motion-press active:duration-100 cursor-pointer flex-1 min-w-0 select-none active:scale-95 ${
             isMoreActive
-              ? 'text-[#25F4EE] font-bold'
-              : 'text-slate-400 font-medium hover:text-slate-200'
+              ? 'text-[#F4F4F5] font-bold'
+              : 'text-[#8E929B] font-medium hover:text-[#D4D4D8]'
           }`}
         >
           <span
             aria-hidden="true"
-            className={`absolute top-0 left-1/2 -translate-x-1/2 h-[3px] w-8 rounded-b-full transition-opacity ${isMoreActive ? 'bg-[#25F4EE] opacity-100' : 'opacity-0'}`}
+            className={`absolute top-0 left-1/2 -translate-x-1/2 h-[3px] w-8 rounded-b-full transition-opacity ${isMoreActive ? 'bg-[#34D399] opacity-100' : 'opacity-0'}`}
           />
           <MoreHorizontal className="w-5 h-5" strokeWidth={1.85} />
           <span className="text-[12px] leading-tight tracking-tight mt-0.5">อื่นๆ</span>

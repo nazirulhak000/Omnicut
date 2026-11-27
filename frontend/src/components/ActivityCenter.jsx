@@ -124,17 +124,17 @@ export function ActivityIndicatorButton({ className = '' }) {
         aria-expanded={isActivityDrawerOpen}
         aria-controls="activity-drawer"
         aria-label={`${activeCount} งานกำลังประมวลผล ${pct == null ? '' : `${pct}%`} เปิดศูนย์ติดตามกิจกรรม${isStale ? ' ข้อมูลอาจไม่ใช่ข้อมูลล่าสุด' : ''}`}
-        className={`px-2.5 sm:px-3 py-1 rounded-xl bg-[#25F4EE]/10 hover:bg-[#25F4EE]/15 border border-[#25F4EE]/30 text-[#25F4EE] flex items-center gap-2 cursor-pointer motion-press active:duration-100 active:scale-95 group ${className}`}
+        className={`px-2.5 sm:px-3 py-1 rounded-lg bg-[#121A18] hover:bg-[#16211E] border border-[#234739] text-[#34D399] flex items-center gap-2 cursor-pointer motion-press active:duration-100 active:scale-95 group ${className}`}
         title="คลิกเพื่อเปิดศูนย์ติดตามกิจกรรม (Activity Center)"
       >
         <div className="relative flex items-center justify-center">
-          <Loader2 className="w-3.5 h-3.5 animate-spin text-[#25F4EE]" />
-          <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-[#25F4EE]" />
+          <Loader2 className="w-3.5 h-3.5 animate-spin text-[#34D399]" />
+          <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-[#34D399]" />
         </div>
         <div className="flex items-center gap-1.5 text-xs font-bold font-mono tabular-nums">
-          <span className="text-white">{activeCount} งาน</span>
-          {pct != null && <span className="text-[#25F4EE]">({pct}%)</span>}
-          {isStale && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" title="ข้อมูลกิจกรรมอาจไม่ใช่ข้อมูลล่าสุด" />}
+          <span className="text-[#F4F4F5]">{activeCount} งาน</span>
+          {pct != null && <span className="text-[#34D399]">({pct}%)</span>}
+          {isStale && <span className="w-1.5 h-1.5 rounded-full bg-[#FBBF24]" title="ข้อมูลกิจกรรมอาจไม่ใช่ข้อมูลล่าสุด" />}
         </div>
       </button>
     );
@@ -147,16 +147,16 @@ export function ActivityIndicatorButton({ className = '' }) {
       aria-haspopup="dialog"
       aria-expanded={isActivityDrawerOpen}
       aria-controls="activity-drawer"
-      className={`p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-black/40 hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/[0.08] text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer active:scale-[0.96] motion-press active:duration-100 ${className}`}
+      className={`p-1.5 sm:px-2.5 sm:py-1 rounded-lg bg-[#1B1D22] hover:bg-[#22252C] active:bg-[#22252C] border border-[#2B2E36] hover:border-[#3A3E4A] text-[#D4D4D8] hover:text-[#F4F4F5] text-xs font-semibold flex items-center gap-1.5 cursor-pointer active:scale-[0.96] motion-press active:duration-100 ${className}`}
       title="ศูนย์ติดตามกิจกรรม (Activity Center)"
     >
       {hasViral ? (
         <span className="relative flex items-center justify-center">
-          <Trophy className="w-3.5 h-3.5 text-amber-400" />
-          <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.6)]" />
+          <Trophy className="w-3.5 h-3.5 text-[#FBBF24]" />
+          <span className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full bg-[#FBBF24]" />
         </span>
       ) : (
-        <Layers className="w-3.5 h-3.5 text-[#25F4EE]" />
+        <Layers className="w-3.5 h-3.5 text-[#8E929B]" />
       )}
       <span className="hidden xl:inline">กิจกรรม</span>
       <span className="sr-only xl:hidden">เปิดศูนย์ติดตามกิจกรรม</span>

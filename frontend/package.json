@@ -7,6 +7,7 @@
     "dev": "vite",
     "dev:mobile": "vite --mode mobile",
     "build": "vite build",
+    "build:desktop": "node --input-type=commonjs -e \"const { execSync } = require('child_process'); const env = { ...process.env }; delete env.VITE_AUTH_DISABLED; execSync('npx vite build', { stdio: 'inherit', env });\"",
     "test": "node --test src/lib/*.test.js",
     "lint": "oxlint",
     "preview": "vite preview"

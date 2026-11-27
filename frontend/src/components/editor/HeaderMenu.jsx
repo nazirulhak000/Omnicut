@@ -121,8 +121,8 @@ export default function HeaderMenu({ items = [], label = 'เมนูเพิ�
         aria-expanded={open}
         aria-label={label}
         title={label}
-        className={`flex h-8 sm:h-9 w-8 sm:w-9 cursor-pointer items-center justify-center rounded-xl border border-white/[0.08] active:scale-[0.97] disabled:active:scale-100 motion-press active:duration-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757] ${
-          open ? 'bg-white/[0.12] text-white' : 'bg-white/[0.05] text-slate-300 hover:bg-white/[0.1] hover:text-white'
+        className={`flex h-8 sm:h-9 w-8 sm:w-9 cursor-pointer items-center justify-center rounded-lg border border-[#2B2E36] active:scale-[0.97] disabled:active:scale-100 motion-press active:duration-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3A3E4A] ${
+          open ? 'bg-[#22252C] text-[#F4F4F5]' : 'bg-[#1B1D22] text-[#D4D4D8] hover:bg-[#22252C] hover:text-[#F4F4F5]'
         }`}
       >
         <MoreHorizontal className="h-4 w-4" />
@@ -133,7 +133,7 @@ export default function HeaderMenu({ items = [], label = 'เมนูเพิ�
           anchorRef={buttonRef}
           onClose={() => setOpen(false)}
           role="menu"
-          className="w-64 space-y-0.5 rounded-xl border border-white/[0.1] bg-[#0F1420] p-1.5 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100"
+          className="w-64 space-y-0.5 rounded-xl border border-[#23262D] bg-[#14161A] p-1.5 animate-in fade-in zoom-in-95 duration-100"
         >
           {hasExplicitStructure ? (
             items.map(renderItem)

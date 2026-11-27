@@ -5586,7 +5586,7 @@ function SequencePlayer({
           onPointerDownCapture={handlePickPointerDownCapture}
           onClickCapture={handlePickClickCapture}
           data-subject-pick-mode={subjectPickMode ? 'on' : undefined}
-          className={`relative overflow-hidden rounded-2xl border border-[#363430] bg-black shadow-2xl select-none${subjectPickMode ? ' cursor-crosshair [&_*:not(button)]:cursor-crosshair' : ''}`}
+          className={`relative overflow-hidden rounded-xl border border-[#23262D] bg-black select-none${subjectPickMode ? ' cursor-crosshair [&_*:not(button)]:cursor-crosshair' : ''}`}
           style={{ height: '100%', width: 'auto', aspectRatio: '9/16', maxWidth: '100%' }}
         >
           {/* Double-Tap Visual Ripple Feedback on Canvas */}
@@ -6023,7 +6023,7 @@ function SequencePlayer({
       {/* Pro Studio Player Control Bar (Level 1: Right below 9:16 canvas in Editor mode, centered, fixed width, no jitter) */}
       {compact && metadataReady && clips.length > 0 && (
         <div className="flex-shrink-0 flex items-center justify-center pt-2 select-none">
-          <div className="flex items-center gap-2 rounded-full glass-panel px-3 py-1 shadow-lg">
+          <div className="flex items-center gap-2 rounded-full bg-[#14161A] border border-[#23262D] px-3 py-1">
             {/* Play/Pause Button (hidden during subject picking to prevent playback conflict) */}
             {!subjectPickMode ? (
               <button
@@ -6031,7 +6031,7 @@ function SequencePlayer({
                 onClick={togglePlay}
                 aria-label={isPlaying ? 'หยุดชั่วคราว (Space)' : 'เล่น (Space)'}
                 title={isPlaying ? 'หยุดชั่วคราว (Space)' : 'เล่น (Space)'}
-                className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-white hover:bg-[#25F4EE] hover:text-black transition-colors cursor-pointer"
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-[#F4F4F5] text-[#0B0C0E] hover:bg-[#E4E4E7] transition-colors cursor-pointer"
               >
                 {isPlaying ? <Pause className="h-3.5 w-3.5 fill-current" /> : <Play className="h-3.5 w-3.5 ml-0.5 fill-current" />}
               </button>
@@ -6046,15 +6046,15 @@ function SequencePlayer({
               className="flex items-center justify-center gap-1 font-mono text-xs font-semibold tabular-nums w-[140px] px-1 text-center"
               title="เวลาปัจจุบัน / เวลาทั้งหมดของคลิป (นาที:วินาที:เฟรม ที่ 30 fps)"
             >
-              <span className="text-[#25F4EE]">{formatTimecode(playhead, { frames: true })}</span>
-              <span className="text-[#6B6660]">/</span>
-              <span className="text-[#9C968F]">{formatTimecode(totalDuration, { frames: true })}</span>
+              <span className="text-[#F4F4F5]">{formatTimecode(playhead, { frames: true })}</span>
+              <span className="text-[#5C6069]">/</span>
+              <span className="text-[#8E929B]">{formatTimecode(totalDuration, { frames: true })}</span>
             </div>
 
-            <span className="h-3.5 w-px bg-white/15" />
+            <span className="h-3.5 w-px bg-[#23262D]" />
 
             {/* Preview Quality (1080p / 540p) */}
-            <div className="flex items-center rounded-md glass-tile px-1 py-0.5" title="ความละเอียดพรีวิวขณะเล่นและตัดต่อ">
+            <div className="flex items-center rounded-md bg-[#1B1D22] border border-[#2B2E36] px-1 py-0.5" title="ความละเอียดพรีวิวขณะเล่นและตัดต่อ">
               <select
                 aria-label="คุณภาพพรีวิวขณะเล่น"
                 data-testid="preview-quality-select"
@@ -6092,8 +6092,8 @@ function SequencePlayer({
               title={showSafeZone ? 'ซ่อน TikTok Safe Zone (9:16)' : 'แสดง TikTok Safe Zone (9:16)'}
               className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold motion-press cursor-pointer border ${
                 showSafeZone
-                  ? 'bg-rose-500/20 text-rose-300 border-rose-500/50 shadow-[0_0_8px_rgba(254,44,85,0.3)]'
-                  : 'text-slate-400 hover:text-slate-200 border-white/10 hover:border-white/20 hover:bg-white/5'
+                  ? 'bg-[#271417] text-[#F87171] border-[#52232A]'
+                  : 'text-[#8E929B] hover:text-[#F4F4F5] border-[#2B2E36] hover:border-[#3A3E4A] hover:bg-[#1B1D22]'
               }`}
             >
               <Shield className="h-3.5 w-3.5" />

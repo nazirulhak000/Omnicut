@@ -59,13 +59,13 @@ export function Modal({
     >
       {/* Click outside to close backdrop */}
       <div
-        className="fixed inset-0 bg-black/80 backdrop-blur-md z-0 transition-opacity"
+        className="fixed inset-0 bg-black/75 z-0 transition-opacity"
         onClick={onClose}
       />
 
       {/* Modal Container - bottom sheet on phones, centered dialog from sm */}
       <div
-        className={`relative w-full ${maxWidth} glass-panel border border-white/[0.18] shadow-2xl rounded-t-3xl rounded-b-none sm:rounded-3xl z-10 flex flex-col max-h-[90dvh] overflow-hidden animate-scaleUp mt-auto sm:my-auto pb-[env(safe-area-inset-bottom)] sm:pb-0 outline-none`}
+        className={`relative w-full ${maxWidth} glass-panel border border-[#23262D] rounded-t-3xl rounded-b-none sm:rounded-3xl z-10 flex flex-col max-h-[90dvh] overflow-hidden animate-scaleUp mt-auto sm:my-auto pb-[env(safe-area-inset-bottom)] sm:pb-0 outline-none`}
         style={{
           transform: dragY !== 0 ? `translateY(${dragY}px)` : undefined,
           transition: dragY === 0 ? 'transform 250ms var(--ease-drawer, cubic-bezier(0.32, 0.72, 0, 1))' : 'none'
@@ -74,7 +74,7 @@ export function Modal({
       >
         {/* iOS Bottom Sheet Grab Handle (Mobile swipe-to-dismiss) */}
         <div
-          className="sm:hidden flex items-center justify-center pt-2.5 pb-1 cursor-grab active:cursor-grabbing touch-none select-none bg-white/[0.03] backdrop-blur-md z-30"
+          className="sm:hidden flex items-center justify-center pt-2.5 pb-1 cursor-grab active:cursor-grabbing touch-none select-none bg-[#101114] z-30"
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
@@ -84,15 +84,15 @@ export function Modal({
 
         {/* Header - Fixed Top */}
         {(title || showCloseButton) && (
-          <div className="flex-shrink-0 flex items-center justify-between gap-3 px-4 sm:px-6 py-2.5 sm:py-4 border-b border-white/[0.08] bg-white/[0.03] backdrop-blur-xl z-20">
+          <div className="flex-shrink-0 flex items-center justify-between gap-3 px-4 sm:px-6 py-2.5 sm:py-4 border-b border-[#1E2026] bg-[#101114] z-20">
             <div className="min-w-0 flex-1">
               {title && (
-                <h3 className="text-base md:text-lg font-bold text-white truncate">
+                <h3 className="text-base md:text-lg font-bold text-[#F4F4F5] truncate">
                   {title}
                 </h3>
               )}
               {subtitle && (
-                <p className="text-xs text-slate-400 mt-0.5 line-clamp-2 leading-tight">{subtitle}</p>
+                <p className="text-xs text-[#8E929B] mt-0.5 line-clamp-2 leading-tight">{subtitle}</p>
               )}
             </div>
 
@@ -100,7 +100,7 @@ export function Modal({
               <button
                 type="button"
                 onClick={onClose}
-                className="w-11 h-11 sm:w-9 sm:h-9 pointer-coarse:w-11 pointer-coarse:h-11 rounded-xl bg-white/[0.05] hover:bg-white/[0.12] text-slate-400 hover:text-white active:scale-[0.95] motion-press active:duration-100 cursor-pointer flex items-center justify-center flex-shrink-0 border border-white/[0.06]"
+                className="w-11 h-11 sm:w-9 sm:h-9 pointer-coarse:w-11 pointer-coarse:h-11 rounded-lg bg-[#1B1D22] hover:bg-[#22252C] text-[#8E929B] hover:text-[#F4F4F5] active:scale-[0.95] motion-press active:duration-100 cursor-pointer flex items-center justify-center flex-shrink-0 border border-[#2B2E36]"
                 aria-label="ปิดหน้าต่าง"
               >
                 <X className="w-5 h-5 sm:w-4 sm:h-4" />
