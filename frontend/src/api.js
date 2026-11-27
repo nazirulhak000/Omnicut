@@ -887,5 +887,11 @@ export const getIPhoneStatus = () => api.get('/iphone/status').then(r => r.data)
 export const getIPhoneClips = (limit = 60) => api.get('/iphone/clips', { params: { limit } }).then(r => r.data);
 export const pullIPhoneClips = (payload) => api.post('/iphone/pull', payload).then(r => r.data);
 
+// ── Mobile HTTPS Bridge APIs ──
+export const getMobileBridgeStatus = () => api.get('/mobile-bridge/status').then(r => r.data);
+export const toggleMobileBridge = (payload) => api.post('/mobile-bridge/toggle', payload).then(r => r.data);
+export const getMobileBridgePassword = () => api.get('/mobile-bridge/password').then(r => r.data);
+export const rotateMobileBridgePassword = () => api.post('/mobile-bridge/password/rotate').then(r => r.data);
+
 export default api;
 
