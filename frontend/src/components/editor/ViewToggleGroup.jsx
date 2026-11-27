@@ -24,7 +24,7 @@ export default function ViewToggleGroup({
     <div
       role="group"
       aria-label="ตัวควบคุมมุมมองพาเนล"
-      className={`inline-flex items-center gap-0.5 bg-[#0A0D14]/90 border border-white/[0.08] p-0.5 rounded-lg ${className}`}
+      className={`inline-flex items-center gap-0.5 bg-[#1B1D22] border border-[#2B2E36] p-0.5 rounded-lg ${className}`}
     >
       {/* Left panel toggle */}
       <button

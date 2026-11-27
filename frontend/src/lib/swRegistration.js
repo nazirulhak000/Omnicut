@@ -14,9 +14,13 @@ export const DEFAULT_MONITOR_INTERVAL_MS = 15000;
  */
 export async function registerServiceWorker({
   nav = typeof navigator !== 'undefined' ? navigator : null,
+  win = typeof window !== 'undefined' ? window : null,
   swUrl = SW_SCRIPT_URL,
   scope = '/',
 } = {}) {
+  if (win && '__TAURI_INTERNALS__' in win) {
+    return { registered: false, registration: null };
+  }
   if (!nav || !('serviceWorker' in nav) || !nav.serviceWorker?.register) {
     return { registered: false, registration: null };
   }

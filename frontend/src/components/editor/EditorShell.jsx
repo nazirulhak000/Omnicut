@@ -2589,7 +2589,7 @@ export default function EditorShell({
 
   return (
     <PlayheadContext.Provider value={playheadStore}>
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl glass-panel">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl bg-[#0C0D10] border border-[#1E2026]">
       {/* ── HEADER / TOPBAR (Hidden in Immersive Studio mode) ── */}
       {!isImmersive && (
         <EditorHeader
@@ -2646,7 +2646,7 @@ export default function EditorShell({
           <aside
             role="toolbar"
             aria-label="แถบควบคุมสตูดิโอเต็มจอ"
-            className="fixed top-[calc(env(safe-area-inset-top)+0.625rem)] right-[calc(env(safe-area-inset-right)+0.625rem)] sm:top-[calc(env(safe-area-inset-top)+0.75rem)] sm:right-[calc(env(safe-area-inset-right)+1rem)] z-50 flex items-center gap-1 sm:gap-2 p-1 sm:p-1.5 rounded-full bg-[#0A0D14]/95 backdrop-blur-xl border border-white/[0.14] shadow-2xl animate-fadeIn select-none motion-press active:duration-100"
+            className="fixed top-[calc(env(safe-area-inset-top)+0.625rem)] right-[calc(env(safe-area-inset-right)+0.625rem)] sm:top-[calc(env(safe-area-inset-top)+0.75rem)] sm:right-[calc(env(safe-area-inset-right)+1rem)] z-50 flex items-center gap-1 sm:gap-2 p-1 sm:p-1.5 rounded-full bg-[#101114] border border-[#2B2E36] animate-fadeIn select-none motion-press active:duration-100"
           >
             {/* Collapse to Mini Island */}
             <button
@@ -2654,14 +2654,14 @@ export default function EditorShell({
               onClick={() => setIsCapsuleExpanded(false)}
               aria-label="ย่อแถบควบคุม (ซ่อนไม่ให้บังจอ)"
               title="ย่อแถบควบคุมเป็นขนาดมินิ (ไม่บังจอ)"
-              className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/[0.06] hover:bg-white/[0.14] text-slate-300 hover:text-white transition-colors cursor-pointer flex-shrink-0"
+              className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#1B1D22] hover:bg-[#22252C] text-[#D4D4D8] hover:text-[#F4F4F5] transition-colors cursor-pointer flex-shrink-0"
             >
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
 
             {/* Project Name Badge */}
             {projectName && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/[0.08] text-xs font-bold text-slate-200 max-w-[100px] sm:max-w-[180px] truncate">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#1B1D22] border border-[#23262D] text-xs font-bold text-[#F4F4F5] max-w-[100px] sm:max-w-[180px] truncate">
                 <span
                   role="img"
                   aria-label={saveDot.label}
@@ -2701,7 +2701,7 @@ export default function EditorShell({
               onClick={exitImmersiveMode}
               aria-label="แสดงแถบนำทาง (Esc)"
               title="แสดงแถบนำทางและเครื่องมือหลัก (Esc / Shift+F)"
-              className="flex items-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3 rounded-full bg-[#25F4EE]/15 hover:bg-[#25F4EE]/25 border border-[#25F4EE]/40 text-[#25F4EE] text-xs font-bold motion-press active:duration-100 cursor-pointer shadow-md active:scale-95"
+              className="flex items-center gap-1.5 h-8 sm:h-9 px-2.5 sm:px-3 rounded-full bg-[#121A18] hover:bg-[#16211E] border border-[#234739] text-[#34D399] text-xs font-semibold motion-press active:duration-100 cursor-pointer active:scale-95"
             >
               <Minimize2 className="w-3.5 h-3.5 flex-shrink-0" />
               <span className="text-[11px] sm:text-xs">แสดงแถบ</span>
@@ -2713,7 +2713,7 @@ export default function EditorShell({
             aria-label="แถบควบคุมสตูดิโอเต็มจอ (ย่อ)"
             onDoubleClick={exitImmersiveMode}
             title="ดับเบิลคลิกเพื่อแสดงแถบนำทาง (Esc)"
-            className="fixed top-[calc(env(safe-area-inset-top)+0.625rem)] right-[calc(env(safe-area-inset-right)+0.625rem)] sm:top-[calc(env(safe-area-inset-top)+0.75rem)] sm:right-[calc(env(safe-area-inset-right)+1rem)] z-50 flex items-center gap-1 p-1 rounded-full bg-[#0A0D14]/92 backdrop-blur-xl border border-white/[0.14] shadow-2xl select-none motion-press active:duration-100 hover:border-[#25F4EE]/40 cursor-pointer"
+            className="fixed top-[calc(env(safe-area-inset-top)+0.625rem)] right-[calc(env(safe-area-inset-right)+0.625rem)] sm:top-[calc(env(safe-area-inset-top)+0.75rem)] sm:right-[calc(env(safe-area-inset-right)+1rem)] z-50 flex items-center gap-1 p-1 rounded-full bg-[#101114] border border-[#2B2E36] select-none motion-press active:duration-100 hover:border-[#3A3E4A] cursor-pointer"
           >
             {/* Mini Project Badge & Trigger */}
             <button
@@ -2721,7 +2721,7 @@ export default function EditorShell({
               onClick={() => setIsCapsuleExpanded(true)}
               title={`คลิกเพื่อขยายแถบควบคุมสตูดิโอ · ${saveDot.label}`}
               aria-label={`ขยายแถบควบคุมสตูดิโอ · ${saveDot.label}`}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.06] hover:bg-white/[0.12] text-xs font-bold text-slate-200 transition-colors cursor-pointer max-w-[120px] truncate"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#1B1D22] hover:bg-[#22252C] text-xs font-bold text-[#F4F4F5] transition-colors cursor-pointer max-w-[120px] truncate"
             >
               <span aria-hidden="true" data-save-tone={saveDot.tone} className={`w-2 h-2 rounded-full flex-shrink-0 ${saveDot.className}`} />
               <span className="truncate text-[11px] font-mono">{projectName || 'OmniCut'}</span>
@@ -2734,7 +2734,7 @@ export default function EditorShell({
               disabled={!projectName || isProjectPosted || isRenderBlockedByCover(coverStatus) || applying || coverGateChecking}
               title="เรนเดอร์ทันที (หรือขยายเพื่อเลือกความละเอียด)"
               aria-label="เรนเดอร์ทันที"
-              className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#D97757] hover:bg-[#C2683D] text-white motion-press active:duration-100 cursor-pointer shadow-md disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 disabled:active:scale-100 flex-shrink-0"
+              className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#F4F4F5] hover:bg-[#E4E4E7] text-[#0B0C0E] motion-press active:duration-100 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 disabled:active:scale-100 flex-shrink-0"
             >
               {applying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Rocket className="w-3.5 h-3.5" />}
             </button>
@@ -3617,12 +3617,12 @@ export default function EditorShell({
             <div className="flex min-h-0 flex-1">
               {!zen && (
                 leftSidebarCollapsed ? (
-                  <div className="flex-shrink-0 flex flex-col items-center border-r border-white/[0.08] bg-[#0A0D14] z-20 py-2 select-none w-10">
+                  <div className="flex-shrink-0 flex flex-col items-center border-r border-[#1E2026] bg-[#101114] z-20 py-2 select-none w-10">
                     <button
                       type="button"
                       onClick={toggleLeftSidebar}
                       title="เปิดแถบซ้าย (คลังสื่อ)"
-                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.06] text-slate-400 hover:bg-[#25F4EE]/20 hover:text-[#25F4EE] border border-white/[0.08] motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer shadow-sm"
+                      className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1B1D22] text-[#8E929B] hover:bg-[#22252C] hover:text-[#F4F4F5] border border-[#2B2E36] motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer"
                     >
                       <ChevronRight className="h-4 w-4" />
                     </button>
@@ -3637,7 +3637,7 @@ export default function EditorShell({
                   </div>
                 ) : (
                   <div className="relative flex flex-shrink-0">
-                    <div style={{ width: assetW }} className="relative flex-shrink-0 flex flex-col border-r border-white/[0.08] min-w-0">
+                    <div style={{ width: assetW }} className="relative flex-shrink-0 flex flex-col border-r border-[#1E2026] min-w-0">
                       <div className="absolute top-2 right-2 z-20">
                         <button
                           type="button"

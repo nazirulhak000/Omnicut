@@ -46,13 +46,17 @@ test('Topbar buttons comply with Rule 3.8/4.8 (action verbs without leading symb
   }
 });
 
-test('Topbar includes live latency monitoring and tactile glass styling', () => {
+test('Topbar includes live latency monitoring and Matte-Dark styling without backdrop blur', () => {
   assert.ok(
     topbarSource.includes('latency') || topbarSource.includes('latencyMs'),
     'Topbar should support displaying real-time connection latency'
   );
   assert.ok(
-    topbarSource.includes('backdrop-blur'),
-    'Topbar must retain frosted glass backdrop-filter'
+    topbarSource.includes('bg-[#101114]'),
+    'Topbar must use Matte-Dark #101114 surface'
+  );
+  assert.ok(
+    !topbarSource.includes('backdrop-blur'),
+    'Topbar must not use frosted glass backdrop-blur'
   );
 });

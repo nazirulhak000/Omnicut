@@ -34,6 +34,18 @@ def test_plain_public_host_used(monkeypatch):
 
 def test_localhost_falls_back_to_lan(monkeypatch):
     monkeypatch.delenv("OMNICUT_PUBLIC_URL", raising=False)
-    for host in ("localhost:5173", "127.0.0.1:8000", "[::1]:8000"):
-        assert _public_mobile_url(_request({"host": host}), "192.168.1.9") == "https://192.168.1.9:5173"
-    assert _public_mobile_url(None, "192.168.1.9") == "https://192.168.1.9:5173"
+    for host in ("localhost:5173", "127.0.0.1:8000", "[::1]:8000", "tauri.localhost"):
+        assert _public_mobile_url(_request({"host": host}), "192.168.1.9") == "https://192.168.1.9:8443"
+    assert _public_mobile_url(None, "192.168.1.9") == "https://192.168.1.9:8443"
+
+
+def test_active_tailscale_wins_over_lan_fallback(monkeypatch):
+    from scripts import mobile_bridge
+
+    monkeypatch.delenv("OMNICUT_PUBLIC_URL", raising=False)
+    monkeypatch.setattr(
+        mobile_bridge.mobile_bridge_manager,
+        "get_active_tailscale_url",
+        lambda: "https://omnicut-pc.tail1234.ts.net",
+    )
+    assert _public_mobile_url(_request({"host": "tauri.localhost"}), "192.168.1.9") == "https://omnicut-pc.tail1234.ts.net"

@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { FlipHorizontal2, Gauge, RotateCw, Volume2 } from 'lucide-react';
+import { FlipHorizontal2, Gauge, RotateCw, Scissors, Volume2 } from 'lucide-react';
 import { MIN_CLIP_DURATION, resolveSnapCandidateLabel, snapToFrame } from '../../lib/timelineMath';
 import { freezePlayheadCandidate, trimDragSeekTime } from '../../lib/timelineTrimOps';
 import { clickMode } from '../../lib/clipMultiSelect';
@@ -271,7 +271,8 @@ export default function TimelineClip({
             className="flex-shrink-0 flex items-center gap-0.5 rounded bg-violet-600/90 border border-violet-400/40 px-1 py-0.5 text-[9px] font-bold text-violet-100 shadow-sm"
             title="แยกพื้นหลังสินค้า (Cutout Active)"
           >
-            ✂️ Cutout
+            <Scissors className="w-2.5 h-2.5" />
+            <span>Cutout</span>
           </span>
         )}
         {(clip.bg_blur || clip.fit_mode === 'blur') && (

@@ -108,23 +108,23 @@ export function Toast({
   const typeConfig = {
     success: {
       icon: CheckCircle2,
-      style: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300 shadow-emerald-500/10',
-      iconColor: 'text-emerald-400'
+      style: 'bg-[#10241D] border-[#1E4D3B] text-[#34D399]',
+      iconColor: 'text-[#34D399]'
     },
     error: {
       icon: AlertCircle,
-      style: 'bg-rose-500/15 border-rose-500/30 text-rose-300 shadow-rose-500/10',
-      iconColor: 'text-rose-400'
+      style: 'bg-[#271417] border-[#52232A] text-[#F87171]',
+      iconColor: 'text-[#F87171]'
     },
     warning: {
       icon: AlertTriangle,
-      style: 'bg-amber-500/15 border-amber-500/30 text-amber-300 shadow-amber-500/10',
-      iconColor: 'text-amber-400'
+      style: 'bg-[#241D11] border-[#4D3B19] text-[#FBBF24]',
+      iconColor: 'text-[#FBBF24]'
     },
     info: {
       icon: Info,
-      style: 'bg-[#25F4EE]/15 border-[#25F4EE]/30 text-cyan-200 shadow-[#25F4EE]/10',
-      iconColor: 'text-[#25F4EE]'
+      style: 'bg-[#131E33] border-[#233B66] text-[#60A5FA]',
+      iconColor: 'text-[#60A5FA]'
     }
   };
 
@@ -150,7 +150,7 @@ export function Toast({
         onTouchStart={() => setIsTouching(true)}
         onTouchEnd={() => setIsTouching(false)}
         onTouchCancel={() => setIsTouching(false)}
-        className={`flex items-center gap-2.5 py-2.5 px-4 rounded-full border backdrop-blur-2xl shadow-2xl text-xs sm:text-sm font-semibold w-full md:w-auto max-w-md min-w-0 pointer-events-auto ${config.style}`}
+        className={`flex items-center gap-2.5 py-2.5 px-4 rounded-full border shadow-lg text-xs sm:text-sm font-semibold w-full md:w-auto max-w-md min-w-0 pointer-events-auto ${config.style}`}
       >
         <Icon className={`w-4 h-4 flex-shrink-0 ${config.iconColor}`} />
         <span className="flex-1 min-w-0 break-words">{message}</span>

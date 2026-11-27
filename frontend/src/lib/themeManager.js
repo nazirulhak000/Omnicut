@@ -24,13 +24,13 @@ export const THEME_PRESETS = [
   },
   {
     id: 'obsidian',
-    name: 'Obsidian Pro Dark',
-    styleTag: 'ตัดต่อโปร / NLE Studio',
-    description: 'ดำสนิท คมเข้ม สไตล์ DaVinci Resolve & Premiere Pro ไร้แสงสะท้อน สบายตาสำหรับการตัดต่อ',
+    name: 'Obsidian Matte-Dark',
+    styleTag: 'ค่าเริ่มต้น / Desktop Utility',
+    description: 'พื้นผิวแมตต์ดาร์ก #0C0D10 คมชัด ไร้แสงสะท้อน สไตล์ Antigravity Desktop Utility',
     orbsDefault: false,
-    bgClass: 'bg-[#07090e]',
-    accentColors: ['#38bdf8', '#a855f7', '#64748b'],
-    features: 'พื้นหลังทึบ OLED · ไร้แสงกวนสายตา · คอนทราสต์สูง คมชัด'
+    bgClass: 'bg-[#0C0D10]',
+    accentColors: ['#F4F4F5', '#34D399', '#60A5FA'],
+    features: 'พื้นผิวแมตต์ #14161A · ขอบ 1px คมชัด · คอนทราสต์สูง'
   },
   {
     id: 'cyberpunk',

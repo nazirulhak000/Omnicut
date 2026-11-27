@@ -22,19 +22,19 @@ export const Button = forwardRef(function Button(
   const touchTarget = 'max-md:min-h-11 pointer-coarse:min-h-11';
   const sizeStyles = {
     sm: `px-2.5 py-1.5 rounded-lg text-xs max-md:text-sm gap-1.5 ${touchTarget}`,
-    md: `px-4 py-2.5 rounded-xl text-xs sm:text-sm max-md:text-sm gap-2 ${touchTarget}`,
-    lg: 'px-5 py-3.5 rounded-2xl text-sm sm:text-base gap-2.5 min-h-12',
-    icon: `p-2 rounded-xl text-xs sm:text-sm max-md:text-sm ${touchTarget} max-md:min-w-11 pointer-coarse:min-w-11`
+    md: `px-3.5 py-2 rounded-lg text-xs sm:text-sm max-md:text-sm gap-2 ${touchTarget}`,
+    lg: 'px-5 py-3 rounded-xl text-sm sm:text-base gap-2.5 min-h-12',
+    icon: `p-2 rounded-lg text-xs sm:text-sm max-md:text-sm ${touchTarget} max-md:min-w-11 pointer-coarse:min-w-11`
   };
 
   const variantStyles = {
-    primary: 'bg-[#25F4EE] text-slate-950 font-bold hover:bg-[#1ee0da] shadow-sm shadow-[#25F4EE]/20',
-    neon: 'bg-[#25F4EE] hover:brightness-110 text-slate-950 shadow-lg shadow-[#25F4EE]/30',
-    tiktok: 'bg-gradient-to-r from-[#FE2C55] to-[#FF0050] hover:brightness-110 text-white shadow-lg shadow-[#FE2C55]/25',
-    secondary: 'bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-200 hover:text-white',
-    danger: 'bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/20',
-    ghost: 'bg-transparent hover:bg-white/[0.05] text-slate-400 hover:text-white',
-    outline: 'bg-transparent border border-[#25F4EE]/40 text-[#25F4EE] hover:bg-[#25F4EE]/10'
+    primary: 'bg-[#F4F4F5] text-[#0B0C0E] font-semibold hover:bg-[#E4E4E7]',
+    neon: 'bg-[#F4F4F5] hover:bg-[#E4E4E7] text-[#0B0C0E] font-semibold',
+    tiktok: 'bg-[#F4F4F5] hover:bg-[#E4E4E7] text-[#0B0C0E] font-semibold',
+    secondary: 'bg-[#1B1D22] hover:bg-[#22252C] border border-[#2B2E36] hover:border-[#3A3E4A] text-[#F4F4F5]',
+    danger: 'bg-[#271417] hover:bg-[#3A1B20] border border-[#52232A] text-[#F87171]',
+    ghost: 'bg-transparent hover:bg-[#1B1D22] text-[#8E929B] hover:text-[#F4F4F5]',
+    outline: 'bg-transparent border border-[#2B2E36] text-[#F4F4F5] hover:bg-[#1B1D22] hover:border-[#3A3E4A]'
   };
 
   return (

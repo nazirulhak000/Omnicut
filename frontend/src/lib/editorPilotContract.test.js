@@ -52,9 +52,9 @@ test('Timeline preserves glass-panel contract while modernizing track rows to Ob
   assert.match(timelineSource, /bg-\[#0D121F\]\/95/);
 });
 
-test('ViewToggleGroup applies Obsidian Pro Dark styling without neon shadows', () => {
+test('ViewToggleGroup applies Matte-Dark styling without neon shadows', () => {
   // Group container
-  assert.match(viewToggleGroupSource, /bg-\[#0A0D14\]\/90 border border-white\/\[0\.08\] p-0\.5 rounded-lg/);
+  assert.match(viewToggleGroupSource, /bg-\[#1B1D22\] border border-\[#2B2E36\] p-0\.5 rounded-lg/);
 
   // Clean active states without outer neon shadows
   assert.doesNotMatch(viewToggleGroupSource, /shadow-sm shadow-\[#25F4EE\]\/10/);
@@ -62,10 +62,10 @@ test('ViewToggleGroup applies Obsidian Pro Dark styling without neon shadows', (
   assert.doesNotMatch(viewToggleGroupSource, /shadow-sm shadow-\[#D97757\]\/10/);
 });
 
-test('Toolbar and TimelineContextMenu follow Obsidian Pro Dark ergonomics', () => {
-  // Toolbar touch targets and glass styling preserved
+test('Toolbar and TimelineContextMenu follow Matte-Dark ergonomics', () => {
+  // Toolbar touch targets and Matte-Dark styling preserved
   assert.match(toolbarSource, /min-h-\[44px\]\s+min-w-\[44px\]/);
-  assert.match(toolbarSource, /glass-tile/);
+  assert.match(toolbarSource, /bg-\[#101114\]\s+border-b\s+border-\[#1E2026\]/);
 
   // Context menu uses Obsidian Dark container
   assert.match(contextMenuSource, /bg-\[#0D121F\]\/95/);

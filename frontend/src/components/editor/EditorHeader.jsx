@@ -209,12 +209,12 @@ export default function EditorHeader({
   ]);
 
   return (
-    <header className="flex flex-shrink-0 items-center justify-between gap-1 sm:gap-2 border-b border-white/[0.08] bg-[#0A0D14] px-2 sm:px-3 lg:px-4 py-1.5 select-none min-w-0">
+    <header className="flex flex-shrink-0 items-center justify-between gap-1 sm:gap-2 border-b border-[#1E2026] bg-[#101114] px-2 sm:px-3 lg:px-4 py-1.5 select-none min-w-0">
       {/* ── Zone 1 (Left): Project Identity & Quick Save ── */}
       <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2">
         <EditorChannelSelector />
 
-        <div className="hidden sm:block h-4 w-px bg-white/10 flex-shrink-0" />
+        <div className="hidden sm:block h-4 w-px bg-[#23262D] flex-shrink-0" />
 
         <ProjectSelector
           projectName={projectName}
@@ -261,10 +261,10 @@ export default function EditorHeader({
             onClick={() => onToggleImmersive?.()}
             data-testid="toggle-immersive-studio-btn"
             title={isImmersive ? "ออกจากโหมดตัดต่อเต็มจอ (Esc)" : "โหมดตัดต่อเต็มจอ (ซ่อนแถบนำทาง) (Shift+F)"}
-            className={`flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border px-2 sm:px-2.5 text-xs font-bold active:scale-[0.97] motion-press active:duration-100 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25F4EE]/70 ${
+            className={`flex h-8 sm:h-9 items-center gap-1.5 rounded-lg border px-2 sm:px-2.5 text-xs font-semibold active:scale-[0.97] motion-press active:duration-100 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3A3E4A] ${
               isImmersive
-                ? 'border-[#25F4EE]/50 bg-[#25F4EE]/15 text-[#25F4EE] shadow-sm'
-                : 'border-white/[0.08] bg-white/[0.04] text-slate-300 hover:border-white/[0.2] hover:text-white'
+                ? 'border-[#234739] bg-[#121A18] text-[#34D399]'
+                : 'border-[#2B2E36] bg-[#1B1D22] text-[#D4D4D8] hover:border-[#3A3E4A] hover:bg-[#22252C] hover:text-[#F4F4F5]'
             }`}
           >
             {isImmersive ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
@@ -280,13 +280,13 @@ export default function EditorHeader({
           data-testid="toggle-ai-agent-btn"
           title="สั่งงาน Antigravity AI Agent (Ctrl+K)"
           aria-label="สั่งงาน AI Agent"
-          className={`flex h-8 sm:h-9 items-center gap-1.5 rounded-xl border px-1.5 sm:px-2.5 text-xs font-bold active:scale-[0.97] motion-press active:duration-100 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 ${
+          className={`flex h-8 sm:h-9 items-center gap-1.5 rounded-lg border px-1.5 sm:px-2.5 text-xs font-semibold active:scale-[0.97] motion-press active:duration-100 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3A3E4A] ${
             isAgentOpen
-              ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/20'
-              : 'border-white/[0.08] bg-white/[0.04] text-slate-300 hover:border-emerald-500/40 hover:text-white'
+              ? 'border-[#234739] bg-[#121A18] text-[#34D399]'
+              : 'border-[#2B2E36] bg-[#1B1D22] text-[#D4D4D8] hover:border-[#3A3E4A] hover:bg-[#22252C] hover:text-[#F4F4F5]'
           }`}
         >
-          <Sparkles className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
+          <Sparkles className="h-3.5 w-3.5 text-[#34D399] flex-shrink-0" />
           <span className="hidden sm:inline">AI Agent</span>
         </button>
 

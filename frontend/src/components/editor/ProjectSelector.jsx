@@ -163,11 +163,11 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="flex h-8 sm:h-9 w-full min-w-0 cursor-pointer items-center gap-1 truncate rounded-xl border border-transparent bg-transparent pl-1 pr-2 text-sm sm:text-base font-bold text-white hover:border-white/[0.12] hover:bg-black/40 focus:border-[#D97757] focus:outline-none active:scale-[0.98] motion-press active:duration-100"
+        className="flex h-8 sm:h-9 w-full min-w-0 cursor-pointer items-center gap-1 truncate rounded-lg border border-transparent bg-transparent pl-1 pr-2 text-sm sm:text-base font-bold text-[#F4F4F5] hover:border-[#2B2E36] hover:bg-[#1B1D22] focus:border-[#3A3E4A] focus:outline-none active:scale-[0.98] motion-press active:duration-100"
       >
         <span className="sr-only">โปรเจกต์ที่กำลังแก้:</span>
         <span className="truncate">{current ? current.project_name : '— เลือกโปรเจกต์ —'}</span>
-        <ChevronDown className={`h-4 w-4 flex-shrink-0 text-slate-500 transition-transform duration-150 ease-out ${open ? 'rotate-180 text-slate-300' : ''}`} />
+        <ChevronDown className={`h-4 w-4 flex-shrink-0 text-[#8E929B] transition-transform duration-150 ease-out ${open ? 'rotate-180 text-[#F4F4F5]' : ''}`} />
       </button>
 
       {open && (
@@ -177,7 +177,7 @@ export default function ProjectSelector({ projectName, projectList = [], loadPro
           align="start"
           matchAnchorWidth
           role="listbox"
-          className="flex max-h-[460px] min-w-[340px] max-w-[calc(100vw-16px)] flex-col rounded-xl border border-white/[0.1] bg-[#0F1420] p-1.5 shadow-2xl backdrop-blur-xl"
+          className="flex max-h-[460px] min-w-[340px] max-w-[calc(100vw-16px)] flex-col rounded-xl border border-[#23262D] bg-[#14161A] p-1.5"
         >
           {/* Quick New Clip Action */}
           {onNewProject && (

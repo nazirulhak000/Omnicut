@@ -9,12 +9,12 @@ export function Badge({
   ...props
 }) {
   const variantStyles = {
-    cyan: 'bg-[#25F4EE]/10 text-[#25F4EE] border-[#25F4EE]/30',
-    emerald: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-    rose: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
-    amber: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-    purple: 'bg-purple-500/15 text-purple-300 border-purple-500/30',
-    slate: 'bg-white/[0.05] text-slate-300 border-white/[0.08]'
+    cyan: 'bg-[#131E33] text-[#60A5FA] border-[#233B66]',
+    emerald: 'bg-[#10241D] text-[#34D399] border-[#1E4D3B]',
+    rose: 'bg-[#271417] text-[#F87171] border-[#52232A]',
+    amber: 'bg-[#241D11] text-[#FBBF24] border-[#4D3B19]',
+    purple: 'bg-[#1B1D22] text-[#D4D4D8] border-[#2B2E36]',
+    slate: 'bg-[#1B1D22] text-[#8E929B] border-[#23262D]'
   };
 
   const sizeStyles = {
@@ -24,7 +24,7 @@ export function Badge({
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border font-bold select-none ${
+      className={`inline-flex items-center gap-1.5 rounded-md border font-semibold select-none ${
         sizeStyles[size] || sizeStyles.md
       } ${variantStyles[variant] || variantStyles.cyan} ${className}`}
       {...props}

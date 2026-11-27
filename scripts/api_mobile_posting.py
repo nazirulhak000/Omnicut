@@ -968,7 +968,7 @@ def get_calendar_ics(
         queue_id = str(row.get("id") or "")
         product_name = str(row.get("product_name") or row.get("hook_title") or "คลิป TikTok")
         tiktok_pid = str(row.get("tiktok_product_id") or "")
-        deep_link = f"{clean_base}/?mode=mobile&tab=post&queue={queue_id}"
+        deep_link = f"{clean_base}/?quick_post=1&tab=post&queue={queue_id}"
         description = f"โพสต์คลิป: {product_name}"
         if tiktok_pid:
             description += f"\nรหัสสินค้า: {tiktok_pid}"

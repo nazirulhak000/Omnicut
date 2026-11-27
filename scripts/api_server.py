@@ -104,6 +104,8 @@ from scripts.api_gdrive_archive import router as gdrive_archive_router
 from scripts.api_viral_lint import router as viral_lint_router
 from scripts.api_flow import router as flow_router
 from scripts.api_iphone import router as iphone_router
+from scripts.api_mobile_bridge import router as mobile_bridge_router
+from scripts.mobile_bridge import mobile_bridge_manager
 from scripts.channel_scope import CHANNEL_HEADER, install_channel_scope
 from scripts.maintenance_lock import install_maintenance_gate
 
@@ -205,7 +207,10 @@ async def lifespan(_app: FastAPI):
     """Run durable worker recovery at server startup, never at module import."""
 
     _app.state.startup_recovery = recover_startup_work()
-    yield
+    try:
+        yield
+    finally:
+        await mobile_bridge_manager.stop()
 
 
 app = FastAPI(
@@ -400,6 +405,7 @@ app.include_router(gdrive_archive_router)
 app.include_router(viral_lint_router)
 app.include_router(flow_router)
 app.include_router(iphone_router)
+app.include_router(mobile_bridge_router)
 
 
 # ----------------------------------------------------------------------

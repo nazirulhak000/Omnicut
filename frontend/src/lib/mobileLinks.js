@@ -5,7 +5,8 @@
 const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1', '[::1]', '0.0.0.0']);
 
 export function isLocalHostname(hostname) {
-  return LOCAL_HOSTNAMES.has(String(hostname || '').toLowerCase());
+  const h = String(hostname || '').toLowerCase();
+  return LOCAL_HOSTNAMES.has(h) || h.endsWith('.localhost');
 }
 
 function currentLocation(loc) {

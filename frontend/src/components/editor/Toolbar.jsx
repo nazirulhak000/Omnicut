@@ -105,7 +105,7 @@ export default function Toolbar({
   const nextSpeed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length] || 1;
 
   return (
-    <div className="flex items-center gap-1 glass-tile border-b border-white/[0.1] px-2 py-1 overflow-x-auto no-scrollbar min-w-0">
+    <div className="flex items-center gap-1 bg-[#101114] border-b border-[#1E2026] px-2 py-1 overflow-x-auto no-scrollbar min-w-0">
       <ToolButton icon={Undo2} label="ย้อน" hint="ย้อนการแก้ล่าสุด" shortcut="Ctrl+Z" onClick={onUndo} disabled={!canUndo} />
       <ToolButton icon={Redo2} label="ไปหน้า" hint="ทำสิ่งที่เพิ่งย้อนไปอีกครั้ง" shortcut="Ctrl+Shift+Z" onClick={onRedo} disabled={!canRedo} />
 

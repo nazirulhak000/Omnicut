@@ -52,22 +52,22 @@ export default function SaveStatusChip({
       }
       className={`group inline-flex h-7 sm:h-8 items-center gap-1.5 px-2 sm:px-2.5 rounded-lg border text-xs font-semibold active:scale-[0.96] disabled:active:scale-100 motion-press active:duration-100 select-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
         isSaving
-          ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+          ? 'border-[#4D3B19] bg-[#241D11] text-[#FBBF24]'
           : isError
-            ? 'border-red-500/50 bg-red-500/15 text-red-300 hover:bg-red-500/25'
+            ? 'border-[#52232A] bg-[#271417] text-[#F87171] hover:bg-[#3A1B20]'
             : isDirty
-              ? 'border-amber-500/30 bg-amber-500/10 text-amber-300 hover:border-amber-500/50 hover:bg-amber-500/20'
-              : 'border-white/[0.08] bg-white/[0.03] text-slate-300 hover:border-white/[0.18] hover:bg-white/[0.08] hover:text-white'
+              ? 'border-[#4D3B19] bg-[#241D11] text-[#FBBF24] hover:border-[#6B5223]'
+              : 'border-[#2B2E36] bg-[#1B1D22] text-[#D4D4D8] hover:border-[#3A3E4A] hover:bg-[#22252C] hover:text-[#F4F4F5]'
       } ${className}`}
     >
       {isSaving ? (
-        <Loader2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 animate-spin text-amber-400 flex-shrink-0" />
+        <Loader2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 animate-spin text-[#FBBF24] flex-shrink-0" />
       ) : isError ? (
-        <AlertTriangle className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-red-400 flex-shrink-0" />
+        <AlertTriangle className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#F87171] flex-shrink-0" />
       ) : isDirty ? (
-        <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0 shadow-[0_0_6px_rgba(251,191,36,0.6)]" />
+        <span className="w-2 h-2 rounded-full bg-[#FBBF24] flex-shrink-0" />
       ) : (
-        <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-400 flex-shrink-0" />
+        <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#34D399] flex-shrink-0" />
       )}
 
       <span className="hidden lg:inline text-[11px] font-medium tracking-tight">

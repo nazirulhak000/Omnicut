@@ -49,6 +49,10 @@ testFn('registerServiceWorker safely returns registered:false when serviceWorker
   assert.equal(errRes.registered, false);
   assert.equal(errRes.registration, null);
   assert.ok(errRes.error instanceof Error);
+
+  const tauriRes = await registerServiceWorker({ nav: { serviceWorker: { register: async () => ({}) } }, win: { __TAURI_INTERNALS__: {} } });
+  assert.equal(tauriRes.registered, false);
+  assert.equal(tauriRes.registration, null);
 });
 
 testFn('checkServerHealth returns online:true on 200 OK and online:false on 502/network error/timeout', async () => {
