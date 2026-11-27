@@ -1,13 +1,14 @@
-import React, { memo, useState, useCallback, useEffect } from 'react';
+import React, { memo, useState, useCallback, useEffect, useRef } from 'react';
 import {
   Rocket, Layers, Scissors, FolderDown, Palette, Settings,
-  Keyboard, WifiOff, RefreshCw, Package, BarChart3, Zap, Smartphone
+  Keyboard, WifiOff, RefreshCw, Package, BarChart3, Zap, Smartphone, QrCode
 } from 'lucide-react';
 
 import { ActivityIndicatorButton } from './ActivityCenter';
 import EditorChannelSelector from './editor/EditorChannelSelector.jsx';
 import GoogleFlowModal from './GoogleFlowModal.jsx';
 import IPhoneDirectModal from './IPhoneDirectModal.jsx';
+import MobileBridgePopover from './MobileBridgePopover.jsx';
 import { getFlowStatus } from '../api';
 
 const TAB_CONFIG = {
@@ -88,7 +89,11 @@ export default memo(function Topbar({
   onRefresh,
   activeProductContext,
   _exportsCount = 0,
-  _videosCount = 0
+  _videosCount = 0,
+  mobileBridgeStatus = null,
+  onMobileBridgeStatusChange,
+  mobileBridgeOpen,
+  onMobileBridgeOpenChange,
 }) {
   const isOnline = status?.status === 'online';
   const currentTab = TAB_CONFIG[activeTab] || TAB_CONFIG.flow;
@@ -103,6 +108,18 @@ export default memo(function Topbar({
   const [flowStatus, setFlowStatus] = useState(null);
   const [flowModalOpen, setFlowModalOpen] = useState(false);
   const [iphoneModalOpen, setIphoneModalOpen] = useState(false);
+  const [internalBridgeOpen, setInternalBridgeOpen] = useState(false);
+  const mobileBridgeBtnRef = useRef(null);
+
+  const isBridgeOpen = typeof mobileBridgeOpen === 'boolean' ? mobileBridgeOpen : internalBridgeOpen;
+  const setBridgeOpen = useCallback((next) => {
+    const resolved = typeof next === 'function' ? next(isBridgeOpen) : next;
+    if (onMobileBridgeOpenChange) {
+      onMobileBridgeOpenChange(resolved);
+    } else {
+      setInternalBridgeOpen(resolved);
+    }
+  }, [isBridgeOpen, onMobileBridgeOpenChange]);
 
   const fetchFlowStatus = useCallback(async () => {
     try {
@@ -199,6 +216,43 @@ export default memo(function Topbar({
 
         {/* Global Activity Center Button */}
         <ActivityIndicatorButton className="h-8 sm:h-9" />
+
+        {/* Mobile HTTPS Bridge Popover Trigger */}
+        <div className="relative flex-shrink-0">
+          <button
+            ref={mobileBridgeBtnRef}
+            type="button"
+            onClick={() => setBridgeOpen((prev) => !prev)}
+            aria-expanded={isBridgeOpen}
+            aria-haspopup="dialog"
+            className={`h-8 sm:h-9 px-2 sm:px-2.5 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 motion-press active:duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3A3E4A] ${
+              isBridgeOpen
+                ? 'bg-[#121A18] border-[#234739] text-[#F4F4F5]'
+                : 'bg-[#1B1D22] hover:bg-[#22252C] border-[#2B2E36] hover:border-[#3A3E4A] text-[#D4D4D8] hover:text-[#F4F4F5]'
+            }`}
+            title="เชื่อมต่อมือถือผ่าน HTTPS (QR Code)"
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                mobileBridgeStatus?.enabled ? 'bg-[#34D399]' : 'bg-[#5C6069]'
+              }`}
+            />
+            <QrCode className="w-3.5 h-3.5 text-[#34D399]" />
+            <span className="hidden sm:inline">เชื่อมต่อมือถือ</span>
+            <span className="sr-only sm:hidden">เชื่อมต่อมือถือผ่าน HTTPS</span>
+          </button>
+
+          {isBridgeOpen && (
+            <MobileBridgePopover
+              anchorRef={mobileBridgeBtnRef}
+              onClose={() => setBridgeOpen(false)}
+              status={mobileBridgeStatus}
+              onStatusChange={onMobileBridgeStatusChange}
+              onOpenIPhoneModal={() => setIphoneModalOpen(true)}
+              latestSessionId={activeProductContext?.activeSessionId || activeProductContext?.sessionId || ''}
+            />
+          )}
+        </div>
 
         {/* iPhone USB Direct Ingest Button */}
         <button

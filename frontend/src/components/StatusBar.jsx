@@ -14,6 +14,7 @@ export default memo(function StatusBar({
   activeTab,
   isEditorImmersive = false,
   mobileBridgeStatus = null,
+  onOpenMobileBridge = null,
 }) {
   const [clockText, setClockText] = useState(() => formatClock(new Date()));
 
@@ -33,6 +34,15 @@ export default memo(function StatusBar({
   const port = typeof window !== 'undefined' && window.location?.port ? window.location.port : '8000';
   const bridgeEnabled = Boolean(mobileBridgeStatus?.enabled);
   const bridgeMode = mobileBridgeStatus?.mode || null;
+  const bridgeUrl = bridgeMode ? mobileBridgeStatus?.urls?.[bridgeMode] : null;
+  const activeUploads = Number(mobileBridgeStatus?.active_uploads || 0);
+  const activeFilmingSessions = Number(mobileBridgeStatus?.active_filming_sessions || 0);
+
+  const bridgeModeLabel = bridgeMode === 'tailscale'
+    ? 'Tailscale HTTPS'
+    : bridgeMode === 'public'
+    ? 'Public URL'
+    : 'LAN HTTPS';
 
   return (
     <footer
@@ -54,14 +64,32 @@ export default memo(function StatusBar({
 
         <span className="text-[#2B2E36]" aria-hidden="true">|</span>
 
-        <div className="flex items-center gap-1.5 truncate">
+        <button
+          type="button"
+          onClick={onOpenMobileBridge || undefined}
+          disabled={!onOpenMobileBridge}
+          title={bridgeUrl ? `Mobile Bridge: ${bridgeUrl}` : 'เปิดตั้งค่า Mobile Bridge'}
+          className={`flex items-center gap-1.5 truncate rounded px-1.5 py-0.5 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3A3E4A] ${
+            onOpenMobileBridge ? 'hover:bg-[#1B1D22] hover:text-[#D4D4D8] cursor-pointer' : 'cursor-default'
+          }`}
+        >
           <Smartphone className={`w-3 h-3 flex-shrink-0 ${bridgeEnabled ? 'text-[#34D399]' : 'text-[#5C6069]'}`} />
           <span className="truncate">
             {bridgeEnabled
-              ? `Mobile Bridge: ${bridgeMode === 'tailscale' ? 'Tailscale HTTPS' : 'LAN HTTPS'}`
+              ? `Mobile Bridge: ${bridgeModeLabel}${bridgeUrl ? ` (${bridgeUrl})` : ''}`
               : 'Mobile Bridge: Standby'}
           </span>
-        </div>
+          {activeUploads > 0 && (
+            <span className="px-1.5 py-0 rounded bg-[#131E33] border border-[#233B66] text-[#60A5FA] font-mono text-[10px]">
+              อัปโหลด {activeUploads}
+            </span>
+          )}
+          {activeFilmingSessions > 0 && (
+            <span className="px-1.5 py-0 rounded bg-[#10241D] border border-[#1E4D3B] text-[#34D399] font-mono text-[10px]">
+              ถ่ายทำ {activeFilmingSessions}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* Right: Port / Latency + Live Clock */}

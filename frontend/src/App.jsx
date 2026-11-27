@@ -26,7 +26,7 @@ import { ArrowUp } from 'lucide-react';
 
 import { useKeyboardShortcuts } from './hooks';
 
-import { getSystemStatus, getRawVideos, getExports, getScheduleQueue, updateAngleStatus, getProducts } from './api';
+import { getSystemStatus, getRawVideos, getExports, getScheduleQueue, updateAngleStatus, getProducts, getMobileBridgeStatus } from './api';
 
 import { isChunkLoadError } from './components/ErrorBoundary';
 
@@ -563,6 +563,25 @@ export default function App() {
 
   const [analyticsRefreshKey, setAnalyticsRefreshKey] = useState(0);
 
+  const [mobileBridgeStatus, setMobileBridgeStatus] = useState(null);
+
+  const [mobileBridgeOpen, setMobileBridgeOpen] = useState(false);
+
+  const refreshMobileBridgeStatus = useCallback(async () => {
+    try {
+      const next = await getMobileBridgeStatus();
+      setMobileBridgeStatus(next);
+    } catch {
+      // Local-only endpoint; ignore when accessed remotely or offline.
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshMobileBridgeStatus();
+    const timer = setInterval(refreshMobileBridgeStatus, 15000);
+    return () => clearInterval(timer);
+  }, [refreshMobileBridgeStatus]);
+
 
 
   useKeyboardShortcuts({
@@ -649,11 +668,14 @@ export default function App() {
 
   const handleGlobalRefresh = useCallback(async () => {
 
-    await refreshData({ includeExports: activeTab === 'gallery', force: true });
+    await Promise.allSettled([
+      refreshData({ includeExports: activeTab === 'gallery', force: true }),
+      refreshMobileBridgeStatus(),
+    ]);
 
     setAnalyticsRefreshKey((current) => current + 1);
 
-  }, [activeTab, refreshData]);
+  }, [activeTab, refreshData, refreshMobileBridgeStatus]);
 
 
 
@@ -1177,6 +1199,14 @@ export default function App() {
 
               videosCount={videos.length}
 
+              mobileBridgeStatus={mobileBridgeStatus}
+
+              onMobileBridgeStatusChange={setMobileBridgeStatus}
+
+              mobileBridgeOpen={mobileBridgeOpen}
+
+              onMobileBridgeOpenChange={setMobileBridgeOpen}
+
             />
 
           )}
@@ -1492,6 +1522,14 @@ export default function App() {
             status={status}
             activeTab={activeTab}
             isEditorImmersive={isEditorImmersive}
+            mobileBridgeStatus={mobileBridgeStatus}
+            onOpenMobileBridge={() => {
+              if (activeTab === 'editor') {
+                handlePrimaryTabChange('settings');
+              } else {
+                setMobileBridgeOpen(true);
+              }
+            }}
           />
 
         </div>
