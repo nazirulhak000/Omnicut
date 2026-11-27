@@ -321,7 +321,7 @@ def test_agenda_reschedule_and_calendar_ics_feed(mobile_workspace):
     assert "BEGIN:VEVENT" in ics_text
     assert "BEGIN:VALARM" in ics_text
     assert "TRIGGER:-PT10M" in ics_text
-    assert "?mode=mobile&tab=post&queue=q-slot-1" in ics_text
+    assert "?quick_post=1&tab=post&queue=q-slot-1" in ics_text
 
 
 def test_gdrive_ready_and_gdrive_archive_endpoints(mobile_workspace):

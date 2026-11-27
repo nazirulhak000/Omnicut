@@ -144,6 +144,35 @@ def _parse_single_byte_range(value: str, file_size: int) -> tuple[int, int]:
         raise unsatisfiable() from None
 
 
+_MEDIA_MIME_TYPES = {
+    ".mov": "video/quicktime",
+    ".webm": "video/webm",
+    ".mkv": "video/x-matroska",
+    ".mp3": "audio/mpeg",
+    ".wav": "audio/wav",
+    ".aac": "audio/aac",
+    ".m4a": "audio/mp4",
+    ".ogg": "audio/ogg",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+    ".ttf": "font/ttf",
+    ".otf": "font/otf",
+    ".woff": "font/woff",
+    ".woff2": "font/woff2",
+}
+
+
+def _is_font_asset_path(file_path: Path) -> bool:
+    parts = [p.lower() for p in file_path.parts]
+    for i in range(len(parts) - 1):
+        if parts[i] == "02_assets" and parts[i + 1] == "fonts":
+            return True
+    return False
+
+
 def stream_media_file(file_path: Path, request: Request):
     """Range-supporting file streamer for smooth HTML5 video/audio playback."""
     if not file_path.exists():
@@ -152,24 +181,9 @@ def stream_media_file(file_path: Path, request: Request):
     file_size = file_path.stat().st_size
     range_header = request.headers.get("range")
 
-    content_type = "video/mp4"
     ext = file_path.suffix.lower()
-    if ext in [".mov"]:
-        content_type = "video/quicktime"
-    elif ext in [".mp3"]:
-        content_type = "audio/mpeg"
-    elif ext in [".wav"]:
-        content_type = "audio/wav"
-    elif ext in [".jpg", ".jpeg"]:
-        content_type = "image/jpeg"
-    elif ext in [".png"]:
-        content_type = "image/png"
-    elif ext in [".webp"]:
-        content_type = "image/webp"
-    elif ext in [".ttf"]:
-        content_type = "font/ttf"
-    elif ext in [".otf"]:
-        content_type = "font/otf"
+    content_type = _MEDIA_MIME_TYPES.get(ext, "video/mp4")
+    extra_headers = {"Cache-Control": "public, max-age=3600"} if _is_font_asset_path(file_path) else {}
 
     STREAM_CHUNK_SIZE = 256 * 1024  # 256KB buffer
     INLINE_MAX_BYTES = 32 * 1024 * 1024
@@ -190,6 +204,7 @@ def stream_media_file(file_path: Path, request: Request):
                     "Accept-Ranges": "bytes",
                     "Content-Length": str(len(payload)),
                     "Content-Type": content_type,
+                    **extra_headers,
                 },
             )
 
@@ -210,6 +225,7 @@ def stream_media_file(file_path: Path, request: Request):
             "Accept-Ranges": "bytes",
             "Content-Length": str(chunk_size),
             "Content-Type": content_type,
+            **extra_headers,
         }
         return StreamingResponse(iterfile(), status_code=206, headers=headers)
     else:
@@ -220,6 +236,7 @@ def stream_media_file(file_path: Path, request: Request):
                     "Accept-Ranges": "bytes",
                     "Content-Length": str(file_size),
                     "Content-Type": content_type,
+                    **extra_headers,
                 },
             )
 
@@ -232,6 +249,7 @@ def stream_media_file(file_path: Path, request: Request):
             "Accept-Ranges": "bytes",
             "Content-Length": str(file_size),
             "Content-Type": content_type,
+            **extra_headers,
         }
         return StreamingResponse(iterfile(), headers=headers)
 

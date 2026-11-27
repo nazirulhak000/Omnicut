@@ -80,10 +80,12 @@ _EXEMPT_EXACT = frozenset({
     "/api/auth",
 })
 _EXEMPT_PREFIXES = ("/api/auth/", "/assets/", "/icons/")
+_EXEMPT_READONLY_EXACT = frozenset({"/api/mobile-bridge/ca.crt"})
+_EXEMPT_READONLY_PREFIXES = ("/api/media/02_Assets/Fonts/",)
 _PWA_ICON_RE = re.compile(r"^/pwa-[A-Za-z0-9_-]+\.png$")
 
 
-def is_exempt_path(path: str) -> bool:
+def is_exempt_path(path: str, method: str = "GET") -> bool:
     if not path:
         return False
     # Never exempt anything that could be normalised into another route.
@@ -93,6 +95,11 @@ def is_exempt_path(path: str) -> bool:
         return True
     if any(path.startswith(prefix) for prefix in _EXEMPT_PREFIXES):
         return True
+    if (method or "").upper() in ("GET", "HEAD"):
+        if path in _EXEMPT_READONLY_EXACT:
+            return True
+        if any(path.startswith(prefix) for prefix in _EXEMPT_READONLY_PREFIXES):
+            return True
     return bool(_PWA_ICON_RE.match(path))
 
 
@@ -154,6 +161,12 @@ def origin_matches_host(origin: str, host: str) -> bool:
 # rebinding (its own hostname resolves to loopback), so a request that comes from the local machine must also carry a
 # loopback Host. Extra names (a local hostname) come from OMNICUT_ALLOWED_HOSTS (comma separated).
 POSTING_GUARDED_PREFIX = "/api/tiktok-autopost"
+MOBILE_BRIDGE_LOCAL_ONLY_PATHS = frozenset({
+    "/api/mobile-bridge/status",
+    "/api/mobile-bridge/toggle",
+    "/api/mobile-bridge/password",
+    "/api/mobile-bridge/password/rotate",
+})
 _LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1", "testserver"}
 
 
@@ -200,8 +213,11 @@ def evaluate_access(
 
     if not is_ws and method == "OPTIONS":
         return Decision(allow=True, method="exempt")
-    if not is_ws and is_exempt_path(path):
+    if not is_ws and is_exempt_path(path, method=method):
         return Decision(allow=True, method="exempt")
+    if (not is_ws and path in MOBILE_BRIDGE_LOCAL_ONLY_PATHS
+            and auth.classify_request(client_host, headers) != "local"):
+        return _deny(403, "Local access only")
     if (not is_ws and path.startswith(POSTING_GUARDED_PREFIX)
             and auth.classify_request(client_host, headers) == "local"
             and not host_allowed(headers.get("host", ""))):

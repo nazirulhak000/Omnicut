@@ -469,22 +469,26 @@ def get_render_status(job_id: str, scope: ChannelScope = Depends(get_workflow_sc
     raise HTTPException(status_code=404, detail="Job not found")
 
 
-_LOCAL_HOSTNAMES = {"localhost", "127.0.0.1", "::1", "[::1]", "0.0.0.0"}
+_LOCAL_HOSTNAMES = {"localhost", "127.0.0.1", "::1", "[::1]", "0.0.0.0", "tauri.localhost"}
 
 
 def _public_mobile_url(request: Optional[Request], local_ip: str) -> str:
     """Base URL a PHONE can open for mobile / quick-post links.
 
-    Order: ``OMNICUT_PUBLIC_URL`` (e.g. the tunnel
-    ``https://studio.nazirulhak.com``) -> the URL this request actually came
-    in on (honouring ``x-forwarded-proto`` / ``x-forwarded-host`` from the
-    tunnel/proxy) unless that is localhost -> the LAN dev server as a last
-    resort. A LAN ``https://<ip>:5173`` link is dead for a phone outside the
-    office network, so it must never win over a real public origin.
+    Priority: ``OMNICUT_PUBLIC_URL`` -> active Tailscale HTTPS -> request's
+    non-local host (honouring ``x-forwarded-proto`` / ``x-forwarded-host``) ->
+    active LAN HTTPS ``https://<local_ip>:<tls_port>`` (default 8443).
     """
     env_url = (os.environ.get("OMNICUT_PUBLIC_URL") or "").strip().rstrip("/")
     if env_url:
         return env_url
+
+    from scripts.mobile_bridge import mobile_bridge_manager
+
+    tailscale_url = mobile_bridge_manager.get_active_tailscale_url()
+    if tailscale_url:
+        return tailscale_url
+
     if request is not None:
         headers = request.headers
         host = (headers.get("x-forwarded-host") or headers.get("host") or "").split(",")[0].strip()
@@ -492,11 +496,8 @@ def _public_mobile_url(request: Optional[Request], local_ip: str) -> str:
         hostname = host.rsplit(":", 1)[0] if not host.startswith("[") else host.split("]")[0] + "]"
         if host and hostname.lower() not in _LOCAL_HOSTNAMES:
             return f"{proto}://{host}"
-    # https, not http: MobileFilmingPage.jsx's getUserMedia() is only exposed
-    # by phone browsers in a secure context (https:// or localhost) --
-    # frontend/vite.config.js's basicSsl() plugin serves the dev server over
-    # self-signed https to match.
-    return f"https://{local_ip}:5173"
+
+    return f"https://{local_ip}:{mobile_bridge_manager.tls_port}"
 
 
 @router.get("/api/status")
