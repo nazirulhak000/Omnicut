@@ -7,6 +7,7 @@
 - รอบไหนปิด ให้ **ย้ายบล็อกเต็มมาที่นี่** แล้วเหลือบรรทัดเดียวใน `TODO.md` — กัน `TODO.md` บวมจนหาของไม่เจอ
 
 ## สารบัญ
+| Round ANTIGRAVITY-AUTOPOST-QUEUE-RECONCILIATION-AND-STATUS-AUDIT-20261126 | ตรวจสอบและปลดล็อกงานค้างจากรอบ 22 พ.ย. (27 รายการที่ไม่มีบน TikTok Studio จริง) ผ่าน `PostingJobStore.retire_deleted()`, แก้ไข `angle_id` 37 รายการ, ล้างแคปชั่น `_HyperFrames_Studio/...` (11 รายการ) และคำต้องห้าม (`เหลือ 1%`/`แค่ 5%`), ย้าย `Redmi Buds 8 Active` (6 คลิป) ไป `pending_showcase`, และตั้งเวลาโพสต์จริงบน TikTok Studio สำเร็จ **30/30 คลิปเต็มโควตา** (27 พ.ย. 9 + 28 พ.ย. 9 + 29 พ.ย. 6 + 30 พ.ย. 6; เหลือ `planned` 24 คลิป) | 2026-11-26 | ดำเนินการโดย: Antigravity (Gemini 4 Hydrogen Medium) |
 | Round CLAUDE-SCRUTINIZE-A553E95-20261125 | ตรวจและแก้ไขประเด็นทั้งหมดจาก `_Docs/Reports/SCRUTINIZE_A553E95_20261125.md` (P0–P5) ด้วย Swarm 5 Workers + Monitor: ปิด 3 จุด crash (product_scraper, gemini_tts_engine, batch_tiktok_uploader), เก็บสคริปต์เสี่ยง 6 ตัวลง `06_Archive/tools_a553e95/`, ถอด runtime DB JSON 5 ไฟล์ออกจาก git, แก้ matcher rewind/freeze/A4/A5/A2(top=180)/B4 3:4 pan/B5 product_id/B6 hashtag/B9 raw path/D2 `@utility motion-press`/E11 `conftest.py`/B11 seed · เทสเต็มหลังแก้: `pytest tests/ --ignore=tests/motion_capture` 5,629 passed / 9 failed (8 pre-existing + 1 SQLite contention flake ผ่านเดี่ยว 37/37) / 22 skipped, `tests/motion_capture` 179 passed / 0 failed / 13 skipped, `npm test` 1,345/1,345, `oxlint` 0 errors, Vite build 540ms, extension `node --test` 264/264 · ค้างเฉพาะตรวจหน้างานจริง 3 ข้อ (C10/E3/E8) | 2026-11-25 | ดำเนินการโดย: Claude Code (Claude Opus 5.5) + Antigravity (Gemini 4 Hydrogen High / Gemini 3.8 Flash High) - Swarm Coordinator & Claude Sonnet 4.6 / Gemini 4 Hydrogen High Workers |
 | Round ANTIGRAVITY-SWARM-FIX-RENDER-FREEZE-HOOK-COVER-20261124 | แก้ไขระบบผลิตคลิป, Freeze-Frame, Hook Safe Zone และระบบปก 3:4 ทั้งสายพานแบบขนานด้วย Swarm 5 Agents (P0-P2): ซ่อมและรีเจนปก 88 รายการ (0/88 error 409), แก้อาการ 1-frame freeze (0.033s) และ MM.SS cache leak, ย้ายตำแหน่ง Couple Paper Chat พ้น 0-240px TikTok Top Dead Zone, เชื่อมต่อ ghost_reveal & reveal_color_sync, ปรับ font weight lookup, และตั้งค่า default bgmDucking: true · ผ่าน 307/308 ใน 7 ไฟล์ที่เลือก (1 skipped; ตรวจเต็มในรอบ SCRUTINIZE พบ 20 regression ซึ่งแก้ไขครบแล้วในรอบ 20261125) | 2026-11-24 | ดำเนินการโดย: Antigravity (Gemini 3.8 Flash High) - Swarm Coordinator |
 | Round ANTIGRAVITY-EMIL-DESIGN-SYSTEM-WAVE4-COMPLETE-20261123 | กวาดล้าง `transition-all` และเก็บรายละเอียด Emil Kowalski (`/emil-design-eng`) ครบทั้งโปรเจกต์ `frontend/src/` ด้วย Swarm 6 Agents (47 ไฟล์ที่เหลือ) · ผ่าน oxlint 0 errors, npm test 1,337/1,337, Vite build 534ms | 2026-11-24 | ดำเนินการโดย: Antigravity (Gemini 4 Argon) - Swarm Coordinator |
@@ -380,6 +381,29 @@
 | Round EDITOR-CAPCUT-FIX-WAVE1-20261003 | แก้ editor ตาม Top 10 ของ audit เทียบ CapCut (ปุ่มหลอก, undo/คีย์ลัด, Inspector, timeline เฟรม, transition/effect, preview 30fps/proxy, ซับ stale, mirror+pan, volume พากย์/SFX, revision หลัง render); gate ผ่าน + ยืนยันใน Chrome จริง | 2026-10-03 | ปิดรอบแล้ว · ดำเนินการโดย: Claude Code (Claude Sonnet 5.5) + sub-agent (Sonnet 5.5 / Opus 5.5) |
 | Round PC-MAX-PREVIEW-CUTOUT-INTEGRATION-20261003 | พรีวิว Master 1080p ขณะเล่น/หยุด, Cutout clock, จุดสินค้าและ SAM2 CUDA ผ่าน gate รวม | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
 | Round CODEX-NVENC-QA-GATES-20261003 | ปิด NVENC/export contract และ QA guards; failures เดิมแก้และ gate รวมผ่าน | 2026-10-03 | ปิดรอบแล้ว (ดำเนินการโดย: Codex (GPT-6)) |
+
+---
+
+### Round ANTIGRAVITY-AUTOPOST-QUEUE-RECONCILIATION-AND-STATUS-AUDIT-20261126 (2026-11-26)
+
+ดำเนินการโดย: Antigravity (Gemini 4 Hydrogen Medium) · ผู้ใช้สั่ง: *"ลงคลิปต่อให้หน่อยครับ / เริ่มโพสได้แล้วครับง่วงแล้ว"*
+
+- **ผลการตรวจสอบและแก้ไขสถานะจริงบน TikTok Studio:**
+  1. **Reconcile งานค้างจากรอบ 22 พ.ย.:** ตรวจพบจากหน้าจอ TikTok Studio > Posts จริงของผู้ใช้ว่า 27 คลิปของวันที่ 27–30 พ.ย. จากรอบ 22 พ.ย. ไม่ได้อยู่บน TikTok Studio จริง จึงใช้ `PostingJobStore.retire_deleted()` ปลดล็อกทั้ง 27 รายการใน `_Docs/store.db` และคืนสถานะ `planned` ใน `ScheduleQueueStore`
+  2. **ทำความสะอาดข้อมูลและแก้บั๊กก่อนส่ง:**
+     - ซ่อมแซม `angle_id` รวม 37 รายการให้ตรงกับ `ExportRegistry` (แก้ 409 `posting_parent_conflict`)
+     - ล้างแคปชั่นที่มี `_HyperFrames_Studio/...` (11 รายการ) ให้เป็น Hook Title + CTA ที่สะอาด
+     - แก้ไขคำต้องห้ามที่ติดตัวกรองราคา (`เหลือ 1%` / `แค่ 5%`) ครบทุกตัว (`post_guard` 0 blocked)
+     - ย้าย **Redmi Buds 8 Active** (`1734226045478406079`) ที่ค้นหาใน TikTok Showcase ไม่พบ (6 คลิป) ไปพักใน `pending_showcase`
+  3. **ผลลัพธ์การตั้งเวลาโพสต์จริงบน TikTok Studio (`run.js --mode schedule --limit 23 --cover-fallback`):**
+     - รันสำเร็จ **23/23 คลิป** (0 failed, 0 skipped) + 7 คลิปที่ลงก่อนหน้าในคืนนี้ = **เต็มเพดานโควตา TikTok Studio 30/30 คลิปพอดีเป๊ะ**:
+       - **27 พ.ย. 2026:** **9 คลิป** (`06:30, 08:15, 10:00, 11:45, 13:30, 15:15, 18:45, 20:30, 22:15`)
+       - **28 พ.ย. 2026:** **9 คลิป** (`06:30, 08:15, 10:00, 11:45, 13:30, 15:15, 18:45, 20:30, 22:15`)
+       - **29 พ.ย. 2026:** **6 คลิป** (`06:30, 08:15, 10:00, 11:45, 13:30, 15:15`) — ค้างในคิว `planned` อีก 3 คลิป (`18:45, 20:30, 22:15`)
+       - **30 พ.ย. 2026:** **6 คลิป** (`08:15, 10:00, 11:45, 13:30, 15:15, 18:45`) — ค้างในคิว `planned` อีก 3 คลิป
+  4. **สต็อกคงเหลือ:**
+     - `planned` คงเหลือ **24 คลิป** (29 พ.ย. 3 + 30 พ.ย. 3 + 1 ธ.ค. 9 + 2 ธ.ค. 9) พร้อมดันต่อทันทีที่โควตาบน TikTok Studio ว่างลงหลังคลิปวันที่ 27 พ.ย. โพสต์ออกไป
+     - `pending_showcase`: **6 คลิป** (Redmi Buds 8 Active)
 
 ---
 

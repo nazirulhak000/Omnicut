@@ -25,4 +25,4 @@ if not defined CHROME_EXE (
 )
 
 echo [WARNING] Remote debugging on 127.0.0.1:9333 exposes this logged-in TikTok profile to local processes on this machine. Close the browser when finished.
-start "" "%CHROME_EXE%" --remote-debugging-address=127.0.0.1 --remote-debugging-port=9333 --user-data-dir="%CD%\tools\tiktok_browser_profile" --no-first-run "https://www.tiktok.com/login?redirect_url=https%%3A%%2F%%2Fwww.tiktok.com%%2Ftiktokstudio%%2Fupload"
+start "" "%CHROME_EXE%" --remote-debugging-address=127.0.0.1 --remote-debugging-port=9333 --user-data-dir="%CD%\tools\tiktok_browser_profile" --no-first-run "https://www.tiktok.com/tiktokstudio/upload"
