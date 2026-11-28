@@ -3,7 +3,7 @@ import { ModalLayer } from './ui/ModalLayer';
 import {
   Rocket, Sparkles, FolderDown, Settings, Layers,
   Smartphone, Maximize, Minimize, X, Copy, Check, Wifi, Scissors,
-  Palette, MoreHorizontal, BarChart3, ChevronRight, LogOut
+  Palette, MoreHorizontal, BarChart3, ChevronRight, LogOut, CalendarDays
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { ChannelSelector } from '../context/ChannelContext.jsx';
@@ -14,15 +14,16 @@ function isLocalHostname(hostname) {
   return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname === '[::1]';
 }
 
-// ── Desktop Navigation Items (7 items) ──
+// ── Desktop Navigation Items (8 items) ──
 const DESKTOP_NAV_ITEMS = [
-  { id: 'flow',      icon: Rocket,     label: '1. สินค้า → คลิป',     shortLabel: 'สินค้า' },
-  { id: 'tracker',   icon: Layers,     label: '2. แทร็กเกอร์ 4 เฟส',    shortLabel: 'Tracker' },
-  { id: 'editor',    icon: Scissors,   label: '3. ตัดต่อ & สร้างคลิป', shortLabel: 'Editor' },
-  { id: 'gallery',   icon: FolderDown, label: '4. Export Gallery',    shortLabel: 'Gallery' },
-  { id: 'assets',    icon: Palette,    label: '5. Media Assets Hub',   shortLabel: 'Assets' },
-  { id: 'analytics', icon: BarChart3,  label: '6. สถิติ & วิเคราะห์รวม', shortLabel: 'สถิติ' },
-  { id: 'settings',  icon: Settings,   label: '7. ตั้งค่าระบบ',        shortLabel: 'Settings' },
+  { id: 'flow',      icon: Rocket,       label: '1. สินค้า → คลิป',      shortLabel: 'สินค้า' },
+  { id: 'tracker',   icon: Layers,       label: '2. แทร็กเกอร์ 4 เฟส',     shortLabel: 'Tracker' },
+  { id: 'schedule',  icon: CalendarDays, label: '3. คิวโพสต์รายวัน',       shortLabel: 'คิวโพสต์' },
+  { id: 'editor',    icon: Scissors,     label: '4. ตัดต่อ & สร้างคลิป',  shortLabel: 'Editor' },
+  { id: 'gallery',   icon: FolderDown,   label: '5. Export Gallery',     shortLabel: 'Gallery' },
+  { id: 'assets',    icon: Palette,      label: '6. Media Assets Hub',    shortLabel: 'Assets' },
+  { id: 'analytics', icon: BarChart3,    label: '7. สถิติ & วิเคราะห์รวม', shortLabel: 'สถิติ' },
+  { id: 'settings',  icon: Settings,     label: '8. ตั้งค่าระบบ',         shortLabel: 'Settings' },
 ];
 
 // ── Mobile Primary Tabs (4 items + 1 'More' button) ──
@@ -182,7 +183,7 @@ export default function Sidebar({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const isMoreActive = activeTab === 'assets' || activeTab === 'analytics' || activeTab === 'settings' || activeTab === 'dashboard';
+  const isMoreActive = activeTab === 'schedule' || activeTab === 'assets' || activeTab === 'analytics' || activeTab === 'settings' || activeTab === 'dashboard';
   const desktopTooltipClass = `absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1 rounded-lg bg-[#1B1D22] border border-[#2B2E36] text-xs font-semibold text-[#F4F4F5] whitespace-nowrap opacity-0 scale-95 -translate-x-1 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:translate-x-0 origin-left transition-[opacity,transform,translate,scale] ease-out z-50 ${
     navTooltipWarm ? 'delay-0 duration-0' : 'duration-150 delay-75 group-hover:delay-150'
   }`;
@@ -374,6 +375,30 @@ export default function Sidebar({
 
             {/* Menu List */}
             <div className="space-y-2">
+              {/* Option 0: Daily Queue Board */}
+              <button
+                onClick={() => {
+                  setActiveTab('schedule');
+                  closeMoreDrawer();
+                }}
+                className={`w-full flex items-center justify-between min-h-11 p-3.5 rounded-2xl border active:scale-[0.98] motion-press active:duration-100 cursor-pointer ${
+                  activeTab === 'schedule'
+                    ? 'bg-[#25F4EE]/10 border-[#25F4EE]/40 text-[#25F4EE]'
+                    : 'bg-white/[0.03] border-white/[0.06] text-slate-200 hover:bg-white/[0.06]'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-300">
+                    <CalendarDays className="w-4 h-4" />
+                  </div>
+                  <div className="text-left">
+                    <div className="text-sm font-bold text-white">คิวโพสต์รายวัน</div>
+                    <div className="text-xs text-slate-400">บอร์ดคิวรายวันและ Auto-Post แบบ Hybrid</div>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-500" />
+              </button>
+
               {/* Option 1: Media Assets Hub */}
               <button
                 onClick={() => {

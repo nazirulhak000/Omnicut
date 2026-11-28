@@ -100,6 +100,8 @@ const ProductToClip = lazyWithRetry(() => import('./components/ProductToClip'), 
 
 const ContentTrackerHub = lazyWithRetry(() => import('./components/ContentTrackerHub'), 'ContentTrackerHub');
 
+const ScheduleAgenda = lazyWithRetry(() => import('./components/ScheduleAgenda'), 'ScheduleAgenda');
+
 const EditorShell = lazyWithRetry(() => import('./components/editor/EditorShell'), 'EditorShell');
 
 const ExportGallery = lazyWithRetry(() => import('./components/ExportGallery'), 'ExportGallery');
@@ -1386,6 +1388,36 @@ export default function App() {
                       selectedProductId={selectedProductIdForTracker}
 
                     />
+
+                  </Suspense>
+
+                )}
+
+                {/* SECTION: คิวโพสต์รายวัน (Menu 3) */}
+
+                {activeTab === 'schedule' && (
+
+                  <Suspense fallback={<LoadingSpinner message="กำลังโหลดคิวโพสต์รายวัน..." />}>
+
+                    <div className="space-y-4">
+
+                      <ScheduleAgenda
+
+                        standalone={true}
+
+                        readyClips={[]}
+
+                        showToast={(msg, tone) => {
+
+                          setGlobalToast(tone === 'error' ? `ผิดพลาด: ${msg}` : msg);
+
+                          setTimeout(() => setGlobalToast(null), 3500);
+
+                        }}
+
+                      />
+
+                    </div>
 
                   </Suspense>
 

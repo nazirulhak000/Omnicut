@@ -18,7 +18,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import json
 import re
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, ConfigDict, Field
@@ -959,3 +959,136 @@ def reconcile_job(req: OutcomeRequest, scope: ChannelScope = Depends(get_workflo
     # Reconciliation only records an already-attempted result. It cannot
     # grant a new publish lease or return the job to the prepared queue.
     return _ack(req, scope, reconcile=True)
+
+
+class AutomationSettingsUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    channel_id: Optional[str] = None
+    enabled: Optional[bool] = None
+    mode: Optional[Literal["hybrid", "schedule", "due_now"]] = None
+    poll_interval_sec: Optional[int] = Field(default=None, ge=10, le=3600)
+    due_window_before_min: Optional[int] = Field(default=None, ge=0, le=120)
+    due_window_after_min: Optional[int] = Field(default=None, ge=1, le=240)
+
+
+class TriggerRunRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    channel_id: Optional[str] = None
+    mode: Literal["hybrid", "schedule", "due_now"] = "hybrid"
+    limit: int = Field(default=5, ge=1, le=30)
+    all_channels: bool = False
+
+
+def _sanitize_job(job: dict) -> dict:
+    return {key: value for key, value in job.items() if key != "lease_token"}
+
+
+def _target_channel_id(channel_id: Optional[str], scope: ChannelScope) -> str:
+    if channel_id:
+        from scripts.channel_store import get_default_store, is_valid_channel_id
+        if not is_valid_channel_id(channel_id):
+            raise ChannelError(422, "invalid_channel_id", "รหัสช่องไม่ถูกต้อง")
+        if channel_id != "main" and get_default_store().find(channel_id) is None:
+            raise ChannelError(404, "channel_not_found", f"ไม่พบช่อง {channel_id}")
+        return channel_id
+    return _actual_scope(scope).channel_id
+
+
+@router.get("/automation-status")
+def get_automation_status(
+    channel_id: Optional[str] = None,
+    scope: ChannelScope = Depends(get_workflow_scope),
+):
+    from scripts.autopost_scheduler import (
+        get_automation_settings_store,
+        is_conductor_running,
+        is_due_now,
+        read_conductor_state,
+    )
+    from scripts.schedule_store import ScheduleQueueStore
+
+    target_channel = _target_channel_id(channel_id, scope)
+    settings = get_automation_settings_store().get(target_channel)
+    items = ScheduleQueueStore.list_items(channel_id=target_channel)
+    now = datetime.now(PROJECT_TZ)
+    before_min = int(settings.get("due_window_before_min", 5))
+    after_min = int(settings.get("due_window_after_min", 30))
+
+    queue_counts = {
+        "planned": sum(1 for r in items if r.get("status") == "planned"),
+        "ready_for_extension": sum(1 for r in items if r.get("status") == "ready_for_extension"),
+        "scheduled_on_platform": sum(1 for r in items if r.get("status") == "scheduled_on_platform"),
+        "posted": sum(1 for r in items if r.get("status") == "posted"),
+        "failed": sum(1 for r in items if r.get("status") == "failed"),
+        "due_now_count": sum(
+            1 for r in items if is_due_now(r, now=now, before_min=before_min, after_min=after_min)
+        ),
+    }
+
+    job_rows = _jobs().table.scoped_load(target_channel)
+    active_jobs = [
+        _sanitize_job(r) for r in job_rows if r.get("status") in {"prepared", "claimed", "publishing"}
+    ]
+    recent_jobs = [
+        _sanitize_job(r)
+        for r in sorted(
+            job_rows,
+            key=lambda r: (str(r.get("updated_at") or ""), str(r.get("created_at") or "")),
+            reverse=True,
+        )[:10]
+    ]
+
+    conductor_state = read_conductor_state(BASE_DIR)
+    running, running_pid = is_conductor_running(BASE_DIR)
+    if conductor_state is not None:
+        conductor_state = {**conductor_state, "running": running, "pid": running_pid or conductor_state.get("pid")}
+
+    return {
+        "channel_id": target_channel,
+        "queue_counts": queue_counts,
+        "active_jobs": active_jobs,
+        "recent_jobs": recent_jobs,
+        "conductor_state": conductor_state,
+        "automation_settings": settings,
+    }
+
+
+@router.get("/automation-settings")
+def get_automation_settings(
+    channel_id: Optional[str] = None,
+    scope: ChannelScope = Depends(get_workflow_scope),
+):
+    from scripts.autopost_scheduler import get_automation_settings_store
+
+    target_channel = _target_channel_id(channel_id, scope)
+    return get_automation_settings_store().get(target_channel)
+
+
+@router.put("/automation-settings")
+def update_automation_settings(
+    req: AutomationSettingsUpdate,
+    channel_id: Optional[str] = None,
+    scope: ChannelScope = Depends(get_workflow_scope),
+):
+    from scripts.autopost_scheduler import get_automation_settings_store
+
+    target_channel = _target_channel_id(req.channel_id or channel_id, scope)
+    patch = req.model_dump(exclude_none=True, exclude={"channel_id"})
+    return get_automation_settings_store().put(target_channel, patch)
+
+
+@router.post("/trigger-run")
+def trigger_conductor_run(
+    req: TriggerRunRequest,
+    scope: ChannelScope = Depends(get_workflow_scope),
+):
+    from scripts.autopost_scheduler import spawn_conductor
+
+    target_channel = _target_channel_id(req.channel_id, scope)
+    return spawn_conductor(
+        mode=req.mode,
+        channel_id=target_channel,
+        limit=req.limit,
+        all_channels=req.all_channels,
+        root=BASE_DIR,
+    )

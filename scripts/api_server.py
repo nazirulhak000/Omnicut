@@ -207,9 +207,13 @@ async def lifespan(_app: FastAPI):
     """Run durable worker recovery at server startup, never at module import."""
 
     _app.state.startup_recovery = recover_startup_work()
+    from scripts.autopost_scheduler import get_autopost_scheduler
+    scheduler = get_autopost_scheduler()
+    await scheduler.start()
     try:
         yield
     finally:
+        await scheduler.stop()
         await mobile_bridge_manager.stop()
 
 

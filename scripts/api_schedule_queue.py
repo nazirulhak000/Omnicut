@@ -1847,10 +1847,19 @@ def remove_queue(item_id: str, scope: ChannelScope = Depends(get_channel_scope))
     return {"success": True, "id": item_id}
 
 
+class QueuePrepareRequest(BaseModel):
+    intent: Literal["schedule", "draft", "post_now"] = "schedule"
+
+
 @router.post("/{item_id}/prepare")
-def prepare_queue_item(item_id: str, scope: ChannelScope = Depends(get_channel_scope)):
+def prepare_queue_item(
+    item_id: str,
+    body: Optional[QueuePrepareRequest] = None,
+    scope: ChannelScope = Depends(get_channel_scope),
+):
     channel_id = _channel_of(scope)
     _guard_new_work(scope)
+    intent = body.intent if body is not None else "schedule"
     # `prepare()` (scripts/api_tiktok_autopost.py) reads/writes ExportRegistry
     # live -- ExportRegistry shares this process's one store.db connection
     # (scripts/db.py) with ScheduleQueueStore, so calling it from inside an
@@ -1871,7 +1880,13 @@ def prepare_queue_item(item_id: str, scope: ChannelScope = Depends(get_channel_s
         raise _item_not_found(item_id)
     if item.get("status") not in {"planned", "failed"}:
         raise HTTPException(status_code=409, detail="รายการนี้ถูกส่งให้ Extension แล้วหรือโพสต์ไปแล้ว")
-    when = parse_scheduled_at(item["scheduled_at"])
+    schedule_date = None
+    schedule_time = None
+    if intent == "schedule":
+        when = parse_scheduled_at(item["scheduled_at"])
+        schedule_date = when.strftime("%Y-%m-%d")
+        schedule_time = when.strftime("%H:%M")
+    idem_suffix = "" if intent == "schedule" else f":{intent}"
     prepared = prepare(PrepareRequest(
         video_path=item["video_path"],
         cover_path=item.get("cover_path"),
@@ -1881,11 +1896,12 @@ def prepare_queue_item(item_id: str, scope: ChannelScope = Depends(get_channel_s
         angle_id=item.get("angle_id"),
         export_id=item.get("export_id"),
         queue_id=item_id,
-        idempotency_key=f"queue:{item_id}:{item.get('updated_at', '')}",
+        idempotency_key=f"queue:{item_id}:{item.get('updated_at', '')}{idem_suffix}",
         tiktok_product_id=item.get("tiktok_product_id"),
         product_name=item.get("product_name"),
-        schedule_date=when.strftime("%Y-%m-%d"),
-        schedule_time=when.strftime("%H:%M"),
+        schedule_date=schedule_date,
+        schedule_time=schedule_time,
+        intent=intent,
     ), scope=scope)
 
     def mark_ready(row: Dict[str, Any], _records: List[Dict[str, Any]]) -> None:

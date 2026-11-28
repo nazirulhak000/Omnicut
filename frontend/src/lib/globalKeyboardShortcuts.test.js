@@ -188,7 +188,7 @@ test('Escape, ?, and number tabs keep working on every tab', () => {
     handler(fakeEvent({ key: '4', code: 'Digit4' }));
     assert.equal(calls.escape, 1);
     assert.equal(calls.shortcuts, 1);
-    assert.deepEqual(calls.tab, ['gallery']);
+    assert.deepEqual(calls.tab, ['editor']);
   }
 });
 

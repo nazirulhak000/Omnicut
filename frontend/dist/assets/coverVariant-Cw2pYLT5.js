@@ -1,0 +1,1 @@
+import{r as e}from"./mediaUrl-DxzBYGAr.js";function t(t={},n=`3:4`){let r={url:t.cover_3x4_url||t.media_url_3x4||e(t.cover_3x4_path),path:t.cover_3x4_path||``},i={url:t.cover_9x16_url||t.media_url||t.cover_url||e(t.cover_9x16_path||t.cover_path),path:t.cover_9x16_path||t.cover_path||``};return(n===`3:4`?[r,i]:[i,r]).find(({url:e,path:t})=>e||t)||{url:``,path:``}}export{t};

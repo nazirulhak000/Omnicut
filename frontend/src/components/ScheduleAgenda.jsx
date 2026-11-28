@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { confirmDialog } from './ui/dialogService';
-import { AlertTriangle, Archive, Calendar, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clock, Copy, GripVertical, Image as ImageIcon, Layers, List, MoreHorizontal, Plus, RefreshCw, Rocket, RotateCcw, Search, Settings2, Shuffle, Trash2 } from 'lucide-react';
+import { AlertTriangle, Archive, Calendar, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clock, Columns3, Copy, GripVertical, Image as ImageIcon, Layers, List, MoreHorizontal, Plus, RefreshCw, Rocket, RotateCcw, Search, Settings2, Shuffle, Trash2 } from 'lucide-react';
 import { Modal, Badge } from './ui';
 import PaginationControls from './PaginationControls';
 import PublicationReviewModal from './PublicationReviewModal.jsx';
+import DailyQueueBoard from './DailyQueueBoard.jsx';
 import { useChannel } from '../context/ChannelContext.jsx';
 import { commitFixPriceCaptions, commitRescheduleOverdue, previewFixPriceCaptions, resolveUnpostedQueue, commitScheduleAutofill, copyScheduleTemplate, createScheduleQueue, getScheduleQueue, getScheduleTemplate, prepareScheduleQueue, previewRescheduleOverdue, previewScheduleAutofill, removeScheduleQueue, resetScheduleTemplate, saveScheduleTemplate, updateScheduleQueue } from '../api';
 import { addDays, buildScheduleIso, dateOnly, DEFAULT_PRIMARY_TIMES, estimateQueueCoverage, groupScheduleItems, localParts, mergeScheduleDraft, nextTemplateSlotAfterLatest, parseDateOnly, pickPreparableItems, prepareAllConfirmText, prepareAllSummary, primaryTimeOptions, PROJECT_TIME_ZONE, scheduleTimeOptions, templateForWeek, toLocalDateTime, WEEKDAY_LABELS, weekStartForDate } from '../lib/scheduleQueue';
@@ -169,7 +170,7 @@ function captionFixNote(response) {
   return fixed ? ` · แก้ caption ที่ติดราคาให้ ${fixed} คลิป` : '';
 }
 
-export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpenCoverStudio, showToast }) {
+export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpenCoverStudio, showToast, standalone = false }) {
   const channel = useChannel();
   const [publicationReview, setPublicationReview] = useState(null);
   const [queue, setQueue] = useState([]);
@@ -181,7 +182,7 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
   const [bulkDraft, setBulkDraft] = useState({ ...nextSlot(), interval: 5, mode: 'daily', autoCount: 5, filterProduct: 'all' });
   const [saving, setSaving] = useState(false);
   const [draggedId, setDraggedId] = useState(null);
-  const [viewMode, setViewMode] = useState('list');
+  const [viewMode, setViewMode] = useState(() => (standalone ? 'board' : 'list'));
   const [calendarWeekStart, setCalendarWeekStart] = useState(() => weekStartForDate(dateOnly()));
   const timeOptions = useMemo(() => scheduleTimeOptions(), []);
   const currentTemplateWeek = useMemo(() => weekStartForDate(dateOnly()), []);
@@ -266,22 +267,26 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
     reset: value => { setRequeueDraft({ date: value.date, time: value.time }); setRequeueOpen(false); },
   });
 
-  const loadQueue = async () => {
-    setLoading(true);
+  const loadQueue = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setLoading(true);
     try {
       const response = await getScheduleQueue();
       setQueue(response.items || []);
-      setSelectedIds(new Set());
-      scheduleDrafts.current.clear();
-      scheduleRequestIds.current.clear();
+      if (!silent) {
+        setSelectedIds(new Set());
+        scheduleDrafts.current.clear();
+        scheduleRequestIds.current.clear();
+      }
     } catch (error) {
-      showToast?.(`โหลดคิวไม่สำเร็จ: ${error.response?.data?.detail || error.message}`, 'error');
+      if (!silent) {
+        showToast?.(`โหลดคิวไม่สำเร็จ: ${error.response?.data?.detail || error.message}`, 'error');
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  };
+  }, [showToast]);
 
-  useEffect(() => { loadQueue(); }, []);
+  useEffect(() => { loadQueue(); }, [channelKey]);
   useEffect(() => {
     let cancelled = false;
     getScheduleTemplate(currentTemplateWeek)
@@ -751,11 +756,15 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
     setBulkRemoving(false);
   };
 
-  const prepareItem = async (item) => {
+  const prepareItem = async (item, options = {}) => {
     try {
-      const updated = await prepareScheduleQueue(item.id);
+      const updated = await prepareScheduleQueue(item.id, options);
       setQueue((prev) => prev.map((row) => row.id === item.id ? updated : row));
-      showToast?.('ส่งคลิปนี้ให้ Extension แล้ว เปิด Extension เพื่อทำ checklist ต่อ');
+      showToast?.(
+        options?.intent === 'post_now'
+          ? 'ส่งคิวแบบโพสต์ทันทีแล้ว'
+          : 'ส่งคลิปนี้ให้ Extension แล้ว เปิด Extension เพื่อทำ checklist ต่อ',
+      );
     } catch (error) { showToast?.(error.response?.data?.detail || error.message, 'error'); }
   };
 
@@ -1137,6 +1146,16 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
               <div className="flex items-center rounded-xl bg-white/[0.04] p-1 border border-white/[0.08] mr-1">
                 <button
                   type="button"
+                  onClick={() => setViewMode('board')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 ${
+                    viewMode === 'board' ? 'bg-cyan-400 text-slate-950 shadow-md font-black' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Columns3 className="w-3.5 h-3.5" />
+                  บอร์ดรายวัน
+                </button>
+                <button
+                  type="button"
                   onClick={() => setViewMode('list')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 ${
                     viewMode === 'list' ? 'bg-cyan-400 text-slate-950 shadow-md font-black' : 'text-slate-400 hover:text-white'
@@ -1305,7 +1324,19 @@ export default function ScheduleAgenda({ readyClips = [], onPreviewVideo, onOpen
           )}
         </div>
 
-        {loading ? <div className="p-10 text-center text-sm text-slate-500">กำลังโหลดคิวโพสต์...</div> : viewMode === 'calendar' ? (
+        {viewMode === 'board' ? (
+          <div className="p-4 sm:p-5">
+            <DailyQueueBoard
+              queue={filteredActiveQueue.concat(postedQueue)}
+              loading={loading}
+              onRefreshQueue={loadQueue}
+              onPrepareItem={prepareItem}
+              onRescheduleDate={reschedule}
+              onUpdateTime={reschedule}
+              showToast={showToast}
+            />
+          </div>
+        ) : loading ? <div className="p-10 text-center text-sm text-slate-500">กำลังโหลดคิวโพสต์...</div> : viewMode === 'calendar' ? (
           <div className="space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3 border-b border-white/[0.06] bg-black/25">
               <div className="flex items-center gap-2">

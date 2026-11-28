@@ -161,9 +161,9 @@ export const SHORTCUT_GROUPS = Object.freeze([
     shortcuts: [
       { keys: '1', desc: '1. สินค้า → คลิป' },
       { keys: '2', desc: '2. แทร็กเกอร์ 4 เฟส' },
-      { keys: '3', desc: '3. ตัดต่อ & สร้างคลิป' },
-      { keys: '4', desc: '4. Export Gallery' },
-      { keys: '5', desc: '5. Media Assets Hub' },
+      { keys: '3', desc: '3. คิวโพสต์รายวัน' },
+      { keys: '4', desc: '4. ตัดต่อ & สร้างคลิป' },
+      { keys: '5', desc: '5. Export Gallery' },
     ],
   },
   {

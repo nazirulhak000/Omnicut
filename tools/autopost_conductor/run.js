@@ -9,9 +9,38 @@ const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { createChromeShim } = require('./chrome_shim');
 const { loadWorker } = require('./host');
-const { createApi, readApiKey, ROOT } = require('./api');
-const { pickClips, runBatch, rowMatchesClip } = require('./conductor');
+const { createApi, readApiKey, listChannels, ROOT } = require('./api');
+const { pickClips, runBatch, runHybridBatch, rowMatchesClip } = require('./conductor');
 const { acquireProcessLock } = require('./process_lock');
+
+const STATE_FILE = path.join(__dirname, 'state.json');
+
+function writeStateAtomic(stateFile, patch) {
+  let prev = {};
+  try {
+    prev = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+    if (!prev || typeof prev !== 'object') prev = {};
+  } catch (_) {}
+  const next = {
+    running: false,
+    pid: null,
+    mode: null,
+    channel_id: null,
+    current_queue_id: null,
+    last_run_at: null,
+    last_finished_at: null,
+    last_result: null,
+    last_error: null,
+    chrome_cdp_ok: false,
+    ...prev,
+    ...patch,
+  };
+  fs.mkdirSync(path.dirname(stateFile), { recursive: true });
+  const tmp = `${stateFile}.tmp.${process.pid}`;
+  fs.writeFileSync(tmp, JSON.stringify(next, null, 2));
+  fs.renameSync(tmp, stateFile);
+  return next;
+}
 
 const MIN_WIDTH = 1280;
 const MIN_HEIGHT = 650;
@@ -20,13 +49,14 @@ const CHROME_EXE = process.env.OMNICUT_CHROME || 'C:\\Program Files\\Google\\Chr
 const PROFILE_DIR = path.join(ROOT, 'tools', 'tiktok_browser_profile');
 
 function parseArgs(argv) {
-  const args = { channel: 'main', limit: 10, port: 9333, dryRun: false, health: false, noLaunch: false, queueId: null, coverFallback: false, viewport: null, net: null, clipBudgetMin: require('../../tiktok_autopost_extension/limits.js').CLIP_BUDGET_MIN, mode: 'schedule' };
+  const args = { channel: 'main', allChannels: false, limit: 10, port: 9333, dryRun: false, health: false, noLaunch: false, queueId: null, coverFallback: false, viewport: null, net: null, clipBudgetMin: require('../../tiktok_autopost_extension/limits.js').CLIP_BUDGET_MIN, mode: 'schedule' };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === '--dry-run') args.dryRun = true;
     else if (a === '--health') args.health = true;
     else if (a === '--no-launch') args.noLaunch = true;
     else if (a === '--cover-fallback') args.coverFallback = true;
+    else if (a === '--all-channels') args.allChannels = true;
     else if (a === '--mode') args.mode = argv[++i];
     else if (a === '--viewport') args.viewport = argv[++i];
     else if (a === '--net') args.net = argv[++i];
@@ -38,7 +68,7 @@ function parseArgs(argv) {
     else throw new Error(`unknown argument: ${a}`);
   }
   if (!Number.isInteger(args.limit) || args.limit < 1) throw new Error('--limit ต้องเป็นจำนวนเต็ม >= 1');
-  if (!['schedule', 'draft'].includes(args.mode)) throw new Error('--mode ต้องเป็น schedule | draft');
+  if (!['schedule', 'draft', 'due_now', 'hybrid'].includes(args.mode)) throw new Error('--mode ต้องเป็น schedule | draft | due_now | hybrid');
   if (args.viewport && !/^\d{3,4}x\d{3,4}$/.test(args.viewport)) throw new Error('--viewport ต้องเป็นรูปแบบ 1366x768');
   if (args.net && !['slow', 'blip', 'offline'].includes(args.net)) throw new Error('--net ต้องเป็น slow | blip | offline');
   if (!(args.clipBudgetMin > 0)) throw new Error('--clip-budget-min ต้องมากกว่า 0');
@@ -145,6 +175,22 @@ async function main() {
   }
   const stopAwake = keepAwake();
   const holds = []; // network / viewport emulation sessions: must be released or the process never exits
+  const updateState = patch => writeStateAtomic(STATE_FILE, patch);
+  let lastResult = null;
+  let lastError = null;
+  let cdpOk = false;
+  if (!args.health) {
+    updateState({
+      running: true,
+      pid: process.pid,
+      mode: args.mode,
+      channel_id: args.allChannels ? null : args.channel,
+      current_queue_id: null,
+      last_run_at: new Date().toISOString(),
+      last_error: null,
+      chrome_cdp_ok: false,
+    });
+  }
   try {
     log('info', `Chrome: ${await ensureChrome(args)}`);
     const shim = createChromeShim({
@@ -161,6 +207,8 @@ async function main() {
     };
     let { tab, checks } = await checkStudioReady(shim, worker);
     const healthy = checks.login && checks.file_input;
+    cdpOk = healthy;
+    if (!args.health) updateState({ chrome_cdp_ok: healthy });
     fs.writeFileSync(path.join(ROOT, '.tmp', 'autopost_health.json'),
       JSON.stringify({ ok: healthy, checked_at: new Date().toISOString(), checks }, null, 2));
     if (!checks.login) {
@@ -172,7 +220,7 @@ async function main() {
       throw Object.assign(new Error('upload_input_missing'), { exitCode: 3, alerted: true });
     }
     log('info', 'TikTok Studio พร้อม (login แล้ว, พบ input อัปโหลดไฟล์)');
-    if (args.health) { log('info', 'health ok'); return; }
+    if (args.health) { log('info', 'health ok'); lastResult = { health: true, ok: healthy }; return; }
 
     if (args.viewport) {
       const [w, h] = args.viewport.split('x').map(Number);
@@ -211,14 +259,14 @@ async function main() {
       }
     }
 
-    const { clips, skipped } = await pickClips(api, args);
-    skipped.forEach(s => log('warn', `ข้าม ${s.title}: ${s.reason}`));
-    if (!clips.length) { log('info', 'ไม่มีคลิปพร้อมโพสต์ในคิว'); return; }
+    const channels = args.allChannels ? await listChannels(api) : [args.channel];
+    if (args.allChannels) log('info', `โหมดหลายช่อง: ${channels.join(', ')}`);
 
     let stopRequested = false;
     process.on('SIGINT', () => {
       if (stopRequested) {
         log('error', 'รับสัญญาณหยุดครั้งที่สอง — ออกทันที (คลิปที่กำลังทำอาจค้าง ตรวจที่ TikTok Studio)');
+        writeStateAtomic(STATE_FILE, { running: false, pid: null, current_queue_id: null, last_finished_at: new Date().toISOString(), last_error: 'SIGINT' });
         processLock?.release();
         process.exit(130);
       }
@@ -227,8 +275,8 @@ async function main() {
     });
     const tabId = async () => (await findStudioTab(shim))?.id ?? tab.id;
     const shot = async label => shim.screenshot(await tabId(), path.join(runDir, `${label}.png`)).catch(e => log('warn', `screenshot: ${e.message}`));
-    const deps = {
-      worker, api, log, sleep, recover,
+    const makeDeps = channelApi => ({
+      worker, api: channelApi, log, sleep, recover,
       // Live TikTok quota (scheduled posts / drafts, 30 each): runBatch never plans more than what is left.
       quota: () => worker.send('detect-tiktok-quota', { allowNavigate: true }),
       // Chrome crashed / was closed / its tab hung between clips: relaunch, re-check login, redo viewport.
@@ -285,16 +333,94 @@ async function main() {
           fs.writeFileSync(path.join(dir, `${label}.html`), html);
         }
       },
+    });
+
+    const channelSummaries = [];
+    for (const channelId of channels) {
+      if (stopRequested) break;
+      updateState({ channel_id: channelId, current_queue_id: null });
+      if (channels.length > 1) log('info', `=== ช่อง: ${channelId} ===`);
+      await worker.send('select-posting-channel', { channelId }).catch(() => {});
+      const channelApi = channelId === args.channel ? api : createApi({ apiKey, channelId });
+      const deps = makeDeps(channelApi);
+      const batchOpts = {
+        dryRun: args.dryRun,
+        channelId,
+        coverFallback: args.coverFallback,
+        mode: args.mode,
+        clipBudgetMs: args.clipBudgetMin * 60000,
+        shouldStop: () => stopRequested,
+        onClipStart: clip => updateState({ channel_id: channelId, current_queue_id: clip.queue_id || clip.id }),
+        onClipEnd: () => updateState({ current_queue_id: null }),
+      };
+      let summary;
+      if (args.mode === 'hybrid') {
+        summary = await runHybridBatch(deps, {
+          ...batchOpts,
+          queueId: args.queueId,
+          limit: args.limit,
+          onPickedSkipped: (phase, skipped) => skipped.forEach(s => log('warn', `ข้าม [${phase}] ${s.title}: ${s.reason}`)),
+        });
+      } else {
+        const { clips, skipped } = await pickClips(channelApi, { queueId: args.queueId, limit: args.limit, dryRun: args.dryRun, mode: args.mode });
+        skipped.forEach(s => log('warn', `ข้าม ${s.title}: ${s.reason}`));
+        if (!clips.length) {
+          log('info', `[${channelId}] ไม่มีคลิปพร้อมโพสต์ในคิว`);
+          summary = { total: 0, aborted: null, mode: args.mode, quota: null, posted: 0, scheduled: 0, drafted: 0, unknown: 0, skipped: 0, failed: 0, dry_run_ok: 0, results: [] };
+        } else {
+          summary = await runBatch(deps, { ...batchOpts, clips });
+        }
+      }
+      channelSummaries.push({ channel_id: channelId, ...summary });
+      if (summary.aborted && (/^fatal@|stopped_by_user/.test(summary.aborted))) break;
+    }
+
+    const combined = channelSummaries.length === 1 ? channelSummaries[0] : {
+      total: channelSummaries.reduce((s, c) => s + c.total, 0),
+      aborted: channelSummaries.map(c => c.aborted).find(Boolean) || null,
+      mode: args.mode,
+      channels: channelSummaries,
+      posted: channelSummaries.reduce((s, c) => s + c.posted, 0),
+      scheduled: channelSummaries.reduce((s, c) => s + c.scheduled, 0),
+      drafted: channelSummaries.reduce((s, c) => s + c.drafted, 0),
+      unknown: channelSummaries.reduce((s, c) => s + c.unknown, 0),
+      skipped: channelSummaries.reduce((s, c) => s + c.skipped, 0),
+      failed: channelSummaries.reduce((s, c) => s + c.failed, 0),
+      dry_run_ok: channelSummaries.reduce((s, c) => s + c.dry_run_ok, 0),
+      results: channelSummaries.flatMap(c => c.results),
     };
-    const summary = await runBatch(deps, { clips, dryRun: args.dryRun, channelId: args.channel, coverFallback: args.coverFallback, mode: args.mode, clipBudgetMs: args.clipBudgetMin * 60000, shouldStop: () => stopRequested });
-    fs.writeFileSync(path.join(runDir, 'summary.json'), JSON.stringify(summary, null, 2));
-    log('info', `สรุป: โพสต์ ${summary.posted} · ตั้งเวลา ${summary.scheduled} · แบบร่าง ${summary.drafted} · dry-run ${summary.dry_run_ok} · ข้าม ${summary.skipped} · ล้ม ${summary.failed} · ไม่ชัด ${summary.unknown}`);
-    if (summary.aborted) { alert(summary.aborted); process.exitCode = 2; }
-    else if (summary.failed || summary.unknown) process.exitCode = 1;
+    lastResult = {
+      mode: combined.mode,
+      total: combined.total,
+      posted: combined.posted,
+      scheduled: combined.scheduled,
+      drafted: combined.drafted,
+      dry_run_ok: combined.dry_run_ok,
+      skipped: combined.skipped,
+      failed: combined.failed,
+      unknown: combined.unknown,
+      aborted: combined.aborted,
+    };
+    fs.writeFileSync(path.join(runDir, 'summary.json'), JSON.stringify(combined, null, 2));
+    log('info', `สรุป: โพสต์ ${combined.posted} · ตั้งเวลา ${combined.scheduled} · แบบร่าง ${combined.drafted} · dry-run ${combined.dry_run_ok} · ข้าม ${combined.skipped} · ล้ม ${combined.failed} · ไม่ชัด ${combined.unknown}`);
+    if (combined.aborted) { alert(combined.aborted); lastError = combined.aborted; process.exitCode = 2; }
+    else if (combined.failed || combined.unknown) process.exitCode = 1;
   } catch (error) {
+    lastError = error.message;
     if (!error.alerted) alert(error.message);
     process.exitCode = error.exitCode || 2;
   } finally {
+    if (!args.health) {
+      updateState({
+        running: false,
+        pid: null,
+        current_queue_id: null,
+        last_finished_at: new Date().toISOString(),
+        last_result: lastResult,
+        last_error: lastError,
+        chrome_cdp_ok: cdpOk,
+      });
+    }
     for (const hold of holds) await hold.release().catch(() => {});
     stopAwake();
     processLock?.release();
@@ -308,4 +434,4 @@ if (require.main === module) {
     .finally(() => setTimeout(() => process.exit(process.exitCode || 0), 300));
 }
 
-module.exports = { parseArgs };
+module.exports = { parseArgs, writeStateAtomic, STATE_FILE };

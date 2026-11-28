@@ -98,11 +98,11 @@ export function createGlobalKeyDownHandler({
 
     // 5. Number keys 1..6 for Quick Tab Navigation
     const tabMap = {
-      '1': 'flow',     // 1. สินค้า ➔ คลิป
-      '2': 'tracker',  // 2. แทร็กเกอร์ 5 เฟส
-      '3': 'editor',   // 3. ตัดต่อ & สร้างคลิป (เดิม Studio ถูกยุบเข้ามาที่นี่)
-      '4': 'gallery',  // 4. Export Gallery
-      '5': 'assets'    // 5. Assets & System
+      '1': 'flow',     // 1. สินค้า → คลิป
+      '2': 'tracker',  // 2. แทร็กเกอร์ 4 เฟส
+      '3': 'schedule', // 3. คิวโพสต์รายวัน
+      '4': 'editor',   // 4. ตัดต่อ & สร้างคลิป
+      '5': 'gallery',  // 5. Export Gallery
     };
 
     if (tabMap[e.key]) {

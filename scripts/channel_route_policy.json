@@ -3515,6 +3515,46 @@
       "module": "scripts.api_tiktok_autopost"
     },
     {
+      "method": "GET",
+      "path": "/api/tiktok-autopost/automation-status",
+      "scope": "channel",
+      "allow_query_scope": false,
+      "access": "read",
+      "risk": "minor",
+      "resource_params": [],
+      "module": "scripts.api_tiktok_autopost"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tiktok-autopost/automation-settings",
+      "scope": "channel",
+      "allow_query_scope": false,
+      "access": "read",
+      "risk": "minor",
+      "resource_params": [],
+      "module": "scripts.api_tiktok_autopost"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/tiktok-autopost/automation-settings",
+      "scope": "channel",
+      "allow_query_scope": false,
+      "access": "write",
+      "risk": "major",
+      "resource_params": [],
+      "module": "scripts.api_tiktok_autopost"
+    },
+    {
+      "method": "POST",
+      "path": "/api/tiktok-autopost/trigger-run",
+      "scope": "channel",
+      "allow_query_scope": false,
+      "access": "write",
+      "risk": "major",
+      "resource_params": [],
+      "module": "scripts.api_tiktok_autopost"
+    },
+    {
       "method": "POST",
       "path": "/api/tiktok-stats/attach",
       "scope": "channel",

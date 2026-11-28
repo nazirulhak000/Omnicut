@@ -33,4 +33,15 @@ function createApi({ base = 'http://127.0.0.1:8000', apiKey = '', channelId = 'm
   return { get: route => call('GET', route), post: (route, body) => call('POST', route, body) };
 }
 
-module.exports = { readApiKey, createApi, ROOT };
+async function listChannels(api) {
+  const res = await api.get('/api/channels');
+  if (!res?.ok) return ['main'];
+  const raw = Array.isArray(res.data) ? res.data : (res.data?.channels || res.data?.items || []);
+  const ids = raw
+    .filter(c => c && c.enabled !== false && c.is_active !== false)
+    .map(c => (typeof c === 'string' ? c : (c.id || c.channel_id)))
+    .filter(Boolean);
+  return ids.length ? [...new Set(ids)] : ['main'];
+}
+
+module.exports = { readApiKey, createApi, listChannels, ROOT };

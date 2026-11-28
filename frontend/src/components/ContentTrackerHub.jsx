@@ -10,7 +10,7 @@ import {
   ExternalLink, ChevronRight, ChevronLeft, Filter, AlertCircle,
   Video, Eye, TrendingUp, Plus, X, FileText, Scissors,
   FolderDown, Info, Film, RotateCcw, MoreHorizontal, ShieldAlert, AlertTriangle,
-  Calendar, Sun, Moon, Sunrise, Sunset, Shuffle, ChevronDown, ChevronUp,
+  Sun, Moon, Sunrise, Sunset, Shuffle, ChevronDown, ChevronUp,
   Archive, Image as ImageIcon
 } from 'lucide-react';
 import {
@@ -19,7 +19,6 @@ import {
 } from '../api';
 import CoverStudioModal from './CoverStudioModal';
 import ShotListModal from './ShotListModal';
-import ScheduleAgenda from './ScheduleAgenda';
 import { Modal, Toast, Button, Badge, Input, Textarea, PageHeader } from './ui';
 import { useDebounce, useToast } from '../hooks';
 import { guessBrandModel } from '../lib/overlayModel';
@@ -1114,7 +1113,8 @@ export default function ContentTrackerHub({
   const [activePhase, setActivePhase] = useState('all'); // 'all' | 'scripted' | 'in_production' | ...
   const [viewMode, setViewMode] = useState(() => {
     try {
-      return localStorage.getItem('omnicut_tracker_view_mode') || localStorage.getItem('capcut_tracker_view_mode') || 'kanban';
+      const saved = localStorage.getItem('omnicut_tracker_view_mode') || localStorage.getItem('capcut_tracker_view_mode');
+      return saved === 'table' ? 'table' : 'kanban';
     } catch {
       return 'kanban';
     }
@@ -2872,19 +2872,6 @@ export default function ContentTrackerHub({
               </button>
               <button
                 type="button"
-                onClick={() => handleSwitchViewMode('schedule')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
-                  viewMode === 'schedule'
-                    ? 'bg-white/[0.1] text-white border border-white/20 shadow-sm'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-                title="ตารางจัดคิวโพสต์ประจำวัน (Daily Run Sheet)"
-              >
-                <Calendar className="w-3.5 h-3.5" />
-                <span>คิวประจำวัน</span>
-              </button>
-              <button
-                type="button"
                 onClick={() => handleSwitchViewMode('table')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold motion-press active:duration-100 active:scale-[0.97] disabled:active:scale-100 cursor-pointer ${
                   viewMode === 'table'
@@ -3396,18 +3383,6 @@ export default function ContentTrackerHub({
             })}
           </div>
         </div>
-      )}
-
-      {/* ══════════════════════════════════════════════════════════
-          4. DAILY RUN SHEET (ตารางจัดคิวโพสต์ประจำวัน 3-5 คลิป)
-         ══════════════════════════════════════════════════════════ */}
-      {viewMode === 'schedule' && (
-        <ScheduleAgenda
-          readyClips={allAnglesList.filter((a) => a.status === 'rendered' && a.video_url)}
-          onPreviewVideo={handlePreviewVideo}
-          onOpenCoverStudio={handleOpenCoverStudio}
-            showToast={showToast}
-        />
       )}
 
       {/* ══════════════════════════════════════════════════════════

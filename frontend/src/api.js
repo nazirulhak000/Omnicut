@@ -337,7 +337,23 @@ export const getScheduleQueue = (params = {}) => api.get('/schedule-queue', { pa
 export const createScheduleQueue = (payload) => api.post('/schedule-queue', payload).then(r => r.data);
 export const updateScheduleQueue = (id, payload) => api.patch(`/schedule-queue/${id}`, payload).then(r => r.data);
 export const removeScheduleQueue = (id) => api.delete(`/schedule-queue/${id}`).then(r => r.data);
-export const prepareScheduleQueue = (id) => api.post(`/schedule-queue/${id}/prepare`).then(r => r.data);
+export const prepareScheduleQueue = (id, options = {}) => {
+  const body = options && typeof options === 'object' && options.intent ? { intent: options.intent } : undefined;
+  return api.post(`/schedule-queue/${id}/prepare`, body).then(r => r.data);
+};
+export const getAutopostAutomationStatus = (channelId = null) =>
+  api.get('/tiktok-autopost/automation-status', {
+    params: channelId ? { channel_id: channelId } : {},
+  }).then(r => r.data);
+export const updateAutopostAutomationSettings = (payload = {}, channelId = null) =>
+  api.put('/tiktok-autopost/automation-settings', payload, {
+    params: channelId ? { channel_id: channelId } : {},
+  }).then(r => r.data);
+export const triggerAutopostRun = (payload = {}, channelId = null) =>
+  api.post('/tiktok-autopost/trigger-run', {
+    ...payload,
+    ...(channelId ? { channel_id: channelId } : {}),
+  }).then(r => r.data);
 export const getScheduleTemplate = (weekStart = null) => api.get('/schedule-queue/template', { params: weekStart ? { week_start: weekStart } : {} }).then(r => r.data);
 export const saveScheduleTemplate = (payload) => api.put('/schedule-queue/template', payload).then(r => r.data);
 export const copyScheduleTemplate = (payload) => api.post('/schedule-queue/template/copy', payload).then(r => r.data);

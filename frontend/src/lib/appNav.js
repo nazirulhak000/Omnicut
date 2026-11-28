@@ -14,7 +14,7 @@ export const TAB_STORAGE_KEY = 'capcut_active_tab';
 export const DEFAULT_TAB = 'flow';
 
 export const APP_TABS = Object.freeze([
-  'flow', 'tracker', 'editor', 'gallery', 'assets', 'analytics', 'settings', 'dashboard',
+  'flow', 'tracker', 'schedule', 'editor', 'gallery', 'assets', 'analytics', 'settings', 'dashboard',
 ]);
 
 // Tabs that were folded into others. Old links / stored values must land on a
