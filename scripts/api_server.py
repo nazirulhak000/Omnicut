@@ -482,9 +482,10 @@ if DIST_DIR.exists() and (DIST_DIR / "index.html").exists():
 if __name__ == "__main__":
     import uvicorn
     should_reload = os.environ.get("FASTAPI_RELOAD", "false").lower() in ("1", "true")
+    bind_port = int(os.environ.get("OMNICUT_PORT", "8000"))
     uvicorn.run(
         "scripts.api_server:app",
         host=get_bind_host(),
-        port=8000,
+        port=bind_port,
         reload=should_reload
     )

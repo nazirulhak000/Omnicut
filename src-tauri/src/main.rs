@@ -11,7 +11,7 @@ use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{Manager, RunEvent};
 
-use crate::backend::{BackendProcess, BACKEND_PORT};
+use crate::backend::BackendProcess;
 
 struct AppState {
     backend: Arc<Mutex<Option<BackendProcess>>>,
@@ -101,6 +101,7 @@ fn main() {
                 match backend::start_backend().await {
                     Ok(proc) => {
                         let api_key = proc.api_key.clone();
+                        let backend_port = proc.port;
                         {
                             let state = app_handle.state::<AppState>();
                             if let Ok(mut guard) = state.backend.lock() {
@@ -108,7 +109,7 @@ fn main() {
                             };
                         }
 
-                        let upstream = SocketAddr::from(([127, 0, 0, 1], BACKEND_PORT));
+                        let upstream = SocketAddr::from(([127, 0, 0, 1], backend_port));
                         match proxy::start_proxy(upstream, api_key).await {
                             Ok((proxy_port, handle)) => {
                                 {

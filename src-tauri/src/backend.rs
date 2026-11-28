@@ -23,6 +23,7 @@ pub const HYPERFRAMES_PORT: u16 = 3002;
 pub struct BackendProcess {
     pub child: Child,
     pub job: JobObject,
+    pub port: u16,
     pub api_key: String,
     #[allow(dead_code)]
     pub workspace_root: PathBuf,
@@ -108,16 +109,23 @@ fn is_port_listening(port: u16) -> bool {
     TcpStream::connect_timeout(&addr, Duration::from_millis(250)).is_ok()
 }
 
+fn pick_backend_port() -> Result<u16, String> {
+    if !is_port_listening(BACKEND_PORT) {
+        return Ok(BACKEND_PORT);
+    }
+    let listener = std::net::TcpListener::bind("127.0.0.1:0")
+        .map_err(|e| format!("Port {BACKEND_PORT} is busy and failed to bind fallback port: {e}"))?;
+    let port = listener
+        .local_addr()
+        .map_err(|e| format!("Failed to read fallback port: {e}"))?
+        .port();
+    drop(listener);
+    Ok(port)
+}
+
 pub async fn start_backend() -> Result<BackendProcess, String> {
     let workspace_root = discover_workspace_root()?;
-
-    // Port-ownership preflight:
-    // Refuse cleanly if an unknown process already owns :8000.
-    if is_port_listening(BACKEND_PORT) {
-        return Err(format!(
-            "Port {BACKEND_PORT} is already in use by another process. Please close the existing server before launching OmniCut Pro Studio."
-        ));
-    }
+    let port = pick_backend_port()?;
 
     // Preserve external HyperFrames preview on :3002 if already running; spawn :3002 only on-demand.
     let external_hyperframes = is_port_listening(HYPERFRAMES_PORT);
@@ -156,6 +164,7 @@ pub async fn start_backend() -> Result<BackendProcess, String> {
         .creation_flags(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP)
         .env("FASTAPI_RELOAD", "false")
         .env("OMNICUT_HOST", "127.0.0.1")
+        .env("OMNICUT_PORT", port.to_string())
         .env("OMNICUT_AUTH_DISABLED", "false")
         .env("OMNICUT_REQUIRE_AUTH", "true")
         .env("OMNICUT_API_KEY", &api_key)
@@ -172,6 +181,7 @@ pub async fn start_backend() -> Result<BackendProcess, String> {
     let mut proc = BackendProcess {
         child,
         job,
+        port,
         api_key,
         workspace_root,
         external_hyperframes,
@@ -181,8 +191,8 @@ pub async fn start_backend() -> Result<BackendProcess, String> {
     Ok(proc)
 }
 
-async fn check_health_once() -> bool {
-    let addr = SocketAddr::from(([127, 0, 0, 1], BACKEND_PORT));
+async fn check_health_once(port: u16) -> bool {
+    let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let Ok(Ok(stream)) =
         tokio::time::timeout(Duration::from_millis(500), TokioTcpStream::connect(addr)).await
     else {
@@ -201,7 +211,7 @@ async fn check_health_once() -> bool {
     let Ok(req) = Request::builder()
         .method("GET")
         .uri("/api/health")
-        .header("Host", format!("127.0.0.1:{BACKEND_PORT}"))
+        .header("Host", format!("127.0.0.1:{port}"))
         .body(Empty::<Bytes>::new())
     else {
         return false;
@@ -214,6 +224,7 @@ async fn check_health_once() -> bool {
 }
 
 async fn wait_for_health(proc: &mut BackendProcess, log_path: &Path) -> Result<(), String> {
+    let port = proc.port;
     let deadline = Instant::now() + Duration::from_secs(20);
     while Instant::now() < deadline {
         if let Ok(Some(status)) = proc.child.try_wait() {
@@ -223,7 +234,7 @@ async fn wait_for_health(proc: &mut BackendProcess, log_path: &Path) -> Result<(
             ));
         }
 
-        if check_health_once().await {
+        if check_health_once(port).await {
             return Ok(());
         }
 
@@ -232,6 +243,6 @@ async fn wait_for_health(proc: &mut BackendProcess, log_path: &Path) -> Result<(
 
     let tail = fs::read_to_string(log_path).unwrap_or_default();
     Err(format!(
-        "Timed out waiting for http://127.0.0.1:{BACKEND_PORT}/api/health after 20s. Log:\n{tail}"
+        "Timed out waiting for http://127.0.0.1:{port}/api/health after 20s. Log:\n{tail}"
     ))
 }
