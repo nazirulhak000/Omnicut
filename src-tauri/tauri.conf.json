@@ -20,7 +20,7 @@
         "minHeight": 680,
         "backgroundColor": "#0C0D10",
         "dragDropEnabled": false,
-        "visible": false,
+        "visible": true,
         "additionalBrowserArgs": "--autoplay-policy=no-user-gesture-required"
       }
     ],

@@ -19,11 +19,14 @@ struct AppState {
 }
 
 fn show_main_window(app: &tauri::AppHandle) {
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.unminimize();
-        let _ = window.show();
-        let _ = window.set_focus();
-    }
+    let app_handle = app.clone();
+    let _ = app.run_on_main_thread(move || {
+        if let Some(window) = app_handle.get_webview_window("main") {
+            let _ = window.unminimize();
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+    });
 }
 
 fn shutdown_resources(app: &tauri::AppHandle) {
@@ -104,14 +107,18 @@ fn main() {
                                     };
                                 }
 
-                                if let Some(window) = app_handle.get_webview_window("main") {
-                                    let target = format!("http://127.0.0.1:{proxy_port}/");
-                                    if let Ok(url) = target.parse() {
-                                        let _ = window.navigate(url);
+                                let nav_handle = app_handle.clone();
+                                let _ = app_handle.run_on_main_thread(move || {
+                                    if let Some(window) = nav_handle.get_webview_window("main") {
+                                        let target = format!("http://127.0.0.1:{proxy_port}/");
+                                        if let Ok(url) = target.parse() {
+                                            let _ = window.navigate(url);
+                                        }
+                                        let _ = window.unminimize();
+                                        let _ = window.show();
+                                        let _ = window.set_focus();
                                     }
-                                    let _ = window.show();
-                                    let _ = window.set_focus();
-                                }
+                                });
                             }
                             Err(err) => {
                                 eprintln!("[OmniCut Desktop] Loopback proxy failed: {err}");
