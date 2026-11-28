@@ -18,6 +18,17 @@ struct AppState {
     proxy_task: Arc<Mutex<Option<tokio::task::JoinHandle<()>>>>,
 }
 
+fn show_error_dialog(title: &str, message: &str) {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_ICONERROR, MB_OK};
+    let mut t: Vec<u16> = title.encode_utf16().collect();
+    t.push(0);
+    let mut m: Vec<u16> = message.encode_utf16().collect();
+    m.push(0);
+    unsafe {
+        MessageBoxW(std::ptr::null_mut(), m.as_ptr(), t.as_ptr(), MB_OK | MB_ICONERROR);
+    }
+}
+
 fn show_main_window(app: &tauri::AppHandle) {
     let app_handle = app.clone();
     let _ = app.run_on_main_thread(move || {
@@ -122,12 +133,14 @@ fn main() {
                             }
                             Err(err) => {
                                 eprintln!("[OmniCut Desktop] Loopback proxy failed: {err}");
+                                show_error_dialog("OmniCut Pro Studio - Startup Error", &err);
                                 app_handle.exit(1);
                             }
                         }
                     }
                     Err(err) => {
                         eprintln!("[OmniCut Desktop] Backend startup failed: {err}");
+                        show_error_dialog("OmniCut Pro Studio - Startup Error", &err);
                         app_handle.exit(1);
                     }
                 }
